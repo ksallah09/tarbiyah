@@ -17,7 +17,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { getTextModel, MODEL_FAST } from './config/gemini';
 import { supabase, verifyUserToken } from './config/supabase';
-import { seedSources, pickInsight, recordDelivery } from './data/database';
+import { seedSources, pickInsight, recordDelivery, getSourceById } from './data/database';
 import { buildDailyPayload } from './generators/insights';
 import { ExtractedContent, AppDailyPayload } from './types';
 
@@ -193,7 +193,6 @@ app.get('/daily', requireAuth, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { getSourceById } = await import('./data/database');
     const [spiritualSource, scienceSource] = await Promise.all([
       getSourceById(spiritualInsight.sourceId),
       getSourceById(scienceInsight.sourceId),
