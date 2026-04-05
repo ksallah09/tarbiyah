@@ -223,8 +223,8 @@ app.get('/daily', requireAuth, async (req: AuthRequest, res: Response) => {
 app.get('/daily/preview', async (_req: Request, res: Response) => {
   try {
     const [spiritualInsight, scienceInsight] = await Promise.all([
-      pickInsight('spiritual', 'anonymous', []),
-      pickInsight('science', 'anonymous', []),
+      pickInsight('spiritual', null, []),
+      pickInsight('science', null, []),
     ]);
 
     if (!spiritualInsight || !scienceInsight) {

@@ -252,16 +252,16 @@ export async function recordDelivery(userId: string, insightId: string): Promise
 
 export async function pickInsight(
   category: 'spiritual' | 'science',
-  userId: string,
+  userId: string | null,
   focusAreas: string[] = []
 ): Promise<InsightOutput | null> {
   const [seen, pool] = await Promise.all([
-    getDeliveredInsightIds(userId),
+    userId ? getDeliveredInsightIds(userId) : Promise.resolve([]),
     getPublishedInsightsByCategory(category, 100),
   ]);
 
   const unread = pool.filter(i => !seen.includes(i.id));
-  if (unread.length === 0) return null;
+  if (unread.length === 0) return pool[0] ?? null; // reset if all seen
 
   // Score by tag overlap with user's focus areas, fall back to most recent
   const scored = unread.map(i => ({
