@@ -6,54 +6,7 @@ export type SourceCategory = 'spiritual' | 'science';
 
 export type SourceLanguage = 'en' | 'ar' | 'bilingual';
 
-export type InsightTag =
-  // Core parenting virtues
-  | 'patience'
-  | 'discipline'
-  | 'emotional-regulation'
-  | 'mercy'
-  | 'connection'
-  | 'routines'
-  | 'dua'
-  | 'communication'
-  | 'presence'
-  | 'adab'
-  | 'screen-time'
-  | 'anger'
-  | 'gratitude'
-  | 'tarbiyah'
-  | 'character'
-  | 'knowledge'
-  | 'love'
-  | 'boundaries'
-  | 'faith'
-  | 'prayer'
-  | 'identity'
-  | 'attachment'
-  | 'play'
-  | 'kindness'
-  | 'forgiveness'
-  // Islamic / Quranic specifics
-  | 'quran'
-  | 'hifdh'
-  | 'luqman'
-  | 'ihsan'
-  | 'wisdom'
-  | 'excellence'
-  | 'surah-yusuf'
-  | 'love-of-allah'
-  | 'khutbah'
-  | 'responsibility'
-  // Family & parenting dynamics
-  | 'family-dynamics'
-  | 'marriage'
-  | 'daughters'
-  | 'equality'
-  | 'home-environment'
-  | 'influence'
-  | 'motivation'
-  | 'foundation'
-  | 'gift';
+export type InsightTag = string;
 
 export type InsightStatus = 'draft' | 'approved' | 'published';
 
