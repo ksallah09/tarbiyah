@@ -100,7 +100,8 @@ Return a JSON object with this exact structure:
   ],
   "emotionalTone": "The tone of this material — e.g. 'scholarly and grounding', 'warm and accessible', 'direct and practical'",
   "targetAudience": "Who this content addresses most directly",
-  "rawSummary": "3-4 sentence internal summary of what this source covers — processing record only, not user-facing"
+  "rawSummary": "3-4 sentence internal summary of what this source covers — processing record only, not user-facing",
+  "author": "The author or publishing organization of this document as it appears on the cover, title page, or header — e.g. 'Child Mind Institute', 'Dr. John Smith', 'American Academy of Pediatrics'. Return null if not found."
 }
 `.trim();
 

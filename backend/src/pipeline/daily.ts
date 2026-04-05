@@ -2,6 +2,7 @@ import {
   seedSources,
   getAllSources,
   getUnprocessedSources,
+  upsertSource,
   createJob,
   startJob,
   completeJob,
@@ -21,14 +22,24 @@ import { Source, InsightOutput, AppDailyPayload } from '../types';
 // ─── Pipeline Orchestration ───────────────────────────────────────────────────
 
 export async function processSingleSource(
-  source: Source,
+  sourceArg: Source,
   generateCount = 1
 ): Promise<InsightOutput[]> {
+  let source = sourceArg;
   const job = await createJob(source.id);
   await startJob(job.id);
 
   try {
     const extracted = await processSource(source);
+
+    // If the PDF extraction found an author and the source didn't have one, persist it now
+    // so the insight card shows the right name + image immediately.
+    if (extracted.extractedAuthor && !source.author) {
+      source = { ...source, author: extracted.extractedAuthor };
+      await upsertSource(source);
+      console.log(`  → Source author updated to: "${extracted.extractedAuthor}"`);
+    }
+
     await completeJob(job.id, extracted);
 
     const insights =

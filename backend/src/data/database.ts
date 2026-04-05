@@ -260,8 +260,18 @@ export async function pickInsight(
     getPublishedInsightsByCategory(category, 100),
   ]);
 
+  if (pool.length === 0) return null;
+
+  // Preview mode (no auth): rotate by day so each day shows a different insight.
+  // Spiritual and science use different offsets so they never repeat the same pair.
+  if (!userId) {
+    const dayIndex = Math.floor(Date.now() / 86_400_000);
+    const offset = category === 'spiritual' ? 0 : Math.ceil(pool.length / 2);
+    return pool[(dayIndex + offset) % pool.length];
+  }
+
   const unread = pool.filter(i => !seen.includes(i.id));
-  if (unread.length === 0) return pool[0] ?? null; // reset if all seen
+  if (unread.length === 0) return pool[0]; // reset if all seen
 
   // Score by tag overlap with user's focus areas, fall back to most recent
   const scored = unread.map(i => ({

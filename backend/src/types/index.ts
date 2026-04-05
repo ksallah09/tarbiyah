@@ -57,6 +57,7 @@ export interface ExtractedContent {
   emotionalTone: string;
   targetAudience: string;
   rawSummary: string;
+  extractedAuthor?: string; // populated by PDF processor when author is found in the document
 }
 
 // ─── Generated Insight ───────────────────────────────────────────────────────
@@ -116,6 +117,7 @@ export interface GeminiExtractionResponse {
   emotionalTone: string;
   targetAudience: string;
   rawSummary: string;
+  author?: string;
 }
 
 export interface GeminiInsightResponse {

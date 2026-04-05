@@ -168,6 +168,14 @@ async function extractFromUploadedPdf(
     );
   }
 
+  const extractedAuthor = typeof parsed.author === 'string' && parsed.author.trim()
+    ? parsed.author.trim()
+    : undefined;
+
+  if (extractedAuthor) {
+    console.log(`  → Extracted author from PDF: "${extractedAuthor}"`);
+  }
+
   return {
     coreTheme: parsed.coreTheme ?? '',
     keyInsights: Array.isArray(parsed.keyInsights) ? parsed.keyInsights : [],
@@ -180,6 +188,7 @@ async function extractFromUploadedPdf(
     emotionalTone: parsed.emotionalTone ?? 'reflective and grounding',
     targetAudience: parsed.targetAudience ?? 'Muslim parents',
     rawSummary: parsed.rawSummary ?? `Content extracted from: ${source.title}`,
+    extractedAuthor,
   };
 }
 
