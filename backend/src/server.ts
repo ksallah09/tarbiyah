@@ -218,6 +218,32 @@ app.get('/daily', requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ─── GET /daily/preview (no auth — random insight pair for unauthenticated users) ─
+
+app.get('/daily/preview', async (_req: Request, res: Response) => {
+  try {
+    const [spiritualInsight, scienceInsight] = await Promise.all([
+      pickInsight('spiritual', 'anonymous', []),
+      pickInsight('science', 'anonymous', []),
+    ]);
+
+    if (!spiritualInsight || !scienceInsight) {
+      return res.status(404).json({ error: 'Not enough published insights available.' });
+    }
+
+    const [spiritualSource, scienceSource] = await Promise.all([
+      getSourceById(spiritualInsight.sourceId),
+      getSourceById(scienceInsight.sourceId),
+    ]);
+
+    const payload = buildDailyPayload(spiritualInsight, scienceInsight, spiritualSource, scienceSource);
+    return res.json(payload);
+  } catch (err) {
+    console.error('Preview endpoint error:', err);
+    return res.status(500).json({ error: 'Failed to build daily payload.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));

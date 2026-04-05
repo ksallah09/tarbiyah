@@ -6,14 +6,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import dailyData from '../data/insights.json';
+import fallbackData from '../data/insights.json';
 import { getWeekReadDays } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
+
+const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 function WeekRow({ days, color, todayColor }) {
   return (
@@ -59,7 +62,9 @@ const ASSET_MAP = {
 };
 
 export default function HomeScreen({ navigation }) {
-  const [spirReadWeek, setSpiritualReadWeek] = useState([]);
+  const [dailyData, setDailyData]             = useState(fallbackData);
+  const [loading, setLoading]                 = useState(true);
+  const [spirReadWeek, setSpiritualReadWeek]  = useState([]);
   const [sciReadWeek,  setScientificReadWeek] = useState([]);
   const insets = useSafeAreaInsets();
 
@@ -67,7 +72,21 @@ export default function HomeScreen({ navigation }) {
     useCallback(() => {
       getWeekReadDays('spiritual').then(setSpiritualReadWeek);
       getWeekReadDays('scientific').then(setScientificReadWeek);
-      saveGoalsForDate(dailyData.date, actionGoals);
+
+      // Fetch from API, fall back to local JSON on failure
+      fetch(`${API_URL}/daily/preview`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.insights) {
+            setDailyData(data);
+            saveGoalsForDate(data.date, data.actionGoals ?? []);
+          }
+        })
+        .catch(() => {
+          // Network unavailable — keep using fallback data
+          saveGoalsForDate(fallbackData.date, fallbackData.actionGoals ?? []);
+        })
+        .finally(() => setLoading(false));
     }, [])
   );
 
@@ -103,6 +122,12 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.sectionTitleWrap}>
           <Text style={styles.sectionTitle}>TODAY'S INSIGHTS</Text>
         </View>
+        {loading && (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator size="small" color="#1B3D2F" />
+          </View>
+        )}
+
         <View style={styles.tipsRow}>
           {/* Spiritual Insight */}
           {spiritualInsight && (
@@ -315,6 +340,8 @@ const styles = StyleSheet.create({
     color: '#1B3D2F',
     letterSpacing: 0.4,
   },
+
+  loadingRow: { alignItems: 'center', marginBottom: 10 },
 
   // ── Insight cards ──
   tipsRow: {
