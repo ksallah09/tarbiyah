@@ -235,10 +235,15 @@ async function start() {
   });
 
   // Seed and warm cache in the background after startup
-  seedSources()
-    .then(() => getSystemPrompt())
-    .then(() => console.log('✓ Sources seeded and prompt cache warmed.'))
-    .catch(err => console.error('Startup initialization error:', err));
+  (async () => {
+    try {
+      await seedSources();
+      await getSystemPrompt();
+      console.log('✓ Sources seeded and prompt cache warmed.');
+    } catch (err) {
+      console.error('Startup initialization error:', err);
+    }
+  })();
 }
 
 start().catch(err => {
