@@ -1,9 +1,6 @@
 /**
  * Tarbiyah Intelligence Layer — Main Entry Point
  *
- * This is the demo/development runner. It shows how each part of
- * the pipeline works and produces app-ready output.
- *
  * Usage:
  *   npm run dev                   → Full pipeline demo
  *   npm run dev -- --source <id>  → Process a single source by ID
@@ -16,8 +13,13 @@ import * as dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-import { seedSources, getStats, getDraftInsights, getLatestPublishedInsights, getAllSources, getSourceById } from './data/database';
-import { processSingleSource, runFullPipeline, buildTodaysDailyPayload, approveAllDrafts, publishAllApproved } from './pipeline/daily';
+import {
+  seedSources, getStats, getDraftInsights, getAllSources, getSourceById,
+} from './data/database';
+import {
+  processSingleSource, runFullPipeline, buildTodaysDailyPayload,
+  approveAllDrafts, publishAllApproved,
+} from './pipeline/daily';
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -25,25 +27,25 @@ async function main(): Promise<void> {
 
   switch (command) {
     case '--stats':
-      seedSources();
-      printStats();
+      await seedSources();
+      await printStats();
       break;
 
     case '--sources':
-      seedSources();
-      printSources();
+      await seedSources();
+      await printSources();
       break;
 
     case '--drafts':
-      seedSources();
-      printDrafts();
+      await seedSources();
+      await printDrafts();
       break;
 
     case '--payload':
-      seedSources();
-      approveAllDrafts();
-      publishAllApproved();
-      printDailyPayload();
+      await seedSources();
+      await approveAllDrafts();
+      await publishAllApproved();
+      await printDailyPayload();
       break;
 
     case '--source': {
@@ -52,12 +54,13 @@ async function main(): Promise<void> {
         console.error('Usage: npm run dev -- --source <source-id>');
         process.exit(1);
       }
-      seedSources();
-      const source = getSourceById(sourceId);
+      await seedSources();
+      const source = await getSourceById(sourceId);
       if (!source) {
         console.error(`Source not found: ${sourceId}`);
         console.error('Available IDs:');
-        getAllSources().forEach((s) => console.error(`  ${s.id}`));
+        const all = await getAllSources();
+        all.forEach((s) => console.error(`  ${s.id}`));
         process.exit(1);
       }
       const insights = await processSingleSource(source);
@@ -67,15 +70,14 @@ async function main(): Promise<void> {
     }
 
     default:
-      // Full pipeline demo
       await runFullPipeline();
-      printDailyPayload();
+      await printDailyPayload();
       break;
   }
 }
 
-function printStats(): void {
-  const stats = getStats();
+async function printStats(): Promise<void> {
+  const stats = await getStats();
   console.log('\n── Tarbiyah Database Stats ──────────────');
   console.log(`  Sources:            ${stats.totalSources}`);
   console.log(`  Processed sources:  ${stats.processedSources}`);
@@ -85,8 +87,8 @@ function printStats(): void {
   console.log('─────────────────────────────────────────\n');
 }
 
-function printSources(): void {
-  const sources = getAllSources();
+async function printSources(): Promise<void> {
+  const sources = await getAllSources();
   console.log('\n── Curated Source Repository ────────────');
   sources.forEach((s) => {
     console.log(`\n  [${s.type.toUpperCase()}] ${s.title}`);
@@ -98,8 +100,8 @@ function printSources(): void {
   console.log('\n─────────────────────────────────────────\n');
 }
 
-function printDrafts(): void {
-  const drafts = getDraftInsights();
+async function printDrafts(): Promise<void> {
+  const drafts = await getDraftInsights();
 
   if (drafts.length === 0) {
     console.log('\n  No draft insights. Run the pipeline first.\n');
@@ -110,8 +112,8 @@ function printDrafts(): void {
   drafts.forEach((insight) => printInsight(insight));
 }
 
-function printDailyPayload(): void {
-  const payload = buildTodaysDailyPayload();
+async function printDailyPayload(): Promise<void> {
+  const payload = await buildTodaysDailyPayload();
 
   if (!payload) {
     console.log('\n  No published insights yet. Run the full pipeline first.\n');

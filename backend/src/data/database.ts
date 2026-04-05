@@ -1,7 +1,6 @@
-import { DatabaseSync } from 'node:sqlite';
-import path from 'path';
-import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '../config/supabase';
+import { CURATED_SOURCES } from './sources';
 import {
   Source,
   ProcessingJob,
@@ -10,354 +9,304 @@ import {
   ProcessingStatus,
   InsightStatus,
 } from '../types';
-import { CURATED_SOURCES } from './sources';
-
-// ─── Setup ───────────────────────────────────────────────────────────────────
-
-const DATA_DIR = path.resolve(__dirname, '../../data');
-const DB_PATH = path.join(DATA_DIR, 'tarbiyah.db');
-
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-let _db: DatabaseSync | null = null;
-
-export function getDb(): DatabaseSync {
-  if (!_db) {
-    _db = new DatabaseSync(DB_PATH);
-    _db.exec("PRAGMA journal_mode = WAL");
-    _db.exec("PRAGMA foreign_keys = ON");
-    initializeSchema(_db);
-  }
-  return _db;
-}
-
-// ─── Schema ───────────────────────────────────────────────────────────────────
-
-function initializeSchema(db: DatabaseSync): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sources (
-      id               TEXT PRIMARY KEY,
-      title            TEXT NOT NULL,
-      url              TEXT UNIQUE NOT NULL,
-      type             TEXT NOT NULL,
-      category         TEXT NOT NULL DEFAULT 'spiritual',
-      author           TEXT,
-      speaker_name     TEXT,
-      tags             TEXT NOT NULL DEFAULT '[]',
-      language         TEXT NOT NULL DEFAULT 'en',
-      description      TEXT,
-      duration_minutes INTEGER,
-      is_active        INTEGER NOT NULL DEFAULT 1,
-      added_at         DATETIME NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS processing_jobs (
-      id                TEXT PRIMARY KEY,
-      source_id         TEXT NOT NULL REFERENCES sources(id),
-      status            TEXT NOT NULL DEFAULT 'pending',
-      started_at        DATETIME,
-      completed_at      DATETIME,
-      error_message     TEXT,
-      extracted_content TEXT,
-      created_at        DATETIME NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS insights (
-      id                  TEXT PRIMARY KEY,
-      source_id           TEXT NOT NULL REFERENCES sources(id),
-      job_id              TEXT NOT NULL REFERENCES processing_jobs(id),
-      category            TEXT NOT NULL DEFAULT 'spiritual',
-      insight_title       TEXT NOT NULL DEFAULT '',
-      daily_insight       TEXT NOT NULL,
-      spiritual_insight   TEXT,
-      educational_insight TEXT,
-      action_step         TEXT,
-      attribution         TEXT NOT NULL,
-      source_grounding    TEXT NOT NULL DEFAULT '{}',
-      tags                TEXT NOT NULL DEFAULT '[]',
-      content_type        TEXT NOT NULL DEFAULT 'mixed',
-      status              TEXT NOT NULL DEFAULT 'draft',
-      date_generated      DATETIME NOT NULL DEFAULT (datetime('now')),
-      date_published      DATETIME
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_insights_status    ON insights(status);
-    CREATE INDEX IF NOT EXISTS idx_insights_date      ON insights(date_generated);
-    CREATE INDEX IF NOT EXISTS idx_jobs_source_status ON processing_jobs(source_id, status);
-  `);
-}
 
 // ─── Sources ──────────────────────────────────────────────────────────────────
 
-export function upsertSource(source: Omit<Source, 'addedAt'>): void {
-  getDb().prepare(`
-    INSERT INTO sources (id, title, url, type, category, author, speaker_name, tags, language, description, duration_minutes, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      title        = excluded.title,
-      url          = excluded.url,
-      category     = excluded.category,
-      author       = excluded.author,
-      speaker_name = excluded.speaker_name,
-      tags         = excluded.tags,
-      description  = excluded.description,
-      is_active    = excluded.is_active
-  `).run(
-    source.id,
-    source.title,
-    source.url,
-    source.type,
-    source.category,
-    source.author ?? null,
-    source.speakerName ?? null,
-    JSON.stringify(source.tags),
-    source.language,
-    source.description ?? null,
-    source.durationMinutes ?? null,
-    source.isActive ? 1 : 0,
-  );
+export async function upsertSource(source: Omit<Source, 'addedAt'>): Promise<void> {
+  const { error } = await supabase.from('sources').upsert({
+    id:               source.id,
+    title:            source.title,
+    url:              source.url,
+    type:             source.type,
+    category:         source.category,
+    author:           source.author           ?? null,
+    speaker_name:     source.speakerName       ?? null,
+    tags:             source.tags,
+    language:         source.language,
+    description:      source.description       ?? null,
+    duration_minutes: source.durationMinutes   ?? null,
+    is_active:        source.isActive,
+  }, { onConflict: 'id' });
+  if (error) throw error;
 }
 
-export function getSourceById(id: string): Source | undefined {
-  const row = getDb().prepare('SELECT * FROM sources WHERE id = ?').get(id) as
-    Record<string, unknown> | undefined;
-  return row ? rowToSource(row) : undefined;
+export async function getSourceById(id: string): Promise<Source | undefined> {
+  const { data, error } = await supabase
+    .from('sources').select('*').eq('id', id).single();
+  if (error || !data) return undefined;
+  return rowToSource(data);
 }
 
-export function getAllSources(): Source[] {
-  const rows = getDb()
-    .prepare('SELECT * FROM sources WHERE is_active = 1 ORDER BY added_at DESC')
-    .all() as Record<string, unknown>[];
-  return rows.map(rowToSource);
+export async function getAllSources(): Promise<Source[]> {
+  const { data, error } = await supabase
+    .from('sources').select('*').eq('is_active', true)
+    .order('added_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToSource);
 }
 
-export function getUnprocessedSources(): Source[] {
-  const rows = getDb().prepare(`
-    SELECT s.* FROM sources s
-    WHERE s.is_active = 1
-      AND NOT EXISTS (
-        SELECT 1 FROM processing_jobs j
-        WHERE j.source_id = s.id AND j.status = 'completed'
-      )
-    ORDER BY s.added_at ASC
-  `).all() as Record<string, unknown>[];
-  return rows.map(rowToSource);
+export async function getUnprocessedSources(): Promise<Source[]> {
+  const { data: jobs } = await supabase
+    .from('processing_jobs').select('source_id').eq('status', 'completed');
+  const processedIds = (jobs ?? []).map((j: Record<string, string>) => j.source_id);
+
+  const { data, error } = await supabase
+    .from('sources').select('*').eq('is_active', true)
+    .order('added_at', { ascending: true });
+  if (error) throw error;
+
+  const all = (data ?? []).map(rowToSource);
+  return processedIds.length > 0
+    ? all.filter(s => !processedIds.includes(s.id))
+    : all;
+}
+
+export async function getSourcesByCategory(category: Source['category']): Promise<Source[]> {
+  const { data, error } = await supabase
+    .from('sources').select('*').eq('is_active', true).eq('category', category);
+  if (error) throw error;
+  return (data ?? []).map(rowToSource);
 }
 
 function rowToSource(row: Record<string, unknown>): Source {
   return {
-    id: row.id as string,
-    title: row.title as string,
-    url: row.url as string,
-    type: row.type as Source['type'],
-    category: (row.category ?? 'spiritual') as Source['category'],
-    author: row.author as string | undefined,
-    speakerName: row.speaker_name as string | undefined,
-    tags: JSON.parse(row.tags as string),
-    language: row.language as Source['language'],
-    description: row.description as string | undefined,
+    id:              row.id              as string,
+    title:           row.title           as string,
+    url:             row.url             as string,
+    type:            row.type            as Source['type'],
+    category:        (row.category ?? 'spiritual') as Source['category'],
+    author:          row.author          as string | undefined,
+    speakerName:     row.speaker_name    as string | undefined,
+    tags:            (row.tags           as Source['tags']) ?? [],
+    language:        row.language        as Source['language'],
+    description:     row.description     as string | undefined,
     durationMinutes: row.duration_minutes as number | undefined,
-    isActive: (row.is_active as number) === 1,
-    addedAt: new Date(row.added_at as string),
+    isActive:        row.is_active       as boolean,
+    addedAt:         new Date(row.added_at as string),
   };
-}
-
-export function getSourcesByCategory(category: Source['category']): Source[] {
-  const rows = getDb()
-    .prepare('SELECT * FROM sources WHERE is_active = 1 AND category = ? ORDER BY added_at ASC')
-    .all(category) as Record<string, unknown>[];
-  return rows.map(rowToSource);
 }
 
 // ─── Processing Jobs ──────────────────────────────────────────────────────────
 
-export function createJob(sourceId: string): ProcessingJob {
+export async function createJob(sourceId: string): Promise<ProcessingJob> {
   const job: ProcessingJob = { id: uuidv4(), sourceId, status: 'pending' };
-  getDb().prepare(`
-    INSERT INTO processing_jobs (id, source_id, status) VALUES (?, ?, ?)
-  `).run(job.id, job.sourceId, job.status);
+  const { error } = await supabase.from('processing_jobs').insert({
+    id: job.id, source_id: job.sourceId, status: job.status,
+  });
+  if (error) throw error;
   return job;
 }
 
-export function startJob(jobId: string): void {
-  getDb().prepare(`
-    UPDATE processing_jobs SET status = 'processing', started_at = datetime('now') WHERE id = ?
-  `).run(jobId);
+export async function startJob(jobId: string): Promise<void> {
+  const { error } = await supabase.from('processing_jobs').update({
+    status: 'processing',
+    started_at: new Date().toISOString(),
+  }).eq('id', jobId);
+  if (error) throw error;
 }
 
-export function completeJob(jobId: string, extractedContent: ExtractedContent): void {
-  getDb().prepare(`
-    UPDATE processing_jobs
-    SET status = 'completed', completed_at = datetime('now'), extracted_content = ?
-    WHERE id = ?
-  `).run(JSON.stringify(extractedContent), jobId);
+export async function completeJob(jobId: string, extractedContent: ExtractedContent): Promise<void> {
+  const { error } = await supabase.from('processing_jobs').update({
+    status: 'completed',
+    completed_at: new Date().toISOString(),
+    extracted_content: extractedContent,
+  }).eq('id', jobId);
+  if (error) throw error;
 }
 
-export function failJob(jobId: string, errorMessage: string): void {
-  getDb().prepare(`
-    UPDATE processing_jobs
-    SET status = 'failed', completed_at = datetime('now'), error_message = ?
-    WHERE id = ?
-  `).run(errorMessage, jobId);
+export async function failJob(jobId: string, errorMessage: string): Promise<void> {
+  const { error } = await supabase.from('processing_jobs').update({
+    status: 'failed',
+    completed_at: new Date().toISOString(),
+    error_message: errorMessage,
+  }).eq('id', jobId);
+  if (error) throw error;
 }
 
-export function getJobById(jobId: string): ProcessingJob | undefined {
-  const row = getDb()
-    .prepare('SELECT * FROM processing_jobs WHERE id = ?')
-    .get(jobId) as Record<string, unknown> | undefined;
-  return row ? rowToJob(row) : undefined;
+export async function getJobById(jobId: string): Promise<ProcessingJob | undefined> {
+  const { data, error } = await supabase
+    .from('processing_jobs').select('*').eq('id', jobId).single();
+  if (error || !data) return undefined;
+  return rowToJob(data);
 }
 
 function rowToJob(row: Record<string, unknown>): ProcessingJob {
   return {
-    id: row.id as string,
-    sourceId: row.source_id as string,
-    status: row.status as ProcessingStatus,
-    startedAt: row.started_at ? new Date(row.started_at as string) : undefined,
-    completedAt: row.completed_at ? new Date(row.completed_at as string) : undefined,
-    errorMessage: row.error_message as string | undefined,
-    extractedContent: row.extracted_content
-      ? (JSON.parse(row.extracted_content as string) as ExtractedContent)
-      : undefined,
+    id:               row.id         as string,
+    sourceId:         row.source_id  as string,
+    status:           row.status     as ProcessingStatus,
+    startedAt:        row.started_at   ? new Date(row.started_at  as string) : undefined,
+    completedAt:      row.completed_at ? new Date(row.completed_at as string) : undefined,
+    errorMessage:     row.error_message as string | undefined,
+    extractedContent: row.extracted_content as ExtractedContent | undefined,
   };
 }
 
 // ─── Insights ─────────────────────────────────────────────────────────────────
 
-export function saveInsight(insight: InsightOutput): void {
-  getDb().prepare(`
-    INSERT INTO insights (
-      id, source_id, job_id, category, insight_title, daily_insight, spiritual_insight,
-      educational_insight, action_step, attribution, source_grounding,
-      tags, content_type, status, date_generated
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    insight.id,
-    insight.sourceId,
-    insight.jobId,
-    insight.category,
-    insight.insightTitle ?? '',
-    insight.dailyInsight,
-    insight.spiritualInsight ?? null,
-    insight.educationalInsight ?? null,
-    insight.actionStep ?? null,
-    insight.attribution,
-    JSON.stringify(insight.sourceGrounding),
-    JSON.stringify(insight.tags),
-    insight.contentType,
-    insight.status,
-    insight.dateGenerated.toISOString(),
-  );
+export async function saveInsight(insight: InsightOutput): Promise<void> {
+  const { error } = await supabase.from('insights').insert({
+    id:                  insight.id,
+    source_id:           insight.sourceId,
+    job_id:              insight.jobId,
+    category:            insight.category,
+    insight_title:       insight.insightTitle      ?? '',
+    daily_insight:       insight.dailyInsight,
+    spiritual_insight:   insight.spiritualInsight   ?? null,
+    educational_insight: insight.educationalInsight ?? null,
+    action_step:         insight.actionStep         ?? null,
+    attribution:         insight.attribution,
+    source_grounding:    insight.sourceGrounding,
+    tags:                insight.tags,
+    content_type:        insight.contentType,
+    status:              insight.status,
+    date_generated:      insight.dateGenerated.toISOString(),
+  });
+  if (error) throw error;
 }
 
-export function getPublishedInsightsByCategory(
+export async function getPublishedInsightsByCategory(
   category: InsightOutput['category'],
   limit = 10
-): InsightOutput[] {
-  const rows = getDb()
-    .prepare(
-      "SELECT * FROM insights WHERE status = 'published' AND category = ? ORDER BY date_published DESC LIMIT ?"
-    )
-    .all(category, limit) as Record<string, unknown>[];
-  return rows.map(rowToInsight);
+): Promise<InsightOutput[]> {
+  const { data, error } = await supabase
+    .from('insights').select('*')
+    .eq('status', 'published').eq('category', category)
+    .order('date_published', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map(rowToInsight);
 }
 
-export function updateInsightStatus(insightId: string, status: InsightStatus): void {
-  if (status === 'published') {
-    getDb().prepare(`
-      UPDATE insights SET status = ?, date_published = datetime('now') WHERE id = ?
-    `).run(status, insightId);
-  } else {
-    getDb().prepare(`UPDATE insights SET status = ? WHERE id = ?`).run(status, insightId);
-  }
+export async function updateInsightStatus(insightId: string, status: InsightStatus): Promise<void> {
+  const update: Record<string, string> = { status };
+  if (status === 'published') update.date_published = new Date().toISOString();
+  const { error } = await supabase.from('insights').update(update).eq('id', insightId);
+  if (error) throw error;
 }
 
-export function getInsightsByStatus(status: InsightStatus): InsightOutput[] {
-  const rows = getDb()
-    .prepare('SELECT * FROM insights WHERE status = ? ORDER BY date_generated DESC')
-    .all(status) as Record<string, unknown>[];
-  return rows.map(rowToInsight);
+export async function getInsightsByStatus(status: InsightStatus): Promise<InsightOutput[]> {
+  const { data, error } = await supabase
+    .from('insights').select('*').eq('status', status)
+    .order('date_generated', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToInsight);
 }
 
-export function getLatestPublishedInsights(limit = 10): InsightOutput[] {
-  const rows = getDb()
-    .prepare('SELECT * FROM insights WHERE status = ? ORDER BY date_published DESC LIMIT ?')
-    .all('published', limit) as Record<string, unknown>[];
-  return rows.map(rowToInsight);
+export async function getLatestPublishedInsights(limit = 10): Promise<InsightOutput[]> {
+  const { data, error } = await supabase
+    .from('insights').select('*').eq('status', 'published')
+    .order('date_published', { ascending: false }).limit(limit);
+  if (error) throw error;
+  return (data ?? []).map(rowToInsight);
 }
 
-export function getInsightsByTag(tag: string): InsightOutput[] {
-  const rows = getDb()
-    .prepare("SELECT * FROM insights WHERE tags LIKE ? AND status != 'draft' ORDER BY date_generated DESC")
-    .all(`%"${tag}"%`) as Record<string, unknown>[];
-  return rows.map(rowToInsight);
+export async function getInsightsByTag(tag: string): Promise<InsightOutput[]> {
+  const { data, error } = await supabase
+    .from('insights').select('*').neq('status', 'draft')
+    .contains('tags', [tag])
+    .order('date_generated', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToInsight);
 }
 
-export function getDraftInsights(): InsightOutput[] {
+export async function getDraftInsights(): Promise<InsightOutput[]> {
   return getInsightsByStatus('draft');
 }
 
 function rowToInsight(row: Record<string, unknown>): InsightOutput {
   return {
-    id: row.id as string,
-    sourceId: row.source_id as string,
-    jobId: row.job_id as string,
-    category: (row.category ?? 'spiritual') as InsightOutput['category'],
-    insightTitle: (row.insight_title ?? '') as string,
-    dailyInsight: row.daily_insight as string,
-    spiritualInsight: row.spiritual_insight as string | undefined,
-    educationalInsight: row.educational_insight as string | undefined,
-    actionStep: row.action_step as string | undefined,
-    attribution: row.attribution as string,
-    sourceGrounding: JSON.parse(row.source_grounding as string),
-    tags: JSON.parse(row.tags as string),
-    contentType: row.content_type as InsightOutput['contentType'],
-    status: row.status as InsightStatus,
-    dateGenerated: new Date(row.date_generated as string),
-    datePublished: row.date_published ? new Date(row.date_published as string) : undefined,
+    id:                  row.id                  as string,
+    sourceId:            row.source_id           as string,
+    jobId:               row.job_id              as string,
+    category:            (row.category ?? 'spiritual') as InsightOutput['category'],
+    insightTitle:        (row.insight_title      ?? '') as string,
+    dailyInsight:        row.daily_insight        as string,
+    spiritualInsight:    row.spiritual_insight    as string | undefined,
+    educationalInsight:  row.educational_insight  as string | undefined,
+    actionStep:          row.action_step          as string | undefined,
+    attribution:         row.attribution          as string,
+    sourceGrounding:     row.source_grounding     as InsightOutput['sourceGrounding'],
+    tags:                (row.tags                as InsightOutput['tags']) ?? [],
+    contentType:         row.content_type         as InsightOutput['contentType'],
+    status:              row.status               as InsightStatus,
+    dateGenerated:       new Date(row.date_generated as string),
+    datePublished:       row.date_published ? new Date(row.date_published as string) : undefined,
   };
+}
+
+// ─── Delivery Tracking ────────────────────────────────────────────────────────
+
+export async function getDeliveredInsightIds(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('deliveries').select('insight_id').eq('user_id', userId);
+  if (error) throw error;
+  return (data ?? []).map((d: Record<string, string>) => d.insight_id);
+}
+
+export async function recordDelivery(userId: string, insightId: string): Promise<void> {
+  const { error } = await supabase.from('deliveries')
+    .upsert({ user_id: userId, insight_id: insightId }, { onConflict: 'user_id,insight_id' });
+  if (error) throw error;
+}
+
+export async function pickInsight(
+  category: 'spiritual' | 'science',
+  userId: string,
+  focusAreas: string[] = []
+): Promise<InsightOutput | null> {
+  const [seen, pool] = await Promise.all([
+    getDeliveredInsightIds(userId),
+    getPublishedInsightsByCategory(category, 100),
+  ]);
+
+  const unread = pool.filter(i => !seen.includes(i.id));
+  if (unread.length === 0) return null;
+
+  // Score by tag overlap with user's focus areas, fall back to most recent
+  const scored = unread.map(i => ({
+    insight: i,
+    score: i.tags.filter(t => focusAreas.includes(t)).length,
+  }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].insight;
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
 
-export function seedSources(): void {
-  const db = getDb();
-  db.exec('BEGIN');
-  try {
-    for (const source of CURATED_SOURCES) {
-      upsertSource(source);
-    }
-    db.exec('COMMIT');
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
+export async function seedSources(): Promise<void> {
+  for (const source of CURATED_SOURCES) {
+    await upsertSource(source);
   }
-  console.log(`✓ Seeded ${CURATED_SOURCES.length} sources into the database.`);
+  console.log(`✓ Seeded ${CURATED_SOURCES.length} sources into Supabase.`);
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
-export function getStats() {
-  const db = getDb();
-  return {
-    totalSources: (db.prepare('SELECT COUNT(*) as c FROM sources').get() as { c: number }).c,
-    processedSources: (db.prepare(
-      "SELECT COUNT(DISTINCT source_id) as c FROM processing_jobs WHERE status = 'completed'"
-    ).get() as { c: number }).c,
-    totalInsights: (db.prepare('SELECT COUNT(*) as c FROM insights').get() as { c: number }).c,
-    publishedInsights: (db.prepare(
-      "SELECT COUNT(*) as c FROM insights WHERE status = 'published'"
-    ).get() as { c: number }).c,
-    draftInsights: (db.prepare(
-      "SELECT COUNT(*) as c FROM insights WHERE status = 'draft'"
-    ).get() as { c: number }).c,
-  };
-}
+export async function getStats() {
+  const [
+    { count: totalSources },
+    { count: totalInsights },
+    { count: publishedInsights },
+    { count: draftInsights },
+    { data: completedJobs },
+  ] = await Promise.all([
+    supabase.from('sources').select('*',   { count: 'exact', head: true }),
+    supabase.from('insights').select('*',  { count: 'exact', head: true }),
+    supabase.from('insights').select('*',  { count: 'exact', head: true }).eq('status', 'published'),
+    supabase.from('insights').select('*',  { count: 'exact', head: true }).eq('status', 'draft'),
+    supabase.from('processing_jobs').select('source_id').eq('status', 'completed'),
+  ]);
 
-// Allow direct execution: `ts-node src/data/database.ts`
-if (require.main === module) {
-  seedSources();
-  console.log('Database stats:', getStats());
+  const processedSources = new Set(
+    (completedJobs ?? []).map((j: Record<string, string>) => j.source_id)
+  ).size;
+
+  return {
+    totalSources:      totalSources      ?? 0,
+    processedSources,
+    totalInsights:     totalInsights     ?? 0,
+    publishedInsights: publishedInsights ?? 0,
+    draftInsights:     draftInsights     ?? 0,
+  };
 }

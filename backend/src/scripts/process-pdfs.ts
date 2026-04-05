@@ -6,10 +6,10 @@ import { seedSources, getSourceById, getStats } from '../data/database';
 import { processSingleSource } from '../pipeline/daily';
 
 async function run() {
-  seedSources();
-  const ids = ['sci-pdf-01', 'sci-pdf-02', 'sci-pdf-03'];
+  await seedSources();
+  const ids = ['sci-pdf-01', 'sci-pdf-03'];
   for (const id of ids) {
-    const src = getSourceById(id);
+    const src = await getSourceById(id);
     if (!src) { console.log(`✗ Not found: ${id}`); continue; }
     console.log(`\nProcessing: ${id} — "${src.title}"`);
     try {
@@ -19,7 +19,11 @@ async function run() {
       console.error(`✗ Failed: ${id} —`, e instanceof Error ? e.message : e);
     }
   }
-  console.log('\nStats:', getStats());
+  const stats = await getStats();
+  console.log('\nStats:', stats);
 }
 
-run();
+run().catch(err => {
+  console.error('Fatal:', err instanceof Error ? err.message : err);
+  process.exit(1);
+});

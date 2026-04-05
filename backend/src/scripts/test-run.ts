@@ -11,9 +11,8 @@ import path from 'path';
 import fs from 'fs';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-import { seedSources, getSourceById, getStats } from '../data/database';
+import { seedSources, getSourceById, getStats, getPublishedInsightsByCategory } from '../data/database';
 import { processSingleSource, approveAllDrafts, publishAllApproved } from '../pipeline/daily';
-import { getPublishedInsightsByCategory } from '../data/database';
 import { buildDailyPayload } from '../generators/insights';
 import { Source } from '../types';
 
@@ -28,10 +27,10 @@ async function main() {
   console.log(`  Sources: ${TEST_SOURCES.join(', ')}`);
   console.log('══════════════════════════════════════════\n');
 
-  seedSources();
+  await seedSources();
 
   for (const sourceId of TEST_SOURCES) {
-    const source = getSourceById(sourceId);
+    const source = await getSourceById(sourceId);
     if (!source) {
       console.error(`✗ Source not found: ${sourceId}`);
       process.exit(1);
@@ -39,20 +38,30 @@ async function main() {
     await processSingleSource(source);
   }
 
-  approveAllDrafts();
-  publishAllApproved();
+  await approveAllDrafts();
+  await publishAllApproved();
 
-  const spiritual = getPublishedInsightsByCategory('spiritual', 1);
-  const science   = getPublishedInsightsByCategory('science', 1);
+  const [spiritual, science] = await Promise.all([
+    getPublishedInsightsByCategory('spiritual', 1),
+    getPublishedInsightsByCategory('science', 1),
+  ]);
 
   if (!spiritual[0] || !science[0]) {
     console.error('✗ Missing published insights — check processing logs above.');
     process.exit(1);
   }
 
-  const spiritualSource = getSourceById(spiritual[0].sourceId) as Source;
-  const scienceSource   = getSourceById(science[0].sourceId) as Source;
-  const payload = buildDailyPayload(spiritual[0], science[0], spiritualSource, scienceSource);
+  const [spiritualSource, scienceSource] = await Promise.all([
+    getSourceById(spiritual[0].sourceId),
+    getSourceById(science[0].sourceId),
+  ]);
+
+  const payload = buildDailyPayload(
+    spiritual[0],
+    science[0],
+    spiritualSource as Source,
+    scienceSource as Source,
+  );
 
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(payload, null, 2), 'utf-8');
@@ -66,7 +75,8 @@ async function main() {
   console.log(`Action goals:    ${payload.actionGoals.length}`);
   console.log('─────────────────────────────────────────────────────\n');
 
-  console.log('Stats:', getStats());
+  const stats = await getStats();
+  console.log('Stats:', stats);
 }
 
 main().catch((err) => {
