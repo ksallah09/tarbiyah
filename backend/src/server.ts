@@ -226,16 +226,19 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 async function start() {
-  await seedSources();
-  // Warm the system prompt cache on startup
-  await getSystemPrompt();
-
+  // Listen immediately so Railway health checks pass right away
   app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`\n✓ Tarbiyah server running on http://0.0.0.0:${PORT}`);
     console.log(`  POST /chat   — AI parenting advisor`);
     console.log(`  GET  /daily  — Personalized daily payload (auth required)`);
     console.log(`  GET  /health — Health check\n`);
   });
+
+  // Seed and warm cache in the background after startup
+  seedSources()
+    .then(() => getSystemPrompt())
+    .then(() => console.log('✓ Sources seeded and prompt cache warmed.'))
+    .catch(err => console.error('Startup initialization error:', err));
 }
 
 start().catch(err => {
