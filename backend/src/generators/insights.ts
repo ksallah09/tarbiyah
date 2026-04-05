@@ -1,0 +1,329 @@
+import { v4 as uuidv4 } from 'uuid';
+import { getJsonModel, generateWithRetry, MODEL_HEAVY } from '../config/gemini';
+import { SYSTEM_INSTRUCTION, buildInsightGenerationPrompt } from '../prompts/system';
+import {
+  Source,
+  ExtractedContent,
+  InsightOutput,
+  GeminiInsightResponse,
+  AppInsightCard,
+  AppDailyPayload,
+  AppActionGoal,
+  InsightTag,
+  ContentType,
+} from '../types';
+
+/**
+ * Transforms extracted source content into a polished InsightOutput.
+ *
+ * This is where raw extracted knowledge becomes app-ready parenting content.
+ * The model uses the detailed extraction as grounding to write warm, readable,
+ * spiritually sound insights — not a generic summarizer output.
+ */
+export async function generateInsight(
+  source: Source,
+  extracted: ExtractedContent,
+  jobId: string,
+): Promise<InsightOutput> {
+  const model = getJsonModel(MODEL_HEAVY, SYSTEM_INSTRUCTION);
+
+  const prompt = buildInsightGenerationPrompt(
+    extracted,
+    source.title,
+    source.category,
+    source.author ?? source.speakerName
+  );
+
+  console.log(`  → Generating insights for: ${source.title}`);
+
+  const raw = await generateWithRetry(model, prompt, MODEL_HEAVY, SYSTEM_INSTRUCTION);
+
+  let parsed: GeminiInsightResponse;
+  try {
+    parsed = JSON.parse(raw) as GeminiInsightResponse;
+  } catch {
+    throw new Error(
+      `Insight generator: Could not parse Gemini response for "${source.title}".\n` +
+      `Raw (first 500 chars): ${raw.slice(0, 500)}`
+    );
+  }
+
+  return buildInsightOutput(parsed, source, jobId);
+}
+
+/**
+ * Generates multiple distinct insight variations from a single source.
+ * Useful for sources with rich content that can yield several daily cards.
+ */
+export async function generateMultipleInsights(
+  source: Source,
+  extracted: ExtractedContent,
+  jobId: string,
+  count = 2
+): Promise<InsightOutput[]> {
+  const insights: InsightOutput[] = [];
+
+  for (let i = 0; i < count; i++) {
+    // Slightly vary the prompt focus to get distinct outputs
+    const focusedExtracted = i === 0
+      ? extracted
+      : rotateFocus(extracted, i);
+
+    const insight = await generateInsight(source, focusedExtracted, jobId);
+    insights.push(insight);
+  }
+
+  return insights;
+}
+
+// Shortens long org/institution names for display in the app UI.
+const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
+  'National Institute of Child Health and Human Development': 'NICHD',
+  'American Academy of Pediatrics': 'AAP',
+  'UC Davis Health': 'UC Davis Health',
+  'Child Mind Institute': 'Child Mind Institute',
+};
+
+// Maps known speaker/org names to asset image filenames in the React Native project.
+// Key should match source.speakerName or the first segment of source.author (before " - ").
+const SPEAKER_IMAGE_MAP: Record<string, string> = {
+  'Nouman Ali Khan':                     'Nouman Ali Khan.png',
+  'Belal Assaad':                        'belal-assaad.jpg',
+  'Fatima Barkatulla':                   'spiritual-insights.png',
+  'Omar Suleiman':                       'spiritual-insights.png',
+  'Yasir Qadhi':                         'spiritual-insights.png',
+  'Yasmin Mogahed':                      'YAsmin-MOgahed.png',
+  'Musleh Khan':                         'spiritual-insights.png',
+  'Hamza Yusuf':                         'spiritual-insights.png',
+  'Mufti Menk':                          'spiritual-insights.png',
+  'Child Mind Institute':                'childmind.png',
+  'American Academy of Pediatrics':      'science-insights.png',
+  'UC Davis Health':                     'science-insights.png',
+  'UNICEF':                              'science-insights.png',
+  'National Institute of Child Health and Human Development': 'national-inst-child-health.jpeg',
+};
+
+function resolveSpeakerMeta(source: Source): { speakerName: string; speakerImage: string } {
+  // Prefer speakerName, otherwise first segment of author before " - "
+  const rawName = source.speakerName ?? (source.author ?? '').split(' - ')[0].trim();
+  const displayName = DISPLAY_NAME_OVERRIDES[rawName] ?? rawName;
+  const speakerImage =
+    SPEAKER_IMAGE_MAP[rawName] ??
+    (source.category === 'spiritual' ? 'spiritual-insights.png' : 'science-insights.png');
+  return { speakerName: displayName || 'Tarbiyah', speakerImage };
+}
+
+/**
+ * Converts a processed InsightOutput into the app-ready card format
+ * that the React Native front-end consumes.
+ */
+export function toAppInsightCard(
+  insight: InsightOutput,
+  type: AppInsightCard['type'] = 'spiritual',
+  source?: Source
+): AppInsightCard {
+  const body = type === 'spiritual'
+    ? (insight.spiritualInsight ?? insight.dailyInsight)
+    : type === 'scientific'
+    ? (insight.educationalInsight ?? insight.dailyInsight)
+    : insight.dailyInsight;
+
+  const { speakerName, speakerImage } = source
+    ? resolveSpeakerMeta(source)
+    : { speakerName: insight.attribution, speakerImage: type === 'spiritual' ? 'spiritual-insights.png' : 'science-insights.png' };
+
+  const sourceDetail = source
+    ? {
+        sourceType: source.type,
+        sourceTitle: source.title,
+        speakerOrAuthor: source.speakerName ?? (source.author ?? '').split(' - ')[0].trim(),
+      }
+    : { sourceType: 'unknown', sourceTitle: insight.attribution, speakerOrAuthor: '' };
+
+  return {
+    id: insight.id,
+    type,
+    insightTitle: insight.insightTitle || deriveTitleFromBody(body),
+    body,
+    dailyInsight: insight.dailyInsight,
+    speakerName,
+    speakerImage,
+    source: insight.attribution,
+    sourceDetail,
+    actionStep: insight.actionStep,
+    tags: insight.tags,
+    date: insight.dateGenerated.toISOString().split('T')[0],
+  };
+}
+
+/**
+ * Builds the full daily app payload from a pair of insights —
+ * one spiritual and one educational.
+ */
+export function buildDailyPayload(
+  spiritualInsight: InsightOutput,
+  educationalInsight: InsightOutput,
+  spiritualSource?: Source,
+  educationalSource?: Source,
+  date?: Date
+): AppDailyPayload {
+  const targetDate = date ?? new Date();
+  const dateStr = targetDate.toISOString().split('T')[0];
+
+  const actionGoals: AppActionGoal[] = [];
+
+  if (spiritualInsight.actionStep) {
+    actionGoals.push({
+      id: `goal-spiritual-${spiritualInsight.id}`,
+      type: 'spiritual',
+      label: 'Spiritual Goal',
+      text: spiritualInsight.actionStep,
+    });
+  }
+
+  if (educationalInsight.actionStep) {
+    actionGoals.push({
+      id: `goal-practical-${educationalInsight.id}`,
+      type: 'practical',
+      label: 'Practical Goal',
+      text: educationalInsight.actionStep,
+    });
+  }
+
+  return {
+    date: dateStr,
+    insights: [
+      toAppInsightCard(spiritualInsight, 'spiritual', spiritualSource),
+      toAppInsightCard(educationalInsight, 'scientific', educationalSource),
+    ],
+    actionGoals,
+  };
+}
+
+// ─── Internal Helpers ─────────────────────────────────────────────────────────
+
+function buildInsightOutput(
+  parsed: GeminiInsightResponse,
+  source: Source,
+  jobId: string
+): InsightOutput {
+  if (!parsed.dailyInsight) {
+    throw new Error(
+      `Insight generator: Missing required "dailyInsight" in response for source "${source.title}"`
+    );
+  }
+
+  const tags = validateTags(parsed.tags ?? [], source.tags);
+
+  return {
+    id: uuidv4(),
+    sourceId: source.id,
+    jobId,
+    category: source.category,
+    insightTitle: parsed.insightTitle ?? '',
+    dailyInsight: parsed.dailyInsight,
+    spiritualInsight: parsed.spiritualInsight || undefined,
+    educationalInsight: parsed.educationalInsight || undefined,
+    actionStep: parsed.actionStep || undefined,
+    attribution: parsed.attribution ?? buildFallbackAttribution(source),
+    sourceGrounding: {
+      sourceId: source.id,
+      sourceTitle: source.title,
+      directQuote: parsed.sourceGrounding?.directQuote,
+      paraphrasedIdea: parsed.sourceGrounding?.paraphrasedIdea,
+      generatedFromContext: parsed.sourceGrounding?.generatedFromContext,
+      confidence: parsed.sourceGrounding?.confidence ?? 'medium',
+      clarification:
+        parsed.sourceGrounding?.clarification ??
+        'Insight generated from source content via Tarbiyah AI processing.',
+    },
+    tags,
+    contentType: validateContentType(parsed.contentType),
+    status: 'draft',
+    dateGenerated: new Date(),
+  };
+}
+
+/**
+ * Rotates the focus of an extraction to get a different angle from the same source.
+ * Used when generating multiple insights from a single rich source.
+ */
+function rotateFocus(
+  extracted: ExtractedContent,
+  rotationIndex: number
+): ExtractedContent {
+  const { keyInsights, practicalAdvice, islamicReferences } = extracted;
+
+  // Shift the primary insight so subsequent calls emphasize different content
+  const rotatedInsights = [
+    ...keyInsights.slice(rotationIndex),
+    ...keyInsights.slice(0, rotationIndex),
+  ];
+
+  return {
+    ...extracted,
+    keyInsights: rotatedInsights,
+    // For the second pass, lead with practical advice
+    coreTheme:
+      rotationIndex === 1 && practicalAdvice.length > 0
+        ? practicalAdvice[0]
+        : extracted.coreTheme,
+    islamicReferences:
+      rotationIndex === 1
+        ? [...islamicReferences, ...islamicReferences].slice(0, 3)
+        : islamicReferences,
+  };
+}
+
+function deriveTitleFromBody(body: string): string {
+  // Use first sentence if it's short enough
+  const firstSentence = body.split(/[.!?]/)[0].trim();
+  if (firstSentence.length <= 60) {
+    return firstSentence;
+  }
+
+  // Otherwise take first 55 chars and add ellipsis
+  return firstSentence.slice(0, 55).trim() + '…';
+}
+
+function buildFallbackAttribution(source: Source): string {
+  const name = source.speakerName ?? source.author;
+  if (name) {
+    return `Based on ${name}`;
+  }
+  if (source.type === 'youtube') {
+    return 'Based on an Islamic parenting lecture';
+  }
+  return 'Based on Islamic parenting guidance';
+}
+
+const VALID_TAGS: Set<InsightTag> = new Set([
+  'patience', 'discipline', 'emotional-regulation', 'mercy', 'connection',
+  'routines', 'dua', 'communication', 'presence', 'adab', 'screen-time',
+  'anger', 'gratitude', 'tarbiyah', 'character', 'knowledge', 'love',
+  'boundaries', 'faith', 'prayer', 'identity', 'attachment', 'play',
+  'kindness', 'forgiveness',
+]);
+
+function validateTags(
+  modelTags: string[],
+  sourceTags: InsightTag[]
+): InsightTag[] {
+  const validModel = (modelTags as InsightTag[]).filter((t) =>
+    VALID_TAGS.has(t)
+  );
+  // Merge with source tags, deduplicate
+  const merged = [...new Set([...validModel, ...sourceTags])];
+  return merged.slice(0, 6) as InsightTag[];
+}
+
+const VALID_CONTENT_TYPES: Set<ContentType> = new Set([
+  'spiritual', 'educational', 'practical', 'emotional', 'mixed',
+]);
+
+function validateContentType(type: unknown): ContentType {
+  if (typeof type === 'string' && VALID_CONTENT_TYPES.has(type as ContentType)) {
+    return type as ContentType;
+  }
+  return 'mixed';
+}

@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Tarbiyah",
+    "slug": "tarbiyah",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F8F6F1"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tarbiyah.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F8F6F1"
+      },
+      "package": "com.tarbiyah.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

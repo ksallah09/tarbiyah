@@ -1,0 +1,69 @@
+{
+  "date": "2026-04-04",
+  "insights": [
+    {
+      "id": "8e574871-93e7-4638-ab71-30d030a2f63f",
+      "type": "spiritual",
+      "insightTitle": "The Gift Chosen For You",
+      "body": "The Qur'an uses the word 'yahabu'—He gifts—to describe how we receive children. Surah Ash-Shura (42:49-50) reminds us that Allah alone grants daughters to whom He wills and sons to whom He wills. This reframes our entire perspective: any cultural preference for one gender over another is a pre-Islamic attitude that shows ingratitude for the Giver Himself. True gratitude is shown by honoring the specific gift we've been given, treating our sons and daughters with equal love, value, and attention, recognizing both as a sacred trust and a path to Paradise.",
+      "dailyInsight": "Your child is not an achievement or an entitlement, but a specific gift chosen for you by Allah. Accepting their gender with gratitude is a fundamental test of our trust in His perfect wisdom.",
+      "speakerName": "Belal Assaad",
+      "speakerImage": "belal-assaad.jpg",
+      "source": "Tafseer of life",
+      "sourceDetail": {
+        "sourceType": "youtube",
+        "sourceTitle": "Raising Daughters and Sons in Islam: Rights & Rewards",
+        "speakerOrAuthor": "Belal Assaad"
+      },
+      "actionStep": "Today, when you look at your child, consciously say to yourself: 'You are a gift (hibah) to me from Allah.' Let this thought reframe how you see them, especially in a challenging moment.",
+      "tags": [
+        "gratitude",
+        "faith",
+        "adab",
+        "character",
+        "patience",
+        "tarbiyah"
+      ],
+      "date": "2026-04-04"
+    },
+    {
+      "id": "38d1c840-2f4f-491c-bac8-b3cc59ce7683",
+      "type": "scientific",
+      "insightTitle": "The Power of the Thoughtful Pause",
+      "body": "Child development research shows that a parent's thoughtful response, rather than an impulsive reaction, is where effective guidance occurs. This intentional pause helps de-escalate conflict and models emotional regulation, teaching your child how to manage their own feelings over time.",
+      "dailyInsight": "Effective parenting isn't about being perfect, but about being intentional. The most critical moment in discipline is the pause you take between your child's action and your own reaction, allowing you to respond with purpose instead of frustration.",
+      "speakerName": "NICHD",
+      "speakerImage": "national-inst-child-health.jpeg",
+      "source": "National Institute of Child Health (NICHD)",
+      "sourceDetail": {
+        "sourceType": "pdf",
+        "sourceTitle": "Adventures in Parenting — NICHD",
+        "speakerOrAuthor": "National Institute of Child Health and Human Development"
+      },
+      "actionStep": "The next time you feel a surge of anger at your child's behavior, consciously take one deep breath before you say or do anything. Use that single moment to choose a response that teaches, rather than just punishes.",
+      "tags": [
+        "patience",
+        "discipline",
+        "emotional-regulation",
+        "communication",
+        "connection",
+        "attachment"
+      ],
+      "date": "2026-04-04"
+    }
+  ],
+  "actionGoals": [
+    {
+      "id": "goal-spiritual-8e574871-93e7-4638-ab71-30d030a2f63f",
+      "type": "spiritual",
+      "label": "Spiritual Goal",
+      "text": "Today, when you look at your child, consciously say to yourself: 'You are a gift (hibah) to me from Allah.' Let this thought reframe how you see them, especially in a challenging moment."
+    },
+    {
+      "id": "goal-practical-38d1c840-2f4f-491c-bac8-b3cc59ce7683",
+      "type": "practical",
+      "label": "Practical Goal",
+      "text": "The next time you feel a surge of anger at your child's behavior, consciously take one deep breath before you say or do anything. Use that single moment to choose a response that teaches, rather than just punishes."
+    }
+  ]
+}
