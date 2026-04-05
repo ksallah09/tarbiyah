@@ -87,20 +87,36 @@ const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
 // Maps known speaker/org names to asset image filenames in the React Native project.
 // Key should match source.speakerName or the first segment of source.author (before " - ").
 const SPEAKER_IMAGE_MAP: Record<string, string> = {
-  'Nouman Ali Khan':                     'Nouman Ali Khan.png',
-  'Belal Assaad':                        'belal-assaad.jpg',
-  'Fatima Barkatulla':                   'spiritual-insights.png',
-  'Omar Suleiman':                       'spiritual-insights.png',
-  'Yasir Qadhi':                         'spiritual-insights.png',
-  'Yasmin Mogahed':                      'YAsmin-MOgahed.png',
-  'Musleh Khan':                         'spiritual-insights.png',
-  'Hamza Yusuf':                         'spiritual-insights.png',
-  'Mufti Menk':                          'spiritual-insights.png',
-  'Child Mind Institute':                'childmind.png',
-  'American Academy of Pediatrics':      'science-insights.png',
-  'UC Davis Health':                     'science-insights.png',
-  'UNICEF':                              'science-insights.png',
+  // ── Spiritual speakers ──
+  'Nouman Ali Khan':   'Nouman Ali Khan.png',
+  'Belal Assaad':      'belal-assaad.jpg',
+  'Yasmin Mogahed':    'YAsmin-MOgahed.png',
+  'Omar Suleiman':     'Omar-Suleiman.jpg',
+  'Yasir Qadhi':       'yasir-qadhi.jpeg',
+  'Mufti Menk':        'mufti-menk.jpeg',
+  'Haifaa Younis':     'haifaa-younis.jpeg',
+  'Ibrahim Hindy':     'ibrahim-hindy.jpeg',
+  'Fatima Barkatulla': 'spiritual-insights.png',
+  'Musleh Khan':       'spiritual-insights.png',
+  'Hamza Yusuf':       'spiritual-insights.png',
+
+  // ── Scientific / institutional ──
+  'Child Mind Institute':                              'childmind.png',
+  'American Academy of Pediatrics':                   'american-academy-of-ped.jpg',
+  'AAP':                                              'american-academy-of-ped.jpg',
+  'UC Davis Health':                                  'ucdavishealth.jpg',
   'National Institute of Child Health and Human Development': 'national-inst-child-health.jpeg',
+  'NICHD':                                            'national-inst-child-health.jpeg',
+  'National Institutes of Health':                    'NIH_2013_logo_vertical.svg.png',
+  'NIH':                                              'NIH_2013_logo_vertical.svg.png',
+  'UNICEF':                                           'science-insights.png',
+  'CDC':                                              'science-insights.png',
+  'Centers for Disease Control and Prevention':       'science-insights.png',
+  'Centers for Disease Control and Prevention (CDC)': 'science-insights.png',
+  'National Center for Injury Prevention and Control':'science-insights.png',
+  'American Academy of Family Physicians':            'science-insights.png',
+  'AAFP':                                             'science-insights.png',
+  'childmind.org':                                    'childmind.png',
 };
 
 function resolveSpeakerMeta(source: Source): { speakerName: string; speakerImage: string } {
