@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
+import DarkHeader from '../components/DarkHeader';
 import { useFocusEffect } from '@react-navigation/native';
 import { getSavedInsights, unsaveInsight } from '../utils/savedInsights';
 
@@ -18,8 +20,20 @@ const ASSET_MAP = {
   'Nouman Ali Khan.png':              require('../../assets/Nouman Ali Khan.png'),
   'YAsmin-MOgahed.png':               require('../../assets/YAsmin-MOgahed.png'),
   'belal-assaad.jpg':                 require('../../assets/belal-assaad.jpg'),
+  'Omar-Suleiman.jpg':                require('../../assets/Omar-Suleiman.jpg'),
+  'yasir-qadhi.jpeg':                 require('../../assets/yasir-qadhi.jpeg'),
+  'mufti-menk.jpeg':                  require('../../assets/mufti-menk.jpeg'),
+  'haifaa-younis.jpeg':               require('../../assets/haifaa-younis.jpeg'),
+  'ibrahim-hindy.jpeg':               require('../../assets/ibrahim-hindy.jpeg'),
   'national-inst-child-health.jpeg':  require('../../assets/national-inst-child-health.jpeg'),
   'childmind.png':                    require('../../assets/childmind.png'),
+  'american-academy-of-ped.jpg':      require('../../assets/american-academy-of-ped.jpg'),
+  'ucdavishealth.jpg':                require('../../assets/ucdavishealth.jpg'),
+  'NIH_2013_logo_vertical.svg.png':   require('../../assets/NIH_2013_logo_vertical.svg.png'),
+  'CDC_logo_2024.png':                require('../../assets/CDC_logo_2024.png'),
+  'hamza-yusuf.png':                  require('../../assets/hamza-yusuf.png'),
+  'AAFP_LogoMark_Color.jpg':          require('../../assets/AAFP_LogoMark_Color.jpg'),
+  'UNICEF-logo.png':                  require('../../assets/UNICEF-logo.png'),
   'spiritual-insights.png':           require('../../assets/spiritual-insights.png'),
   'science-insights.png':             require('../../assets/science-insights.png'),
 };
@@ -30,14 +44,12 @@ export default function LibraryScreen({ navigation }) {
   const [activeTopic, setActiveTopic] = useState('All');
   const [filterScroll, setFilterScroll] = useState(0);
 
-  // Reload saved insights every time the tab is focused
   useFocusEffect(
     useCallback(() => {
       getSavedInsights().then(setInsights);
     }, [])
   );
 
-  // Collect all unique topics across saved insights
   const allTopics = ['All', ...Array.from(
     new Set(insights.flatMap(i => i.tags ?? []))
   ).sort()];
@@ -56,154 +68,155 @@ export default function LibraryScreen({ navigation }) {
     setInsights(prev => prev.filter(i => i.id !== id));
   }
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* ── Unified sticky header ── */}
-      <View style={styles.stickyHeader}>
-        <Text style={styles.title}>Library</Text>
-        <Text style={styles.subtitle}>
-          {insights.length === 0 ? 'No saved insights yet' : `${insights.length} saved insight${insights.length !== 1 ? 's' : ''}`}
-        </Text>
+  const subtitleText = insights.length === 0
+    ? 'No saved insights yet'
+    : `${insights.length} saved insight${insights.length !== 1 ? 's' : ''}`;
 
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={17} color="#9CA3AF" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by title or content..."
-            placeholderTextColor="#9CA3AF"
-            value={query}
-            onChangeText={setQuery}
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <Ionicons name="close-circle" size={17} color="#9CA3AF" />
-            </TouchableOpacity>
+  return (
+    <SafeAreaView style={styles.safe} edges={[]}>
+      <StatusBar style="light" />
+
+      <DarkHeader title="Library" subtitle={subtitleText} />
+
+      {/* ── Light sheet ── */}
+      <View style={styles.sheet}>
+        {/* Search + filters */}
+        <View style={styles.controls}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={17} color="#9CA3AF" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by title or content..."
+              placeholderTextColor="#9CA3AF"
+              value={query}
+              onChangeText={setQuery}
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery('')}>
+                <Ionicons name="close-circle" size={17} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {allTopics.length > 1 && (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterRow}
+                onScroll={e => setFilterScroll(e.nativeEvent.contentOffset.x)}
+                scrollEventThrottle={16}
+              >
+                {allTopics.map(topic => (
+                  <TouchableOpacity
+                    key={topic}
+                    style={[styles.filterChip, activeTopic === topic && styles.filterChipActive]}
+                    onPress={() => setActiveTopic(topic)}
+                  >
+                    <Text style={[styles.filterChipText, activeTopic === topic && styles.filterChipTextActive]}>
+                      {topic}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={styles.scrollDots}>
+                {Array.from({ length: Math.min(allTopics.length, 5) }).map((_, i) => {
+                  const segmentWidth = 80;
+                  const active = Math.round(filterScroll / segmentWidth) === i;
+                  return (
+                    <View key={i} style={[styles.scrollDot, active && styles.scrollDotActive]} />
+                  );
+                })}
+              </View>
+            </>
           )}
         </View>
 
-        {allTopics.length > 1 && (
-          <>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRow}
-              onScroll={e => setFilterScroll(e.nativeEvent.contentOffset.x)}
-              scrollEventThrottle={16}
-            >
-              {allTopics.map(topic => (
+        {/* ── List ── */}
+        {filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name="bookmark-outline" size={48} color="#D1D5DB" />
+            <Text style={styles.emptyTitle}>
+              {insights.length === 0 ? 'Nothing saved yet' : 'No matches found'}
+            </Text>
+            <Text style={styles.emptyBody}>
+              {insights.length === 0
+                ? 'Tap the bookmark icon on any insight to save it here.'
+                : 'Try a different search or filter.'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const isSpiritual = item.type === 'spiritual';
+              const accentColor = isSpiritual ? '#2E7D62' : '#D4871A';
+              return (
                 <TouchableOpacity
-                  key={topic}
-                  style={[styles.filterChip, activeTopic === topic && styles.filterChipActive]}
-                  onPress={() => setActiveTopic(topic)}
+                  style={styles.card}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('InsightDetail', { insight: item })}
                 >
-                  <Text style={[styles.filterChipText, activeTopic === topic && styles.filterChipTextActive]}>
-                    {topic}
-                  </Text>
+                  <View style={[styles.cardAccent, { backgroundColor: accentColor }]} />
+                  <View style={styles.cardBody}>
+                    <View style={styles.cardTopRow}>
+                      <View style={styles.byline}>
+                        <Image
+                          source={ASSET_MAP[item.speakerImage] ?? ASSET_MAP['spiritual-insights.png']}
+                          style={styles.bylineImage}
+                        />
+                        <Text style={[styles.bylineName, { color: accentColor }]}>{item.speakerName}</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => handleUnsave(item.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="bookmark" size={18} color={accentColor} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.cardTitle}>{item.insightTitle}</Text>
+                    <Text style={styles.cardPreview} numberOfLines={2}>{item.body}</Text>
+                    {item.tags?.length > 0 && (
+                      <View style={styles.tagsRow}>
+                        {item.tags.slice(0, 3).map(tag => (
+                          <View key={tag} style={[styles.tag, { backgroundColor: accentColor + '15' }]}>
+                            <Text style={[styles.tagText, { color: accentColor }]}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <View style={styles.scrollDots}>
-              {Array.from({ length: Math.min(allTopics.length, 5) }).map((_, i) => {
-                const segmentWidth = 80;
-                const active = Math.round(filterScroll / segmentWidth) === i;
-                return (
-                  <View
-                    key={i}
-                    style={[styles.scrollDot, active && styles.scrollDotActive]}
-                  />
-                );
-              })}
-            </View>
-          </>
+              );
+            }}
+          />
         )}
       </View>
-
-      {/* ── List ── */}
-      {filtered.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons name="bookmark-outline" size={48} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>
-            {insights.length === 0 ? 'Nothing saved yet' : 'No matches found'}
-          </Text>
-          <Text style={styles.emptyBody}>
-            {insights.length === 0
-              ? 'Tap the bookmark icon on any insight to save it here.'
-              : 'Try a different search or filter.'}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const isSpiritual = item.type === 'spiritual';
-            const accentColor = isSpiritual ? '#2E7D62' : '#D4871A';
-            return (
-              <TouchableOpacity
-                style={styles.card}
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('InsightDetail', { insight: item })}
-              >
-                {/* Type accent bar */}
-                <View style={[styles.cardAccent, { backgroundColor: accentColor }]} />
-
-                <View style={styles.cardBody}>
-                  {/* Top row: byline + unsave */}
-                  <View style={styles.cardTopRow}>
-                    <View style={styles.byline}>
-                      <Image
-                        source={ASSET_MAP[item.speakerImage] ?? ASSET_MAP['spiritual-insights.png']}
-                        style={styles.bylineImage}
-                      />
-                      <Text style={[styles.bylineName, { color: accentColor }]}>{item.speakerName}</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => handleUnsave(item.id)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="bookmark" size={18} color={accentColor} />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Title + preview */}
-                  <Text style={styles.cardTitle}>{item.insightTitle}</Text>
-                  <Text style={styles.cardPreview} numberOfLines={2}>{item.body}</Text>
-
-                  {/* Tags */}
-                  {item.tags?.length > 0 && (
-                    <View style={styles.tagsRow}>
-                      {item.tags.slice(0, 3).map(tag => (
-                        <View key={tag} style={[styles.tag, { backgroundColor: accentColor + '15' }]}>
-                          <Text style={[styles.tagText, { color: accentColor }]}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  safe: { flex: 1, backgroundColor: '#1B3D2F' },
+  sheet: {
+    flex: 1,
+    backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
 
-  // ── Sticky header ──
-  stickyHeader: {
+  // ── Search + filters ──
+  controls: {
     backgroundColor: '#F5F6F8',
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 16,
     paddingBottom: 12,
     gap: 12,
   },
-  title: { fontSize: 28, fontWeight: '700', color: '#1B3D2F' },
-  subtitle: { fontSize: 13, color: '#9CA3AF', fontWeight: '500', marginTop: -8 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,7 +232,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   searchInput: { flex: 1, fontSize: 14, color: '#1A1A2E' },
-  filterRow: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
+  filterRow: { paddingHorizontal: 4, gap: 8, alignItems: 'center' },
   scrollDots: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -274,33 +287,17 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  cardAccent: {
-    width: 4,
-  },
-  cardBody: {
-    flex: 1,
-    padding: 14,
-  },
+  cardAccent: { width: 4 },
+  cardBody: { flex: 1, padding: 14 },
   cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  byline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  bylineImage: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-  },
-  bylineName: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  byline: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  bylineImage: { width: 24, height: 24, borderRadius: 12 },
+  bylineName: { fontSize: 12, fontWeight: '700' },
   cardTitle: {
     fontSize: 15,
     fontWeight: '700',

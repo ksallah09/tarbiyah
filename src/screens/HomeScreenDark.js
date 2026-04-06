@@ -1,4 +1,12 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+/**
+ * DARK THEME PREVIEW — full dark green HomeScreen
+ * To preview: in App.js replace:
+ *   import HomeScreen from './src/screens/HomeScreen';
+ * with:
+ *   import HomeScreen from './src/screens/HomeScreenDark';
+ */
+
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -56,7 +64,7 @@ function WeekRow({ days, color, todayColor }) {
           ]}>
             {d.completed
               ? <Ionicons name="checkmark" size={14} color="#FFF" />
-              : <Text style={[weekRowStyles.letter, d.today && { color, fontWeight: '700' }]}>{d.short}</Text>
+              : <Text style={[weekRowStyles.letter, d.today && { color: '#FFFFFF', fontWeight: '700' }]}>{d.short}</Text>
             }
           </View>
         </View>
@@ -70,10 +78,10 @@ const weekRowStyles = StyleSheet.create({
   col: { alignItems: 'center' },
   cir: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#F0F1F3',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center', justifyContent: 'center',
   },
-  letter: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
+  letter: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.3)' },
 });
 
 async function checkShouldAnimateGreeting() {
@@ -111,12 +119,10 @@ export default function HomeScreen({ navigation }) {
   const [sciReadWeek,  setScientificReadWeek]= useState([]);
   const [name, setName]                      = useState('');
   const [animate, setAnimate]                = useState(false);
-  const [greetingDone, setGreetingDone]      = useState(false);
 
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
   function revealContent() {
-    setGreetingDone(true);
     Animated.timing(contentOpacity, {
       toValue: 1, duration: 500, useNativeDriver: true,
     }).start();
@@ -127,7 +133,6 @@ export default function HomeScreen({ navigation }) {
       getWeekReadDays('spiritual').then(setSpiritualReadWeek);
       getWeekReadDays('scientific').then(setScientificReadWeek);
 
-      // Load name + decide whether to animate greeting
       Promise.all([getProfileName(), checkShouldAnimateGreeting()])
         .then(([profileName, shouldAnimate]) => {
           setName(profileName || '');
@@ -135,7 +140,6 @@ export default function HomeScreen({ navigation }) {
           if (!shouldAnimate) revealContent();
         });
 
-      // Fetch from API
       fetch(`${API_URL}/daily/preview`)
         .then(r => r.json())
         .then(data => {
@@ -163,12 +167,11 @@ export default function HomeScreen({ navigation }) {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safe} edges={[]}>
-
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* ── Dark hero header ── */}
+          {/* ── Greeting ── */}
           <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
             <View style={styles.heroRow}>
               <View style={styles.heroText}>
@@ -200,157 +203,151 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
 
-          {/* ── Light content sheet ── */}
-          <Animated.View style={[styles.sheet, { opacity: animate ? contentOpacity : 1 }]}>
-            <View style={styles.contentPad}>
+          {/* ── Content — full dark ── */}
+          <Animated.View style={[styles.contentPad, { opacity: animate ? contentOpacity : 1 }]}>
 
-              {/* TODAY'S INSIGHTS */}
-              <View style={styles.sectionTitleWrap}>
-                <Text style={styles.sectionTitle}>TODAY'S INSIGHTS</Text>
-                {loading && <ActivityIndicator size="small" color="#1B3D2F" style={{ marginLeft: 8 }} />}
-              </View>
+            {/* TODAY'S INSIGHTS */}
+            <View style={styles.sectionTitleWrap}>
+              <Text style={styles.sectionTitle}>TODAY'S INSIGHTS</Text>
+              {loading && <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" style={{ marginLeft: 8 }} />}
+            </View>
 
-              <View style={styles.tipsRow}>
-                {spiritualInsight && (
-                  <TouchableOpacity
-                    style={styles.tipCard}
-                    activeOpacity={0.88}
-                    onPress={() => navigation.navigate('InsightDetail', { insight: spiritualInsight })}
+            <View style={styles.tipsRow}>
+              {spiritualInsight && (
+                <TouchableOpacity
+                  style={styles.tipCard}
+                  activeOpacity={0.88}
+                  onPress={() => navigation.navigate('InsightDetail', { insight: spiritualInsight })}
+                >
+                  <LinearGradient
+                    colors={['#6B7C45', '#1B3D2F']}
+                    start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                    style={styles.tipCardInner}
                   >
-                    <LinearGradient
-                      colors={['#6B7C45', '#1B3D2F']}
-                      start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                      style={styles.tipCardInner}
-                    >
-                      <View style={styles.tipLabelWrap}>
-                        <Text style={styles.tipLabel}>Spiritual Insight</Text>
+                    <View style={styles.tipLabelWrap}>
+                      <Text style={styles.tipLabel}>Spiritual Insight</Text>
+                    </View>
+                    <View style={styles.tipByline}>
+                      <Image
+                        source={ASSET_MAP[spiritualInsight.speakerImage] ?? ASSET_MAP['spiritual-insights.png']}
+                        style={styles.bylineImage}
+                      />
+                      <Text style={styles.bylineName}>{spiritualInsight.speakerName}</Text>
+                    </View>
+                    <View style={styles.tipBody}>
+                      <View>
+                        <Text style={styles.tipInsightTitle}>{spiritualInsight.insightTitle}</Text>
+                        <Text style={styles.tipQuote} numberOfLines={4}>{spiritualInsight.body}</Text>
                       </View>
-                      <View style={styles.tipByline}>
-                        <Image
-                          source={ASSET_MAP[spiritualInsight.speakerImage] ?? ASSET_MAP['spiritual-insights.png']}
-                          style={styles.bylineImage}
-                        />
-                        <Text style={styles.bylineName}>{spiritualInsight.speakerName}</Text>
-                      </View>
-                      <View style={styles.tipBody}>
-                        <View>
-                          <Text style={styles.tipInsightTitle}>{spiritualInsight.insightTitle}</Text>
-                          <Text style={styles.tipQuote} numberOfLines={4}>{spiritualInsight.body}</Text>
+                      <View style={styles.tipFooterWrap}>
+                        <View style={styles.tipRule} />
+                        <View style={styles.tipReadMore}>
+                          <Text style={styles.tipReadMoreText}>Read more</Text>
+                          <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.6)" />
                         </View>
-                        <View style={styles.tipFooterWrap}>
-                          <View style={styles.tipRule} />
-                          <View style={styles.tipReadMore}>
-                            <Text style={styles.tipReadMoreText}>Read more</Text>
-                            <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.6)" />
-                          </View>
-                        </View>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-
-                {scienceInsight && (
-                  <TouchableOpacity
-                    style={styles.tipCard}
-                    activeOpacity={0.88}
-                    onPress={() => navigation.navigate('InsightDetail', { insight: scienceInsight })}
-                  >
-                    <LinearGradient
-                      colors={['#D4A55A', '#A0521A']}
-                      start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                      style={styles.tipCardInner}
-                    >
-                      <View style={styles.tipLabelWrap}>
-                        <Text style={styles.tipLabel}>Scientific Insight</Text>
-                      </View>
-                      <View style={styles.tipByline}>
-                        <Image
-                          source={ASSET_MAP[scienceInsight.speakerImage] ?? ASSET_MAP['science-insights.png']}
-                          style={styles.bylineImage}
-                        />
-                        <Text style={styles.bylineName}>{scienceInsight.speakerName}</Text>
-                      </View>
-                      <View style={styles.tipBody}>
-                        <View>
-                          <Text style={styles.tipInsightTitle}>{scienceInsight.insightTitle}</Text>
-                          <Text style={styles.tipQuote} numberOfLines={4}>{scienceInsight.body}</Text>
-                        </View>
-                        <View style={styles.tipFooterWrap}>
-                          <View style={styles.tipRule} />
-                          <View style={styles.tipReadMore}>
-                            <Text style={styles.tipReadMoreText}>Read more</Text>
-                            <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.6)" />
-                          </View>
-                        </View>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* TODAY'S ACTION GOALS */}
-              <View style={styles.sectionTitleWrap}>
-                <Text style={styles.sectionTitle}>TODAY'S ACTION GOALS</Text>
-              </View>
-
-              {actionGoals.map(goal => {
-                const isSpiritual = goal.type === 'spiritual';
-                const accentColor = isSpiritual ? '#2E7D62' : '#D4871A';
-                return (
-                  <View
-                    key={goal.id}
-                    style={[
-                      styles.goalCard,
-                      isSpiritual ? styles.goalGreen : styles.goalAmber,
-                    ]}
-                  >
-                    <View style={styles.checklistRow}>
-                      <View style={styles.checklistContent}>
-                        <View style={styles.checklistMeta}>
-                          <Ionicons
-                            name={isSpiritual ? 'moon' : 'bulb-outline'}
-                            size={12} color={accentColor}
-                          />
-                          <Text style={[styles.checklistType, !isSpiritual && styles.checklistTypeAmber]}>
-                            {goal.label}
-                          </Text>
-                        </View>
-                        <Text style={styles.checklistText}>{goal.text}</Text>
                       </View>
                     </View>
-                  </View>
-                );
-              })}
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
 
-              {/* THIS WEEK */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>THIS WEEK</Text>
-              </View>
-
-              <View style={styles.streakCard}>
-                <View style={styles.streakHeaderRow}>
-                  <Ionicons name="moon" size={13} color="#2E7D62" />
-                  <Text style={[styles.streakLabel, { color: '#2E7D62' }]}>Spiritual</Text>
-                </View>
-                <Text style={styles.streakSubLabel}>Days you read a spiritual insight</Text>
-                <WeekRow days={spirReadWeek} color="#1B3D2F" todayColor="#D6EFE3" />
-              </View>
-
-              <View style={[styles.streakCard, { marginTop: 10 }]}>
-                <View style={styles.streakHeaderRow}>
-                  <Ionicons name="bulb-outline" size={13} color="#D4871A" />
-                  <Text style={[styles.streakLabel, { color: '#D4871A' }]}>Scientific</Text>
-                </View>
-                <Text style={styles.streakSubLabel}>Days you read a scientific insight</Text>
-                <WeekRow days={sciReadWeek} color="#D4871A" todayColor="#FDE8C0" />
-              </View>
-
-              <View style={{ height: 32 }} />
+              {scienceInsight && (
+                <TouchableOpacity
+                  style={styles.tipCard}
+                  activeOpacity={0.88}
+                  onPress={() => navigation.navigate('InsightDetail', { insight: scienceInsight })}
+                >
+                  <LinearGradient
+                    colors={['#D4A55A', '#A0521A']}
+                    start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                    style={styles.tipCardInner}
+                  >
+                    <View style={styles.tipLabelWrap}>
+                      <Text style={styles.tipLabel}>Scientific Insight</Text>
+                    </View>
+                    <View style={styles.tipByline}>
+                      <Image
+                        source={ASSET_MAP[scienceInsight.speakerImage] ?? ASSET_MAP['science-insights.png']}
+                        style={styles.bylineImage}
+                      />
+                      <Text style={styles.bylineName}>{scienceInsight.speakerName}</Text>
+                    </View>
+                    <View style={styles.tipBody}>
+                      <View>
+                        <Text style={styles.tipInsightTitle}>{scienceInsight.insightTitle}</Text>
+                        <Text style={styles.tipQuote} numberOfLines={4}>{scienceInsight.body}</Text>
+                      </View>
+                      <View style={styles.tipFooterWrap}>
+                        <View style={styles.tipRule} />
+                        <View style={styles.tipReadMore}>
+                          <Text style={styles.tipReadMoreText}>Read more</Text>
+                          <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.6)" />
+                        </View>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
             </View>
+
+            {/* TODAY'S ACTION GOALS */}
+            <View style={styles.sectionTitleWrap}>
+              <Text style={styles.sectionTitle}>TODAY'S ACTION GOALS</Text>
+            </View>
+
+            {actionGoals.map(goal => {
+              const isSpiritual = goal.type === 'spiritual';
+              const accentColor = isSpiritual ? '#4CAF85' : '#E8A84A';
+              return (
+                <View
+                  key={goal.id}
+                  style={[styles.goalCard, { borderLeftColor: accentColor }]}
+                >
+                  <View style={styles.checklistRow}>
+                    <View style={styles.checklistContent}>
+                      <View style={styles.checklistMeta}>
+                        <Ionicons
+                          name={isSpiritual ? 'moon' : 'bulb-outline'}
+                          size={12} color={accentColor}
+                        />
+                        <Text style={[styles.checklistType, { color: accentColor }]}>
+                          {goal.label}
+                        </Text>
+                      </View>
+                      <Text style={styles.checklistText}>{goal.text}</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+
+            {/* THIS WEEK */}
+            <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+              <Text style={styles.sectionTitle}>THIS WEEK</Text>
+            </View>
+
+            <View style={styles.streakCard}>
+              <View style={styles.streakHeaderRow}>
+                <Ionicons name="moon" size={13} color="#4CAF85" />
+                <Text style={[styles.streakLabel, { color: '#4CAF85' }]}>Spiritual</Text>
+              </View>
+              <Text style={styles.streakSubLabel}>Days you read a spiritual insight</Text>
+              <WeekRow days={spirReadWeek} color="#4CAF85" todayColor="rgba(76,175,133,0.2)" />
+            </View>
+
+            <View style={[styles.streakCard, { marginTop: 10 }]}>
+              <View style={styles.streakHeaderRow}>
+                <Ionicons name="bulb-outline" size={13} color="#E8A84A" />
+                <Text style={[styles.streakLabel, { color: '#E8A84A' }]}>Scientific</Text>
+              </View>
+              <Text style={styles.streakSubLabel}>Days you read a scientific insight</Text>
+              <WeekRow days={sciReadWeek} color="#E8A84A" todayColor="rgba(232,168,74,0.2)" />
+            </View>
+
+            <View style={{ height: 32 }} />
           </Animated.View>
 
         </ScrollView>
-
       </SafeAreaView>
     </>
   );
@@ -358,10 +355,10 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#1B3D2F' },
+  scrollContent: { flexGrow: 1 },
 
-  // ── Hero header ──
+  // ── Greeting ──
   hero: {
-    backgroundColor: '#1B3D2F',
     paddingHorizontal: 24,
     paddingBottom: 28,
   },
@@ -399,42 +396,31 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#1B3D2F',
   },
 
-  // ── Content sheet ──
-  sheet: {
-    flexGrow: 1,
-    backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: 'hidden',
-  },
-  scrollContent: { flexGrow: 1 },
-  contentPad: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 36 },
+  // ── Content ──
+  contentPad: { paddingHorizontal: 20, paddingBottom: 36 },
 
   // ── Section titles ──
   sectionTitleWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     marginTop: 20,
     marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 13, fontWeight: '700',
-    color: '#1B3D2F', letterSpacing: 0.4,
-  },
-  sectionUnderline: {
-    width: 3, height: 13, borderRadius: 2,
-    backgroundColor: '#1B3D2F', opacity: 0.3,
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1.0,
   },
 
-  // ── Insight cards ──
+  // ── Insight cards (unchanged — already dark) ──
   tipsRow: {
     flexDirection: 'row', gap: 12, marginBottom: 8, alignItems: 'stretch',
   },
   tipCard: {
     flex: 1, borderRadius: 20, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12, shadowRadius: 12, elevation: 5,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3, shadowRadius: 14, elevation: 6,
   },
   tipCardInner: { flex: 1, borderRadius: 20, overflow: 'hidden' },
   tipLabelWrap: {
@@ -469,29 +455,32 @@ const styles = StyleSheet.create({
   tipReadMore: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   tipReadMoreText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
 
-  // ── Action Goals ──
+  // ── Action Goals — dark cards ──
   goalCard: {
-    borderRadius: 16, marginBottom: 10, overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+    borderRadius: 14,
+    marginBottom: 10,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderLeftWidth: 3,
   },
-  goalGreen:  { borderLeftWidth: 4, borderLeftColor: '#2E7D62' },
-  goalAmber:  { borderLeftWidth: 4, borderLeftColor: '#D4871A' },
   checklistRow: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 14 },
   checklistContent: { flex: 1 },
   checklistMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
-  checklistType: { fontSize: 11, fontWeight: '700', color: '#2E7D62', letterSpacing: 0.3 },
-  checklistTypeAmber: { color: '#D4871A' },
-  checklistText: { fontSize: 13, color: '#374151', lineHeight: 20 },
+  checklistType: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+  checklistText: { fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 20 },
 
-  // ── Streak card ──
+  // ── Week cards — dark ──
   streakCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 16,
+    padding: 18,
   },
   streakHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
   streakLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
-  streakSubLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginBottom: 10, marginTop: -10 },
+  streakSubLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.35)',
+    fontWeight: '500',
+    marginBottom: 10,
+    marginTop: -10,
+  },
 });
