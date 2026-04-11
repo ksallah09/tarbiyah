@@ -9,14 +9,21 @@
  *   npx ts-node src/scripts/process-storage-pdfs.ts
  *
  * Options:
- *   --list     Just list files in the bucket, don't process
- *   --rerun    Re-process sources even if already completed
+ *   --list          Just list files in the bucket, don't process
+ *   --rerun         Re-process sources even if already completed
+ *   --authors-only  Re-extract authors from PDFs only — no new insights generated
  */
 
 import * as dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+import axios from 'axios';
+import fs from 'fs';
+import os from 'os';
+import { FileState } from '@google/generative-ai/server';
+import { fileManager, getJsonModel, MODEL_HEAVY } from '../config/gemini';
+import { SYSTEM_INSTRUCTION } from '../prompts/system';
 import { supabase } from '../config/supabase';
 import {
   upsertSource, getSourceById, seedSources,
@@ -25,10 +32,11 @@ import {
 import { processSingleSource } from '../pipeline/daily';
 import { Source } from '../types';
 
-const BUCKET       = 'scientific_pdfs';
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const RERUN        = process.argv.includes('--rerun');
-const LIST_ONLY    = process.argv.includes('--list');
+const BUCKET        = 'scientific_pdfs';
+const SUPABASE_URL  = process.env.SUPABASE_URL!;
+const RERUN         = process.argv.includes('--rerun');
+const LIST_ONLY     = process.argv.includes('--list');
+const AUTHORS_ONLY  = process.argv.includes('--authors-only');
 
 /**
  * Map PDF filenames (without extension, lowercase) to their known author/org.
@@ -100,6 +108,51 @@ async function isAlreadyProcessed(sourceId: string): Promise<boolean> {
   return (data ?? []).length > 0;
 }
 
+async function extractAuthorFromPdf(url: string, title: string): Promise<string | null> {
+  // Download
+  const response = await axios.get<ArrayBuffer>(url, {
+    responseType: 'arraybuffer', timeout: 30_000,
+    headers: { 'User-Agent': 'TarbiyahApp/1.0' },
+  });
+  const tempPath = path.join(os.tmpdir(), `tarbiyah-author-${Date.now()}.pdf`);
+  fs.writeFileSync(tempPath, Buffer.from(response.data));
+
+  let uploadedName: string | undefined;
+  try {
+    // Upload to Gemini
+    const upload = await fileManager.uploadFile(tempPath, {
+      mimeType: 'application/pdf', displayName: title,
+    });
+    uploadedName = upload.file.name;
+
+    // Wait for ACTIVE
+    for (let i = 0; i < 20; i++) {
+      const f = await fileManager.getFile(uploadedName);
+      if (f.state === FileState.ACTIVE) break;
+      if (f.state === FileState.FAILED) throw new Error('Gemini file processing failed');
+      await new Promise(r => setTimeout(r, 3000));
+    }
+
+    // Ask only for the author
+    const model = getJsonModel(MODEL_HEAVY, SYSTEM_INSTRUCTION);
+    const result = await model.generateContent([
+      { fileData: { fileUri: upload.file.uri, mimeType: 'application/pdf' } },
+      { text: `Look at the cover page, title page, header, or footer of this document. Who is the author or publishing organization?\n\nReturn ONLY this JSON: { "author": "Name or Organization" }\n\nIf you cannot find an author, return: { "author": null }` },
+    ]);
+
+    const raw = result.response.text().trim();
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    const parsed = JSON.parse(match[0]);
+    return typeof parsed.author === 'string' ? parsed.author.trim() : null;
+  } finally {
+    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+    if (uploadedName) {
+      try { await fileManager.deleteFile(uploadedName); } catch {}
+    }
+  }
+}
+
 async function main() {
   console.log('══════════════════════════════════════════');
   console.log('  Tarbiyah — Supabase Storage PDF Importer');
@@ -125,6 +178,33 @@ async function main() {
   });
 
   if (LIST_ONLY) return;
+
+  // ── Authors-only mode: re-extract author from each PDF, update source, no new insights ──
+  if (AUTHORS_ONLY) {
+    console.log('Mode: --authors-only (no insights will be generated)\n');
+    let updated = 0; let failed = 0;
+    for (const file of files) {
+      const sourceId = sourceIdFromFilename(file.name);
+      const title    = titleFromFilename(file.name);
+      const url      = publicUrl(file.name);
+      console.log(`Extracting author: "${title}"`);
+      try {
+        const author = await extractAuthorFromPdf(url, title);
+        if (author) {
+          await supabase.from('sources').update({ author }).eq('id', sourceId);
+          console.log(`  ✓ Author: "${author}"`);
+          updated++;
+        } else {
+          console.log(`  ⚠ No author found in document`);
+        }
+      } catch (err) {
+        console.error(`  ✗ Failed:`, err instanceof Error ? err.message : err);
+        failed++;
+      }
+    }
+    console.log(`\nDone. Updated: ${updated}, Failed: ${failed}`);
+    return;
+  }
 
   let processed = 0;
   let skipped   = 0;

@@ -31,7 +31,6 @@ import TypewriterText from '../components/TypewriterText';
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 const ASSET_MAP = {
-  'Nouman Ali Khan.png':              require('../../assets/Nouman Ali Khan.png'),
   'YAsmin-MOgahed.png':               require('../../assets/YAsmin-MOgahed.png'),
   'belal-assaad.jpg':                 require('../../assets/belal-assaad.jpg'),
   'Omar-Suleiman.jpg':                require('../../assets/Omar-Suleiman.jpg'),
@@ -263,7 +262,7 @@ export default function HomeScreen({ navigation }) {
                     style={styles.tipCardInner}
                   >
                     <View style={styles.tipLabelWrap}>
-                      <Text style={styles.tipLabel}>Scientific Insight</Text>
+                      <Text style={styles.tipLabel}>Research Insight</Text>
                     </View>
                     <View style={styles.tipByline}>
                       <Image

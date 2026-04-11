@@ -1,0 +1,1029 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL     = 'https://tarbiyah-production.up.railway.app';
+const MODULES_KEY = 'tarbiyah_modules';
+
+const LESSON_COLORS = {
+  spiritual: { bg: ['#1B3D2F', '#2E5E45'], icon: 'moon',        label: 'Spiritual' },
+  science:   { bg: ['#7A3A0A', '#C47020'], icon: 'book-outline', label: 'Research'  },
+  action:    { bg: ['#1A2744', '#2D4278'], icon: 'flash',        label: 'Action'    },
+};
+
+async function saveModuleToStorage(mod) {
+  try {
+    const raw = await AsyncStorage.getItem(MODULES_KEY);
+    const modules = raw ? JSON.parse(raw) : [];
+    const idx = modules.findIndex(m => m.id === mod.id);
+    if (idx >= 0) modules[idx] = mod;
+    else modules.unshift(mod);
+    await AsyncStorage.setItem(MODULES_KEY, JSON.stringify(modules));
+  } catch {}
+}
+
+export default function ModuleDetailScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
+  const { topic, isNew, module: savedModule } = route.params;
+
+  const [generating, setGenerating] = useState(isNew);
+  const [error, setError]           = useState(null);
+  const [module, setModule]         = useState(savedModule ?? null);
+  const [activeLesson, setActiveLesson] = useState(null);
+
+  useEffect(() => {
+    if (!isNew) return;
+    generateModule();
+  }, []);
+
+  async function generateModule() {
+    setGenerating(true);
+    setError(null);
+    try {
+      // Load profile for context
+      const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
+      const profile = profileRaw ? JSON.parse(profileRaw) : {};
+      const focusRaw = await AsyncStorage.getItem('tarbiyah_focus_areas');
+      const focusAreas = focusRaw ? JSON.parse(focusRaw) : [];
+
+      const res = await fetch(`${API_URL}/learn/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic,
+          childrenAges: profile.childrenAges ?? null,
+          focusAreas,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `Server error ${res.status}`);
+      }
+
+      const mod = await res.json();
+      setModule(mod);
+      await saveModuleToStorage(mod);
+    } catch (err) {
+      setError(err.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  const completedCount = module?.lessons?.filter(l => l.completed).length ?? 0;
+  const progress = module ? completedCount / module.totalLessons : 0;
+
+  function toggleLesson(id) {
+    setModule(prev => {
+      const updated = {
+        ...prev,
+        lessons: prev.lessons.map(l =>
+          l.id === id ? { ...l, completed: !l.completed } : l
+        ),
+      };
+      updated.completedLessons = updated.lessons.filter(l => l.completed).length;
+      saveModuleToStorage(updated);
+      return updated;
+    });
+  }
+
+  return (
+    <>
+      <StatusBar style="light" />
+      <SafeAreaView style={styles.safe} edges={[]}>
+
+        {/* ── Header ── */}
+        <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.8)" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {generating ? 'Generating...' : 'Your Module'}
+          </Text>
+          <View style={{ width: 36 }} />
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+
+          {/* ── Generating state ── */}
+          {generating && (
+            <View style={styles.sheet}>
+              <View style={styles.generatingWrap}>
+                <LinearGradient
+                  colors={['#1B3D2F', '#2E5E45']}
+                  style={styles.generatingIcon}
+                >
+                  <Ionicons name="sparkles" size={28} color="#D4871A" />
+                </LinearGradient>
+                <Text style={styles.generatingTitle}>Building Your Module</Text>
+                <Text style={styles.generatingBody}>
+                  Searching our curated Islamic and research sources to create your personalized lesson plan…
+                </Text>
+                <View style={styles.generatingDots}>
+                  <ActivityIndicator size="large" color="#1B3D2F" />
+                </View>
+                <View style={styles.generatingSteps}>
+                  {[
+                    { icon: 'moon',        text: 'Drawing from Islamic scholarship' },
+                    { icon: 'flask',       text: 'Reviewing child development research' },
+                    { icon: 'construct',   text: 'Structuring your 5-lesson plan' },
+                  ].map((s, i) => (
+                    <View key={i} style={styles.generatingStep}>
+                      <View style={styles.generatingStepIcon}>
+                        <Ionicons name={s.icon} size={14} color="#2E7D62" />
+                      </View>
+                      <Text style={styles.generatingStepText}>{s.text}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ── Error state ── */}
+          {!generating && error && (
+            <View style={styles.sheet}>
+              <View style={styles.errorWrap}>
+                <LinearGradient
+                  colors={['#3D1B1B', '#5E2E2E']}
+                  style={styles.errorIcon}
+                >
+                  <Ionicons name="alert-circle" size={28} color="#E87A7A" />
+                </LinearGradient>
+                <Text style={styles.errorTitle}>Couldn't Generate Module</Text>
+                <Text style={styles.errorBody}>{error}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={generateModule}>
+                  <Ionicons name="refresh" size={16} color="#FFFFFF" />
+                  <Text style={styles.retryBtnText}>Try Again</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ── Module loaded ── */}
+          {!generating && module && (
+            <>
+              {/* ── Module hero ── */}
+              <LinearGradient
+                colors={['#1B3D2F', '#2A5240']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={[styles.moduleHero, { paddingBottom: 32 }]}
+              >
+                <View style={styles.moduleTopicChip}>
+                  <Ionicons name="sparkles" size={11} color="#D4871A" />
+                  <Text style={styles.moduleTopicText}>AI-Generated Module</Text>
+                </View>
+                <Text style={styles.moduleTitle}>{module.title}</Text>
+                <Text style={styles.moduleTopic} numberOfLines={2}>{module.moduleGoal}</Text>
+
+                {/* Progress bar */}
+                <View style={styles.progressWrap}>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+                  </View>
+                  <Text style={styles.progressLabel}>
+                    {completedCount}/{module.totalLessons} lessons complete
+                  </Text>
+                </View>
+              </LinearGradient>
+
+              {/* ── Lessons ── */}
+              <View style={styles.sheet}>
+                <View style={styles.contentPad}>
+
+                  <View style={styles.sectionTitleWrap}>
+                    <Text style={styles.sectionTitle}>LESSONS</Text>
+                  </View>
+
+                  {module.lessons.map((lesson, i) => {
+                    const cfg = LESSON_COLORS[lesson.type];
+                    const isExpanded = activeLesson === lesson.id;
+                    const isLocked = i > 0 && !module.lessons[i - 1].completed;
+
+                    return (
+                      <TouchableOpacity
+                        key={lesson.id}
+                        style={[styles.lessonCard, lesson.completed && styles.lessonCardDone]}
+                        activeOpacity={isLocked ? 1 : 0.85}
+                        onPress={() => !isLocked && setActiveLesson(isExpanded ? null : lesson.id)}
+                      >
+                        {/* Lesson row */}
+                        <View style={styles.lessonRow}>
+                          <LinearGradient
+                            colors={lesson.completed ? ['#D1D5DB', '#9CA3AF'] : cfg.bg}
+                            style={styles.lessonNum}
+                          >
+                            {lesson.completed
+                              ? <Ionicons name="checkmark" size={14} color="#FFF" />
+                              : isLocked
+                                ? <Ionicons name="lock-closed" size={12} color="rgba(255,255,255,0.7)" />
+                                : <Text style={styles.lessonNumText}>{i + 1}</Text>
+                            }
+                          </LinearGradient>
+
+                          <View style={styles.lessonContent}>
+                            <View style={styles.lessonMeta}>
+                              <View style={[styles.lessonTypeChip, { backgroundColor: lesson.completed ? '#F3F4F6' : `${cfg.bg[0]}18` }]}>
+                                <Ionicons name={cfg.icon} size={10} color={lesson.completed ? '#9CA3AF' : cfg.bg[0]} />
+                                <Text style={[styles.lessonTypeText, { color: lesson.completed ? '#9CA3AF' : cfg.bg[0] }]}>
+                                  {cfg.label}
+                                </Text>
+                              </View>
+                              <Text style={styles.lessonDuration}>
+                                <Ionicons name="time-outline" size={10} color="#9CA3AF" /> {lesson.duration}
+                              </Text>
+                            </View>
+                            <Text style={[styles.lessonTitle, isLocked && styles.lessonTitleLocked]}>
+                              {lesson.title}
+                            </Text>
+                          </View>
+
+                          {!isLocked && (
+                            <Ionicons
+                              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                              size={16}
+                              color="#9CA3AF"
+                            />
+                          )}
+                        </View>
+
+                        {/* Expanded lesson content */}
+                        {isExpanded && !isLocked && (
+                          <View style={styles.lessonExpanded}>
+                            <View style={styles.lessonExpandedDivider} />
+
+                            {/* Objective */}
+                            {!!lesson.objective && (
+                              <Text style={styles.lessonObjective}>{lesson.objective}</Text>
+                            )}
+
+                            {/* Why It Matters */}
+                            {!!lesson.whyItMatters && (
+                              <View style={styles.lessonSection}>
+                                <View style={styles.lessonSectionHeader}>
+                                  <Ionicons name="heart-outline" size={13} color="#1B3D2F" />
+                                  <Text style={styles.lessonSectionLabel}>Why It Matters</Text>
+                                </View>
+                                <Text style={styles.lessonSectionBody}>{lesson.whyItMatters}</Text>
+                              </View>
+                            )}
+
+                            {/* Islamic Guidance */}
+                            {!!lesson.islamicGuidance && (
+                              <View style={[styles.lessonSection, styles.lessonSectionGreen]}>
+                                <View style={styles.lessonSectionHeader}>
+                                  <Ionicons name="moon" size={13} color="#1B3D2F" />
+                                  <Text style={styles.lessonSectionLabel}>Islamic Guidance</Text>
+                                </View>
+                                <Text style={styles.lessonSectionBody}>{lesson.islamicGuidance}</Text>
+                              </View>
+                            )}
+
+                            {/* Research Insight */}
+                            {!!lesson.researchInsight && (
+                              <View style={[styles.lessonSection, styles.lessonSectionAmber]}>
+                                <View style={styles.lessonSectionHeader}>
+                                  <Ionicons name="flask-outline" size={13} color="#7A3A0A" />
+                                  <Text style={[styles.lessonSectionLabel, { color: '#7A3A0A' }]}>Research Insight</Text>
+                                </View>
+                                <Text style={[styles.lessonSectionBody, { color: '#5C2D07' }]}>{lesson.researchInsight}</Text>
+                              </View>
+                            )}
+
+                            {/* Action Steps */}
+                            {lesson.actionSteps?.length > 0 && (
+                              <View style={styles.lessonSection}>
+                                <View style={styles.lessonSectionHeader}>
+                                  <Ionicons name="list-outline" size={13} color="#1B3D2F" />
+                                  <Text style={styles.lessonSectionLabel}>Action Steps</Text>
+                                </View>
+                                {lesson.actionSteps.map((step, si) => (
+                                  <View key={si} style={styles.bulletRow}>
+                                    <View style={styles.bulletDot} />
+                                    <Text style={styles.bulletText}>{step}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+
+                            {/* What to Say */}
+                            {lesson.whatToSay?.length > 0 && (
+                              <View style={styles.lessonSection}>
+                                <View style={styles.lessonSectionHeader}>
+                                  <Ionicons name="chatbubble-ellipses-outline" size={13} color="#1B3D2F" />
+                                  <Text style={styles.lessonSectionLabel}>What to Say</Text>
+                                </View>
+                                {lesson.whatToSay.map((phrase, pi) => (
+                                  <View key={pi} style={styles.speechBubble}>
+                                    <Text style={styles.speechText}>"{phrase}"</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+
+                            {/* Mistakes to Avoid */}
+                            {lesson.mistakesToAvoid?.length > 0 && (
+                              <View style={styles.lessonSection}>
+                                <View style={styles.lessonSectionHeader}>
+                                  <Ionicons name="close-circle-outline" size={13} color="#B45309" />
+                                  <Text style={[styles.lessonSectionLabel, { color: '#B45309' }]}>Mistakes to Avoid</Text>
+                                </View>
+                                {lesson.mistakesToAvoid.map((m, mi) => (
+                                  <View key={mi} style={styles.bulletRow}>
+                                    <View style={[styles.bulletDot, { backgroundColor: '#B45309' }]} />
+                                    <Text style={[styles.bulletText, { color: '#78350F' }]}>{m}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+
+                            {/* Reflection Question */}
+                            {!!lesson.reflectionQuestion && (
+                              <View style={[styles.lessonSection, styles.lessonSectionBlue]}>
+                                <View style={styles.lessonSectionHeader}>
+                                  <Ionicons name="help-circle-outline" size={13} color="#1A2744" />
+                                  <Text style={[styles.lessonSectionLabel, { color: '#1A2744' }]}>Reflect</Text>
+                                </View>
+                                <Text style={[styles.lessonSectionBody, { color: '#1A2744', fontStyle: 'italic' }]}>
+                                  {lesson.reflectionQuestion}
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* Mini Takeaway */}
+                            {!!lesson.miniTakeaway && (
+                              <View style={styles.miniTakeaway}>
+                                <Ionicons name="sparkles" size={12} color="#D4871A" />
+                                <Text style={styles.miniTakeawayText}>{lesson.miniTakeaway}</Text>
+                              </View>
+                            )}
+
+                            <TouchableOpacity
+                              style={[styles.markDoneBtn, lesson.completed && styles.markUndoneBtn]}
+                              onPress={() => toggleLesson(lesson.id)}
+                            >
+                              <Ionicons
+                                name={lesson.completed ? 'refresh' : 'checkmark-circle'}
+                                size={16}
+                                color={lesson.completed ? '#6B7280' : '#FFFFFF'}
+                              />
+                              <Text style={[styles.markDoneBtnText, lesson.completed && styles.markUndoneText]}>
+                                {lesson.completed ? 'Mark Incomplete' : 'Mark as Complete'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {/* Completed banner */}
+                  {completedCount === module.totalLessons && (
+                    <LinearGradient
+                      colors={['#1B3D2F', '#2E5E45']}
+                      style={styles.completedBanner}
+                    >
+                      <Ionicons name="checkmark-circle" size={36} color="#D4871A" style={{ marginBottom: 10 }} />
+                      <Text style={styles.completedTitle}>Module Complete!</Text>
+                      <Text style={styles.completedBody}>
+                        Masha'Allah — you've completed all lessons in this module.
+                      </Text>
+                    </LinearGradient>
+                  )}
+
+                  {/* ── Issue Summary & Parent Reframe ── */}
+                  {(!!module.issueSummary || !!module.parentReframe) && (
+                    <View style={styles.summarySection}>
+                      <Text style={styles.summarySectionTitle}>ABOUT THIS MODULE</Text>
+                      {!!module.issueSummary && (
+                        <Text style={styles.summarySectionBody}>{module.issueSummary}</Text>
+                      )}
+                      {!!module.parentReframe && (
+                        <View style={[styles.summaryBlock, styles.summaryBlockGreen]}>
+                          <View style={styles.summaryBlockHeader}>
+                            <Ionicons name="heart" size={13} color="#1B3D2F" />
+                            <Text style={styles.summaryBlockLabel}>Keep in Mind</Text>
+                          </View>
+                          <Text style={styles.summaryBlockBody}>{module.parentReframe}</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* ── Weekly Action Plan ── */}
+                  {(module.weeklyPriorities?.length > 0 || module.weeklyHabits?.length > 0 ||
+                    !!module.behaviorToReduce || !!module.relationshipAction) && (
+                    <View style={styles.summarySection}>
+                      <Text style={styles.summarySectionTitle}>YOUR ACTION PLAN</Text>
+
+                      {module.weeklyPriorities?.length > 0 && (
+                        <View style={styles.summaryBlock}>
+                          <View style={styles.summaryBlockHeader}>
+                            <Ionicons name="flag-outline" size={13} color="#1B3D2F" />
+                            <Text style={styles.summaryBlockLabel}>This Week's Priorities</Text>
+                          </View>
+                          {module.weeklyPriorities.map((p, i) => (
+                            <View key={i} style={styles.bulletRow}>
+                              <View style={styles.bulletDot} />
+                              <Text style={styles.bulletText}>{p}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {module.weeklyHabits?.length > 0 && (
+                        <View style={styles.summaryBlock}>
+                          <View style={styles.summaryBlockHeader}>
+                            <Ionicons name="repeat-outline" size={13} color="#1B3D2F" />
+                            <Text style={styles.summaryBlockLabel}>Daily Habits to Build</Text>
+                          </View>
+                          {module.weeklyHabits.map((h, i) => (
+                            <View key={i} style={styles.bulletRow}>
+                              <View style={styles.bulletDot} />
+                              <Text style={styles.bulletText}>{h}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {!!module.behaviorToReduce && (
+                        <View style={[styles.summaryBlock, styles.summaryBlockAmber]}>
+                          <View style={styles.summaryBlockHeader}>
+                            <Ionicons name="trending-down-outline" size={13} color="#7A3A0A" />
+                            <Text style={[styles.summaryBlockLabel, { color: '#7A3A0A' }]}>Behaviour to Reduce</Text>
+                          </View>
+                          <Text style={[styles.summaryBlockBody, { color: '#5C2D07' }]}>{module.behaviorToReduce}</Text>
+                        </View>
+                      )}
+
+                      {!!module.relationshipAction && (
+                        <View style={styles.summaryBlock}>
+                          <View style={styles.summaryBlockHeader}>
+                            <Ionicons name="people-outline" size={13} color="#1B3D2F" />
+                            <Text style={styles.summaryBlockLabel}>Relationship Action</Text>
+                          </View>
+                          <Text style={styles.summaryBlockBody}>{module.relationshipAction}</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* ── Spiritual Practices ── */}
+                  {!!module.spiritualPractices && (
+                    <View style={styles.summarySection}>
+                      <Text style={styles.summarySectionTitle}>SPIRITUAL PRACTICES</Text>
+                      <View style={[styles.summaryBlock, styles.summaryBlockGreen]}>
+                        <View style={styles.summaryBlockHeader}>
+                          <Ionicons name="moon" size={13} color="#1B3D2F" />
+                          <Text style={styles.summaryBlockLabel}>Duas & Practices</Text>
+                        </View>
+                        <Text style={styles.summaryBlockBody}>{module.spiritualPractices}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* ── Signs of Progress ── */}
+                  {module.progressSigns?.length > 0 && (
+                    <View style={styles.summarySection}>
+                      <Text style={styles.summarySectionTitle}>SIGNS OF PROGRESS</Text>
+                      <View style={styles.summaryBlock}>
+                        <Text style={styles.summarySubtitle}>Watch for these gradual changes:</Text>
+                        {module.progressSigns.map((sign, i) => (
+                          <View key={i} style={styles.bulletRow}>
+                            <Ionicons name="checkmark-circle-outline" size={13} color="#2E7D62" style={{ marginTop: 2 }} />
+                            <Text style={[styles.bulletText, { color: '#374151' }]}>{sign}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* ── When to Seek Help ── */}
+                  {!!module.whenToSeekHelp && (
+                    <View style={styles.summarySection}>
+                      <View style={[styles.summaryBlock, styles.summaryBlockBlue]}>
+                        <View style={styles.summaryBlockHeader}>
+                          <Ionicons name="information-circle-outline" size={13} color="#1A2744" />
+                          <Text style={[styles.summaryBlockLabel, { color: '#1A2744' }]}>When to Seek Help</Text>
+                        </View>
+                        <Text style={[styles.summaryBlockBody, { color: '#1A2744' }]}>{module.whenToSeekHelp}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* ── Final Encouragement ── */}
+                  {!!module.finalEncouragement && (
+                    <LinearGradient
+                      colors={['#1B3D2F', '#2E5E45']}
+                      style={styles.encouragementCard}
+                    >
+                      <Ionicons name="sparkles" size={18} color="#D4871A" style={{ marginBottom: 10 }} />
+                      <Text style={styles.encouragementText}>{module.finalEncouragement}</Text>
+                    </LinearGradient>
+                  )}
+
+                  <View style={{ height: 32 }} />
+                </View>
+              </View>
+            </>
+          )}
+
+        </ScrollView>
+      </SafeAreaView>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#1B3D2F' },
+
+  // ── Header ──
+  header: {
+    backgroundColor: '#1B3D2F',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center',
+  },
+
+  // ── Sheet ──
+  sheet: {
+    flexGrow: 1,
+    backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
+  contentPad: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36 },
+
+  // ── Generating ──
+  generatingWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 48,
+    paddingBottom: 40,
+  },
+  generatingIcon: {
+    width: 72, height: 72, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 24,
+  },
+  generatingTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1B3D2F',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  generatingBody: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  generatingDots: { marginBottom: 32 },
+  generatingSteps: { width: '100%', gap: 12 },
+  generatingStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  generatingStepIcon: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: '#E8F5EF',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  generatingStepText: {
+    fontSize: 13,
+    color: '#374151',
+    fontWeight: '500',
+  },
+
+  // ── Module hero ──
+  moduleHero: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  moduleTopicChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 12,
+  },
+  moduleTopicText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#D4871A',
+    letterSpacing: 0.5,
+  },
+  moduleTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+    marginBottom: 6,
+  },
+  moduleTopic: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    lineHeight: 19,
+    marginBottom: 20,
+  },
+  progressWrap: { gap: 8 },
+  progressTrack: {
+    height: 5,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 3,
+  },
+  progressFill: {
+    height: 5,
+    backgroundColor: '#D4871A',
+    borderRadius: 3,
+  },
+  progressLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '600',
+  },
+
+  // ── Section title ──
+  sectionTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1B3D2F',
+    letterSpacing: 0.8,
+  },
+
+  // ── Lesson cards ──
+  lessonCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginBottom: 10,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  lessonCardDone: {
+    opacity: 0.75,
+  },
+  lessonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  lessonNum: {
+    width: 38, height: 38, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  lessonNumText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  lessonContent: { flex: 1 },
+  lessonMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  lessonTypeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  lessonTypeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  lessonDuration: {
+    fontSize: 10,
+    color: '#9CA3AF',
+  },
+  lessonTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    lineHeight: 20,
+  },
+  lessonTitleLocked: { color: '#9CA3AF' },
+
+  // ── Expanded lesson ──
+  lessonExpanded: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+  lessonExpandedDivider: {
+    height: 1,
+    backgroundColor: '#F0F1F3',
+    marginBottom: 14,
+  },
+  lessonPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#F5F6F8',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+  },
+  lessonPlaceholderText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 19,
+  },
+  markDoneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#1B3D2F',
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  markUndoneBtn: {
+    backgroundColor: '#F3F4F6',
+  },
+  markDoneBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  markUndoneText: { color: '#6B7280' },
+
+  // ── Error state ──
+  errorWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 48,
+    paddingBottom: 40,
+  },
+  errorIcon: {
+    width: 72, height: 72, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1B1B1B',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  errorBody: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#1B3D2F',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+  },
+  retryBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // ── Expanded lesson content ──
+  lessonObjective: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 20,
+    marginBottom: 14,
+    fontStyle: 'italic',
+  },
+  lessonSection: {
+    backgroundColor: '#F5F6F8',
+    borderRadius: 12,
+    padding: 13,
+    marginBottom: 10,
+  },
+  lessonSectionGreen: {
+    backgroundColor: '#EDF7F2',
+  },
+  lessonSectionAmber: {
+    backgroundColor: '#FEF3E2',
+  },
+  lessonSectionBlue: {
+    backgroundColor: '#EEF2FF',
+  },
+  lessonSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  lessonSectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1B3D2F',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  lessonSectionBody: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 6,
+  },
+  bulletDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: '#1B3D2F',
+    marginTop: 7,
+    flexShrink: 0,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  speechBubble: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#1B3D2F',
+    padding: 10,
+    marginBottom: 7,
+  },
+  speechText: {
+    fontSize: 13,
+    color: '#1C1C1E',
+    lineHeight: 19,
+    fontStyle: 'italic',
+  },
+  miniTakeaway: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FEF3E2',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
+  miniTakeawayText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#92400E',
+    lineHeight: 19,
+  },
+
+  // ── Completed banner ──
+  completedBanner: {
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  completedTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  completedBody: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+
+  // ── Module summary sections ──
+  summarySection: {
+    marginTop: 24,
+  },
+  summarySectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1B3D2F',
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+  summarySectionBody: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  summarySubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 10,
+    fontStyle: 'italic',
+  },
+  summaryBlock: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  summaryBlockGreen: {
+    backgroundColor: '#EDF7F2',
+  },
+  summaryBlockAmber: {
+    backgroundColor: '#FEF3E2',
+  },
+  summaryBlockBlue: {
+    backgroundColor: '#EEF2FF',
+  },
+  summaryBlockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  summaryBlockLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1B3D2F',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  summaryBlockBody: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  encouragementCard: {
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  encouragementText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+    lineHeight: 22,
+    fontStyle: 'italic',
+  },
+});

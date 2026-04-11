@@ -6,6 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DarkHeader from '../components/DarkHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { getMonthReadDays, getStreak } from '../utils/readInsights';
@@ -93,13 +94,11 @@ export default function ProgressScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
-        <View style={styles.header}>
-          <Text style={styles.title}>Progress</Text>
-          <Text style={styles.subtitle}>Track your daily reading consistency</Text>
-        </View>
+    <SafeAreaView style={styles.safe} edges={[]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <DarkHeader title="Progress" subtitle="Track your daily reading consistency" />
+        <View style={styles.sheet}>
+        <View style={styles.content}>
 
         {/* ── Streaks ── */}
         <Text style={styles.sectionTitle}>STREAKS</Text>
@@ -198,19 +197,25 @@ export default function ProgressScreen() {
         )}
 
         <View style={{ height: 32 }} />
+        </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  safe: { flex: 1, backgroundColor: '#1B3D2F' },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 8 },
-
-  header: { marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: '700', color: '#1B3D2F', marginBottom: 4 },
-  subtitle: { fontSize: 13, color: '#9CA3AF', fontWeight: '500' },
+  scrollContent: { flexGrow: 1 },
+  sheet: {
+    flexGrow: 1,
+    backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
+  content: { paddingHorizontal: 20, paddingTop: 20 },
 
   // ── Streak cards ──
   streaksRow: { flexDirection: 'row', gap: 12, marginBottom: 28 },

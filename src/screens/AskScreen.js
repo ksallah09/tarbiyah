@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import DarkHeader from '../components/DarkHeader';
 
-// For iOS simulator use localhost. For a real device, replace with your machine's local IP.
-// e.g. 'http://192.168.1.x:3001'
-const API_URL = 'http://localhost:3001';
+const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 const SUGGESTED_QUESTIONS = [
   'How do I build a strong connection with my child?',
@@ -29,8 +29,15 @@ export default function AskScreen() {
   const [messages, setMessages] = useState([]);
   const [input, setInput]       = useState('');
   const [loading, setLoading]   = useState(false);
+  const [name, setName]         = useState('');
   const scrollRef = useRef(null);
   const insets = useSafeAreaInsets();
+
+  React.useEffect(() => {
+    AsyncStorage.getItem('tarbiyah_profile')
+      .then(raw => { if (raw) setName(JSON.parse(raw).name || ''); })
+      .catch(() => {});
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -76,24 +83,12 @@ export default function AskScreen() {
   const isEmpty = messages.length === 0;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={insets.bottom + 10}
       >
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Salaam Yusuf</Text>
-          <Text style={styles.subtitle}>How can I support you?</Text>
-          </View>
-          {messages.length > 0 && (
-            <TouchableOpacity style={styles.clearBtn} onPress={() => setMessages([])}>
-              <Text style={styles.clearBtnText}>Clear</Text>
-            </TouchableOpacity>
-          )}
-        </View>
 
         {/* ── Messages ── */}
         <ScrollView
@@ -103,6 +98,16 @@ export default function AskScreen() {
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="interactive"
         >
+          <DarkHeader
+            title={name ? `Salaam ${name}` : 'Salaam'}
+            subtitle="How can I support you?"
+            right={messages.length > 0 ? (
+              <TouchableOpacity style={styles.clearBtn} onPress={() => setMessages([])}>
+                <Text style={styles.clearBtnText}>Clear</Text>
+              </TouchableOpacity>
+            ) : null}
+          />
+          <View style={styles.messagesSheet}>
           {isEmpty ? (
             <View style={styles.emptyState}>
               <View style={styles.emptyIconWrap}>
@@ -165,6 +170,7 @@ export default function AskScreen() {
               </View>
             </View>
           )}
+          </View>
         </ScrollView>
 
         {/* ── Input ── */}
@@ -195,29 +201,28 @@ export default function AskScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F6F8' },
-
-  // ── Header ──
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 20,
+  safe: { flex: 1, backgroundColor: '#1B3D2F' },
+  keyboardView: { flex: 1 },
+  messagesSheet: {
+    flexGrow: 1,
+    backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
     paddingTop: 8,
     paddingBottom: 12,
   },
-  title: { fontSize: 28, fontWeight: '700', color: '#1B3D2F', marginBottom: 2 },
-  subtitle: { fontSize: 13, color: '#9CA3AF', fontWeight: '500', maxWidth: 240 },
-  clearBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, backgroundColor: '#F0F1F3', marginTop: 6 },
-  clearBtnText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+
+  clearBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, backgroundColor: 'rgba(255,255,255,0.15)' },
+  clearBtnText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
 
   // ── Scroll ──
   scroll: { flex: 1 },
-  messagesContent: { paddingHorizontal: 16, paddingBottom: 12 },
-  centerContent: { flex: 1, justifyContent: 'center' },
+  messagesContent: { flexGrow: 1 },
+  centerContent: { flexGrow: 1, justifyContent: 'center' },
 
   // ── Empty state ──
-  emptyState: { alignItems: 'center', paddingHorizontal: 16, paddingBottom: 20 },
+  emptyState: { alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 20 },
   emptyIconWrap: {
     width: 60, height: 60, borderRadius: 30,
     backgroundColor: '#E8F5EF',
@@ -244,7 +249,7 @@ const styles = StyleSheet.create({
   suggestionText: { fontSize: 13, color: '#374151', flex: 1, lineHeight: 20 },
 
   // ── Messages ──
-  msgRow: { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-end', gap: 8 },
+  msgRow: { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-end', gap: 8, paddingHorizontal: 16 },
   msgRowUser:  { justifyContent: 'flex-end' },
   msgRowModel: { justifyContent: 'flex-start' },
   avatarWrap: {

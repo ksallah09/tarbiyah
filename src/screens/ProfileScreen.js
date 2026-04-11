@@ -13,13 +13,140 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import DarkHeader from '../components/DarkHeader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_FOCUS_AREAS, getFocusAreas, saveFocusAreas } from '../utils/focusAreas';
+import { getCurrentUser } from '../utils/auth';
+import { saveProfileToSupabase, syncProfileFromSupabase } from '../utils/profile';
+import { useAuth } from '../../App';
 
 const ITEM_HEIGHT = 48;
 const HOURS   = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 const MINUTES = ['00','05','10','15','20','25','30','35','40','45','50','55'];
 const PERIODS = ['AM','PM'];
+
+const COUNTS = ['1', '2', '3', '4', '5+'];
+const CHILD_AGE_GROUPS = [
+  { id: 'under-5', label: 'Under 5',  sub: 'Toddler & Preschool' },
+  { id: '5-10',    label: '5 – 10',   sub: 'Early Childhood'     },
+  { id: '11-15',   label: '11 – 15',  sub: 'Pre-Teen'            },
+  { id: '16-plus', label: '16+',      sub: 'Young Adult'         },
+];
+
+function ChildrenEditorModal({ visible, count, ages, onConfirm, onClose }) {
+  const [localCount, setLocalCount] = useState(count);
+  const [localAges,  setLocalAges]  = useState(ages);
+
+  // sync when modal opens
+  useEffect(() => {
+    if (visible) { setLocalCount(count); setLocalAges(ages); }
+  }, [visible]);
+
+  function toggleAge(id) {
+    setLocalAges(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
+  }
+
+  const canSave = localCount !== null && localAges.length > 0;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={ceStyles.overlay} activeOpacity={1} onPress={onClose} />
+      <View style={ceStyles.sheet}>
+        <View style={ceStyles.handle} />
+        <Text style={ceStyles.title}>Children</Text>
+
+        <Text style={ceStyles.label}>HOW MANY CHILDREN?</Text>
+        <View style={ceStyles.countRow}>
+          {COUNTS.map(c => (
+            <TouchableOpacity
+              key={c}
+              style={[ceStyles.countBtn, localCount === c && ceStyles.countBtnActive]}
+              onPress={() => setLocalCount(c)}
+            >
+              <Text style={[ceStyles.countText, localCount === c && ceStyles.countTextActive]}>{c}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={[ceStyles.label, { marginTop: 20 }]}>WHICH AGE GROUPS?</Text>
+        <View style={ceStyles.ageGrid}>
+          {CHILD_AGE_GROUPS.map(ag => {
+            const selected = localAges.includes(ag.id);
+            return (
+              <TouchableOpacity
+                key={ag.id}
+                style={[ceStyles.ageCard, selected && ceStyles.ageCardActive]}
+                onPress={() => toggleAge(ag.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[ceStyles.ageLabel, selected && ceStyles.ageLabelActive]}>{ag.label}</Text>
+                <Text style={[ceStyles.ageSub,   selected && ceStyles.ageSubActive]}>{ag.sub}</Text>
+                {selected && (
+                  <View style={ceStyles.check}>
+                    <Text style={ceStyles.checkText}>✓</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <TouchableOpacity
+          style={[ceStyles.confirmBtn, !canSave && { opacity: 0.3 }]}
+          onPress={() => canSave && onConfirm(localCount, localAges)}
+          disabled={!canSave}
+        >
+          <Text style={ceStyles.confirmText}>Save</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
+const ceStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 24, paddingBottom: 40, paddingTop: 12,
+  },
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: '#E0E0E0', alignSelf: 'center', marginBottom: 16,
+  },
+  title: { fontSize: 16, fontWeight: '700', color: '#1B3D2F', textAlign: 'center', marginBottom: 20 },
+  label: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1.4, marginBottom: 12 },
+  countRow: { flexDirection: 'row', gap: 8 },
+  countBtn: {
+    flex: 1, height: 48, borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#E8EAED',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  countBtnActive: { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
+  countText: { fontSize: 16, fontWeight: '600', color: '#9CA3AF' },
+  countTextActive: { color: '#FFFFFF' },
+  ageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  ageCard: {
+    width: '47.5%', borderRadius: 14, borderWidth: 1.5,
+    borderColor: '#E8EAED', padding: 14, position: 'relative',
+  },
+  ageCardActive: { backgroundColor: '#E8F5EF', borderColor: '#2E7D62' },
+  ageLabel: { fontSize: 18, fontWeight: '700', color: '#9CA3AF', marginBottom: 3 },
+  ageLabelActive: { color: '#1B3D2F' },
+  ageSub: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
+  ageSubActive: { color: '#2E7D62' },
+  check: {
+    position: 'absolute', top: 10, right: 10,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#2E7D62', alignItems: 'center', justifyContent: 'center',
+  },
+  checkText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  confirmBtn: {
+    backgroundColor: '#1B3D2F', borderRadius: 14,
+    paddingVertical: 14, alignItems: 'center', marginTop: 20,
+  },
+  confirmText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+});
 
 function ScrollColumn({ data, selected, onSelect }) {
   const ref = useRef(null);
@@ -128,23 +255,8 @@ const tcStyles = StyleSheet.create({
   confirmText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });
 
-const AGE_GROUPS = [
-  'Infant · 0–1 yr',
-  'Toddler · 2–3 yrs',
-  'Early Childhood · 4–7 yrs',
-  'Middle Childhood · 8–11 yrs',
-  'Preteen · 12–14 yrs',
-  'Teen · 15–18 yrs',
-];
-
 const LANGUAGES = ['English', 'Arabic', 'French', 'Urdu', 'Turkish'];
 
-const BG_COLORS = ['#E8F5EF', '#FDE8C0', '#E8EEF8', '#FDE8F0', '#F0EAF8'];
-const TEXT_COLORS = ['#1B3D2F', '#A0521A', '#3B5B9E', '#C0226E', '#7B4FAD'];
-
-function getInitial(name) {
-  return name?.trim()?.[0]?.toUpperCase() ?? '?';
-}
 
 function SettingsCard({ children }) {
   return <View style={styles.settingsCard}>{children}</View>;
@@ -174,33 +286,80 @@ function SettingRow({ icon, iconBg, iconColor, title, subtitle, value, onPress, 
 }
 
 export default function ProfileScreen() {
+  const { handleSignOut: authSignOut } = useAuth();
   const [notifications,    setNotifications]    = useState(true);
   const [focusAreas,       setFocusAreas]       = useState([]);
-  const [profileName,      setProfileName]      = useState('Yusuf Al-Hassan');
+  const [profileName,      setProfileName]      = useState('');
   const [reminderTime,     setReminderTime]     = useState('8:00 AM');
   const [language,         setLanguage]         = useState('English');
-  const [showTimePicker,   setShowTimePicker]   = useState(false);
-  const [children,         setChildren]         = useState([
-    { id: '1', name: 'Ibrahim', ageGroup: 'Early Childhood · 4–7 yrs', colorIndex: 0 },
-  ]);
+  const [showTimePicker,     setShowTimePicker]     = useState(false);
+  const [showChildrenEditor, setShowChildrenEditor] = useState(false);
+  const [childrenCount,      setChildrenCount]      = useState(null);
+  const [childrenAges,       setChildrenAges]       = useState([]);
+  const userIdRef = useRef(null);
 
   useEffect(() => {
+    let localProfile = null;
+    let localOnboarding = null;
+
+    getCurrentUser().then(user => {
+      userIdRef.current = user?.id ?? null;
+    });
+
     getFocusAreas().then(setFocusAreas);
-    AsyncStorage.getItem('tarbiyah_profile').then(raw => {
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      if (data.name)         setProfileName(data.name);
-      if (data.reminderTime) setReminderTime(data.reminderTime);
-      if (data.language)     setLanguage(data.language);
-      if (data.children)     setChildren(data.children);
-      if (data.notifications !== undefined) setNotifications(data.notifications);
+
+    Promise.all([
+      AsyncStorage.getItem('tarbiyah_profile'),
+      AsyncStorage.getItem('tarbiyah_onboarding_v1'),
+    ]).then(([profileRaw, onboardingRaw]) => {
+      if (profileRaw) {
+        localProfile = JSON.parse(profileRaw);
+        if (localProfile.name)                        setProfileName(localProfile.name);
+        if (localProfile.reminderTime)                setReminderTime(localProfile.reminderTime);
+        if (localProfile.language)                    setLanguage(localProfile.language);
+        if (localProfile.notifications !== undefined) setNotifications(localProfile.notifications);
+      }
+      if (onboardingRaw) {
+        localOnboarding = JSON.parse(onboardingRaw);
+        if (localOnboarding.childrenCount) setChildrenCount(localOnboarding.childrenCount);
+        if (localOnboarding.childrenAges)  setChildrenAges(localOnboarding.childrenAges);
+      }
+    }).then(async () => {
+      // Backfill Supabase if this account predates the profile-save feature
+      const user = await getCurrentUser();
+      if (!user) return;
+      userIdRef.current = user.id;
+      const synced = await syncProfileFromSupabase(user.id);
+      if (!synced && localProfile) {
+        // No Supabase row yet — save local data up to Supabase now
+        await saveProfileToSupabase({
+          userId:        user.id,
+          name:          localProfile.name,
+          childrenCount: localOnboarding?.childrenCount ?? null,
+          childrenAges:  localOnboarding?.childrenAges  ?? [],
+          reminderTime:  localProfile.reminderTime ?? null,
+          focusAreas:    await getFocusAreas(),
+          language:      localProfile.language ?? 'English',
+        });
+      }
     });
   }, []);
 
   async function saveProfile(patch) {
-    const current = { name: profileName, reminderTime, language, children, notifications };
+    const current = { name: profileName, reminderTime, language, notifications };
     const updated = { ...current, ...patch };
     await AsyncStorage.setItem('tarbiyah_profile', JSON.stringify(updated));
+    if (userIdRef.current) {
+      saveProfileToSupabase({
+        userId:        userIdRef.current,
+        name:          updated.name,
+        childrenCount: childrenCount,
+        childrenAges:  childrenAges,
+        reminderTime:  updated.reminderTime,
+        focusAreas:    focusAreas,
+        language:      updated.language ?? 'English',
+      });
+    }
   }
 
   async function toggleFocusArea(id) {
@@ -209,6 +368,17 @@ export default function ProfileScreen() {
       : [...focusAreas, id];
     setFocusAreas(updated);
     await saveFocusAreas(updated);
+    if (userIdRef.current) {
+      saveProfileToSupabase({
+        userId:        userIdRef.current,
+        name:          profileName,
+        childrenCount: childrenCount,
+        childrenAges:  childrenAges,
+        reminderTime:  reminderTime,
+        focusAreas:    updated,
+        language:      language,
+      });
+    }
   }
 
   // ── Profile edit ──────────────────────────────────────────
@@ -226,104 +396,31 @@ export default function ProfileScreen() {
     );
   }
 
-  // ── Children ──────────────────────────────────────────────
-  function handleAddChild() {
-    Alert.prompt(
-      'Add Child',
-      "Enter your child's name",
-      (name) => {
-        if (!name?.trim()) return;
-        Alert.alert(
-          'Age Group',
-          'Select an age group',
-          AGE_GROUPS.map((group, i) => ({
-            text: group,
-            onPress: () => {
-              const colorIndex = children.length % BG_COLORS.length;
-              const newChild = {
-                id: Date.now().toString(),
-                name: name.trim(),
-                ageGroup: group,
-                colorIndex,
-              };
-              const updated = [...children, newChild];
-              setChildren(updated);
-              saveProfile({ children: updated });
-            },
-          })).concat([{ text: 'Cancel', style: 'cancel' }])
-        );
-      },
-      'plain-text',
-    );
-  }
-
-  function handleChildPress(child) {
-    Alert.alert(
-      child.name,
-      child.ageGroup,
-      [
-        {
-          text: 'Edit Name',
-          onPress: () => Alert.prompt(
-            'Edit Name',
-            '',
-            (name) => {
-              if (!name?.trim()) return;
-              const updated = children.map(c =>
-                c.id === child.id ? { ...c, name: name.trim() } : c
-              );
-              setChildren(updated);
-              saveProfile({ children: updated });
-            },
-            'plain-text',
-            child.name,
-          ),
-        },
-        {
-          text: 'Change Age Group',
-          onPress: () => Alert.alert(
-            'Age Group',
-            'Select an age group',
-            AGE_GROUPS.map(group => ({
-              text: group,
-              onPress: () => {
-                const updated = children.map(c =>
-                  c.id === child.id ? { ...c, ageGroup: group } : c
-                );
-                setChildren(updated);
-                saveProfile({ children: updated });
-              },
-            })).concat([{ text: 'Cancel', style: 'cancel' }])
-          ),
-        },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              `Remove ${child.name}?`,
-              'This cannot be undone.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Remove',
-                  style: 'destructive',
-                  onPress: () => {
-                    const updated = children.filter(c => c.id !== child.id);
-                    setChildren(updated);
-                    saveProfile({ children: updated });
-                  },
-                },
-              ]
-            );
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  }
-
   // ── Reminder time ─────────────────────────────────────────
+  async function handleSaveChildren(count, ages) {
+    setChildrenCount(count);
+    setChildrenAges(ages);
+    setShowChildrenEditor(false);
+    const existing = await AsyncStorage.getItem('tarbiyah_onboarding_v1');
+    const parsed = existing ? JSON.parse(existing) : {};
+    await AsyncStorage.setItem('tarbiyah_onboarding_v1', JSON.stringify({
+      ...parsed,
+      childrenCount: count,
+      childrenAges: ages,
+    }));
+    if (userIdRef.current) {
+      saveProfileToSupabase({
+        userId:        userIdRef.current,
+        name:          profileName,
+        childrenCount: count,
+        childrenAges:  ages,
+        reminderTime:  reminderTime,
+        focusAreas:    focusAreas,
+        language:      language,
+      });
+    }
+  }
+
   function handleReminderTime() {
     setShowTimePicker(true);
   }
@@ -363,20 +460,25 @@ export default function ProfileScreen() {
       'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: () => {} },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: () => authSignOut(),
+        },
       ]
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Profile</Text>
-
+        <DarkHeader title="Profile" />
+        <View style={styles.sheet}>
+        <View style={styles.content}>
         {/* ── Profile Card ── */}
         <View style={styles.profileCard}>
           <View style={styles.profileAvatarCircle}>
@@ -394,24 +496,21 @@ export default function ProfileScreen() {
         {/* ── My Children ── */}
         <Text style={styles.sectionTitle}>MY CHILDREN</Text>
         <View style={styles.sectionBlock}>
-          {children.map((child) => (
-            <TouchableOpacity key={child.id} style={styles.childCard} activeOpacity={0.85} onPress={() => handleChildPress(child)}>
-              <View style={[styles.childAvatar, { backgroundColor: BG_COLORS[child.colorIndex % BG_COLORS.length] }]}>
-                <Text style={[styles.childAvatarText, { color: TEXT_COLORS[child.colorIndex % TEXT_COLORS.length] }]}>
-                  {getInitial(child.name)}
-                </Text>
-              </View>
-              <View style={styles.childInfo}>
-                <Text style={styles.childName}>{child.name}</Text>
-                <Text style={styles.childAgeGroup}>{child.ageGroup}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={17} color="#9CA3AF" />
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={styles.addChildBtn} onPress={handleAddChild}>
-            <Ionicons name="add" size={16} color="#2E7D62" />
-            <Text style={styles.addChildText}>Add Child</Text>
+          {/* Count + age ranges summary card */}
+          <TouchableOpacity style={styles.childrenSummaryCard} onPress={() => setShowChildrenEditor(true)} activeOpacity={0.85}>
+            <View style={styles.childrenSummaryInfo}>
+              <Text style={styles.childrenSummaryCount}>
+                {childrenCount ? `${childrenCount} ${parseInt(childrenCount) === 1 ? 'child' : 'children'}` : 'Not set'}
+              </Text>
+              <Text style={styles.childrenSummaryAges}>
+                {childrenAges.length > 0
+                  ? CHILD_AGE_GROUPS.filter(ag => childrenAges.includes(ag.id)).map(ag => ag.label).join(' · ')
+                  : 'No age groups selected'}
+              </Text>
+            </View>
+            <Ionicons name="pencil-outline" size={15} color="#2E7D62" />
           </TouchableOpacity>
+
         </View>
 
         {/* ── My Focus Areas ── */}
@@ -487,7 +586,7 @@ export default function ProfileScreen() {
                     setNotifications(val);
                     saveProfile({ notifications: val });
                   }}
-                  trackColor={{ false: '#E8EAED', true: '#A8D5C2' }}
+                  trackColor={{ false: '#E8EAED', true: '#34C759' }}
                   thumbColor={notifications ? '#1B3D2F' : '#FFF'}
                   ios_backgroundColor="#E8EAED"
                 />
@@ -518,7 +617,8 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <Text style={styles.versionLabel}>Tarbiyah v1.0.0</Text>
-        <View style={{ height: 24 }} />
+        </View>{/* end content */}
+        </View>{/* end sheet */}
       </ScrollView>
       <TimePickerModal
         visible={showTimePicker}
@@ -530,16 +630,31 @@ export default function ProfileScreen() {
           setShowTimePicker(false);
         }}
       />
+      <ChildrenEditorModal
+        visible={showChildrenEditor}
+        count={childrenCount}
+        ages={childrenAges}
+        onClose={() => setShowChildrenEditor(false)}
+        onConfirm={handleSaveChildren}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  safe: { flex: 1, backgroundColor: '#1B3D2F' },
   scroll: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  sheet: {
+    flexGrow: 1,
+    backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
   content: { paddingTop: 8, paddingBottom: 32, paddingHorizontal: 20 },
 
-  title: { fontSize: 28, fontWeight: '700', color: '#1B3D2F', marginBottom: 20 },
+  title: { fontSize: 28, fontWeight: '700', color: '#1B3D2F', marginBottom: 0 },
 
   sectionTitle: {
     fontSize: 13, fontWeight: '700', color: '#1B3D2F',
@@ -579,6 +694,15 @@ const styles = StyleSheet.create({
   childInfo: { flex: 1 },
   childName: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', marginBottom: 2 },
   childAgeGroup: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+  childrenSummaryCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, marginBottom: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+  },
+  childrenSummaryInfo: { flex: 1 },
+  childrenSummaryCount: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', marginBottom: 3 },
+  childrenSummaryAges: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
   addChildBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: '#FFFFFF', borderRadius: 14, paddingVertical: 13,

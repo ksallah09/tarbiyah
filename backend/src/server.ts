@@ -15,11 +15,12 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import { getTextModel, MODEL_FAST } from './config/gemini';
+import { getTextModel, getJsonModel, generateWithRetry, MODEL_FAST, MODEL_HEAVY } from './config/gemini';
 import { supabase, verifyUserToken } from './config/supabase';
 import { seedSources, pickInsight, recordDelivery, getSourceById } from './data/database';
 import { buildDailyPayload } from './generators/insights';
-import { ExtractedContent, AppDailyPayload } from './types';
+import { buildModuleSystemPrompt } from './prompts/module';
+import { ExtractedContent, AppDailyPayload, AppModule, ModuleLesson } from './types';
 
 const app = express();
 app.use(cors());
@@ -244,6 +245,143 @@ app.get('/daily/preview', async (_req: Request, res: Response) => {
   }
 });
 
+// ─── Source context builder for modules ──────────────────────────────────────
+
+async function buildModuleSourceContext(): Promise<string> {
+  // Pull all completed processing jobs with their extracted content
+  const { data: jobs } = await supabase
+    .from('processing_jobs')
+    .select('source_id, extracted_content')
+    .eq('status', 'completed')
+    .limit(80); // cap to avoid token overflow
+
+  if (!jobs || jobs.length === 0) return 'No source material available.';
+
+  const sourceIds = jobs.map((j: Record<string, unknown>) => j.source_id as string);
+  const { data: sources } = await supabase
+    .from('sources')
+    .select('id, title, author, category, tags, description')
+    .in('id', sourceIds);
+
+  const sourceMap = new Map(
+    (sources ?? []).map((s: Record<string, unknown>) => [s.id as string, s])
+  );
+
+  let context = '';
+  for (const job of jobs as Array<{ source_id: string; extracted_content: ExtractedContent }>) {
+    const src = sourceMap.get(job.source_id) as Record<string, unknown> | undefined;
+    const c = job.extracted_content;
+    if (!c) continue;
+
+    context += `────────────────────────────\n`;
+    context += `SOURCE: "${src?.title ?? job.source_id}"\n`;
+    context += `AUTHOR: ${src?.author ?? 'Unknown'}\n`;
+    context += `CATEGORY: ${src?.category ?? 'unknown'}\n`;
+    if (src?.description) context += `OVERVIEW: ${src.description}\n`;
+    context += '\n';
+    if (c.coreTheme)         context += `CORE THEME: ${c.coreTheme}\n\n`;
+    if (c.keyInsights?.length) {
+      context += `KEY INSIGHTS:\n`;
+      c.keyInsights.forEach(k => { context += `• ${k}\n`; });
+      context += '\n';
+    }
+    if (c.islamicReferences?.length) {
+      context += `ISLAMIC REFERENCES:\n`;
+      c.islamicReferences.forEach(r => { context += `• ${r}\n`; });
+      context += '\n';
+    }
+    if (c.practicalAdvice?.length) {
+      context += `PRACTICAL ADVICE:\n`;
+      c.practicalAdvice.forEach(a => { context += `• ${a}\n`; });
+      context += '\n';
+    }
+    if (c.rawSummary) context += `SUMMARY: ${c.rawSummary}\n\n`;
+  }
+
+  return context;
+}
+
+// ─── POST /learn/generate ─────────────────────────────────────────────────────
+
+app.post('/learn/generate', async (req: Request, res: Response) => {
+  try {
+    const { topic, childrenAges, focusAreas } = req.body as {
+      topic: string;
+      childrenAges?: string;
+      focusAreas?: string[];
+    };
+
+    if (!topic?.trim()) {
+      return res.status(400).json({ error: 'Topic is required.' });
+    }
+
+    const sourceContext = await buildModuleSourceContext();
+    const systemPrompt  = buildModuleSystemPrompt(sourceContext);
+    const model         = getJsonModel(MODEL_HEAVY, systemPrompt);
+
+    const userPrompt = [
+      `Parent's topic: ${topic.trim()}`,
+      childrenAges  ? `Children's ages: ${childrenAges}` : null,
+      focusAreas?.length ? `Parent's focus areas: ${focusAreas.join(', ')}` : null,
+    ].filter(Boolean).join('\n');
+
+    const raw = await generateWithRetry(model, userPrompt, MODEL_HEAVY, systemPrompt);
+
+    let parsed: Omit<AppModule, 'id' | 'totalLessons' | 'completedLessons' | 'createdAt'>;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      console.error('Module JSON parse error. Raw response:', raw.slice(0, 500));
+      return res.status(500).json({ error: 'Failed to parse module response.' });
+    }
+
+    // Ensure lessons have required fields
+    const lessons: ModuleLesson[] = (parsed.lessons ?? []).map((l, i) => ({
+      id: i + 1,
+      title: l.title ?? `Lesson ${i + 1}`,
+      type: l.type ?? (i % 2 === 0 ? 'spiritual' : 'science'),
+      duration: l.duration ?? '5 min',
+      objective: l.objective ?? '',
+      whyItMatters: l.whyItMatters ?? '',
+      islamicGuidance: l.islamicGuidance ?? '',
+      researchInsight: l.researchInsight ?? '',
+      actionSteps: l.actionSteps ?? [],
+      whatToSay: l.whatToSay ?? [],
+      mistakesToAvoid: l.mistakesToAvoid ?? [],
+      reflectionQuestion: l.reflectionQuestion ?? '',
+      miniTakeaway: l.miniTakeaway ?? '',
+      completed: false,
+    }));
+
+    const module: AppModule = {
+      id: `mod_${Date.now()}`,
+      topic: topic.trim(),
+      title: parsed.title ?? 'Your Parenting Module',
+      issueSummary: parsed.issueSummary ?? '',
+      parentReframe: parsed.parentReframe ?? '',
+      rootCauses: parsed.rootCauses ?? [],
+      moduleGoal: parsed.moduleGoal ?? '',
+      lessons,
+      weeklyPriorities: parsed.weeklyPriorities ?? [],
+      weeklyHabits: parsed.weeklyHabits ?? [],
+      behaviorToReduce: parsed.behaviorToReduce ?? '',
+      relationshipAction: parsed.relationshipAction ?? '',
+      spiritualPractices: parsed.spiritualPractices ?? '',
+      progressSigns: parsed.progressSigns ?? [],
+      whenToSeekHelp: parsed.whenToSeekHelp ?? '',
+      finalEncouragement: parsed.finalEncouragement ?? '',
+      totalLessons: lessons.length,
+      completedLessons: 0,
+      createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    };
+
+    return res.json(module);
+  } catch (err) {
+    console.error('Learn generate error:', err);
+    return res.status(500).json({ error: 'Failed to generate module. Please try again.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));
@@ -254,9 +392,11 @@ async function start() {
   // Listen immediately so Railway health checks pass right away
   app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`\n✓ Tarbiyah server running on http://0.0.0.0:${PORT}`);
-    console.log(`  POST /chat   — AI parenting advisor`);
-    console.log(`  GET  /daily  — Personalized daily payload (auth required)`);
-    console.log(`  GET  /health — Health check\n`);
+    console.log(`  POST /chat           — AI parenting advisor`);
+    console.log(`  GET  /daily          — Personalized daily payload (auth required)`);
+    console.log(`  GET  /daily/preview  — Daily payload preview (no auth)`);
+    console.log(`  POST /learn/generate — Generate personalized parenting module`);
+    console.log(`  GET  /health         — Health check\n`);
   });
 
   // Seed and warm cache in the background after startup

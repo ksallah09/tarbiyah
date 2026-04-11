@@ -1,11 +1,10 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
   ActivityIndicator,
   Animated,
 } from 'react-native';
@@ -19,30 +18,11 @@ import fallbackData from '../data/insights.json';
 import { getWeekReadDays } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import TypewriterText from '../components/TypewriterText';
+import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 
-const API_URL = 'https://tarbiyah-production.up.railway.app';
+const API_URL   = 'https://tarbiyah-production.up.railway.app';
+const CACHE_KEY = 'tarbiyah_daily_cache';
 
-const ASSET_MAP = {
-  'Nouman Ali Khan.png':              require('../../assets/Nouman Ali Khan.png'),
-  'YAsmin-MOgahed.png':               require('../../assets/YAsmin-MOgahed.png'),
-  'belal-assaad.jpg':                 require('../../assets/belal-assaad.jpg'),
-  'Omar-Suleiman.jpg':                require('../../assets/Omar-Suleiman.jpg'),
-  'yasir-qadhi.jpeg':                 require('../../assets/yasir-qadhi.jpeg'),
-  'mufti-menk.jpeg':                  require('../../assets/mufti-menk.jpeg'),
-  'haifaa-younis.jpeg':               require('../../assets/haifaa-younis.jpeg'),
-  'ibrahim-hindy.jpeg':               require('../../assets/ibrahim-hindy.jpeg'),
-  'national-inst-child-health.jpeg':  require('../../assets/national-inst-child-health.jpeg'),
-  'childmind.png':                    require('../../assets/childmind.png'),
-  'american-academy-of-ped.jpg':      require('../../assets/american-academy-of-ped.jpg'),
-  'ucdavishealth.jpg':                require('../../assets/ucdavishealth.jpg'),
-  'NIH_2013_logo_vertical.svg.png':   require('../../assets/NIH_2013_logo_vertical.svg.png'),
-  'CDC_logo_2024.png':                require('../../assets/CDC_logo_2024.png'),
-  'hamza-yusuf.png':                  require('../../assets/hamza-yusuf.png'),
-  'AAFP_LogoMark_Color.jpg':          require('../../assets/AAFP_LogoMark_Color.jpg'),
-  'UNICEF-logo.png':                  require('../../assets/UNICEF-logo.png'),
-  'spiritual-insights.png':           require('../../assets/spiritual-insights.png'),
-  'science-insights.png':             require('../../assets/science-insights.png'),
-};
 
 function WeekRow({ days, color, todayColor }) {
   return (
@@ -105,18 +85,16 @@ async function getProfileName() {
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
-  const [dailyData, setDailyData]            = useState(fallbackData);
+  const [dailyData, setDailyData]            = useState(null);
   const [loading, setLoading]                = useState(true);
   const [spirReadWeek, setSpiritualReadWeek] = useState([]);
   const [sciReadWeek,  setScientificReadWeek]= useState([]);
   const [name, setName]                      = useState('');
   const [animate, setAnimate]                = useState(false);
-  const [greetingDone, setGreetingDone]      = useState(false);
 
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
   function revealContent() {
-    setGreetingDone(true);
     Animated.timing(contentOpacity, {
       toValue: 1, duration: 500, useNativeDriver: true,
     }).start();
@@ -135,25 +113,37 @@ export default function HomeScreen({ navigation }) {
           if (!shouldAnimate) revealContent();
         });
 
-      // Fetch from API
+      // Load cached daily data first so there's no flash of stale fallback content
+      AsyncStorage.getItem(CACHE_KEY).then(raw => {
+        if (raw) {
+          try { setDailyData(JSON.parse(raw)); } catch {}
+        }
+      });
+
+      // Fetch from API and update cache
       fetch(`${API_URL}/daily/preview`)
         .then(r => r.json())
         .then(data => {
           if (data.insights) {
             setDailyData(data);
+            AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
             saveGoalsForDate(data.date, data.actionGoals ?? []);
           }
         })
         .catch(() => {
+          // Only fall back to bundled data if we have nothing else to show
+          setDailyData(prev => prev ?? fallbackData);
           saveGoalsForDate(fallbackData.date, fallbackData.actionGoals ?? []);
         })
         .finally(() => setLoading(false));
     }, [])
   );
 
-  const spiritualInsight = dailyData.insights.find(i => i.type === 'spiritual');
-  const scienceInsight   = dailyData.insights.find(i => i.type === 'scientific');
-  const actionGoals      = dailyData.actionGoals ?? [];
+  const spiritualInsight = dailyData?.insights?.find(i => i.type === 'spiritual') ?? null;
+  const scienceInsight   = dailyData?.insights?.find(i => i.type === 'scientific') ?? null;
+  const actionGoals      = dailyData?.actionGoals ?? [];
+  const dailyDua         = getDailyDua();
+  const dailyAyah        = getDailyAyah();
 
   const greetingLines = name
     ? ['As-Salāmu ʿAlaykum,', name + '.']
@@ -204,9 +194,9 @@ export default function HomeScreen({ navigation }) {
           <Animated.View style={[styles.sheet, { opacity: animate ? contentOpacity : 1 }]}>
             <View style={styles.contentPad}>
 
-              {/* TODAY'S INSIGHTS */}
+              {/* TODAY'S PARENTING INSIGHTS */}
               <View style={styles.sectionTitleWrap}>
-                <Text style={styles.sectionTitle}>TODAY'S INSIGHTS</Text>
+                <Text style={styles.sectionTitle}>TODAY'S PARENTING INSIGHTS</Text>
                 {loading && <ActivityIndicator size="small" color="#1B3D2F" style={{ marginLeft: 8 }} />}
               </View>
 
@@ -225,17 +215,10 @@ export default function HomeScreen({ navigation }) {
                       <View style={styles.tipLabelWrap}>
                         <Text style={styles.tipLabel}>Spiritual Insight</Text>
                       </View>
-                      <View style={styles.tipByline}>
-                        <Image
-                          source={ASSET_MAP[spiritualInsight.speakerImage] ?? ASSET_MAP['spiritual-insights.png']}
-                          style={styles.bylineImage}
-                        />
-                        <Text style={styles.bylineName}>{spiritualInsight.speakerName}</Text>
-                      </View>
                       <View style={styles.tipBody}>
                         <View>
                           <Text style={styles.tipInsightTitle}>{spiritualInsight.insightTitle}</Text>
-                          <Text style={styles.tipQuote} numberOfLines={4}>{spiritualInsight.body}</Text>
+                          <Text style={styles.tipQuote} numberOfLines={5}>{spiritualInsight.body}</Text>
                         </View>
                         <View style={styles.tipFooterWrap}>
                           <View style={styles.tipRule} />
@@ -261,14 +244,7 @@ export default function HomeScreen({ navigation }) {
                       style={styles.tipCardInner}
                     >
                       <View style={styles.tipLabelWrap}>
-                        <Text style={styles.tipLabel}>Scientific Insight</Text>
-                      </View>
-                      <View style={styles.tipByline}>
-                        <Image
-                          source={ASSET_MAP[scienceInsight.speakerImage] ?? ASSET_MAP['science-insights.png']}
-                          style={styles.bylineImage}
-                        />
-                        <Text style={styles.bylineName}>{scienceInsight.speakerName}</Text>
+                        <Text style={styles.tipLabel}>Research Insight</Text>
                       </View>
                       <View style={styles.tipBody}>
                         <View>
@@ -321,6 +297,48 @@ export default function HomeScreen({ navigation }) {
                   </View>
                 );
               })}
+
+              {/* DUA OF THE DAY */}
+              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+                <Text style={styles.sectionTitle}>DUA OF THE DAY</Text>
+              </View>
+              <LinearGradient
+                colors={['#1B3D2F', '#2E5E45']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.islamicCard}
+              >
+                <View style={styles.islamicCardTopRow}>
+                  <View style={{ flexDirection: 'row' }}>
+                    <Ionicons name="hand-left-outline" size={13} color="rgba(255,255,255,0.5)" />
+                    <Ionicons name="hand-right-outline" size={13} color="rgba(255,255,255,0.5)" />
+                  </View>
+                  <Text style={styles.islamicCardLabel}>DUA</Text>
+                </View>
+                <Text style={styles.islamicArabic}>{dailyDua.arabic}</Text>
+                <View style={styles.islamicDivider} />
+                <Text style={styles.islamicTranslit}>{dailyDua.transliteration}</Text>
+                <Text style={styles.islamicTranslation}>{dailyDua.translation}</Text>
+                <Text style={styles.islamicRef}>{dailyDua.reference}</Text>
+              </LinearGradient>
+
+              {/* AYAH OF THE DAY */}
+              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+                <Text style={styles.sectionTitle}>AYAH OF THE DAY</Text>
+              </View>
+              <LinearGradient
+                colors={['#1A2744', '#2D4278']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.islamicCard}
+              >
+                <View style={styles.islamicCardTopRow}>
+                  <Ionicons name="book-outline" size={13} color="rgba(255,255,255,0.5)" />
+                  <Text style={styles.islamicCardLabel}>QURAN</Text>
+                </View>
+                <Text style={styles.islamicArabic}>{dailyAyah.arabic}</Text>
+                <View style={styles.islamicDivider} />
+                <Text style={styles.islamicTranslation}>{dailyAyah.translation}</Text>
+                <Text style={styles.islamicRef}>{dailyAyah.reference}</Text>
+              </LinearGradient>
 
               {/* THIS WEEK */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
@@ -484,6 +502,63 @@ const styles = StyleSheet.create({
   checklistType: { fontSize: 11, fontWeight: '700', color: '#2E7D62', letterSpacing: 0.3 },
   checklistTypeAmber: { color: '#D4871A' },
   checklistText: { fontSize: 13, color: '#374151', lineHeight: 20 },
+
+  // ── Dua / Ayah cards ──
+  islamicCard: {
+    borderRadius: 20,
+    marginBottom: 10,
+    padding: 18,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  islamicCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 14,
+  },
+  islamicCardLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  islamicArabic: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    textAlign: 'right',
+    lineHeight: 36,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  islamicDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginVertical: 12,
+  },
+  islamicTranslit: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    fontStyle: 'italic',
+    lineHeight: 18,
+    marginBottom: 6,
+  },
+  islamicTranslation: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 20,
+  },
+  islamicRef: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.5,
+    marginTop: 10,
+  },
 
   // ── Streak card ──
   streakCard: {

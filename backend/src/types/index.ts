@@ -90,7 +90,6 @@ export interface InsightOutput {
 export interface SourceGrounding {
   sourceId: string;
   sourceTitle: string;
-  directQuote?: string;
   paraphrasedIdea?: string;
   generatedFromContext?: string;
   confidence: 'high' | 'medium' | 'low';
@@ -130,12 +129,52 @@ export interface GeminiInsightResponse {
   tags: InsightTag[];
   contentType: ContentType;
   sourceGrounding: {
-    directQuote?: string;
     paraphrasedIdea?: string;
     generatedFromContext?: string;
     confidence: 'high' | 'medium' | 'low';
     clarification: string;
   };
+}
+
+// ─── Learn Module ────────────────────────────────────────────────────────────
+
+export interface ModuleLesson {
+  id: number;
+  title: string;
+  type: 'spiritual' | 'science' | 'action';
+  duration: string;
+  objective: string;
+  whyItMatters: string;
+  islamicGuidance: string;
+  researchInsight: string;
+  actionSteps: string[];
+  whatToSay: string[];
+  mistakesToAvoid: string[];
+  reflectionQuestion: string;
+  miniTakeaway: string;
+  completed: boolean;
+}
+
+export interface AppModule {
+  id: string;
+  topic: string;
+  title: string;
+  issueSummary: string;
+  parentReframe: string;
+  rootCauses: string[];
+  moduleGoal: string;
+  lessons: ModuleLesson[];
+  weeklyPriorities: string[];
+  weeklyHabits: string[];
+  behaviorToReduce: string;
+  relationshipAction: string;
+  spiritualPractices: string;
+  progressSigns: string[];
+  whenToSeekHelp: string;
+  finalEncouragement: string;
+  totalLessons: number;
+  completedLessons: number;
+  createdAt: string;
 }
 
 // ─── App-ready Output ────────────────────────────────────────────────────────
@@ -154,6 +193,7 @@ export interface AppInsightCard {
     sourceType: string;        // 'youtube' | 'article' | 'pdf' | 'book'
     sourceTitle: string;       // original title of the lecture, article, or book
     speakerOrAuthor: string;   // speaker name or author/org name
+    sourceUrl: string;         // original URL — used for "View original source" link
   };
   actionStep?: string;
   tags: string[];

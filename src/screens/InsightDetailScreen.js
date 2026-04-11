@@ -5,8 +5,8 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
   Share,
+  Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -15,27 +15,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { saveInsight, unsaveInsight, isInsightSaved } from '../utils/savedInsights';
 import { markAsRead, isReadToday } from '../utils/readInsights';
 
-const ASSET_MAP = {
-  'Nouman Ali Khan.png':              require('../../assets/Nouman Ali Khan.png'),
-  'YAsmin-MOgahed.png':               require('../../assets/YAsmin-MOgahed.png'),
-  'belal-assaad.jpg':                 require('../../assets/belal-assaad.jpg'),
-  'Omar-Suleiman.jpg':                require('../../assets/Omar-Suleiman.jpg'),
-  'yasir-qadhi.jpeg':                 require('../../assets/yasir-qadhi.jpeg'),
-  'mufti-menk.jpeg':                  require('../../assets/mufti-menk.jpeg'),
-  'haifaa-younis.jpeg':               require('../../assets/haifaa-younis.jpeg'),
-  'ibrahim-hindy.jpeg':               require('../../assets/ibrahim-hindy.jpeg'),
-  'national-inst-child-health.jpeg':  require('../../assets/national-inst-child-health.jpeg'),
-  'childmind.png':                    require('../../assets/childmind.png'),
-  'american-academy-of-ped.jpg':      require('../../assets/american-academy-of-ped.jpg'),
-  'ucdavishealth.jpg':                require('../../assets/ucdavishealth.jpg'),
-  'NIH_2013_logo_vertical.svg.png':   require('../../assets/NIH_2013_logo_vertical.svg.png'),
-  'CDC_logo_2024.png':                require('../../assets/CDC_logo_2024.png'),
-  'hamza-yusuf.png':                  require('../../assets/hamza-yusuf.png'),
-  'AAFP_LogoMark_Color.jpg':          require('../../assets/AAFP_LogoMark_Color.jpg'),
-  'UNICEF-logo.png':                  require('../../assets/UNICEF-logo.png'),
-  'spiritual-insights.png':           require('../../assets/spiritual-insights.png'),
-  'science-insights.png':             require('../../assets/science-insights.png'),
-};
 
 const SPIRITUAL_GRADIENT = ['#6B7C45', '#1B3D2F'];
 const SCIENCE_GRADIENT   = ['#D4A55A', '#A0521A'];
@@ -74,7 +53,7 @@ export default function InsightDetailScreen({ route, navigation }) {
   const isSpiritual = insight.type === 'spiritual';
   const gradient    = isSpiritual ? SPIRITUAL_GRADIENT : SCIENCE_GRADIENT;
   const accentColor = isSpiritual ? '#2E7D62' : '#D4871A';
-  const typeLabel   = isSpiritual ? 'Spiritual Insight' : 'Scientific Insight';
+  const typeLabel   = isSpiritual ? 'Spiritual Insight' : 'Research Insight';
   const goalLabel   = isSpiritual ? 'Spiritual Goal' : 'Practical Goal';
   const goalIcon    = isSpiritual ? 'moon' : 'bulb-outline';
 
@@ -82,9 +61,7 @@ export default function InsightDetailScreen({ route, navigation }) {
     insight.sourceDetail?.sourceType === 'youtube' ? 'logo-youtube' :
     insight.sourceDetail?.sourceType === 'pdf'     ? 'document-text-outline' :
     'globe-outline';
-  const sourceTypeLabel =
-    insight.sourceDetail?.sourceType === 'youtube' ? 'YouTube' :
-    insight.sourceDetail?.sourceType === 'pdf'     ? 'PDF' : 'Article';
+
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
@@ -176,23 +153,27 @@ export default function InsightDetailScreen({ route, navigation }) {
         {insight.sourceDetail && (
           <>
             <View style={styles.sourceBlock}>
-              <View style={styles.sourceTopRow}>
-                <Text style={styles.sourceExtractedLabel}>AI-EXTRACTED INSIGHT FROM</Text>
-                <View style={[styles.sourceTypeBadge, { backgroundColor: accentColor + '15' }]}>
-                  <Ionicons name={sourceIcon} size={11} color={accentColor} />
-                  <Text style={[styles.sourceTypeBadgeText, { color: accentColor }]}>
-                    {sourceTypeLabel}
-                  </Text>
-                </View>
-              </View>
+              <Text style={styles.sourceExtractedLabel}>THIS INSIGHT WAS INSPIRED BY</Text>
               <Text style={styles.sourceTitle}>"{insight.sourceDetail.sourceTitle}"</Text>
-              <View style={styles.sourceByline}>
-                <Image
-                  source={ASSET_MAP[insight.speakerImage] ?? ASSET_MAP['spiritual-insights.png']}
-                  style={styles.sourceBylineImage}
-                />
-                <Text style={styles.sourceBylineName}>{insight.sourceDetail?.speakerOrAuthor ?? insight.speakerName}</Text>
-              </View>
+              {insight.sourceDetail?.speakerOrAuthor ? (
+                <Text style={styles.sourceBylineName}>{insight.sourceDetail.speakerOrAuthor}</Text>
+              ) : null}
+              <TouchableOpacity
+                style={[styles.sourceLink, { borderColor: accentColor + '40', backgroundColor: accentColor + '08' }]}
+                onPress={() => {
+                  const url = insight.sourceDetail?.sourceUrl ?? insight.source;
+                  if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                    Linking.openURL(url);
+                  }
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name={sourceIcon} size={14} color={accentColor} />
+                <Text style={[styles.sourceLinkText, { color: accentColor }]}>
+                  View Source
+                </Text>
+                <Ionicons name="open-outline" size={13} color={accentColor} style={{ marginLeft: 'auto' }} />
+              </TouchableOpacity>
             </View>
             <View style={styles.divider} />
           </>
@@ -360,47 +341,37 @@ const styles = StyleSheet.create({
   sourceBlock: {
     gap: 10,
   },
-  sourceTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   sourceExtractedLabel: {
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.2,
     color: '#9CA3AF',
+    marginBottom: 2,
   },
-  sourceTypeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 100,
-  },
-  sourceTypeBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   sourceTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1C1C1E',
     lineHeight: 22,
   },
-  sourceByline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  sourceBylineImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
   sourceBylineName: {
     fontSize: 14,
     fontWeight: '600',
     color: '#4B5563',
-    flex: 1,
     flexWrap: 'wrap',
+  },
+  sourceLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    marginTop: 4,
+  },
+  sourceLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

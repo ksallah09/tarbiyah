@@ -88,7 +88,6 @@ const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
 // Key should match source.speakerName or the first segment of source.author (before " - ").
 const SPEAKER_IMAGE_MAP: Record<string, string> = {
   // ── Spiritual speakers ──
-  'Nouman Ali Khan':       'Nouman Ali Khan.png',
   'Belal Assaad':          'belal-assaad.jpg',
   'Yasmin Mogahed':        'YAsmin-MOgahed.png',
   'Omar Suleiman':         'Omar-Suleiman.jpg',
@@ -123,12 +122,15 @@ const SPEAKER_IMAGE_MAP: Record<string, string> = {
 };
 
 function resolveSpeakerMeta(source: Source): { speakerName: string; speakerImage: string } {
-  // Prefer speakerName, otherwise first segment of author before " - "
+  // Spiritual sources: never attribute to individual scholars — use Tarbiyah branding
+  if (source.category === 'spiritual') {
+    return { speakerName: 'Tarbiyah', speakerImage: 'spiritual-insights.png' };
+  }
+
+  // Scientific/institutional sources: use org name and logo
   const rawName = source.speakerName ?? (source.author ?? '').split(' - ')[0].trim();
   const displayName = DISPLAY_NAME_OVERRIDES[rawName] ?? rawName;
-  const speakerImage =
-    SPEAKER_IMAGE_MAP[rawName] ??
-    (source.category === 'spiritual' ? 'spiritual-insights.png' : 'science-insights.png');
+  const speakerImage = SPEAKER_IMAGE_MAP[rawName] ?? 'science-insights.png';
   return { speakerName: displayName || 'Tarbiyah', speakerImage };
 }
 
@@ -156,8 +158,9 @@ export function toAppInsightCard(
         sourceType: source.type,
         sourceTitle: source.title,
         speakerOrAuthor: source.speakerName ?? (source.author ?? '').split(' - ')[0].trim(),
+        sourceUrl: source.url,
       }
-    : { sourceType: 'unknown', sourceTitle: insight.attribution, speakerOrAuthor: '' };
+    : { sourceType: 'unknown', sourceTitle: insight.attribution, speakerOrAuthor: '', sourceUrl: '' };
 
   return {
     id: insight.id,
@@ -248,7 +251,6 @@ function buildInsightOutput(
     sourceGrounding: {
       sourceId: source.id,
       sourceTitle: source.title,
-      directQuote: parsed.sourceGrounding?.directQuote,
       paraphrasedIdea: parsed.sourceGrounding?.paraphrasedIdea,
       generatedFromContext: parsed.sourceGrounding?.generatedFromContext,
       confidence: parsed.sourceGrounding?.confidence ?? 'medium',

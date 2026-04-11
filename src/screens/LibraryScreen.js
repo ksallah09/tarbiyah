@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,27 +15,6 @@ import DarkHeader from '../components/DarkHeader';
 import { useFocusEffect } from '@react-navigation/native';
 import { getSavedInsights, unsaveInsight } from '../utils/savedInsights';
 
-const ASSET_MAP = {
-  'Nouman Ali Khan.png':              require('../../assets/Nouman Ali Khan.png'),
-  'YAsmin-MOgahed.png':               require('../../assets/YAsmin-MOgahed.png'),
-  'belal-assaad.jpg':                 require('../../assets/belal-assaad.jpg'),
-  'Omar-Suleiman.jpg':                require('../../assets/Omar-Suleiman.jpg'),
-  'yasir-qadhi.jpeg':                 require('../../assets/yasir-qadhi.jpeg'),
-  'mufti-menk.jpeg':                  require('../../assets/mufti-menk.jpeg'),
-  'haifaa-younis.jpeg':               require('../../assets/haifaa-younis.jpeg'),
-  'ibrahim-hindy.jpeg':               require('../../assets/ibrahim-hindy.jpeg'),
-  'national-inst-child-health.jpeg':  require('../../assets/national-inst-child-health.jpeg'),
-  'childmind.png':                    require('../../assets/childmind.png'),
-  'american-academy-of-ped.jpg':      require('../../assets/american-academy-of-ped.jpg'),
-  'ucdavishealth.jpg':                require('../../assets/ucdavishealth.jpg'),
-  'NIH_2013_logo_vertical.svg.png':   require('../../assets/NIH_2013_logo_vertical.svg.png'),
-  'CDC_logo_2024.png':                require('../../assets/CDC_logo_2024.png'),
-  'hamza-yusuf.png':                  require('../../assets/hamza-yusuf.png'),
-  'AAFP_LogoMark_Color.jpg':          require('../../assets/AAFP_LogoMark_Color.jpg'),
-  'UNICEF-logo.png':                  require('../../assets/UNICEF-logo.png'),
-  'spiritual-insights.png':           require('../../assets/spiritual-insights.png'),
-  'science-insights.png':             require('../../assets/science-insights.png'),
-};
 
 export default function LibraryScreen({ navigation }) {
   const [insights, setInsights] = useState([]);
@@ -59,7 +37,8 @@ export default function LibraryScreen({ navigation }) {
     const q = query.toLowerCase();
     const matchQuery = !q ||
       i.insightTitle?.toLowerCase().includes(q) ||
-      i.body?.toLowerCase().includes(q);
+      i.body?.toLowerCase().includes(q) ||
+      i.speakerName?.toLowerCase().includes(q);
     return matchTopic && matchQuery;
   });
 
@@ -86,7 +65,7 @@ export default function LibraryScreen({ navigation }) {
             <Ionicons name="search-outline" size={17} color="#9CA3AF" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by title or content..."
+              placeholder="Search by title, content or author..."
               placeholderTextColor="#9CA3AF"
               value={query}
               onChangeText={setQuery}
@@ -163,13 +142,9 @@ export default function LibraryScreen({ navigation }) {
                   <View style={[styles.cardAccent, { backgroundColor: accentColor }]} />
                   <View style={styles.cardBody}>
                     <View style={styles.cardTopRow}>
-                      <View style={styles.byline}>
-                        <Image
-                          source={ASSET_MAP[item.speakerImage] ?? ASSET_MAP['spiritual-insights.png']}
-                          style={styles.bylineImage}
-                        />
-                        <Text style={[styles.bylineName, { color: accentColor }]}>{item.speakerName}</Text>
-                      </View>
+                      <Text style={[styles.cardType, { color: accentColor }]}>
+                        {isSpiritual ? 'Spiritual Insight' : 'Research Insight'}
+                      </Text>
                       <TouchableOpacity
                         onPress={() => handleUnsave(item.id)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -295,9 +270,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  byline: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  bylineImage: { width: 24, height: 24, borderRadius: 12 },
-  bylineName: { fontSize: 12, fontWeight: '700' },
+  cardType: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
   cardTitle: {
     fontSize: 15,
     fontWeight: '700',

@@ -32,3 +32,6 @@ backend/data/
 
 # Expo web
 web-build/
+
+# Google OAuth credentials
+assets/client_secret*.json

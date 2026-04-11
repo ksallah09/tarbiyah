@@ -40,7 +40,7 @@ The Tarbiyah app serves Muslim parents who want to raise their children with Isl
 // ─── Extraction Prompts ───────────────────────────────────────────────────────
 
 export const YOUTUBE_EXTRACTION_PROMPT = `
-Analyze this Islamic parenting lecture or talk carefully. Your goal is to extract the most valuable parenting wisdom it contains.
+Analyze this Islamic parenting lecture or talk carefully. Your goal is to understand and restate the most valuable parenting wisdom it contains — entirely in your own words.
 
 Focus on moments that are:
 - Spiritually beneficial and grounded in authentic Islamic teachings
@@ -48,81 +48,84 @@ Focus on moments that are:
 - Emotionally resonant — speaks to the real struggles and joys of raising children in faith
 - Relevant to Muslim families raising children with Islamic identity and values
 
-Do NOT summarize the full video. Extract the richest, most useful parenting content.
+Do NOT summarize the full video. Do NOT copy or closely paraphrase the speaker's wording.
+Understand the ideas, then express them freshly as your own synthesis.
 
-If the video references a Quranic verse, hadith, or teaching from a scholar, preserve it accurately — do not paraphrase religious references.
+Islamic references (Quranic verses, hadith) are the exception — record these accurately since they are sacred texts, not the speaker's intellectual property.
 
 Return a JSON object with this exact structure:
 {
-  "coreTheme": "The primary parenting theme or lesson taught in this content (1-2 sentences)",
+  "coreTheme": "The primary parenting theme or lesson in this content — written in your own words (1-2 sentences)",
   "keyInsights": [
-    "Insight 1 — a specific, genuinely useful parenting lesson from this content",
-    "Insight 2 — another distinct lesson",
-    "Insight 3 — a third if present (omit if not present in source)"
+    "Insight 1 — your own synthesis of a genuine parenting lesson from this content, not the speaker's words",
+    "Insight 2 — another distinct lesson, freshly expressed",
+    "Insight 3 — a third if present (omit if not)"
   ],
   "islamicReferences": [
-    "Any Quranic verse, hadith, or scholarly reference cited — preserve the exact wording if possible"
+    "Any Quranic verse or hadith cited — record accurately with reference (e.g. Surah, ayah number or hadith source)"
   ],
   "practicalAdvice": [
-    "A specific action or practice mentioned or implied in the content"
+    "A specific action or practice drawn from the content — expressed as your own guidance"
   ],
   "emotionalTone": "The emotional quality of the content — e.g. 'encouraging and tender', 'sobering and motivating', 'joyful and practical'",
   "targetAudience": "Who this content speaks to most — e.g. 'parents of young children', 'parents of teenagers', 'all Muslim parents'",
-  "rawSummary": "A 3-4 sentence internal summary of what this source covers, for processing records only — not user-facing"
+  "rawSummary": "A 3-4 sentence internal summary of what this source covers — in your own words, for processing records only, not user-facing"
 }
 `.trim();
 
 export const PDF_EXTRACTION_PROMPT = `
-Read this Islamic parenting resource carefully. Extract the most valuable parenting wisdom, teachings, and practical guidance it contains.
+Read this parenting resource carefully. Your goal is to understand and restate the most valuable parenting wisdom it contains — entirely in your own words.
 
 Your extraction priorities:
 1. Teachings about character formation (tarbiyah, adab) in children
 2. The parent-child relationship from an Islamic lens — love, mercy, firmness, presence
 3. Practical guidance for common parenting challenges: discipline, communication, emotional regulation, screen time, faith habits
-4. Any Quranic verses, hadith, or scholarly positions cited — preserve these accurately
-5. Insights that are not generic parenting advice but specifically Islamic or spiritually grounded
+4. Any Quranic verses or hadith cited — record these accurately as they are sacred texts
+5. Insights that are not generic parenting advice but specifically Islamic or evidence-based
 
-Do NOT summarize every chapter. Extract the most potent, useful content.
+Do NOT copy or closely paraphrase the author's wording. Understand the ideas, then express them freshly as your own synthesis.
 
 Return a JSON object with this exact structure:
 {
-  "coreTheme": "The primary parenting theme or lesson in this text (1-2 sentences)",
+  "coreTheme": "The primary parenting theme or lesson in this text — written in your own words (1-2 sentences)",
   "keyInsights": [
-    "Insight 1 — a specific, genuinely useful parenting teaching from this text",
-    "Insight 2 — another distinct lesson",
+    "Insight 1 — your own synthesis of a genuine parenting lesson from this text, not the author's words",
+    "Insight 2 — another distinct lesson, freshly expressed",
     "Insight 3 — a third if present"
   ],
   "islamicReferences": [
-    "Any Quranic verse, hadith, or scholarly reference cited — preserve exact wording"
+    "Any Quranic verse or hadith cited — record accurately with reference"
   ],
   "practicalAdvice": [
-    "A specific action, habit, or practice recommended in the text"
+    "A specific action, habit, or practice drawn from the text — expressed as your own guidance"
   ],
   "emotionalTone": "The tone of this material — e.g. 'scholarly and grounding', 'warm and accessible', 'direct and practical'",
   "targetAudience": "Who this content addresses most directly",
-  "rawSummary": "3-4 sentence internal summary of what this source covers — processing record only, not user-facing",
-  "author": "The author or publishing organization of this document as it appears on the cover, title page, or header — e.g. 'Child Mind Institute', 'Dr. John Smith', 'American Academy of Pediatrics'. Return null if not found."
+  "rawSummary": "3-4 sentence internal summary of what this source covers — in your own words, processing record only, not user-facing",
+  "author": "The author or publishing organization as it appears on the cover, title page, or header — e.g. 'Child Mind Institute', 'Dr. John Smith', 'American Academy of Pediatrics'. Return null if not found."
 }
 `.trim();
 
 export const TEXT_EXTRACTION_PROMPT = `
-Read this Islamic parenting article or resource. Extract the most valuable parenting wisdom it contains.
+Read this Islamic parenting article or resource. Your goal is to understand and restate the most valuable parenting wisdom it contains — entirely in your own words.
 
 Focus on:
 - Core Islamic parenting principles taught or illustrated
 - Practical guidance grounded in faith
-- Any Quranic or Sunnah references cited
+- Any Quranic verses or hadith cited — record these accurately
 - Insights specific to raising Muslim children in today's context
+
+Do NOT copy or closely paraphrase the author's wording. Understand the ideas, then express them freshly as your own synthesis.
 
 Return a JSON object with this exact structure:
 {
-  "coreTheme": "The primary lesson or theme (1-2 sentences)",
-  "keyInsights": ["Insight 1", "Insight 2", "Insight 3 if present"],
-  "islamicReferences": ["Any verse, hadith, or scholarly reference — preserve exact wording"],
-  "practicalAdvice": ["Specific actionable guidance from this source"],
+  "coreTheme": "The primary lesson or theme — in your own words (1-2 sentences)",
+  "keyInsights": ["Your synthesis of insight 1", "Your synthesis of insight 2", "Your synthesis of insight 3 if present"],
+  "islamicReferences": ["Any Quranic verse or hadith cited — record accurately with reference"],
+  "practicalAdvice": ["Specific actionable guidance drawn from this source — in your own words"],
   "emotionalTone": "Tone of the content",
   "targetAudience": "Who this speaks to most directly",
-  "rawSummary": "3-4 sentence internal summary — processing record only"
+  "rawSummary": "3-4 sentence internal summary — in your own words, processing record only"
 }
 `.trim();
 
@@ -166,7 +169,9 @@ Internal Summary: ${extractedContent.rawSummary}
       : SCIENCE_REQUIREMENTS;
 
   return `
-Based on the following extracted content from the source "${attribution}", generate parenting insight content for the Tarbiyah app.
+Using the following extracted knowledge from the source "${attribution}" as your background understanding, write original parenting insight content for the Tarbiyah app.
+
+IMPORTANT: The extracted content below is reference material — not text to reproduce. Do not echo, paraphrase closely, or reuse the phrasing from these notes. Read them to understand the ideas, then write entirely in your own voice.
 
 ${sourceBlock}
 
@@ -189,12 +194,11 @@ REQUIREMENTS:
 - spiritualInsight: 3-4 sentences. This is the PRIMARY insight for spiritual sources — a combined spiritual and educational insight. It must do two things in one flowing paragraph: (1) open with the faith-rooted wisdom — grounded in Qur'an, Sunnah, adab, or the Islamic understanding of character and mercy; (2) then connect it to a concrete, practical parenting lesson — something a parent can feel, understand, and apply. The two halves should feel like one natural thought, not two separate points bolted together. Only reference an Islamic text or scholar if it actually appears in the source material.
 - educationalInsight: Leave this as an empty string "". The educational value is already woven into spiritualInsight for spiritual sources.
 - actionStep: 1-2 sentences. One concrete thing a parent can do TODAY that honours both the spiritual teaching and the practical lesson. Make it specific and achievable within an ordinary day.
-- attribution: The speaker's name only — no "From", no "Based on", no "lecture by". Examples: "Nouman Ali Khan" / "Yasmin Mogahed" / "Omar Suleiman" / "Yasir Qadhi".
+- attribution: Always use "Tarbiyah" — do not attribute to any individual scholar, speaker, or person.
 - tags: Array of 3-5 relevant tags from this list only: patience, discipline, emotional-regulation, mercy, connection, routines, dua, communication, presence, adab, screen-time, anger, gratitude, tarbiyah, character, knowledge, love, boundaries, faith, prayer, identity, attachment, play, kindness, forgiveness, quran, hifdh, luqman, ihsan, wisdom, excellence, surah-yusuf, love-of-allah, khutbah, responsibility, family-dynamics, marriage, daughters, equality, home-environment, influence, motivation, foundation, gift
 - contentType: For spiritual sources always use "mixed"
 - sourceGrounding: {
-    "directQuote": "If a direct teaching was used verbatim or near-verbatim — include it. Otherwise omit.",
-    "paraphrasedIdea": "If the insight paraphrases a source idea — describe it in one sentence.",
+    "paraphrasedIdea": "Describe the source idea this insight is based on — in your own words, no direct quotes.",
     "generatedFromContext": "If the actionStep was inferred from context — state that clearly.",
     "confidence": "high if clearly supported by source, medium if inferred, low if loosely connected",
     "clarification": "One sentence clarifying the relationship between this insight and the source"
@@ -216,7 +220,7 @@ REQUIREMENTS:
 - tags: Array of 3-5 relevant tags from this list only: patience, discipline, emotional-regulation, mercy, connection, routines, dua, communication, presence, adab, screen-time, anger, gratitude, tarbiyah, character, knowledge, love, boundaries, faith, prayer, identity, attachment, play, kindness, forgiveness, family-dynamics, motivation, foundation, equality, home-environment, responsibility
 - contentType: For science sources use "educational" or "practical"
 - sourceGrounding: {
-    "paraphrasedIdea": "Describe the research finding or expert guidance this insight is based on.",
+    "paraphrasedIdea": "Describe the research finding or expert guidance this insight is based on — in your own words, no direct quotes.",
     "generatedFromContext": "If the actionStep was inferred from the source content — state that clearly.",
     "confidence": "high if directly stated in source, medium if inferred from guidance, low if loosely connected",
     "clarification": "One sentence clarifying the relationship between this insight and the source"

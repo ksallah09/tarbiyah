@@ -10,21 +10,28 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F8F6F1"
+      "backgroundColor": "#FFFFFF"
     },
+    "scheme": "com.tarbiyah.parenting",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.tarbiyah.app"
+      "bundleIdentifier": "com.tarbiyah.parenting",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F8F6F1"
+        "backgroundColor": "#FFFFFF"
       },
-      "package": "com.tarbiyah.app"
+      "package": "com.tarbiyah.parenting"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-apple-authentication"
+    ]
   }
 }
