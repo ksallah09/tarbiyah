@@ -382,6 +382,55 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
   }
 });
 
+// ─── GET /modules ─────────────────────────────────────────────────────────────
+
+app.get('/modules', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_modules')
+      .select('data')
+      .eq('user_id', req.userId!)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const modules = (data ?? []).map((row: { data: unknown }) => row.data);
+    return res.json(modules);
+  } catch (err) {
+    console.error('GET /modules error:', err);
+    return res.status(500).json({ error: 'Failed to fetch modules.' });
+  }
+});
+
+// ─── POST /modules ────────────────────────────────────────────────────────────
+
+app.post('/modules', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const mod = req.body as AppModule;
+    if (!mod?.id) return res.status(400).json({ error: 'Module id is required.' });
+
+    const { error } = await supabase
+      .from('user_modules')
+      .upsert({
+        id: mod.id,
+        user_id: req.userId!,
+        topic: mod.topic,
+        title: mod.title,
+        data: mod,
+        completed_lessons: mod.completedLessons ?? 0,
+        total_lessons: mod.totalLessons ?? 5,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+
+    if (error) throw error;
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /modules error:', err);
+    return res.status(500).json({ error: 'Failed to save module.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));
@@ -396,6 +445,8 @@ async function start() {
     console.log(`  GET  /daily          — Personalized daily payload (auth required)`);
     console.log(`  GET  /daily/preview  — Daily payload preview (no auth)`);
     console.log(`  POST /learn/generate — Generate personalized parenting module`);
+    console.log(`  GET  /modules        — Fetch user's saved modules (auth required)`);
+    console.log(`  POST /modules        — Save/update a module (auth required)`);
     console.log(`  GET  /health         — Health check\n`);
   });
 

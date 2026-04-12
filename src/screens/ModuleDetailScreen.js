@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveModule } from '../utils/modules';
 
-const API_URL     = 'https://tarbiyah-production.up.railway.app';
-const MODULES_KEY = 'tarbiyah_modules';
+const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 const LESSON_COLORS = {
   spiritual: { bg: ['#1B3D2F', '#2E5E45'], icon: 'moon',        label: 'Spiritual' },
@@ -22,16 +22,6 @@ const LESSON_COLORS = {
   action:    { bg: ['#1A2744', '#2D4278'], icon: 'flash',        label: 'Action'    },
 };
 
-async function saveModuleToStorage(mod) {
-  try {
-    const raw = await AsyncStorage.getItem(MODULES_KEY);
-    const modules = raw ? JSON.parse(raw) : [];
-    const idx = modules.findIndex(m => m.id === mod.id);
-    if (idx >= 0) modules[idx] = mod;
-    else modules.unshift(mod);
-    await AsyncStorage.setItem(MODULES_KEY, JSON.stringify(modules));
-  } catch {}
-}
 
 export default function ModuleDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -41,6 +31,38 @@ export default function ModuleDetailScreen({ route, navigation }) {
   const [error, setError]           = useState(null);
   const [module, setModule]         = useState(savedModule ?? null);
   const [activeLesson, setActiveLesson] = useState(null);
+  const [stepIndex, setStepIndex]   = useState(0);
+
+  const progress    = useRef(new Animated.Value(0)).current;
+  const animationRef = useRef(null);
+
+  const STEPS = [
+    { icon: 'moon',      text: 'Drawing from Islamic scholarship' },
+    { icon: 'flask',     text: 'Reviewing child development research' },
+    { icon: 'construct', text: 'Structuring your 5-lesson plan' },
+  ];
+
+  function startProgressAnimation() {
+    // Animate to ~85% over ~12s in stages, leaving room to snap to 100% on completion
+    progress.setValue(0);
+    setStepIndex(0);
+    animationRef.current = Animated.sequence([
+      Animated.timing(progress, { toValue: 0.28, duration: 2000, useNativeDriver: false }),
+      Animated.timing(progress, { toValue: 0.55, duration: 3500, useNativeDriver: false }),
+      Animated.timing(progress, { toValue: 0.82, duration: 5000, useNativeDriver: false }),
+      Animated.timing(progress, { toValue: 0.88, duration: 4000, useNativeDriver: false }),
+    ]);
+    animationRef.current.start();
+
+    // Advance step labels at timed intervals
+    setTimeout(() => setStepIndex(1), 3000);
+    setTimeout(() => setStepIndex(2), 7000);
+  }
+
+  function finishProgressAnimation(onDone) {
+    if (animationRef.current) animationRef.current.stop();
+    Animated.timing(progress, { toValue: 1, duration: 400, useNativeDriver: false }).start(onDone);
+  }
 
   useEffect(() => {
     if (!isNew) return;
@@ -50,8 +72,8 @@ export default function ModuleDetailScreen({ route, navigation }) {
   async function generateModule() {
     setGenerating(true);
     setError(null);
+    startProgressAnimation();
     try {
-      // Load profile for context
       const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
       const profile = profileRaw ? JSON.parse(profileRaw) : {};
       const focusRaw = await AsyncStorage.getItem('tarbiyah_focus_areas');
@@ -73,8 +95,9 @@ export default function ModuleDetailScreen({ route, navigation }) {
       }
 
       const mod = await res.json();
+      await new Promise(resolve => finishProgressAnimation(resolve));
       setModule(mod);
-      await saveModuleToStorage(mod);
+      await saveModule(mod);
     } catch (err) {
       setError(err.message ?? 'Something went wrong. Please try again.');
     } finally {
@@ -83,7 +106,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
   }
 
   const completedCount = module?.lessons?.filter(l => l.completed).length ?? 0;
-  const progress = module ? completedCount / module.totalLessons : 0;
+  const moduleProgress = module ? completedCount / module.totalLessons : 0;
 
   function toggleLesson(id) {
     setModule(prev => {
@@ -94,7 +117,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
         ),
       };
       updated.completedLessons = updated.lessons.filter(l => l.completed).length;
-      saveModuleToStorage(updated);
+      saveModule(updated);
       return updated;
     });
   }
@@ -131,22 +154,39 @@ export default function ModuleDetailScreen({ route, navigation }) {
                 <Text style={styles.generatingBody}>
                   Searching our curated Islamic and research sources to create your personalized lesson plan…
                 </Text>
-                <View style={styles.generatingDots}>
-                  <ActivityIndicator size="large" color="#1B3D2F" />
+
+                {/* Progress bar */}
+                <View style={styles.progressBarWrap}>
+                  <View style={styles.progressBarTrack}>
+                    <Animated.View
+                      style={[
+                        styles.progressBarFill,
+                        { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+                      ]}
+                    />
+                  </View>
                 </View>
+
+                {/* Step list */}
                 <View style={styles.generatingSteps}>
-                  {[
-                    { icon: 'moon',        text: 'Drawing from Islamic scholarship' },
-                    { icon: 'flask',       text: 'Reviewing child development research' },
-                    { icon: 'construct',   text: 'Structuring your 5-lesson plan' },
-                  ].map((s, i) => (
-                    <View key={i} style={styles.generatingStep}>
-                      <View style={styles.generatingStepIcon}>
-                        <Ionicons name={s.icon} size={14} color="#2E7D62" />
+                  {STEPS.map((s, i) => {
+                    const active  = i === stepIndex;
+                    const done    = i < stepIndex;
+                    return (
+                      <View key={i} style={styles.generatingStep}>
+                        <View style={[styles.generatingStepIcon, done && styles.generatingStepIconDone, active && styles.generatingStepIconActive]}>
+                          <Ionicons
+                            name={done ? 'checkmark' : s.icon}
+                            size={14}
+                            color={done ? '#FFFFFF' : active ? '#2E7D62' : '#9CA3AF'}
+                          />
+                        </View>
+                        <Text style={[styles.generatingStepText, done && styles.generatingStepTextDone, active && styles.generatingStepTextActive]}>
+                          {s.text}
+                        </Text>
                       </View>
-                      <Text style={styles.generatingStepText}>{s.text}</Text>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               </View>
             </View>
@@ -186,12 +226,12 @@ export default function ModuleDetailScreen({ route, navigation }) {
                   <Text style={styles.moduleTopicText}>AI-Generated Module</Text>
                 </View>
                 <Text style={styles.moduleTitle}>{module.title}</Text>
-                <Text style={styles.moduleTopic} numberOfLines={2}>{module.moduleGoal}</Text>
+                <Text style={styles.moduleTopic}>{module.moduleGoal}</Text>
 
                 {/* Progress bar */}
                 <View style={styles.progressWrap}>
                   <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+                    <View style={[styles.progressFill, { width: `${moduleProgress * 100}%` }]} />
                   </View>
                   <Text style={styles.progressLabel}>
                     {completedCount}/{module.totalLessons} lessons complete
@@ -607,8 +647,30 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 28,
   },
-  generatingDots: { marginBottom: 32 },
-  generatingSteps: { width: '100%', gap: 12 },
+  progressBarWrap: {
+    width: '100%',
+    marginBottom: 28,
+  },
+  progressBarTrack: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#E8F5EF',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: 8,
+    backgroundColor: '#2E7D62',
+    borderRadius: 8,
+  },
+  progressPercent: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2E7D62',
+    textAlign: 'right',
+  },
+  generatingSteps: { width: '100%', gap: 10 },
   generatingStep: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -624,13 +686,26 @@ const styles = StyleSheet.create({
   },
   generatingStepIcon: {
     width: 32, height: 32, borderRadius: 10,
-    backgroundColor: '#E8F5EF',
+    backgroundColor: '#F3F4F6',
     alignItems: 'center', justifyContent: 'center',
+  },
+  generatingStepIconActive: {
+    backgroundColor: '#E8F5EF',
+  },
+  generatingStepIconDone: {
+    backgroundColor: '#2E7D62',
   },
   generatingStepText: {
     fontSize: 13,
-    color: '#374151',
+    color: '#9CA3AF',
     fontWeight: '500',
+  },
+  generatingStepTextActive: {
+    color: '#1B3D2F',
+    fontWeight: '600',
+  },
+  generatingStepTextDone: {
+    color: '#6B7280',
   },
 
   // ── Module hero ──

@@ -13,7 +13,10 @@ import ProgressScreen      from './src/screens/ProgressScreen';
 import LearnScreen         from './src/screens/LearnScreen';
 import ModuleDetailScreen  from './src/screens/ModuleDetailScreen';
 import ProfileScreen       from './src/screens/ProfileScreen';
-import InsightDetailScreen from './src/screens/InsightDetailScreen';
+import InsightDetailScreen      from './src/screens/InsightDetailScreen';
+import VerseDetailScreen         from './src/screens/VerseDetailScreen';
+import FamilyGoalWizardScreen    from './src/screens/FamilyGoalWizardScreen';
+import FamilySyncScreen          from './src/screens/FamilySyncScreen';
 
 import OnboardingWelcome    from './src/screens/onboarding/OnboardingWelcome';
 import OnboardingAbout      from './src/screens/onboarding/OnboardingAbout';
@@ -101,6 +104,21 @@ function MainApp() {
       <Stack.Screen
         name="ModuleDetail"
         component={ModuleDetailScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="VerseDetail"
+        component={VerseDetailScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="FamilyGoalWizard"
+        component={FamilyGoalWizardScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="FamilySync"
+        component={FamilySyncScreen}
         options={{ animation: 'slide_from_bottom' }}
       />
     </Stack.Navigator>

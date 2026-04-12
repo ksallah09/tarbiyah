@@ -8,14 +8,13 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const MODULES_KEY = 'tarbiyah_modules';
+import { loadModules, deleteModule } from '../utils/modules';
 
 const SUGGESTED_PROMPTS = [
   'My child has a lot of anger and tantrums',
@@ -33,13 +32,27 @@ export default function LearnScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      AsyncStorage.getItem(MODULES_KEY).then(raw => {
-        if (raw) {
-          try { setModules(JSON.parse(raw)); } catch {}
-        }
-      });
+      loadModules().then(setModules);
     }, [])
   );
+
+  function handleDelete(mod) {
+    Alert.alert(
+      'Delete Module',
+      `Remove "${mod.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteModule(mod.id);
+            setModules(prev => prev.filter(m => m.id !== mod.id));
+          },
+        },
+      ]
+    );
+  }
 
   function handleGenerate(text) {
     const topic = (text ?? input).trim();
@@ -193,6 +206,13 @@ export default function LearnScreen({ navigation }) {
                           {mod.completedLessons === mod.totalLessons ? 'Completed' : 'In progress'}
                         </Text>
                         <Text style={styles.moduleDate}>{mod.createdAt}</Text>
+                        <TouchableOpacity
+                          style={styles.moduleDeleteBtn}
+                          onPress={() => handleDelete(mod)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
+                        </TouchableOpacity>
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -491,6 +511,10 @@ const styles = StyleSheet.create({
   moduleDate: {
     fontSize: 11,
     color: '#9CA3AF',
+  },
+  moduleDeleteBtn: {
+    padding: 4,
+    marginLeft: 4,
   },
 
   // ── Empty state ──

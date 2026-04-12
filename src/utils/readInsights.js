@@ -5,7 +5,11 @@ const GOAL_KEY        = 'tarbiyah_goal_days';
 const GOAL_CHECKED_KEY = 'tarbiyah_goal_checked';
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 // ── Read tracking ──────────────────────────────────────────
@@ -46,7 +50,7 @@ export async function getMonthReadDays(type) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   return Array.from({ length: daysInMonth }, (_, i) => {
     const d = new Date(year, month, i + 1);
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     return {
       day: i + 1,
       completed: !!(log[dateStr]?.[type]),
@@ -91,7 +95,7 @@ function buildWeek(isCompleted) {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     return {
       short: DAY_LABELS[i],
       completed: isCompleted(dateStr),
@@ -109,7 +113,7 @@ export async function getStreak(type) {
   for (let i = 0; i < 365; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     if (log[dateStr]?.[type]) {
       streak++;
     } else {

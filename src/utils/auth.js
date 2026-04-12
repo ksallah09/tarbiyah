@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -35,9 +36,35 @@ export async function signIn(email, password) {
   return { user: data?.user ?? null, error };
 }
 
-/** Sign out and clear the session. */
+/** All AsyncStorage keys that belong to the current user session. */
+const USER_STORAGE_KEYS = [
+  'tarbiyah_onboarding_v1',
+  'tarbiyah_profile',
+  'tarbiyah_focus_areas',
+  'tarbiyah_daily_cache',
+  'tarbiyah_read_days',
+  'tarbiyah_goal_checked',
+  'tarbiyah_goal_days',
+  'tarbiyah_goal_history',
+  'tarbiyah_saved_insights',
+  'tarbiyah_modules',
+  'tarbiyah_family_goals_v1',
+  'tarbiyah_family_id',
+  'tarbiyah_partner_cache',
+  'tarbiyah_greeting_date',
+];
+
+/** Sign out, clear Supabase session, and wipe all local user data. */
 export async function signOut() {
   await supabase.auth.signOut();
+  try {
+    // Remove known keys
+    await AsyncStorage.multiRemove(USER_STORAGE_KEYS);
+    // Remove any dynamic notification ID keys (tarbiyah_goal_notifs_*)
+    const allKeys = await AsyncStorage.getAllKeys();
+    const dynamicKeys = allKeys.filter(k => k.startsWith('tarbiyah_'));
+    if (dynamicKeys.length > 0) await AsyncStorage.multiRemove(dynamicKeys);
+  } catch {}
 }
 
 /** Sign in with Apple. Returns { user, error }. */

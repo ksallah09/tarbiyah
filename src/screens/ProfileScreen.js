@@ -262,22 +262,22 @@ function SettingsCard({ children }) {
   return <View style={styles.settingsCard}>{children}</View>;
 }
 
-function SettingRow({ icon, iconBg, iconColor, title, subtitle, value, onPress, rightEl, last }) {
+function SettingRow({ icon, iconBg, iconColor, title, subtitle, value, onPress, rightEl, last, disabled }) {
   return (
     <>
       <TouchableOpacity
-        style={styles.settingRow}
-        onPress={onPress}
-        activeOpacity={onPress ? 0.7 : 1}
+        style={[styles.settingRow, disabled && { opacity: 0.45 }]}
+        onPress={disabled ? null : onPress}
+        activeOpacity={onPress && !disabled ? 0.7 : 1}
       >
         <View style={[styles.settingIcon, { backgroundColor: iconBg }]}>
           <Ionicons name={icon} size={18} color={iconColor} />
         </View>
         <View style={styles.settingContent}>
-          <Text style={styles.settingTitle}>{title}</Text>
+          <Text style={[styles.settingTitle, disabled && { color: '#9CA3AF' }]}>{title}</Text>
           {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
         </View>
-        {value ? <Text style={styles.settingValue}>{value}</Text> : null}
+        {value ? <Text style={[styles.settingValue, disabled && { color: '#9CA3AF' }]}>{value}</Text> : null}
         {rightEl || (onPress ? <Ionicons name="chevron-forward" size={16} color="#9CA3AF" /> : null)}
       </TouchableOpacity>
       {!last && <View style={styles.settingDivider} />}
@@ -448,8 +448,8 @@ export default function ProfileScreen() {
   }
 
   function handleSupport() {
-    Linking.openURL('mailto:support@tarbiyah.app?subject=Tarbiyah Support').catch(() =>
-      Alert.alert('Support', 'Email us at support@tarbiyah.app')
+    Linking.openURL('mailto:admin@thetarbiyahapp.com?subject=Tarbiyah Support').catch(() =>
+      Alert.alert('Help & Support', 'Email us at admin@thetarbiyahapp.com')
     );
   }
 
@@ -559,11 +559,12 @@ export default function ProfileScreen() {
             />
             <SettingRow
               icon="language-outline"
-              iconBg="#E8F5EF"
-              iconColor="#2E7D62"
+              iconBg="#F3F4F6"
+              iconColor="#9CA3AF"
               title="Language"
-              value={language}
-              onPress={handleLanguage}
+              value="English"
+              onPress={null}
+              disabled
               last
             />
           </SettingsCard>

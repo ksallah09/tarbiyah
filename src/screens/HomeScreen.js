@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import fallbackData from '../data/insights.json';
-import { getWeekReadDays } from '../utils/readInsights';
+import { getWeekReadDays, isReadToday } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
@@ -87,10 +87,12 @@ export default function HomeScreen({ navigation }) {
 
   const [dailyData, setDailyData]            = useState(null);
   const [loading, setLoading]                = useState(true);
-  const [spirReadWeek, setSpiritualReadWeek] = useState([]);
-  const [sciReadWeek,  setScientificReadWeek]= useState([]);
+  const [spirReadWeek,  setSpiritualReadWeek] = useState([]);
+  const [sciReadWeek,   setScientificReadWeek]= useState([]);
+  const [quranReadWeek, setQuranReadWeek]     = useState([]);
   const [name, setName]                      = useState('');
   const [animate, setAnimate]                = useState(false);
+  const [ayahRead, setAyahRead]              = useState(false);
 
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
@@ -104,6 +106,8 @@ export default function HomeScreen({ navigation }) {
     useCallback(() => {
       getWeekReadDays('spiritual').then(setSpiritualReadWeek);
       getWeekReadDays('scientific').then(setScientificReadWeek);
+      getWeekReadDays('quran').then(setQuranReadWeek);
+      isReadToday('quran', dailyAyah.reference).then(setAyahRead);
 
       // Load name + decide whether to animate greeting
       Promise.all([getProfileName(), checkShouldAnimateGreeting()])
@@ -298,6 +302,57 @@ export default function HomeScreen({ navigation }) {
                 );
               })}
 
+              {/* VERSES OF THE DAY */}
+              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+                <Text style={styles.sectionTitle}>VERSES OF THE DAY</Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.88}
+                onPress={() => navigation.navigate('VerseDetail', { verse: dailyAyah })}
+              >
+                <LinearGradient
+                  colors={['#0C1829', '#1A2F5A']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={styles.verseCard}
+                >
+                  {/* Top row */}
+                  <View style={styles.verseCardTopRow}>
+                    <View style={styles.verseRefChip}>
+                      <Ionicons name="book-outline" size={11} color="rgba(255,255,255,0.5)" />
+                      <Text style={styles.verseRefChipText}>{dailyAyah.reference}</Text>
+                    </View>
+                  </View>
+
+                  {/* Arabic preview */}
+                  <Text style={styles.verseArabicPreview} numberOfLines={2}>
+                    {dailyAyah.arabic}
+                  </Text>
+
+                  <View style={styles.verseDivider} />
+
+                  {/* Translation preview */}
+                  <Text style={styles.verseTranslationPreview} numberOfLines={2}>
+                    {dailyAyah.translation}
+                  </Text>
+
+                  {/* CTA button */}
+                  <View style={ayahRead ? styles.verseReadBtn : styles.verseReadBtnProminent}>
+                    {ayahRead ? (
+                      <>
+                        <Ionicons name="checkmark-circle" size={14} color="#4ADE80" />
+                        <Text style={styles.verseReadBtnDoneText}>Read today</Text>
+                        <Text style={styles.verseReadBtnAgain}>Read again</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="book-outline" size={14} color="#0C1829" />
+                        <Text style={styles.verseReadBtnText}>Read Verses</Text>
+                      </>
+                    )}
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+
               {/* DUA OF THE DAY */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
                 <Text style={styles.sectionTitle}>DUA OF THE DAY</Text>
@@ -314,30 +369,14 @@ export default function HomeScreen({ navigation }) {
                   </View>
                   <Text style={styles.islamicCardLabel}>DUA</Text>
                 </View>
+                {dailyDua.title ? (
+                  <Text style={styles.islamicDuaTitle}>{dailyDua.title}</Text>
+                ) : null}
                 <Text style={styles.islamicArabic}>{dailyDua.arabic}</Text>
                 <View style={styles.islamicDivider} />
                 <Text style={styles.islamicTranslit}>{dailyDua.transliteration}</Text>
                 <Text style={styles.islamicTranslation}>{dailyDua.translation}</Text>
                 <Text style={styles.islamicRef}>{dailyDua.reference}</Text>
-              </LinearGradient>
-
-              {/* AYAH OF THE DAY */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>AYAH OF THE DAY</Text>
-              </View>
-              <LinearGradient
-                colors={['#1A2744', '#2D4278']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={styles.islamicCard}
-              >
-                <View style={styles.islamicCardTopRow}>
-                  <Ionicons name="book-outline" size={13} color="rgba(255,255,255,0.5)" />
-                  <Text style={styles.islamicCardLabel}>QURAN</Text>
-                </View>
-                <Text style={styles.islamicArabic}>{dailyAyah.arabic}</Text>
-                <View style={styles.islamicDivider} />
-                <Text style={styles.islamicTranslation}>{dailyAyah.translation}</Text>
-                <Text style={styles.islamicRef}>{dailyAyah.reference}</Text>
               </LinearGradient>
 
               {/* THIS WEEK */}
@@ -357,10 +396,19 @@ export default function HomeScreen({ navigation }) {
               <View style={[styles.streakCard, { marginTop: 10 }]}>
                 <View style={styles.streakHeaderRow}>
                   <Ionicons name="bulb-outline" size={13} color="#D4871A" />
-                  <Text style={[styles.streakLabel, { color: '#D4871A' }]}>Scientific</Text>
+                  <Text style={[styles.streakLabel, { color: '#D4871A' }]}>Research</Text>
                 </View>
                 <Text style={styles.streakSubLabel}>Days you read a scientific insight</Text>
                 <WeekRow days={sciReadWeek} color="#D4871A" todayColor="#FDE8C0" />
+              </View>
+
+              <View style={[styles.streakCard, { marginTop: 10 }]}>
+                <View style={styles.streakHeaderRow}>
+                  <Ionicons name="book-outline" size={13} color="#6B9FD4" />
+                  <Text style={[styles.streakLabel, { color: '#6B9FD4' }]}>Quran</Text>
+                </View>
+                <Text style={styles.streakSubLabel}>Days you read the verses of the day</Text>
+                <WeekRow days={quranReadWeek} color="#1A3A6B" todayColor="#D0E4F7" />
               </View>
 
               <View style={{ height: 32 }} />
@@ -527,6 +575,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     color: 'rgba(255,255,255,0.5)',
   },
+  islamicDuaTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.55)',
+    letterSpacing: 0.3,
+    marginBottom: 10,
+  },
   islamicArabic: {
     fontSize: 20,
     color: '#FFFFFF',
@@ -558,6 +613,113 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
     letterSpacing: 0.5,
     marginTop: 10,
+  },
+  // ── Verse of the Day card ──
+  verseCard: {
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 10,
+    overflow: 'hidden',
+    shadowColor: '#0C1829',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  verseCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  verseRefChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  verseRefChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 0.8,
+  },
+  verseReadBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(74,222,128,0.12)',
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  verseReadBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4ADE80',
+  },
+  verseArabicPreview: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    textAlign: 'right',
+    lineHeight: 34,
+    fontWeight: '500',
+    marginBottom: 14,
+  },
+  verseDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: 12,
+  },
+  verseTranslationPreview: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.65)',
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  verseReadBtnProminent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    alignSelf: 'stretch',
+  },
+  verseReadBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0C1829',
+  },
+  verseReadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+  },
+  verseReadBtnDoneText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4ADE80',
+    flex: 1,
+  },
+  verseReadBtnAgain: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.35)',
+  },
+  verseCardCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  verseCardCTAText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.3,
   },
 
   // ── Streak card ──

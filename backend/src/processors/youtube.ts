@@ -4,14 +4,14 @@ import { SYSTEM_INSTRUCTION, YOUTUBE_EXTRACTION_PROMPT } from '../prompts/system
 import { Source, ExtractedContent, GeminiExtractionResponse } from '../types';
 
 export async function processYouTubeSource(
-  source: Pick<Source, 'id' | 'title' | 'url' | 'author' | 'speakerName' | 'tags' | 'description'>
+  source: Pick<Source, 'id' | 'title' | 'url' | 'author' | 'speakerName' | 'tags' | 'description' | 'language'>
 ): Promise<ExtractedContent> {
   const model = getJsonModel(MODEL_HEAVY, SYSTEM_INSTRUCTION);
 
   const parts: Part[] = [
     { text: buildContextPreamble(source) },
     { fileData: { mimeType: 'video/*', fileUri: source.url } },
-    { text: YOUTUBE_EXTRACTION_PROMPT },
+    { text: source.language !== 'en' ? `The video is in a non-English language. Listen to the audio, understand the content, then respond entirely in English — translating and summarising the key parenting insights.\n\n${YOUTUBE_EXTRACTION_PROMPT}` : YOUTUBE_EXTRACTION_PROMPT },
   ];
 
   console.log(`  → Analyzing YouTube video: ${source.title}`);
@@ -32,7 +32,7 @@ export async function processYouTubeSource(
 }
 
 function buildContextPreamble(
-  source: Pick<Source, 'title' | 'author' | 'speakerName' | 'tags' | 'description'>
+  source: Pick<Source, 'title' | 'author' | 'speakerName' | 'tags' | 'description' | 'language'>
 ): string {
   const speaker = source.speakerName ?? source.author ?? 'Unknown Speaker';
   return [
@@ -41,6 +41,7 @@ function buildContextPreamble(
     `VIDEO DETAILS:`,
     `Title: ${source.title}`,
     `Speaker: ${speaker}`,
+    `Language: ${source.language === 'ar' ? 'Arabic' : source.language === 'bilingual' ? 'Arabic/English' : 'English'}`,
     `Topics: ${source.tags.join(', ')}`,
     source.description ? `Description: ${source.description}` : '',
     ``,
