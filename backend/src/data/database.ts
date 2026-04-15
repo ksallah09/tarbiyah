@@ -158,6 +158,7 @@ export async function saveInsight(insight: InsightOutput): Promise<void> {
     attribution:         insight.attribution,
     source_grounding:    insight.sourceGrounding,
     tags:                insight.tags,
+    age_group:           insight.ageGroups,
     content_type:        insight.contentType,
     status:              insight.status,
     date_generated:      insight.dateGenerated.toISOString(),
@@ -228,6 +229,7 @@ function rowToInsight(row: Record<string, unknown>): InsightOutput {
     attribution:         row.attribution          as string,
     sourceGrounding:     row.source_grounding     as InsightOutput['sourceGrounding'],
     tags:                (row.tags                as InsightOutput['tags']) ?? [],
+    ageGroups:           (row.age_group           as InsightOutput['ageGroups']) ?? ['all'],
     contentType:         row.content_type         as InsightOutput['contentType'],
     status:              row.status               as InsightStatus,
     dateGenerated:       new Date(row.date_generated as string),
@@ -250,10 +252,20 @@ export async function recordDelivery(userId: string, insightId: string): Promise
   if (error) throw error;
 }
 
+// Fisher-Yates shuffle (in-place)
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export async function pickInsight(
   category: 'spiritual' | 'science',
   userId: string | null,
-  focusAreas: string[] = []
+  focusAreas: string[] = [],
+  childrenAgeGroups: string[] = []
 ): Promise<InsightOutput | null> {
   const [seen, pool] = await Promise.all([
     userId ? getDeliveredInsightIds(userId) : Promise.resolve([]),
@@ -270,14 +282,42 @@ export async function pickInsight(
     return pool[(dayIndex + offset) % pool.length];
   }
 
-  const unread = pool.filter(i => !seen.includes(i.id));
-  if (unread.length === 0) return pool[0]; // reset if all seen
+  // Tags that require the user to have explicitly opted in via focus areas.
+  // Insights with these tags are excluded entirely for users who haven't selected them.
+  const OPT_IN_TAGS = new Set(['special-needs']);
 
-  // Score by tag overlap with user's focus areas, fall back to most recent
-  const scored = unread.map(i => ({
-    insight: i,
-    score: i.tags.filter(t => focusAreas.includes(t)).length,
-  }));
+  const seenSet = new Set(seen);
+  const unread = pool.filter(i => !seenSet.has(i.id));
+  const allCandidates = unread.length > 0 ? unread : pool; // reset if all seen
+
+  // Exclude opt-in-only insights for users who haven't selected the matching focus area
+  const filtered = allCandidates.filter(
+    i => !i.tags.some(t => OPT_IN_TAGS.has(t) && !focusAreas.includes(t))
+  );
+  const candidates = filtered.length > 0 ? filtered : allCandidates;
+
+  // Count how many insights the user has already seen from each source.
+  // Used as a penalty so over-represented sources naturally fall back.
+  const seenCountBySource = new Map<string, number>();
+  for (const id of seen) {
+    const insight = pool.find(i => i.id === id);
+    if (insight) {
+      seenCountBySource.set(insight.sourceId, (seenCountBySource.get(insight.sourceId) ?? 0) + 1);
+    }
+  }
+
+  // Score each candidate:
+  //  +2 per focus area tag match
+  //  +1 if age group matches the user's children (or insight is tagged 'all')
+  //  - seenCountBySource penalty to avoid same speaker repeating
+  // Shuffle first so equal-score ties are broken randomly, not by DB insertion order.
+  const scored = shuffle(candidates).map(i => {
+    const tagScore = i.tags.filter(t => focusAreas.includes(t)).length * 2;
+    const ageScore = childrenAgeGroups.length === 0 ? 0
+      : (i.ageGroups.includes('all') || i.ageGroups.some(ag => childrenAgeGroups.includes(ag)) ? 1 : 0);
+    const sourcePenalty = seenCountBySource.get(i.sourceId) ?? 0;
+    return { insight: i, score: tagScore + ageScore - sourcePenalty };
+  });
   scored.sort((a, b) => b.score - a.score);
   return scored[0].insight;
 }

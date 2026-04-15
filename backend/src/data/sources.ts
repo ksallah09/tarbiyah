@@ -367,6 +367,123 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
     isActive: true,
   },
 
+  {
+    id: 'yt-spiritual-37',
+    title: 'Parenting Strategies For Success In Life & Afterlife - Hina Khan Mukhtar',
+    url: 'https://www.youtube.com/watch?v=yXU5zZfwOtw',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Hina Khan Mukhtar',
+    author: 'CelebrateMercy',
+    tags: ['tarbiyah', 'character', 'faith', 'connection', 'adab'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-38',
+    title: 'What I Learned from a Mother of Three Children with Special Needs - Yasmin Mogahed - Muhsen',
+    url: 'https://www.youtube.com/watch?v=I55w0VvmeX0',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Yasmin Mogahed',
+    author: 'Muhsen',
+    tags: ['gratitude', 'patience', 'faith', 'mercy', 'special-needs'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-39',
+    title: 'Pt.32 Parenting Special Needs Children | Lets Talk About It with Sh. Yasir Fazaga & Dr. Ali Shehata',
+    url: 'https://www.youtube.com/watch?v=acPrlWAfm4o',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Sh. Yasir Fazaga',
+    author: 'Memphis Islamic Center (MIC)',
+    tags: ['patience', 'emotional-regulation', 'connection', 'faith', 'special-needs'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-40',
+    title: 'Advice to Those with Special Needs & Their Caregivers | Shaykh Dr. Yasir Qadhi',
+    url: 'https://www.youtube.com/watch?v=XgXSShVZVKY',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Dr. Yasir Qadhi',
+    author: 'Yasir Qadhi',
+    tags: ['patience', 'mercy', 'gratitude', 'faith', 'special-needs'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-41',
+    title: 'Loving Those with Disabilities - Omar Suleiman',
+    url: 'https://www.youtube.com/watch?v=9ZYdl2aRauo',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Omar Suleiman',
+    author: 'Quran Weekly',
+    tags: ['mercy', 'love', 'gratitude', 'kindness', 'special-needs'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-33',
+    title: 'Raising Confident Muslim Kids in the Digital Age W/Dr. Rania Awaad + Imam Khalid Latif',
+    url: 'https://www.youtube.com/watch?v=1NVCaa_eqTA',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Dr. Rania Awaad',
+    author: 'Rania Awaad Official',
+    tags: ['tarbiyah', 'identity', 'screen-time', 'character', 'faith'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-34',
+    title: 'Modern Muslim Parenting | Ustadha Dr. Rania Awaad',
+    url: 'https://www.youtube.com/watch?v=kr5-o9N07no',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Dr. Rania Awaad',
+    author: 'The Rahmah Foundation',
+    tags: ['tarbiyah', 'patience', 'adab', 'presence', 'family-dynamics'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-35',
+    title: 'Raising Resilient & Confident Muslim Children - Dr. Rania Awaad',
+    url: 'https://www.youtube.com/watch?v=SUSn1X6m7Ko',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Dr. Rania Awaad',
+    author: 'Islamic Society of Baltimore',
+    tags: ['identity', 'tarbiyah', 'character', 'attachment', 'faith'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-36',
+    title: 'How to talk to your children about Palestine | Dr Rania Awaad',
+    url: 'https://www.youtube.com/watch?v=0ixq3Z0tV6Q',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Dr. Rania Awaad',
+    author: 'Rania Awaad Official',
+    tags: ['communication', 'tarbiyah', 'emotional-regulation', 'presence', 'faith'],
+    language: 'en',
+    isActive: true,
+  },
+
   // ── Science: Child Development & Parenting Research Articles ─────────────
 
   {
@@ -426,7 +543,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-01',
     title: 'Raising Resilient Muslim Youth: Strategies for Building a Strong Muslim Identity in Children',
-    url: 'https://yaqeeninstitute.org/read/papers/raising-resilient-muslim-youth',
+    url: 'https://yaqeeninstitute.org/read/paper/raising-resilient-muslim-youth-strategies-for-building-a-strong-muslim-identity-in-children',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -439,7 +556,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-02',
     title: 'Islamic Parenting Strategies: How to Help Children Feel Safe in their Attachment to God and Parents',
-    url: 'https://yaqeeninstitute.org/read/papers/islamic-parenting-strategies',
+    url: 'https://yaqeeninstitute.org/read/paper/islamic-parenting-strategies-how-to-help-children-feel-safe-in-their-attachment-to-god-and-parents',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -452,7 +569,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-03',
     title: 'Parenting Style and Our Relationship With God',
-    url: 'https://yaqeeninstitute.org/read/papers/parenting-style-and-relationship-with-god',
+    url: 'https://yaqeeninstitute.org/read/paper/parenting-style-and-our-relationship-with-god-the-influence-of-parental-love-on-our-perception-of-god',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -465,7 +582,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-04',
     title: 'Building Resilience: The Psychology Behind Raising Unapologetic Muslim Children',
-    url: 'https://yaqeeninstitute.org/read/papers/building-resilience-psychology-raising-muslim-children',
+    url: 'https://yaqeeninstitute.org/read/paper/building-resilience-the-psychology-behind-raising-unapologetic-muslim-children',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -478,7 +595,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-05',
     title: 'How to Raise Religious Teens: A Self-Determination Theory Approach',
-    url: 'https://yaqeeninstitute.org/read/papers/how-raise-religious-teens-self-determination',
+    url: 'https://yaqeeninstitute.org/read/paper/how-to-raise-religious-teens-a-self-determination-theory-approach',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -491,7 +608,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-06',
     title: 'Gender Uniqueness in Islam and the Significance of Fatherhood',
-    url: 'https://yaqeeninstitute.org/read/papers/gender-uniqueness-islam-significance-fatherhood',
+    url: 'https://yaqeeninstitute.org/read/paper/gender-uniqueness-in-islam-and-the-significance-of-fatherhood',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -504,7 +621,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-07',
     title: 'Will My Children Be Muslim? The Development of Religious Identity in Young People',
-    url: 'https://yaqeeninstitute.org/read/papers/will-my-children-be-muslim-religious-identity',
+    url: 'https://yaqeeninstitute.org/read/paper/will-my-children-be-muslim-the-development-of-religious-identity-in-young-people',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -517,7 +634,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-08',
     title: 'The Importance of Conscious Parenting in Raising Confident Muslims',
-    url: 'https://yaqeeninstitute.org/read/papers/conscious-parenting-confident-muslims',
+    url: 'https://yaqeeninstitute.org/read/paper/the-importance-of-conscious-parenting-in-raising-confident-muslims',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -530,7 +647,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-13',
     title: 'Belief in Divine Love: Discovering Spiritual Attachment Styles',
-    url: 'https://yaqeeninstitute.org/read/papers/belief-divine-love-spiritual-attachment',
+    url: 'https://yaqeeninstitute.org/read/paper/belief-in-divine-love-discovering-spiritual-attachment-styles',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -543,7 +660,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-14',
     title: "Talking to Teens about Drugs and Alcohol: A Qur'anic Approach",
-    url: 'https://yaqeeninstitute.org/read/papers/talking-teens-drugs-alcohol-quranic',
+    url: 'https://yaqeeninstitute.org/read/paper/talking-to-teens-about-drugs-a-quranic-approach',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -556,7 +673,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-15',
     title: 'A Loan of Love: Appreciating the Blessing of Family in Difficult Times',
-    url: 'https://yaqeeninstitute.org/read/papers/loan-love-family-blessing',
+    url: 'https://yaqeeninstitute.org/read/paper/a-loan-of-love-appreciating-the-blessing-of-family-in-difficult-times',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -567,9 +684,22 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   },
 
   {
+    id: 'yq-spiritual-16',
+    title: 'Raising Children with Deen and Dunya',
+    url: 'https://hinakm.com/raising-children-with-deen-and-dunya/',
+    type: 'article',
+    category: 'spiritual',
+    author: 'Hina Khan-Mukhtar',
+    tags: ['tarbiyah', 'faith', 'identity', 'character', 'adab', 'knowledge'],
+    language: 'en',
+    description: 'Guidance on nurturing both the spiritual and worldly dimensions of a child\'s upbringing in a balanced Islamic framework.',
+    isActive: true,
+  },
+
+  {
     id: 'yq-spiritual-09',
     title: 'The Power of a Positive Home Environment: What the Research Says',
-    url: 'https://yaqeeninstitute.org/read/blogs/positive-home-environment-research',
+    url: 'https://yaqeeninstitute.org/read/post/the-power-of-a-positive-home-environment-what-the-research-says',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -582,7 +712,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-10',
     title: '8 Questions Your Muslim Teens Are Asking',
-    url: 'https://yaqeeninstitute.org/read/blogs/questions-muslim-teens-asking',
+    url: 'https://yaqeeninstitute.org/yaqeen-institute/8-questions-your-muslim-teens-are-asking',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -595,7 +725,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-11',
     title: '5 Ways to Raise Practicing Muslim Children',
-    url: 'https://yaqeeninstitute.org/read/blogs/raise-practicing-muslim-children',
+    url: 'https://yaqeeninstitute.org/read/blog/5-ways-to-raise-practicing-muslim-children',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -608,7 +738,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'yq-spiritual-12',
     title: "The Importance of Making Ramadan a \"Big Deal\" for Your Family",
-    url: 'https://yaqeeninstitute.org/read/blogs/ramadan-big-deal-family',
+    url: 'https://yaqeeninstitute.org/read/blog/the-importance-of-making-ramadan-a-big-deal-for-your-family',
     type: 'article',
     category: 'spiritual',
     author: 'Yaqeen Institute',
@@ -835,7 +965,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cdc-14',
     title: 'Tips for Coaching Teens to Recognize and Manage Emotions',
-    url: 'https://www.cdc.gov/parenting-teens/emotions/index.html',
+    url: 'https://www.cdc.gov/parenting-teens/tips-coaching-emotions/index.html',
     type: 'article',
     category: 'science',
     author: 'CDC',
@@ -848,7 +978,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cdc-15',
     title: 'Tips for Encouraging Independence in Teens',
-    url: 'https://www.cdc.gov/parenting-teens/independence/index.html',
+    url: 'https://www.cdc.gov/parenting-teens/tips-encouraging-independence/index.html',
     type: 'article',
     category: 'science',
     author: 'CDC',
@@ -861,7 +991,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cdc-16',
     title: 'Tips for Praising Your Teen',
-    url: 'https://www.cdc.gov/parenting-teens/communication/praise.html',
+    url: 'https://www.cdc.gov/parenting-teens/tips-praising-teens/index.html',
     type: 'article',
     category: 'science',
     author: 'CDC',
@@ -889,7 +1019,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-01',
     title: 'Complete Guide to Managing Behavior Problems',
-    url: 'https://childmind.org/guide/complete-guide-to-managing-behavior-problems/',
+    url: 'https://childmind.org/guide/parents-guide-to-problem-behavior/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -902,7 +1032,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-02',
     title: 'Early Puberty and Mental Health: Impact on Kids',
-    url: 'https://childmind.org/article/early-puberty-and-mental-health-impact-on-kids/',
+    url: 'https://childmind.org/article/how-early-puberty-affects-childrens-mental-health/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -928,7 +1058,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-04',
     title: 'Emotional Regulation for Kids: How to Help',
-    url: 'https://childmind.org/article/helping-kids-who-struggle-with-emotional-regulation/',
+    url: 'https://childmind.org/article/can-help-kids-self-regulation/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -954,7 +1084,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-06',
     title: 'How to Communicate With Teenagers',
-    url: 'https://childmind.org/article/how-to-communicate-with-teenagers/',
+    url: 'https://childmind.org/article/tips-communicating-with-teen/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -967,7 +1097,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-07',
     title: 'How to Talk to a Teen Who Won\'t Talk',
-    url: 'https://childmind.org/article/how-to-talk-to-a-teen-who-wont-talk/',
+    url: 'https://childmind.org/article/help-my-teen-stopped-talking-to-me/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -980,7 +1110,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-08',
     title: 'Is Your Teen Depressed? Symptoms & Signs',
-    url: 'https://childmind.org/article/is-your-teen-depressed/',
+    url: 'https://childmind.org/article/what-are-the-symptoms-of-depression-in-teenagers/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -993,7 +1123,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-09',
     title: 'Talking to Teens About Drugs and Alcohol Use',
-    url: 'https://childmind.org/article/talking-to-kids-about-drugs-and-alcohol/',
+    url: 'https://childmind.org/article/talk-teenager-substance-use-abuse/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -1019,7 +1149,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-11',
     title: 'Understanding Anxiety in Teenagers',
-    url: 'https://childmind.org/article/understanding-anxiety-in-teenagers/',
+    url: 'https://childmind.org/article/signs-of-anxiety-in-teenagers/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -1045,7 +1175,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-13',
     title: 'Why Are Teenagers So Angry? Tips for Parents',
-    url: 'https://childmind.org/article/why-are-teenagers-so-angry/',
+    url: 'https://childmind.org/article/teens-and-anger/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -1058,7 +1188,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-14',
     title: 'Parenting Tweens: What You Should Know',
-    url: 'https://childmind.org/article/parenting-tweens-what-you-should-know/',
+    url: 'https://childmind.org/article/what-parents-should-know-about-tweens/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -1151,7 +1281,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-21',
     title: 'Why Kids Lie and What Parents Can Do About It',
-    url: 'https://childmind.org/article/why-kids-lie-and-what-parents-can-do-about-it/',
+    url: 'https://childmind.org/article/why-kids-lie/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -1190,7 +1320,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-24',
     title: 'How to Discipline Toddlers',
-    url: 'https://childmind.org/article/how-to-discipline-toddlers/',
+    url: 'https://childmind.org/article/how-discipline-toddlers/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -1294,7 +1424,7 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   {
     id: 'sci-cmi-32',
     title: 'How Can We Help Kids With Self-Regulation?',
-    url: 'https://childmind.org/article/how-can-we-help-kids-with-self-regulation/',
+    url: 'https://childmind.org/article/can-help-kids-self-regulation/',
     type: 'article',
     category: 'science',
     author: 'Child Mind Institute',
@@ -1766,6 +1896,110 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
     tags: ['play', 'identity', 'connection', 'emotional-regulation'],
     language: 'en',
     description: 'Child Mind Institute on how imaginative play builds language, empathy, problem-solving, and emotional skills in children.',
+    isActive: true,
+  },
+
+  {
+    id: 'sci-cmi-68',
+    title: 'Parenting Hacks for Special Needs Kids',
+    url: 'https://childmind.org/article/parenting-hacks-for-special-needs-kids/',
+    type: 'article',
+    category: 'science',
+    author: 'Child Mind Institute',
+    tags: ['routines', 'emotional-regulation', 'communication', 'patience', 'special-needs'],
+    language: 'en',
+    description: 'Child Mind Institute practical strategies for parents raising children with special needs.',
+    isActive: true,
+  },
+
+  {
+    id: 'sci-cmi-69',
+    title: 'How to Help a Special Needs Teen Fly Solo',
+    url: 'https://childmind.org/article/how-to-help-a-special-needs-teen-fly-solo/',
+    type: 'article',
+    category: 'science',
+    author: 'Child Mind Institute',
+    tags: ['identity', 'boundaries', 'communication', 'responsibility', 'special-needs'],
+    language: 'en',
+    description: 'Child Mind Institute guidance on fostering independence in teenagers with special needs.',
+    isActive: true,
+  },
+
+  {
+    id: 'sci-cmi-70',
+    title: 'Fighting Caregiver Burnout with Special Needs Kids',
+    url: 'https://childmind.org/article/fighting-caregiver-burnout-special-needs-kids/',
+    type: 'article',
+    category: 'science',
+    author: 'Child Mind Institute',
+    tags: ['emotional-regulation', 'patience', 'presence', 'boundaries', 'special-needs'],
+    language: 'en',
+    description: 'Child Mind Institute on recognising and addressing burnout in parents and caregivers of children with special needs.',
+    isActive: true,
+  },
+
+  {
+    id: 'sci-cmi-71',
+    title: 'Supporting the Emotional Needs of Kids with Disabilities',
+    url: 'https://childmind.org/article/supporting-the-emotional-needs-of-kids-with-disabilities/',
+    type: 'article',
+    category: 'science',
+    author: 'Child Mind Institute',
+    tags: ['emotional-regulation', 'attachment', 'communication', 'love', 'special-needs'],
+    language: 'en',
+    description: 'Child Mind Institute on understanding and nurturing the emotional wellbeing of children with disabilities.',
+    isActive: true,
+  },
+
+  {
+    id: 'sci-cmi-72',
+    title: 'When Siblings Won\'t Stop Fighting',
+    url: 'https://childmind.org/article/when-siblings-wont-stop-fighting/',
+    type: 'article',
+    category: 'science',
+    author: 'Child Mind Institute',
+    tags: ['discipline', 'communication', 'anger', 'family-dynamics', 'emotional-regulation'],
+    language: 'en',
+    description: 'Child Mind Institute strategies for managing and reducing sibling conflict at home.',
+    isActive: true,
+  },
+
+  {
+    id: 'sci-cmi-73',
+    title: 'Making Games Work for Kids of All Ages and Needs',
+    url: 'https://childmind.org/article/making-games-work-for-kids-of-all-ages-and-needs/',
+    type: 'article',
+    category: 'science',
+    author: 'Child Mind Institute',
+    tags: ['play', 'connection', 'communication', 'emotional-regulation', 'attachment'],
+    language: 'en',
+    description: 'Child Mind Institute on adapting games and play to support children of different ages, abilities, and needs.',
+    isActive: true,
+  },
+
+  {
+    id: 'sci-cmi-74',
+    title: 'My Son Said Hateful Words at School — How Can I Help Him?',
+    url: 'https://childmind.org/article/my-son-said-hateful-words-at-school-and-is-now-the-trouble-kid-how-can-i-help-him/',
+    type: 'article',
+    category: 'science',
+    author: 'Child Mind Institute',
+    tags: ['discipline', 'communication', 'character', 'anger', 'emotional-regulation'],
+    language: 'en',
+    description: 'Child Mind Institute guidance for parents when a child uses hurtful language and how to address behaviour and underlying causes.',
+    isActive: true,
+  },
+
+  {
+    id: 'sci-cmi-75',
+    title: 'Conflicts Over Parenting Styles',
+    url: 'https://childmind.org/article/conflicts-over-parenting-styles/',
+    type: 'article',
+    category: 'science',
+    author: 'Child Mind Institute',
+    tags: ['family-dynamics', 'communication', 'marriage', 'boundaries', 'home-environment'],
+    language: 'en',
+    description: 'Child Mind Institute on navigating disagreements between parents about discipline and parenting approaches.',
     isActive: true,
   },
 ];

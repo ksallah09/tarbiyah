@@ -17,13 +17,14 @@ import {
 } from '../data/database';
 import { processSource } from '../processors';
 import { generateInsight, generateMultipleInsights, buildDailyPayload } from '../generators/insights';
+import { extractSourceKnowledge } from './knowledge';
 import { Source, InsightOutput, AppDailyPayload } from '../types';
 
 // ─── Pipeline Orchestration ───────────────────────────────────────────────────
 
 export async function processSingleSource(
   sourceArg: Source,
-  generateCount = 1
+  generateCount = 4
 ): Promise<InsightOutput[]> {
   let source = sourceArg;
   const job = await createJob(source.id);
@@ -50,6 +51,15 @@ export async function processSingleSource(
     for (const insight of insights) {
       await saveInsight(insight);
       console.log(`  ✓ Saved insight [${insight.id.slice(0, 8)}] as draft`);
+    }
+
+    // Build source knowledge entry automatically after insights are saved
+    try {
+      await extractSourceKnowledge(source.id, extracted);
+      console.log(`  ✓ Source knowledge extracted`);
+    } catch (err) {
+      // Non-fatal — knowledge extraction failing should not block insight saving
+      console.warn(`  ⚠ Source knowledge extraction failed (non-fatal):`, err instanceof Error ? err.message : err);
     }
 
     console.log(`✓ Source processed: "${source.title}" → ${insights.length} insight(s) saved\n`);

@@ -34,6 +34,17 @@ Avoid:
 - Generic parenting advice with no Islamic grounding
 - Repeating the same content in different words to fill space
 
+CONTENT BOUNDARIES — applies to all sources and all output:
+This app serves Muslim families who hold Islamic values. Never produce content that references, normalises, or draws conclusions from:
+- Gender identity, gender transition, or non-binary frameworks
+- LGBTQ+ relationships, same-sex parenting, or related research framing
+- Alcohol, cannabis, or substance use presented as neutral or beneficial
+- Dating, premarital romantic relationships, or hookup culture
+- Polyamory or family structures that conflict with Islamic values
+- Any framing that contradicts the Islamic understanding of fitrah, marriage, or family
+
+If a source touches on these areas, extract only the universally applicable parenting principle and omit the conflicting context entirely. If no neutral principle can be extracted, do not produce an insight from that material.
+
 The Tarbiyah app serves Muslim parents who want to raise their children with Islamic values, emotional intelligence, and genuine love. Your job is to make ancient wisdom feel alive for their daily life.
 `.trim();
 
@@ -129,6 +140,79 @@ Return a JSON object with this exact structure:
 }
 `.trim();
 
+// ─── Batch Insight Generation Prompt ─────────────────────────────────────────
+
+const INSIGHT_ANGLES_SPIRITUAL = [
+  'The core spiritual teaching — its connection to Qur\'an, Sunnah, or Islamic character formation',
+  'The emotional dimension — mercy, connection, the parent\'s heart and relationship with the child',
+  'The practical wisdom — a specific habit, routine, or daily action the parent can take',
+  'The deeper principle — a subtle or less obvious lesson a parent might miss on first hearing',
+];
+
+const INSIGHT_ANGLES_SCIENCE = [
+  'The primary research finding and what it means for everyday parenting',
+  'The emotional or developmental angle — what this means for how children feel and grow',
+  'The practical application — a concrete change a parent can make at home',
+  'The less obvious implication — a nuance in the research that most parents miss',
+];
+
+export function buildBatchInsightGenerationPrompt(
+  extractedContent: {
+    coreTheme: string;
+    keyInsights: string[];
+    islamicReferences: string[];
+    practicalAdvice: string[];
+    emotionalTone: string;
+    rawSummary: string;
+  },
+  sourceTitle: string,
+  category: 'spiritual' | 'science',
+  sourceAuthor?: string,
+  count = 4,
+): string {
+  const attribution = sourceAuthor
+    ? `${sourceTitle} — ${sourceAuthor}`
+    : sourceTitle;
+
+  const angles = (category === 'spiritual' ? INSIGHT_ANGLES_SPIRITUAL : INSIGHT_ANGLES_SCIENCE)
+    .slice(0, count);
+
+  const sourceBlock = `
+EXTRACTED SOURCE CONTENT:
+Core Theme: ${extractedContent.coreTheme}
+
+Key Insights from Source:
+${extractedContent.keyInsights.map((i, n) => `${n + 1}. ${i}`).join('\n')}
+
+${category === 'spiritual' ? `Islamic References in Source:\n${extractedContent.islamicReferences.length > 0 ? extractedContent.islamicReferences.join('\n') : 'None cited directly'}\n\n` : ''}Practical Advice from Source:
+${extractedContent.practicalAdvice.map((a, n) => `${n + 1}. ${a}`).join('\n')}
+
+Emotional Tone of Source: ${extractedContent.emotionalTone}
+
+Internal Summary: ${extractedContent.rawSummary}
+`.trim();
+
+  const requirementsBlock =
+    category === 'spiritual' ? SPIRITUAL_REQUIREMENTS : SCIENCE_REQUIREMENTS;
+
+  return `
+Using the following extracted knowledge from the source "${attribution}", write ${count} DISTINCT parenting insights for the Tarbiyah app.
+
+Each insight must cover a DIFFERENT angle of this source. The ${count} angles are:
+${angles.map((a, i) => `  ${i + 1}. ${a}`).join('\n')}
+
+IMPORTANT: The extracted content below is reference material — not text to reproduce. Do not echo, paraphrase closely, or reuse the phrasing from these notes. Read them to understand the ideas, then write entirely in your own voice.
+
+${sourceBlock}
+
+---
+
+${requirementsBlock}
+
+Return a JSON array of UP TO ${count} objects — but only as many as the source genuinely supports. If the source only has material for 2 or 3 truly distinct insights, return 2 or 3. Do NOT pad with repetitive, thin, or overlapping insights to reach ${count}. Quality and distinctiveness matter more than hitting the number. Each object must have ALL of the fields listed above. The insights must cover genuinely different angles, different actionable takeaways, and different titles. No markdown. No explanation. Only a valid JSON array: [{...}, {...}, ...].
+`.trim();
+}
+
 // ─── Insight Generation Prompt ────────────────────────────────────────────────
 
 export function buildInsightGenerationPrompt(
@@ -195,7 +279,8 @@ REQUIREMENTS:
 - educationalInsight: Leave this as an empty string "". The educational value is already woven into spiritualInsight for spiritual sources.
 - actionStep: 1-2 sentences. One concrete thing a parent can do TODAY that honours both the spiritual teaching and the practical lesson. Make it specific and achievable within an ordinary day.
 - attribution: Always use "Tarbiyah" — do not attribute to any individual scholar, speaker, or person.
-- tags: Array of 3-5 relevant tags from this list only: patience, discipline, emotional-regulation, mercy, connection, routines, dua, communication, presence, adab, screen-time, anger, gratitude, tarbiyah, character, knowledge, love, boundaries, faith, prayer, identity, attachment, play, kindness, forgiveness, quran, hifdh, luqman, ihsan, wisdom, excellence, surah-yusuf, love-of-allah, khutbah, responsibility, family-dynamics, marriage, daughters, equality, home-environment, influence, motivation, foundation, gift
+- tags: Array of 3-5 relevant tags from this list only: patience, discipline, emotional-regulation, mercy, connection, routines, dua, communication, presence, adab, screen-time, anger, gratitude, tarbiyah, character, knowledge, love, boundaries, faith, prayer, identity, attachment, play, kindness, forgiveness, quran, hifdh, luqman, ihsan, wisdom, excellence, surah-yusuf, love-of-allah, khutbah, responsibility, family-dynamics, marriage, daughters, equality, home-environment, influence, motivation, foundation, gift, special-needs
+- ageGroups: Array of age groups this insight is most relevant for. Choose from: "under-5", "5-10", "11-15", "16-plus", "all". Use "all" if the insight applies universally to any parent regardless of child age. Use multiple values when relevant (e.g. ["5-10", "11-15"]). Examples: an insight about toddler tantrums → ["under-5"]; an insight about teen accountability → ["11-15", "16-plus"]; an insight about patience in parenting → ["all"].
 - contentType: For spiritual sources always use "mixed"
 - sourceGrounding: {
     "paraphrasedIdea": "Describe the source idea this insight is based on — in your own words, no direct quotes.",
@@ -217,7 +302,8 @@ REQUIREMENTS:
 - educationalInsight: 2-3 sentences. This is the PRIMARY insight for science sources. State the research finding, expert recommendation, or evidence-based lesson clearly. Focus on: communication, emotional regulation, discipline, attachment, development, behavior, or family dynamics. Write it accessibly — not academic, not clinical. A Muslim parent should read this and immediately understand why it matters.
 - actionStep: 1-2 sentences. One specific, practical thing the parent can do TODAY based on this research or guidance. Make it concrete, achievable, and immediately applicable in an ordinary family day.
 - attribution: A short source label (8 words max). Examples: "Child Mind Institute" / "UNICEF Parenting Research" / "American Academy of Pediatrics" / "UC Davis Health".
-- tags: Array of 3-5 relevant tags from this list only: patience, discipline, emotional-regulation, mercy, connection, routines, dua, communication, presence, adab, screen-time, anger, gratitude, tarbiyah, character, knowledge, love, boundaries, faith, prayer, identity, attachment, play, kindness, forgiveness, family-dynamics, motivation, foundation, equality, home-environment, responsibility
+- tags: Array of 3-5 relevant tags from this list only: patience, discipline, emotional-regulation, mercy, connection, routines, dua, communication, presence, adab, screen-time, anger, gratitude, tarbiyah, character, knowledge, love, boundaries, faith, prayer, identity, attachment, play, kindness, forgiveness, family-dynamics, motivation, foundation, equality, home-environment, responsibility, special-needs
+- ageGroups: Array of age groups this insight is most relevant for. Choose from: "under-5", "5-10", "11-15", "16-plus", "all". Use "all" if the insight applies universally to any parent regardless of child age. Use multiple values when relevant (e.g. ["5-10", "11-15"]). Examples: an insight about screen time for young children → ["under-5", "5-10"]; an insight about teen brain development → ["11-15", "16-plus"]; an insight about parenting mindset → ["all"].
 - contentType: For science sources use "educational" or "practical"
 - sourceGrounding: {
     "paraphrasedIdea": "Describe the research finding or expert guidance this insight is based on — in your own words, no direct quotes.",
@@ -225,4 +311,9 @@ REQUIREMENTS:
     "confidence": "high if directly stated in source, medium if inferred from guidance, low if loosely connected",
     "clarification": "One sentence clarifying the relationship between this insight and the source"
   }
+
+CONTENT BOUNDARIES — science sources:
+If the source material involves gender identity, LGBTQ+ contexts, same-sex parenting, alcohol or substance use as neutral/beneficial, premarital dating, or any framework that conflicts with Islamic values:
+- Extract only the universally applicable parenting principle (e.g. emotional regulation, communication, attachment) and omit the conflicting framing entirely
+- If the entire source is built around a conflicting premise and no neutral principle can be extracted, return dailyInsight as "" and set confidence to "low"
 `.trim();

@@ -19,6 +19,8 @@ import { getWeekReadDays, isReadToday } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
+import { refreshDailyNotification } from '../utils/notifications';
+import { supabase } from '../utils/supabase';
 
 const API_URL   = 'https://tarbiyah-production.up.railway.app';
 const CACHE_KEY = 'tarbiyah_daily_cache';
@@ -117,29 +119,65 @@ export default function HomeScreen({ navigation }) {
           if (!shouldAnimate) revealContent();
         });
 
-      // Load cached daily data first so there's no flash of stale fallback content
-      AsyncStorage.getItem(CACHE_KEY).then(raw => {
-        if (raw) {
-          try { setDailyData(JSON.parse(raw)); } catch {}
-        }
-      });
+      // Load cache and only fetch from network if the cache is not from today.
+      async function loadDaily() {
+        const today = new Date().toISOString().split('T')[0];
+        const raw = await AsyncStorage.getItem(CACHE_KEY).catch(() => null);
 
-      // Fetch from API and update cache
-      fetch(`${API_URL}/daily/preview`)
-        .then(r => r.json())
-        .then(data => {
+        if (raw) {
+          try {
+            const cached = JSON.parse(raw);
+            setDailyData(cached);
+            // Cache is from today — no need to hit the network again.
+            if (cached?.date === today) {
+              setLoading(false);
+              return;
+            }
+          } catch {}
+        }
+
+        // Build the daily fetch URL — use authenticated /daily when logged in
+        // so focus areas and delivery history are applied to insight selection.
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token ?? null;
+
+          let res;
+          if (token) {
+            const focusRaw = await AsyncStorage.getItem('tarbiyah_focus_areas');
+            const focusAreas = focusRaw ? JSON.parse(focusRaw) : [];
+            const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
+            const profile = profileRaw ? JSON.parse(profileRaw) : {};
+            const childrenAges = profile.childrenAges ?? [];
+
+            const query = new URLSearchParams();
+            if (focusAreas.length) query.set('focusAreas', focusAreas.join(','));
+            if (childrenAges.length) query.set('childrenAges', childrenAges.join(','));
+            const params = query.toString() ? '?' + query.toString() : '';
+            res = await fetch(`${API_URL}/daily${params}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          } else {
+            res = await fetch(`${API_URL}/daily/preview`);
+          }
+
+          const data = await res.json();
           if (data.insights) {
             setDailyData(data);
-            AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
+            await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
+            await refreshDailyNotification();
             saveGoalsForDate(data.date, data.actionGoals ?? []);
           }
-        })
-        .catch(() => {
-          // Only fall back to bundled data if we have nothing else to show
+        } catch {
+          // Fall back to bundled data if we have nothing else to show
           setDailyData(prev => prev ?? fallbackData);
           saveGoalsForDate(fallbackData.date, fallbackData.actionGoals ?? []);
-        })
-        .finally(() => setLoading(false));
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      loadDaily();
     }, [])
   );
 
@@ -187,10 +225,6 @@ export default function HomeScreen({ navigation }) {
                   </Text>
                 )}
               </View>
-              <TouchableOpacity style={styles.notifBtn}>
-                <Ionicons name="notifications-outline" size={20} color="rgba(255,255,255,0.7)" />
-                <View style={styles.notifBadge} />
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -268,34 +302,32 @@ export default function HomeScreen({ navigation }) {
                 )}
               </View>
 
-              {/* TODAY'S ACTION GOALS */}
+              {/* TODAY'S TIPS */}
               <View style={styles.sectionTitleWrap}>
-                <Text style={styles.sectionTitle}>TODAY'S ACTION GOALS</Text>
+                <Text style={styles.sectionTitle}>TODAY'S TIPS</Text>
               </View>
 
               {actionGoals.map(goal => {
                 const isSpiritual = goal.type === 'spiritual';
                 const accentColor = isSpiritual ? '#2E7D62' : '#D4871A';
+                const iconBg      = isSpiritual ? '#E8F5EF' : '#FEF3E2';
                 return (
                   <View
                     key={goal.id}
-                    style={[
-                      styles.goalCard,
-                      isSpiritual ? styles.goalGreen : styles.goalAmber,
-                    ]}
+                    style={[styles.goalCard, isSpiritual ? styles.goalGreen : styles.goalAmber]}
                   >
-                    <View style={styles.checklistRow}>
-                      <View style={styles.checklistContent}>
-                        <View style={styles.checklistMeta}>
-                          <Ionicons
-                            name={isSpiritual ? 'moon' : 'bulb-outline'}
-                            size={12} color={accentColor}
-                          />
-                          <Text style={[styles.checklistType, !isSpiritual && styles.checklistTypeAmber]}>
-                            {goal.label}
-                          </Text>
-                        </View>
-                        <Text style={styles.checklistText}>{goal.text}</Text>
+                    <View style={styles.goalCardInner}>
+                      <View style={[styles.goalIconBox, { backgroundColor: iconBg }]}>
+                        <Ionicons
+                          name={isSpiritual ? 'moon' : 'bulb-outline'}
+                          size={16} color={accentColor}
+                        />
+                      </View>
+                      <View style={styles.goalCardContent}>
+                        <Text style={[styles.goalTypeLabel, { color: accentColor }]}>
+                          {goal.label}
+                        </Text>
+                        <Text style={styles.goalText}>{goal.text}</Text>
                       </View>
                     </View>
                   </View>
@@ -452,17 +484,21 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     marginTop: 2,
   },
-  notifBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: 4,
+  datePill: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
-  notifBadge: {
-    position: 'absolute', top: 8, right: 8,
-    width: 7, height: 7, borderRadius: 4,
-    backgroundColor: '#D4871A',
-    borderWidth: 1.5, borderColor: '#1B3D2F',
+  dateGregorian: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: 0.2,
+  },
+  dateHijri: {
+    fontSize: 11,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.55)',
+    marginTop: 2,
   },
 
   // ── Content sheet ──
@@ -540,16 +576,27 @@ const styles = StyleSheet.create({
     borderRadius: 16, marginBottom: 10, overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+    shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
   },
-  goalGreen:  { borderLeftWidth: 4, borderLeftColor: '#2E7D62' },
-  goalAmber:  { borderLeftWidth: 4, borderLeftColor: '#D4871A' },
-  checklistRow: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 14 },
-  checklistContent: { flex: 1 },
-  checklistMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
-  checklistType: { fontSize: 11, fontWeight: '700', color: '#2E7D62', letterSpacing: 0.3 },
-  checklistTypeAmber: { color: '#D4871A' },
-  checklistText: { fontSize: 13, color: '#374151', lineHeight: 20 },
+  goalGreen: { borderLeftWidth: 4, borderLeftColor: '#2E7D62' },
+  goalAmber: { borderLeftWidth: 4, borderLeftColor: '#D4871A' },
+  goalCardInner: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: 16, gap: 14,
+  },
+  goalIconBox: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  goalCardContent: { flex: 1, justifyContent: 'center' },
+  goalTypeLabel: {
+    fontSize: 10, fontWeight: '700', letterSpacing: 0.8,
+    textTransform: 'uppercase', marginBottom: 5,
+  },
+  goalText: {
+    fontSize: 14, fontWeight: '500',
+    color: '#1C1C1E', lineHeight: 21,
+  },
 
   // ── Dua / Ayah cards ──
   islamicCard: {

@@ -154,6 +154,10 @@ export default function ModuleDetailScreen({ route, navigation }) {
                 <Text style={styles.generatingBody}>
                   Searching our curated Islamic and research sources to create your personalized lesson plan…
                 </Text>
+                <View style={styles.generatingTimeWrap}>
+                  <Ionicons name="time-outline" size={13} color="#D4871A" />
+                  <Text style={styles.generatingTimeText}>This usually takes 1–2 minutes</Text>
+                </View>
 
                 {/* Progress bar */}
                 <View style={styles.progressBarWrap}>
@@ -223,7 +227,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
               >
                 <View style={styles.moduleTopicChip}>
                   <Ionicons name="sparkles" size={11} color="#D4871A" />
-                  <Text style={styles.moduleTopicText}>AI-Generated Module</Text>
+                  <Text style={styles.moduleTopicText}>Personalized Module</Text>
                 </View>
                 <Text style={styles.moduleTitle}>{module.title}</Text>
                 <Text style={styles.moduleTopic}>{module.moduleGoal}</Text>
@@ -645,7 +649,18 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 12,
+  },
+  generatingTimeWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     marginBottom: 28,
+  },
+  generatingTimeText: {
+    fontSize: 12,
+    color: '#D4871A',
+    fontWeight: '600',
   },
   progressBarWrap: {
     width: '100%',

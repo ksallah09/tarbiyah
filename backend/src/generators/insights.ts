@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getJsonModel, generateWithRetry, MODEL_HEAVY } from '../config/gemini';
-import { SYSTEM_INSTRUCTION, buildInsightGenerationPrompt } from '../prompts/system';
+import { SYSTEM_INSTRUCTION, buildInsightGenerationPrompt, buildBatchInsightGenerationPrompt } from '../prompts/system';
+import { parseJsonRobustly } from '../utils/json';
 import {
   Source,
   ExtractedContent,
@@ -10,6 +11,7 @@ import {
   AppDailyPayload,
   AppActionGoal,
   InsightTag,
+  AgeGroup,
   ContentType,
 } from '../types';
 
@@ -40,7 +42,7 @@ export async function generateInsight(
 
   let parsed: GeminiInsightResponse;
   try {
-    parsed = JSON.parse(raw) as GeminiInsightResponse;
+    parsed = parseJsonRobustly(raw) as GeminiInsightResponse;
   } catch {
     throw new Error(
       `Insight generator: Could not parse Gemini response for "${source.title}".\n` +
@@ -52,28 +54,42 @@ export async function generateInsight(
 }
 
 /**
- * Generates multiple distinct insight variations from a single source.
- * Useful for sources with rich content that can yield several daily cards.
+ * Generates multiple distinct insights from a single source in one API call.
+ * Each insight covers a different angle (spiritual, emotional, practical, nuanced).
+ * Far more efficient and produces genuinely distinct content vs. calling the model N times.
  */
 export async function generateMultipleInsights(
   source: Source,
   extracted: ExtractedContent,
   jobId: string,
-  count = 2
+  count = 4
 ): Promise<InsightOutput[]> {
-  const insights: InsightOutput[] = [];
+  const model = getJsonModel(MODEL_HEAVY, SYSTEM_INSTRUCTION);
 
-  for (let i = 0; i < count; i++) {
-    // Slightly vary the prompt focus to get distinct outputs
-    const focusedExtracted = i === 0
-      ? extracted
-      : rotateFocus(extracted, i);
+  const prompt = buildBatchInsightGenerationPrompt(
+    extracted,
+    source.title,
+    source.category,
+    source.author ?? source.speakerName,
+    count,
+  );
 
-    const insight = await generateInsight(source, focusedExtracted, jobId);
-    insights.push(insight);
+  console.log(`  → Generating ${count} insights (batch) for: ${source.title}`);
+
+  const raw = await generateWithRetry(model, prompt, MODEL_HEAVY, SYSTEM_INSTRUCTION);
+
+  let parsed: GeminiInsightResponse[];
+  try {
+    const value = parseJsonRobustly(raw);
+    parsed = Array.isArray(value) ? value : [value as GeminiInsightResponse];
+  } catch {
+    throw new Error(
+      `Batch insight generator: Could not parse Gemini response for "${source.title}".\n` +
+      `Raw (first 500 chars): ${raw.slice(0, 500)}`
+    );
   }
 
-  return insights;
+  return parsed.map(p => buildInsightOutput(p, source, jobId));
 }
 
 // Shortens long org/institution names for display in the app UI.
@@ -198,7 +214,7 @@ export function buildDailyPayload(
     actionGoals.push({
       id: `goal-spiritual-${spiritualInsight.id}`,
       type: 'spiritual',
-      label: 'Spiritual Goal',
+      label: 'Spiritual Tip',
       text: spiritualInsight.actionStep,
     });
   }
@@ -207,7 +223,7 @@ export function buildDailyPayload(
     actionGoals.push({
       id: `goal-practical-${educationalInsight.id}`,
       type: 'practical',
-      label: 'Practical Goal',
+      label: 'Practical Tip',
       text: educationalInsight.actionStep,
     });
   }
@@ -259,42 +275,13 @@ function buildInsightOutput(
         'Insight generated from source content via Tarbiyah AI processing.',
     },
     tags,
+    ageGroups: validateAgeGroups(parsed.ageGroups ?? []),
     contentType: validateContentType(parsed.contentType),
     status: 'draft',
     dateGenerated: new Date(),
   };
 }
 
-/**
- * Rotates the focus of an extraction to get a different angle from the same source.
- * Used when generating multiple insights from a single rich source.
- */
-function rotateFocus(
-  extracted: ExtractedContent,
-  rotationIndex: number
-): ExtractedContent {
-  const { keyInsights, practicalAdvice, islamicReferences } = extracted;
-
-  // Shift the primary insight so subsequent calls emphasize different content
-  const rotatedInsights = [
-    ...keyInsights.slice(rotationIndex),
-    ...keyInsights.slice(0, rotationIndex),
-  ];
-
-  return {
-    ...extracted,
-    keyInsights: rotatedInsights,
-    // For the second pass, lead with practical advice
-    coreTheme:
-      rotationIndex === 1 && practicalAdvice.length > 0
-        ? practicalAdvice[0]
-        : extracted.coreTheme,
-    islamicReferences:
-      rotationIndex === 1
-        ? [...islamicReferences, ...islamicReferences].slice(0, 3)
-        : islamicReferences,
-  };
-}
 
 function deriveTitleFromBody(body: string): string {
   // Use first sentence if it's short enough
@@ -323,7 +310,7 @@ const VALID_TAGS: Set<InsightTag> = new Set([
   'routines', 'dua', 'communication', 'presence', 'adab', 'screen-time',
   'anger', 'gratitude', 'tarbiyah', 'character', 'knowledge', 'love',
   'boundaries', 'faith', 'prayer', 'identity', 'attachment', 'play',
-  'kindness', 'forgiveness',
+  'kindness', 'forgiveness', 'special-needs',
 ]);
 
 function validateTags(
@@ -336,6 +323,13 @@ function validateTags(
   // Merge with source tags, deduplicate
   const merged = [...new Set([...validModel, ...sourceTags])];
   return merged.slice(0, 6) as InsightTag[];
+}
+
+const VALID_AGE_GROUPS: Set<AgeGroup> = new Set(['under-5', '5-10', '11-15', '16-plus', 'all']);
+
+function validateAgeGroups(groups: string[]): AgeGroup[] {
+  const valid = groups.filter(g => VALID_AGE_GROUPS.has(g as AgeGroup)) as AgeGroup[];
+  return valid.length > 0 ? valid : ['all'];
 }
 
 const VALID_CONTENT_TYPES: Set<ContentType> = new Set([

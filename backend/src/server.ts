@@ -180,10 +180,13 @@ app.get('/daily', requireAuth, async (req: AuthRequest, res: Response) => {
     const focusAreas = req.query.focusAreas
       ? String(req.query.focusAreas).split(',').map(s => s.trim()).filter(Boolean)
       : [];
+    const childrenAgeGroups = req.query.childrenAges
+      ? String(req.query.childrenAges).split(',').map(s => s.trim()).filter(Boolean)
+      : [];
 
     const [spiritualInsight, scienceInsight] = await Promise.all([
-      pickInsight('spiritual', userId, focusAreas),
-      pickInsight('science', userId, focusAreas),
+      pickInsight('spiritual', userId, focusAreas, childrenAgeGroups),
+      pickInsight('science', userId, focusAreas, childrenAgeGroups),
     ]);
 
     if (!spiritualInsight || !scienceInsight) {
@@ -246,21 +249,100 @@ app.get('/daily/preview', async (_req: Request, res: Response) => {
 });
 
 // ─── Source context builder for modules ──────────────────────────────────────
+// Uses source_knowledge table (rich takeaways + theme index) when available,
+// falls back to raw extracted_content from processing_jobs for sources not yet processed.
 
-async function buildModuleSourceContext(): Promise<string> {
-  // Pull all completed processing jobs with their extracted content
+const KNOWLEDGE_THEME_MAP: Record<string, string[]> = {
+  anger:              ['anger', 'emotional-regulation', 'discipline'],
+  discipline:         ['discipline', 'boundaries', 'responsibility'],
+  connection:         ['connection', 'attachment', 'presence', 'love'],
+  screen:             ['screen-time'],
+  teen:               ['identity', 'boundaries', 'communication', 'family-dynamics'],
+  anxiety:            ['emotional-regulation', 'attachment', 'communication'],
+  confidence:         ['identity', 'character', 'love', 'attachment'],
+  faith:              ['faith', 'prayer', 'dua', 'tarbiyah', 'adab'],
+  patience:           ['patience', 'mercy', 'gratitude'],
+  communication:      ['communication', 'presence', 'connection'],
+  routines:           ['routines', 'responsibility', 'discipline'],
+  marriage:           ['marriage', 'family-dynamics', 'home-environment'],
+};
+
+function topicToThemes(topic: string): string[] {
+  const lower = topic.toLowerCase();
+  const matched = new Set<string>();
+  for (const [keyword, themes] of Object.entries(KNOWLEDGE_THEME_MAP)) {
+    if (lower.includes(keyword)) themes.forEach(t => matched.add(t));
+  }
+  return matched.size > 0 ? Array.from(matched) : [];
+}
+
+async function buildModuleSourceContext(topic: string): Promise<string> {
+  const themes = topicToThemes(topic);
+
+  // ── Try source_knowledge first (rich takeaways) ────────────────────────────
+  let knowledgeQuery = supabase
+    .from('source_knowledge')
+    .select('source_id, narrative_summary, key_takeaways, themes, age_groups, module_usage_notes');
+
+  // If we matched themes, prefer sources that overlap — but always include some
+  const { data: allKnowledge } = await knowledgeQuery;
+
+  if (allKnowledge && allKnowledge.length > 0) {
+    const sourceIds = (allKnowledge as any[]).map(k => k.source_id as string);
+    const { data: sources } = await supabase
+      .from('sources')
+      .select('id, title, author, speaker_name, category')
+      .in('id', sourceIds);
+
+    const sourceMap = new Map(
+      (sources ?? []).map((s: any) => [s.id as string, s])
+    );
+
+    // Sort: theme-matching sources first, then the rest
+    const scored = (allKnowledge as any[]).map(k => {
+      const overlap = themes.length > 0
+        ? (k.themes as string[]).filter(t => themes.includes(t)).length
+        : 0;
+      return { k, overlap };
+    });
+    scored.sort((a, b) => b.overlap - a.overlap);
+
+    // Take top 12 to avoid token overflow — at least 4 high-relevance, rest as context
+    const selected = scored.slice(0, 12).map(s => s.k);
+
+    let context = '';
+    for (const entry of selected) {
+      const src = sourceMap.get(entry.source_id) as any;
+      const title  = src?.title ?? entry.source_id;
+      const author = src?.speaker_name ?? src?.author ?? 'Unknown';
+
+      context += `════════════════════════════════════\n`;
+      context += `SOURCE: "${title}" — ${author}\n`;
+      if (entry.module_usage_notes) context += `USAGE: ${entry.module_usage_notes}\n`;
+      context += '\n';
+      if (entry.narrative_summary) context += `OVERVIEW:\n${entry.narrative_summary}\n\n`;
+      if (entry.key_takeaways?.length) {
+        context += `KEY TAKEAWAYS:\n`;
+        (entry.key_takeaways as string[]).forEach(t => { context += `• ${t}\n`; });
+        context += '\n';
+      }
+    }
+    return context;
+  }
+
+  // ── Fallback: raw extracted_content from processing_jobs ──────────────────
   const { data: jobs } = await supabase
     .from('processing_jobs')
     .select('source_id, extracted_content')
     .eq('status', 'completed')
-    .limit(80); // cap to avoid token overflow
+    .limit(40);
 
   if (!jobs || jobs.length === 0) return 'No source material available.';
 
   const sourceIds = jobs.map((j: Record<string, unknown>) => j.source_id as string);
   const { data: sources } = await supabase
     .from('sources')
-    .select('id, title, author, category, tags, description')
+    .select('id, title, author, category')
     .in('id', sourceIds);
 
   const sourceMap = new Map(
@@ -274,20 +356,11 @@ async function buildModuleSourceContext(): Promise<string> {
     if (!c) continue;
 
     context += `────────────────────────────\n`;
-    context += `SOURCE: "${src?.title ?? job.source_id}"\n`;
-    context += `AUTHOR: ${src?.author ?? 'Unknown'}\n`;
-    context += `CATEGORY: ${src?.category ?? 'unknown'}\n`;
-    if (src?.description) context += `OVERVIEW: ${src.description}\n`;
-    context += '\n';
-    if (c.coreTheme)         context += `CORE THEME: ${c.coreTheme}\n\n`;
+    context += `SOURCE: "${src?.title ?? job.source_id}" — ${src?.author ?? 'Unknown'}\n\n`;
+    if (c.coreTheme) context += `CORE THEME: ${c.coreTheme}\n\n`;
     if (c.keyInsights?.length) {
       context += `KEY INSIGHTS:\n`;
       c.keyInsights.forEach(k => { context += `• ${k}\n`; });
-      context += '\n';
-    }
-    if (c.islamicReferences?.length) {
-      context += `ISLAMIC REFERENCES:\n`;
-      c.islamicReferences.forEach(r => { context += `• ${r}\n`; });
       context += '\n';
     }
     if (c.practicalAdvice?.length) {
@@ -295,9 +368,7 @@ async function buildModuleSourceContext(): Promise<string> {
       c.practicalAdvice.forEach(a => { context += `• ${a}\n`; });
       context += '\n';
     }
-    if (c.rawSummary) context += `SUMMARY: ${c.rawSummary}\n\n`;
   }
-
   return context;
 }
 
@@ -315,7 +386,7 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Topic is required.' });
     }
 
-    const sourceContext = await buildModuleSourceContext();
+    const sourceContext = await buildModuleSourceContext(topic);
     const systemPrompt  = buildModuleSystemPrompt(sourceContext);
     const model         = getJsonModel(MODEL_HEAVY, systemPrompt);
 
@@ -329,10 +400,15 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
 
     let parsed: Omit<AppModule, 'id' | 'totalLessons' | 'completedLessons' | 'createdAt'>;
     try {
-      parsed = JSON.parse(raw);
+      // Strip markdown code fences if Gemini wraps the response despite responseMimeType
+      let jsonStr = raw.trim();
+      if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+      }
+      parsed = JSON.parse(jsonStr);
     } catch {
       console.error('Module JSON parse error. Raw response:', raw.slice(0, 500));
-      return res.status(500).json({ error: 'Failed to parse module response.' });
+      return res.status(500).json({ error: 'Failed to generate module. Please try again.' });
     }
 
     // Ensure lessons have required fields
@@ -420,7 +496,7 @@ app.post('/modules', requireAuth, async (req: AuthRequest, res: Response) => {
         completed_lessons: mod.completedLessons ?? 0,
         total_lessons: mod.totalLessons ?? 5,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
+      }, { onConflict: 'user_id,id' });
 
     if (error) throw error;
 

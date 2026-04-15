@@ -54,7 +54,7 @@ export default function InsightDetailScreen({ route, navigation }) {
   const gradient    = isSpiritual ? SPIRITUAL_GRADIENT : SCIENCE_GRADIENT;
   const accentColor = isSpiritual ? '#2E7D62' : '#D4871A';
   const typeLabel   = isSpiritual ? 'Spiritual Insight' : 'Research Insight';
-  const goalLabel   = isSpiritual ? 'Spiritual Goal' : 'Practical Goal';
+  const goalLabel   = isSpiritual ? 'Spiritual Tip' : 'Practical Tip';
   const goalIcon    = isSpiritual ? 'moon' : 'bulb-outline';
 
   const sourceIcon =

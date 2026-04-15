@@ -10,6 +10,8 @@ export type InsightTag = string;
 
 export type InsightStatus = 'draft' | 'approved' | 'published';
 
+export type AgeGroup = 'under-5' | '5-10' | '11-15' | '16-plus' | 'all';
+
 export type ContentType =
   | 'spiritual'
   | 'educational'
@@ -81,6 +83,7 @@ export interface InsightOutput {
 
   // Metadata
   tags: InsightTag[];
+  ageGroups: AgeGroup[];
   contentType: ContentType;
   status: InsightStatus;
   dateGenerated: Date;
@@ -127,6 +130,7 @@ export interface GeminiInsightResponse {
   actionStep: string;
   attribution: string;
   tags: InsightTag[];
+  ageGroups: AgeGroup[];
   contentType: ContentType;
   sourceGrounding: {
     paraphrasedIdea?: string;

@@ -11,7 +11,9 @@
     "seed": "ts-node src/data/database.ts",
     "server": "ts-node src/server.ts",
     "import-pdfs": "ts-node src/scripts/process-storage-pdfs.ts",
-    "process-sources": "ts-node src/scripts/process-url-sources.ts"
+    "process-sources": "ts-node src/scripts/process-url-sources.ts",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
@@ -22,7 +24,10 @@
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
-    "uuid": "^10.0.0"
+    "uuid": "^10.0.0",
+    "expo": "~54.0.33",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
