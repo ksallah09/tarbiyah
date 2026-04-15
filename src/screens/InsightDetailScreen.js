@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Share,
   Linking,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -15,9 +16,26 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { saveInsight, unsaveInsight, isInsightSaved } from '../utils/savedInsights';
 import { markAsRead, isReadToday } from '../utils/readInsights';
 
+const SPIRITUAL_IMAGES = [
+  require('../../assets/spiritual-1.jpg'),
+  require('../../assets/spiritual-2.jpg'),
+  require('../../assets/spiritual-3.jpg'),
+  require('../../assets/spiritual-4.jpg'),
+  require('../../assets/spiritual-5.jpg'),
+  require('../../assets/spiritual-7.jpg'),
+];
 
-const SPIRITUAL_GRADIENT = ['#6B7C45', '#1B3D2F'];
-const SCIENCE_GRADIENT   = ['#D4A55A', '#A0521A'];
+const SCIENCE_IMAGES = [
+  require('../../assets/science-1.jpg'),
+  require('../../assets/science-2.jpg'),
+  require('../../assets/science-3.jpg'),
+  require('../../assets/science-4.jpg'),
+  require('../../assets/science-5.jpg'),
+  require('../../assets/science-6.jpg'),
+  require('../../assets/science-7.jpg'),
+];
+
+const DAY_INDEX = Math.floor(Date.now() / 86_400_000);
 
 export default function InsightDetailScreen({ route, navigation }) {
   const { insight } = route.params;
@@ -50,9 +68,14 @@ export default function InsightDetailScreen({ route, navigation }) {
     await Share.share({ message: text });
   }
 
-  const isSpiritual = insight.type === 'spiritual';
-  const gradient    = isSpiritual ? SPIRITUAL_GRADIENT : SCIENCE_GRADIENT;
-  const accentColor = isSpiritual ? '#2E7D62' : '#D4871A';
+  const isSpiritual  = insight.type === 'spiritual';
+  const accentColor  = isSpiritual ? '#2E7D62' : '#D4871A';
+  const headerImage  = isSpiritual
+    ? SPIRITUAL_IMAGES[DAY_INDEX % SPIRITUAL_IMAGES.length]
+    : SCIENCE_IMAGES[(DAY_INDEX + 1) % SCIENCE_IMAGES.length];
+  const overlayColors = isSpiritual
+    ? ['rgba(10,30,20,0.35)', 'rgba(10,30,20,0.82)']
+    : ['rgba(30,15,5,0.35)', 'rgba(30,15,5,0.82)'];
   const typeLabel   = isSpiritual ? 'Spiritual Insight' : 'Research Insight';
   const goalLabel   = isSpiritual ? 'Spiritual Tip' : 'Practical Tip';
   const goalIcon    = isSpiritual ? 'moon' : 'bulb-outline';
@@ -66,42 +89,49 @@ export default function InsightDetailScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
       <StatusBar style="light" />
-      {/* ── Gradient Header ── */}
-      <LinearGradient
-        colors={gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      {/* ── Image Header ── */}
+      <ImageBackground
+        source={headerImage}
+        style={styles.header}
+        imageStyle={styles.headerImg}
+        resizeMode="cover"
       >
-        <View style={styles.headerNav}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="chevron-back" size={22} color="#fff" />
-            <Text style={styles.backLabel}>Back</Text>
-          </TouchableOpacity>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerActionBtn} onPress={handleShare}>
-              <Ionicons name="share-outline" size={20} color="#fff" />
+        <LinearGradient
+          colors={overlayColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={[styles.headerOverlay, { paddingTop: insets.top + 12 }]}
+        >
+          <View style={styles.headerNav}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="chevron-back" size={22} color="#fff" />
+              <Text style={styles.backLabel}>Back</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerActionBtn} onPress={toggleSave}>
-              <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={20} color="#fff" />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.headerActionBtn} onPress={handleShare}>
+                <Ionicons name="share-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerActionBtn} onPress={toggleSave}>
+                <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.typePill}>
-          <Text style={styles.typePillText}>{typeLabel}</Text>
-        </View>
+          <View style={styles.typePill}>
+            <Text style={styles.typePillText}>{typeLabel}</Text>
+          </View>
 
-        {insight.insightTitle ? (
-          <Text style={styles.headerInsightTitle}>{insight.insightTitle}</Text>
-        ) : null}
+          {insight.insightTitle ? (
+            <Text style={styles.headerInsightTitle}>{insight.insightTitle}</Text>
+          ) : null}
 
-        <Text style={styles.headerSubtitle}>{insight.dailyInsight}</Text>
-      </LinearGradient>
+          <Text style={styles.headerSubtitle}>{insight.dailyInsight}</Text>
+        </LinearGradient>
+      </ImageBackground>
 
       {/* ── Content ── */}
       <ScrollView
@@ -204,6 +234,10 @@ const styles = StyleSheet.create({
 
   // ── Header ──
   header: {
+    overflow: 'hidden',
+  },
+  headerImg: {},
+  headerOverlay: {
     paddingHorizontal: 22,
     paddingBottom: 30,
   },

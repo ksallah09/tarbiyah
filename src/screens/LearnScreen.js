@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,10 +30,12 @@ export default function LearnScreen({ navigation }) {
   const [modules, setModules] = useState([]);
   const [showInput, setShowInput] = useState(false);
 
+  // Eager load on mount so data is ready before the tab is first focused
+  useEffect(() => { loadModules().then(setModules); }, []);
+
+  // Re-sync on every focus (picks up newly saved modules from ModuleDetail)
   useFocusEffect(
-    useCallback(() => {
-      loadModules().then(setModules);
-    }, [])
+    useCallback(() => { loadModules().then(setModules); }, [])
   );
 
   function handleDelete(mod) {
@@ -147,8 +149,8 @@ export default function LearnScreen({ navigation }) {
                 </View>
               )}
 
-              {/* ── Suggested prompts ── */}
-              {!showInput && (
+              {/* ── Suggested prompts — always shown in input mode, otherwise only before first module ── */}
+              {(showInput || !hasModules) && (
                 <>
                   <View style={styles.sectionTitleWrap}>
                     <Text style={styles.sectionTitle}>SUGGESTED TOPICS</Text>

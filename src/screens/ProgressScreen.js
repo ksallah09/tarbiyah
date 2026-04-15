@@ -96,6 +96,10 @@ export default function ProgressScreen({ navigation }) {
     });
   }, []);
 
+  // Eager load on mount so data is ready before the tab is first focused
+  useEffect(() => { refreshAll(); }, []);
+
+  // Re-sync on every focus to pick up reads/updates from other tabs
   useFocusEffect(useCallback(() => { refreshAll(); }, [refreshAll]));
 
   const onRefresh = useCallback(async () => {
@@ -235,12 +239,12 @@ export default function ProgressScreen({ navigation }) {
             <Text style={styles.syncLinkedLabel}>Connected with</Text>
             <Text style={styles.syncLinkedName}>{syncStatus.partner?.name || 'Your partner'}</Text>
             <TouchableOpacity
-              style={styles.syncUnlinkBtn}
+              style={styles.syncEditBtn}
               onPress={() => navigation.navigate('FamilySync')}
               activeOpacity={0.8}
             >
-              <Ionicons name="unlink-outline" size={13} color="#EF4444" />
-              <Text style={styles.syncUnlinkText}>Unlink partner</Text>
+              <Ionicons name="pencil-outline" size={13} color="#2E7D62" />
+              <Text style={styles.syncEditText}>Edit</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -504,14 +508,14 @@ const styles = StyleSheet.create({
   syncLinkedName: {
     fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 14,
   },
-  syncUnlinkBtn: {
+  syncEditBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)',
+    borderWidth: 1, borderColor: '#A7D7C5',
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
-    backgroundColor: 'rgba(239,68,68,0.05)',
+    backgroundColor: '#E6F4EE',
   },
-  syncUnlinkText: {
-    fontSize: 12, fontWeight: '600', color: '#EF4444',
+  syncEditText: {
+    fontSize: 12, fontWeight: '600', color: '#2E7D62',
   },
 
   // ── Month tracker cards ──
