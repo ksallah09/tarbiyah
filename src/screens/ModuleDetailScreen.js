@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveModule } from '../utils/modules';
-import AudioPlayer from '../components/AudioPlayer';
+import CompactAudioPlayer from '../components/CompactAudioPlayer';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -34,9 +34,13 @@ export default function ModuleDetailScreen({ route, navigation }) {
   const [module, setModule]         = useState(savedModule ?? null);
   const [activeLesson, setActiveLesson] = useState(null);
   const [stepIndex, setStepIndex]   = useState(0);
-  const [audioUrl, setAudioUrl]       = useState(savedModule?.audioUrl ?? null);
-  const [audioGenerating, setAudioGenerating] = useState(false);
-  const [audioError, setAudioError]   = useState(null);
+  // lessonAudios: lessonId → URL (populated once background generation completes)
+  const [lessonAudios, setLessonAudios] = useState(() => {
+    const map = {};
+    savedModule?.lessons?.forEach(l => { if (l.audioUrl) map[l.id] = l.audioUrl; });
+    return map;
+  });
+  const [audiosLoading, setAudiosLoading] = useState(false);
 
   const progress    = useRef(new Animated.Value(0)).current;
   const animationRef = useRef(null);
@@ -110,30 +114,36 @@ export default function ModuleDetailScreen({ route, navigation }) {
     }
   }
 
-  async function generateAudio() {
+  // Silently pre-generate narrations for all lessons as soon as the module is ready
+  useEffect(() => {
     if (!module) return;
-    setAudioGenerating(true);
-    setAudioError(null);
+    const allDone = module.lessons.every(l => lessonAudios[l.id]);
+    if (allDone || audiosLoading) return;
+    prefetchLessonAudios(module);
+  }, [module?.id]);
+
+  async function prefetchLessonAudios(mod) {
+    setAudiosLoading(true);
     try {
-      const res = await fetch(`${API_URL}/learn/audio`, {
+      const res = await fetch(`${API_URL}/learn/audio/lessons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(module),
+        body: JSON.stringify(mod),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? `Server error ${res.status}`);
-      }
-      const { audioUrl: url } = await res.json();
-      setAudioUrl(url);
-      // Persist audioUrl with the module
-      const updated = { ...module, audioUrl: url };
+      if (!res.ok) return;
+      const { audioMap } = await res.json();
+      setLessonAudios(audioMap);
+      // Persist URLs on each lesson so they survive app restarts
+      const updated = {
+        ...mod,
+        lessons: mod.lessons.map(l => ({ ...l, audioUrl: audioMap[l.id] ?? l.audioUrl })),
+      };
       setModule(updated);
       await saveModule(updated);
-    } catch (err) {
-      setAudioError(err.message ?? 'Could not generate audio. Please try again.');
+    } catch {
+      // Silent fail — user can still read the lesson without audio
     } finally {
-      setAudioGenerating(false);
+      setAudiosLoading(false);
     }
   }
 
@@ -275,51 +285,31 @@ export default function ModuleDetailScreen({ route, navigation }) {
                 </View>
               </LinearGradient>
 
-              {/* ── Audio Overview ── */}
-              <View style={styles.sheet}>
-                <View style={[styles.contentPad, { paddingBottom: 0 }]}>
-                  <View style={styles.sectionTitleWrap}>
-                    <Text style={styles.sectionTitle}>AUDIO OVERVIEW</Text>
-                  </View>
-
-                  {audioUrl ? (
-                    <AudioPlayer audioUrl={audioUrl} accentColor="#1B3D2F" />
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.audioGenerateBtn}
-                      onPress={generateAudio}
-                      disabled={audioGenerating}
-                      activeOpacity={0.85}
-                    >
-                      {audioGenerating ? (
-                        <>
-                          <ActivityIndicator color="#FFFFFF" size="small" />
-                          <Text style={styles.audioGenerateBtnText}>Generating audio…</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Ionicons name="headset" size={18} color="#FFFFFF" />
-                          <Text style={styles.audioGenerateBtnText}>Generate Audio Overview</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                  {audioError ? (
-                    <Text style={styles.audioErrorText}>{audioError}</Text>
-                  ) : null}
-                  {!audioUrl && !audioGenerating && (
-                    <Text style={styles.audioHint}>
-                      A short podcast-style conversation about your module — great for listening on the go.
-                    </Text>
-                  )}
-                </View>
-              </View>
-
-              {/* ── Lessons ── */}
+              {/* ── Content sheet ── */}
               <View style={styles.sheet}>
                 <View style={styles.contentPad}>
 
-                  <View style={styles.sectionTitleWrap}>
+                  {/* ── About This Module ── */}
+                  {(!!module.issueSummary || !!module.parentReframe) && (
+                    <View style={[styles.summarySection, { marginTop: 4 }]}>
+                      <Text style={styles.summarySectionTitle}>ABOUT THIS MODULE</Text>
+                      {!!module.issueSummary && (
+                        <Text style={styles.summarySectionBody}>{module.issueSummary}</Text>
+                      )}
+                      {!!module.parentReframe && (
+                        <View style={[styles.summaryBlock, styles.summaryBlockGreen]}>
+                          <View style={styles.summaryBlockHeader}>
+                            <Ionicons name="heart" size={13} color="#1B3D2F" />
+                            <Text style={styles.summaryBlockLabel}>Keep in Mind</Text>
+                          </View>
+                          <Text style={styles.summaryBlockBody}>{module.parentReframe}</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Lessons */}
+                  <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
                     <Text style={styles.sectionTitle}>LESSONS</Text>
                   </View>
 
@@ -486,6 +476,19 @@ export default function ModuleDetailScreen({ route, navigation }) {
                               </View>
                             )}
 
+                            {/* Lesson narration */}
+                            {lessonAudios[lesson.id] ? (
+                              <CompactAudioPlayer
+                                audioUrl={lessonAudios[lesson.id]}
+                                accentColor={cfg.bg[0]}
+                              />
+                            ) : (
+                              <View style={styles.lessonAudioLoading}>
+                                <ActivityIndicator size="small" color="#9CA3AF" />
+                                <Text style={styles.lessonAudioLoadingText}>Preparing narration…</Text>
+                              </View>
+                            )}
+
                             <TouchableOpacity
                               style={[styles.markDoneBtn, lesson.completed && styles.markUndoneBtn]}
                               onPress={() => toggleLesson(lesson.id)}
@@ -517,25 +520,6 @@ export default function ModuleDetailScreen({ route, navigation }) {
                         Masha'Allah — you've completed all lessons in this module.
                       </Text>
                     </LinearGradient>
-                  )}
-
-                  {/* ── Issue Summary & Parent Reframe ── */}
-                  {(!!module.issueSummary || !!module.parentReframe) && (
-                    <View style={styles.summarySection}>
-                      <Text style={styles.summarySectionTitle}>ABOUT THIS MODULE</Text>
-                      {!!module.issueSummary && (
-                        <Text style={styles.summarySectionBody}>{module.issueSummary}</Text>
-                      )}
-                      {!!module.parentReframe && (
-                        <View style={[styles.summaryBlock, styles.summaryBlockGreen]}>
-                          <View style={styles.summaryBlockHeader}>
-                            <Ionicons name="heart" size={13} color="#1B3D2F" />
-                            <Text style={styles.summaryBlockLabel}>Keep in Mind</Text>
-                          </View>
-                          <Text style={styles.summaryBlockBody}>{module.parentReframe}</Text>
-                        </View>
-                      )}
-                    </View>
                   )}
 
                   {/* ── Weekly Action Plan ── */}
@@ -691,9 +675,6 @@ const styles = StyleSheet.create({
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: 'hidden',
   },
   contentPad: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36 },
 
@@ -1187,6 +1168,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     fontStyle: 'italic',
+  },
+
+  // ── Lesson audio ──
+  lessonAudioLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+  },
+  lessonAudioLoadingText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '500',
   },
 
   // ── Audio overview ──

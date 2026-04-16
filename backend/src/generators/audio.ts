@@ -1,108 +1,76 @@
 /**
- * Audio overview generator — Gemini multi-speaker TTS
+ * Per-lesson audio narration — Gemini single-speaker TTS
  *
- * Generates a NotebookLM-style podcast conversation from a learning module:
- *   1. Gemini writes a two-host dialogue script grounded in the module content
- *   2. gemini-2.5-flash-preview-tts renders the full conversation in one request
- *      with two distinct voices (Aoede + Charon) — natural prosody, no stitching
+ * For each lesson:
+ *   1. Lesson content is formatted into a natural narration text (no separate script step)
+ *   2. gemini-2.5-flash-preview-tts renders it in one request with a single warm voice
  *   3. Raw PCM is wrapped in a WAV header and uploaded to Supabase Storage
- *   4. Returns the public audio URL
+ *
+ * All 5 lessons are generated in parallel so total time ≈ slowest single lesson.
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '../config/supabase';
-import { getTextModel, generateWithRetry, MODEL_FAST } from '../config/gemini';
-import { AppModule } from '../types';
+import { AppModule, ModuleLesson } from '../types';
 
-const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+const TTS_MODEL  = 'gemini-2.5-flash-preview-tts';
+const NARR_VOICE = 'Aoede'; // warm, clear female narrator
 
-// Gemini built-in voice names — Aoede (bright, warm) + Charon (clear, grounded)
-const SPEAKER_A = 'Amira';
-const SPEAKER_B = 'Yusuf';
-const VOICE_A   = 'Aoede';
-const VOICE_B   = 'Charon';
+// ─── Narration text builder ───────────────────────────────────────────────────
 
-// ─── Script generation ────────────────────────────────────────────────────────
+function buildNarrationText(lesson: ModuleLesson): string {
+  const parts: string[] = [
+    `Lesson: ${lesson.title}.`,
+    lesson.objective,
+    lesson.whyItMatters,
+  ];
 
-const SCRIPT_SYSTEM_PROMPT = `You are writing a short, warm podcast-style audio overview for the Tarbiyah app — an Islamic parenting app. Two hosts, ${SPEAKER_A} and ${SPEAKER_B}, are having a natural, friendly conversation about a parenting topic for Muslim parents.
-
-RULES:
-- Write exactly 12–16 exchanges (one line per host turn).
-- Keep each line under 40 words — short, spoken, conversational.
-- Hosts refer to each other by name at most twice total.
-- Grounded in the module content provided — do not invent facts or hadith.
-- Warm, practical, empathetic tone. No jargon.
-- End with a brief encouraging close — one line each.
-- Do NOT include stage directions, sound effects, or any text outside the speaker lines.
-
-FORMAT — respond with only lines like this, nothing else:
-${SPEAKER_A}: "..."
-${SPEAKER_B}: "..."
-${SPEAKER_A}: "..."
-...`;
-
-function buildScriptPrompt(mod: AppModule): string {
-  const lessonSummaries = mod.lessons.map(
-    (l, i) => `Lesson ${i + 1} — ${l.title}: ${l.miniTakeaway}`
-  ).join('\n');
-
-  return `MODULE TITLE: ${mod.title}
-TOPIC: ${mod.topic}
-SUMMARY: ${mod.issueSummary}
-REFRAME: ${mod.parentReframe}
-GOAL: ${mod.moduleGoal}
-
-LESSONS:
-${lessonSummaries}
-
-KEY HABITS: ${mod.weeklyHabits?.join(', ')}
-ENCOURAGEMENT: ${mod.finalEncouragement}`;
-}
-
-async function generateScript(mod: AppModule): Promise<string> {
-  const model = getTextModel(MODEL_FAST, SCRIPT_SYSTEM_PROMPT);
-  const raw   = await generateWithRetry(model, buildScriptPrompt(mod), MODEL_FAST, SCRIPT_SYSTEM_PROMPT);
-
-  // Validate we got real dialogue lines
-  const lines = raw.split('\n').filter(l => l.trim().startsWith(`${SPEAKER_A}:`) || l.trim().startsWith(`${SPEAKER_B}:`));
-  if (lines.length < 4) {
-    throw new Error(`Script generation produced too few lines (${lines.length}). Raw: ${raw.slice(0, 300)}`);
+  if (lesson.islamicGuidance) {
+    parts.push(`From an Islamic perspective: ${lesson.islamicGuidance}`);
+  }
+  if (lesson.researchInsight) {
+    parts.push(`What the research tells us: ${lesson.researchInsight}`);
+  }
+  if (lesson.actionSteps?.length) {
+    parts.push(`Here are some practical steps. ${lesson.actionSteps.join('. ')}.`);
+  }
+  if (lesson.whatToSay?.length) {
+    parts.push(`You might say to your child: ${lesson.whatToSay[0]}`);
+  }
+  if (lesson.reflectionQuestion) {
+    parts.push(`A question to sit with: ${lesson.reflectionQuestion}`);
+  }
+  if (lesson.miniTakeaway) {
+    parts.push(`Remember: ${lesson.miniTakeaway}`);
   }
 
-  return raw.trim();
+  return parts.filter(Boolean).join(' ');
 }
 
-// ─── Gemini multi-speaker TTS ─────────────────────────────────────────────────
+const NARRATION_SYSTEM = `You are a warm, knowledgeable narrator for Tarbiyah, an Islamic parenting app.
+Narrate the following lesson content directly to a Muslim parent in a calm, clear, encouraging tone —
+as if you are a trusted guide speaking to them personally. Be natural and conversational, not robotic.`;
 
-async function scriptToWav(script: string, apiKey: string): Promise<Buffer> {
+// ─── Gemini single-speaker TTS ────────────────────────────────────────────────
+
+async function textToWav(text: string, apiKey: string): Promise<Buffer> {
   const genAI = new GoogleGenerativeAI(apiKey);
-
-  // The TTS model uses generateContent with responseModalities: ['AUDIO']
   const model = genAI.getGenerativeModel({ model: TTS_MODEL });
 
   const result = await (model as any).generateContent({
-    contents: [{ role: 'user', parts: [{ text: script }] }],
+    contents: [{ role: 'user', parts: [{ text: `${NARRATION_SYSTEM}\n\n${text}` }] }],
     generationConfig: {
       responseModalities: ['AUDIO'],
       speechConfig: {
-        multiSpeakerVoiceConfig: {
-          speakerVoiceConfigs: [
-            { speaker: SPEAKER_A, voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_A } } },
-            { speaker: SPEAKER_B, voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_B } } },
-          ],
-        },
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: NARR_VOICE } },
       },
     },
   });
 
   const part = result.response.candidates?.[0]?.content?.parts?.[0];
-  if (!part?.inlineData?.data) {
-    throw new Error('Gemini TTS returned no audio data.');
-  }
+  if (!part?.inlineData?.data) throw new Error('Gemini TTS returned no audio data.');
 
   const pcm = Buffer.from(part.inlineData.data, 'base64');
-
-  // Parse sample rate from mimeType e.g. "audio/pcm;rate=24000"
   const mimeType: string = part.inlineData.mimeType ?? 'audio/pcm;rate=24000';
   const rateMatch = mimeType.match(/rate=(\d+)/);
   const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
@@ -135,8 +103,8 @@ function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bitsPerSample =
 
 const BUCKET = 'module-audio';
 
-async function uploadAudio(moduleId: string, wavBuffer: Buffer): Promise<string> {
-  const fileName = `${moduleId}.wav`;
+async function uploadAudio(fileId: string, wavBuffer: Buffer): Promise<string> {
+  const fileName = `${fileId}.wav`;
 
   const { error } = await supabase.storage
     .from(BUCKET)
@@ -151,19 +119,32 @@ async function uploadAudio(moduleId: string, wavBuffer: Buffer): Promise<string>
   return data.publicUrl;
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+// ─── Main export — generates all lesson narrations in parallel ────────────────
 
-export async function generateModuleAudio(mod: AppModule, apiKey: string): Promise<string> {
-  console.log(`[audio] Generating script for module: ${mod.id}`);
-  const script = await generateScript(mod);
-  console.log(`[audio] Script ready (${script.split('\n').length} lines)`);
+export async function generateAllLessonNarrations(
+  mod: AppModule,
+  apiKey: string
+): Promise<Record<number, string>> {
+  console.log(`[audio] Generating narrations for ${mod.lessons.length} lessons in parallel`);
 
-  console.log(`[audio] Running Gemini TTS...`);
-  const wav = await scriptToWav(script, apiKey);
-  console.log(`[audio] Audio ready: ${(wav.length / 1024).toFixed(0)}KB`);
+  const results = await Promise.allSettled(
+    mod.lessons.map(async (lesson) => {
+      const text = buildNarrationText(lesson);
+      const wav  = await textToWav(text, apiKey);
+      const url  = await uploadAudio(`${mod.id}_lesson_${lesson.id}`, wav);
+      console.log(`[audio] Lesson ${lesson.id} done: ${(wav.length / 1024).toFixed(0)}KB`);
+      return { id: lesson.id, url };
+    })
+  );
 
-  const url = await uploadAudio(mod.id, wav);
-  console.log(`[audio] Uploaded: ${url}`);
+  const audioMap: Record<number, string> = {};
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      audioMap[result.value.id] = result.value.url;
+    } else {
+      console.error('[audio] Lesson narration failed:', result.reason);
+    }
+  }
 
-  return url;
+  return audioMap;
 }
