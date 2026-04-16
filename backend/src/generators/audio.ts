@@ -54,7 +54,23 @@ as if you are a trusted guide speaking to them personally. Be natural and conver
 // ─── Gemini single-speaker TTS ────────────────────────────────────────────────
 
 const TTS_MAX_RETRIES  = 3;
-const TTS_BASE_DELAY   = 4000; // ms
+const TTS_BASE_DELAY   = 5000; // ms — used when API doesn't specify a retry delay
+
+// Extract the retryDelay from a 429 error's errorDetails (e.g. "38s" → 40000ms)
+function getTtsRetryDelay(err: unknown): number {
+  try {
+    const details = (err as any)?.errorDetails;
+    if (Array.isArray(details)) {
+      for (const d of details) {
+        if (d?.retryDelay) {
+          const secs = parseInt(String(d.retryDelay), 10);
+          if (!isNaN(secs)) return secs * 1000 + 2000; // add 2s buffer
+        }
+      }
+    }
+  } catch {}
+  return TTS_BASE_DELAY;
+}
 
 async function textToWav(text: string, apiKey: string): Promise<Buffer> {
   const genAI = new GoogleGenerativeAI(apiKey);
@@ -86,7 +102,7 @@ async function textToWav(text: string, apiKey: string): Promise<Buffer> {
     } catch (err) {
       lastErr = err;
       if (attempt < TTS_MAX_RETRIES) {
-        const delay = TTS_BASE_DELAY * Math.pow(2, attempt);
+        const delay = getTtsRetryDelay(err);
         console.warn(`  ⚠ TTS error (attempt ${attempt + 1}/${TTS_MAX_RETRIES}) — retrying in ${delay / 1000}s...`);
         await new Promise(r => setTimeout(r, delay));
       }
@@ -143,24 +159,20 @@ export async function generateAllLessonNarrations(
   mod: AppModule,
   apiKey: string
 ): Promise<Record<number, string>> {
-  console.log(`[audio] Generating narrations for ${mod.lessons.length} lessons in parallel`);
+  console.log(`[audio] Generating narrations for ${mod.lessons.length} lessons sequentially`);
 
-  const results = await Promise.allSettled(
-    mod.lessons.map(async (lesson) => {
+  const audioMap: Record<number, string> = {};
+
+  // Sequential — the TTS model has a 10 req/min quota so parallel bursts trigger 429s
+  for (const lesson of mod.lessons) {
+    try {
       const text = buildNarrationText(lesson);
       const wav  = await textToWav(text, apiKey);
       const url  = await uploadAudio(`${mod.id}_lesson_${lesson.id}`, wav);
       console.log(`[audio] Lesson ${lesson.id} done: ${(wav.length / 1024).toFixed(0)}KB`);
-      return { id: lesson.id, url };
-    })
-  );
-
-  const audioMap: Record<number, string> = {};
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      audioMap[result.value.id] = result.value.url;
-    } else {
-      console.error('[audio] Lesson narration failed:', result.reason);
+      audioMap[lesson.id] = url;
+    } catch (err) {
+      console.error(`[audio] Lesson ${lesson.id} narration failed:`, err);
     }
   }
 
