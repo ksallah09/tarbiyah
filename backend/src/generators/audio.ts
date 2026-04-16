@@ -13,41 +13,52 @@ import { supabase } from '../config/supabase';
 import { getOpenAIClient } from '../config/openai';
 import { AppModule, ModuleLesson } from '../types';
 
-const TTS_MODEL  = 'tts-1';
+const TTS_MODEL  = 'tts-1-hd';
 const NARR_VOICE = 'nova'; // warm, clear female narrator
 
 // ─── Narration text builder ───────────────────────────────────────────────────
 
 function buildNarrationText(lesson: ModuleLesson): string {
-  const parts: string[] = [
-    `Lesson: ${lesson.title}.`,
-    lesson.objective ? (() => { const o = lesson.objective.replace(/^To\s+/i, ''); return `Your goal is to ${o.charAt(0).toLowerCase()}${o.slice(1)}`; })() : null,
-    lesson.whyItMatters,
-  ].filter(Boolean) as string[];
+  // Each section is its own paragraph — TTS pauses naturally at paragraph breaks
+  const sections: string[] = [];
 
+  // Title + objective
+  const titleLine = `${lesson.title}.`;
+  const objLine = lesson.objective
+    ? (() => { const o = lesson.objective.replace(/^To\s+/i, ''); return `Your goal is to ${o.charAt(0).toLowerCase()}${o.slice(1)}.`; })()
+    : null;
+  sections.push([titleLine, objLine].filter(Boolean).join(' '));
+
+  if (lesson.whyItMatters) {
+    sections.push(lesson.whyItMatters);
+  }
   if (lesson.islamicGuidance) {
-    parts.push(`From an Islamic perspective: ${lesson.islamicGuidance}`);
+    sections.push(`From an Islamic perspective — ${lesson.islamicGuidance}`);
   }
   if (lesson.researchInsight) {
-    parts.push(`What the research tells us: ${lesson.researchInsight}`);
+    sections.push(`What the research tells us — ${lesson.researchInsight}`);
   }
   if (lesson.actionSteps?.length) {
-    parts.push(`Here are some practical steps. ${lesson.actionSteps.join('. ')}.`);
+    const steps = lesson.actionSteps.map((s: string, i: number) => `${i + 1}. ${s}`).join('\n');
+    sections.push(`Here are some practical steps.\n${steps}`);
   }
   if (lesson.whatToSay?.length) {
-    parts.push(`Here are some things you might say to your child. ${lesson.whatToSay.map((p: string, i: number) => `${i + 1}: "${p}"`).join('. ')}.`);
+    const phrases = lesson.whatToSay.map((p: string, i: number) => `${i + 1}. "${p}"`).join('\n');
+    sections.push(`Here are some things you might say to your child.\n${phrases}`);
   }
   if (lesson.mistakesToAvoid?.length) {
-    parts.push(`And here are some common mistakes to avoid. ${lesson.mistakesToAvoid.join('. ')}.`);
+    const mistakes = lesson.mistakesToAvoid.map((m: string, i: number) => `${i + 1}. ${m}`).join('\n');
+    sections.push(`Common mistakes to avoid.\n${mistakes}`);
   }
   if (lesson.reflectionQuestion) {
-    parts.push(`A question to sit with: ${lesson.reflectionQuestion}`);
+    sections.push(`A question to sit with — ${lesson.reflectionQuestion}`);
   }
   if (lesson.miniTakeaway) {
-    parts.push(`Remember: ${lesson.miniTakeaway}`);
+    sections.push(`Remember — ${lesson.miniTakeaway}`);
   }
 
-  return parts.filter(Boolean).join(' ');
+  // Double newline between sections = paragraph break = natural pause in TTS
+  return sections.filter(Boolean).join('\n\n');
 }
 
 // ─── TTS text sanitiser ───────────────────────────────────────────────────────
