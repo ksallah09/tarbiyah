@@ -14,7 +14,7 @@ import { getOpenAIClient } from '../config/openai';
 import { AppModule, ModuleLesson } from '../types';
 
 const TTS_MODEL  = 'tts-1-hd';
-const NARR_VOICE = 'nova'; // warm, clear female narrator
+const NARR_VOICE = 'sage'; // calm, warm narrator
 
 // ─── Narration text builder ───────────────────────────────────────────────────
 
