@@ -42,8 +42,9 @@ export default function ModuleDetailScreen({ route, navigation }) {
   });
   const [audiosLoading, setAudiosLoading] = useState(false);
 
-  const progress    = useRef(new Animated.Value(0)).current;
-  const animationRef = useRef(null);
+  const progress      = useRef(new Animated.Value(0)).current;
+  const animationRef  = useRef(null);
+  const [progressPct, setProgressPct] = useState(0);
 
   const STEPS = [
     { icon: 'moon',      text: 'Drawing from Islamic scholarship' },
@@ -51,9 +52,15 @@ export default function ModuleDetailScreen({ route, navigation }) {
     { icon: 'construct', text: 'Structuring your 5-lesson plan' },
   ];
 
+  useEffect(() => {
+    const listener = progress.addListener(({ value }) => setProgressPct(Math.round(value * 100)));
+    return () => progress.removeListener(listener);
+  }, []);
+
   function startProgressAnimation() {
     // Animate to ~85% over ~12s in stages, leaving room to snap to 100% on completion
     progress.setValue(0);
+    setProgressPct(0);
     setStepIndex(0);
     animationRef.current = Animated.sequence([
       Animated.timing(progress, { toValue: 0.28, duration: 2000, useNativeDriver: false }),
@@ -203,13 +210,16 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
                 {/* Progress bar */}
                 <View style={styles.progressBarWrap}>
-                  <View style={styles.progressBarTrack}>
-                    <Animated.View
-                      style={[
-                        styles.progressBarFill,
-                        { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
-                      ]}
-                    />
+                  <View style={styles.progressBarRow}>
+                    <View style={styles.progressBarTrack}>
+                      <Animated.View
+                        style={[
+                          styles.progressBarFill,
+                          { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.progressBarPct}>{progressPct}%</Text>
                   </View>
                 </View>
 
@@ -738,13 +748,24 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 28,
   },
+  progressBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   progressBarTrack: {
-    width: '100%',
+    flex: 1,
     height: 8,
     backgroundColor: '#E8F5EF',
     borderRadius: 8,
     overflow: 'hidden',
-    marginBottom: 8,
+  },
+  progressBarPct: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2E7D62',
+    minWidth: 36,
+    textAlign: 'right',
   },
   progressBarFill: {
     height: 8,

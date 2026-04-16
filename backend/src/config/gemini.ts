@@ -58,7 +58,7 @@ export function getTextModel(
 // ─── Retry helper ─────────────────────────────────────────────────────────────
 
 const RETRYABLE_CODES = [503, 429, 500];
-const MAX_RETRIES = 4;
+const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 3000;
 
 function isRetryable(err: unknown): boolean {
