@@ -53,30 +53,47 @@ as if you are a trusted guide speaking to them personally. Be natural and conver
 
 // ─── Gemini single-speaker TTS ────────────────────────────────────────────────
 
+const TTS_MAX_RETRIES  = 3;
+const TTS_BASE_DELAY   = 4000; // ms
+
 async function textToWav(text: string, apiKey: string): Promise<Buffer> {
   const genAI = new GoogleGenerativeAI(apiKey);
   // Pass system instruction on the model, not in the content — otherwise TTS reads it aloud
   const model = genAI.getGenerativeModel({ model: TTS_MODEL, systemInstruction: NARRATION_SYSTEM });
 
-  const result = await (model as any).generateContent({
-    contents: [{ role: 'user', parts: [{ text }] }],
-    generationConfig: {
-      responseModalities: ['AUDIO'],
-      speechConfig: {
-        voiceConfig: { prebuiltVoiceConfig: { voiceName: NARR_VOICE } },
-      },
-    },
-  });
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= TTS_MAX_RETRIES; attempt++) {
+    try {
+      const result = await (model as any).generateContent({
+        contents: [{ role: 'user', parts: [{ text }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: NARR_VOICE } },
+          },
+        },
+      });
 
-  const part = result.response.candidates?.[0]?.content?.parts?.[0];
-  if (!part?.inlineData?.data) throw new Error('Gemini TTS returned no audio data.');
+      const part = result.response.candidates?.[0]?.content?.parts?.[0];
+      if (!part?.inlineData?.data) throw new Error('Gemini TTS returned no audio data.');
 
-  const pcm = Buffer.from(part.inlineData.data, 'base64');
-  const mimeType: string = part.inlineData.mimeType ?? 'audio/pcm;rate=24000';
-  const rateMatch = mimeType.match(/rate=(\d+)/);
-  const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+      const pcm = Buffer.from(part.inlineData.data, 'base64');
+      const mimeType: string = part.inlineData.mimeType ?? 'audio/pcm;rate=24000';
+      const rateMatch = mimeType.match(/rate=(\d+)/);
+      const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
 
-  return pcmToWav(pcm, sampleRate);
+      return pcmToWav(pcm, sampleRate);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < TTS_MAX_RETRIES) {
+        const delay = TTS_BASE_DELAY * Math.pow(2, attempt);
+        console.warn(`  ⚠ TTS error (attempt ${attempt + 1}/${TTS_MAX_RETRIES}) — retrying in ${delay / 1000}s...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+
+  throw lastErr;
 }
 
 function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bitsPerSample = 16): Buffer {
