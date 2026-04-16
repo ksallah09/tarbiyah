@@ -55,10 +55,11 @@ as if you are a trusted guide speaking to them personally. Be natural and conver
 
 async function textToWav(text: string, apiKey: string): Promise<Buffer> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: TTS_MODEL });
+  // Pass system instruction on the model, not in the content — otherwise TTS reads it aloud
+  const model = genAI.getGenerativeModel({ model: TTS_MODEL, systemInstruction: NARRATION_SYSTEM });
 
   const result = await (model as any).generateContent({
-    contents: [{ role: 'user', parts: [{ text: `${NARRATION_SYSTEM}\n\n${text}` }] }],
+    contents: [{ role: 'user', parts: [{ text }] }],
     generationConfig: {
       responseModalities: ['AUDIO'],
       speechConfig: {
