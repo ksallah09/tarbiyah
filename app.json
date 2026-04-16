@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tarbiyah",
+    "name": "Tarbiyah: Islamic Parenting",
     "slug": "tarbiyah",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -31,7 +31,15 @@
     "plugins": [
       "expo-secure-store",
       "expo-web-browser",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1B3D2F",
+          "sounds": []
+        }
+      ]
     ]
   }
 }

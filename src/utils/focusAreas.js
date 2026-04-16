@@ -7,12 +7,14 @@ export const ALL_FOCUS_AREAS = [
   { id: 'quran-prayer',         label: 'Quran & Prayer',         icon: 'book' },
   { id: 'character-building',   label: 'Character Building',     icon: 'heart' },
   { id: 'emotional-regulation', label: 'Emotional Regulation',   icon: 'pulse' },
+  { id: 'maintaining-patience', label: 'Maintaining Patience',   icon: 'leaf' },
   { id: 'communication',        label: 'Communication',          icon: 'chatbubble' },
   { id: 'discipline-boundaries',label: 'Discipline & Boundaries',icon: 'shield-checkmark' },
   { id: 'screen-time',          label: 'Screen Time',            icon: 'phone-portrait' },
   { id: 'social-skills',        label: 'Social Skills',          icon: 'people' },
   { id: 'academic-growth',      label: 'Academic Growth',        icon: 'school' },
   { id: 'family-connection',    label: 'Family Connection',      icon: 'home' },
+  { id: 'special-needs',        label: 'Special Needs Child',    icon: 'accessibility' },
 ];
 
 // Returns array of selected focus area IDs

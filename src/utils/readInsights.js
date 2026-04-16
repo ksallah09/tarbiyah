@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
-const READ_KEY        = 'tarbiyah_read_days';
-const GOAL_KEY        = 'tarbiyah_goal_days';
+const READ_KEY         = 'tarbiyah_read_days';
+const GOAL_KEY         = 'tarbiyah_goal_days';
 const GOAL_CHECKED_KEY = 'tarbiyah_goal_checked';
 
 function todayKey() {
@@ -10,6 +11,59 @@ function todayKey() {
   const mm   = String(d.getMonth() + 1).padStart(2, '0');
   const dd   = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+}
+
+async function getUserId() {
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.user?.id ?? null;
+}
+
+// ── Sync all 3 logs to Supabase (one row per user) ─────────────────────────
+
+async function syncAllLogsToRemote() {
+  try {
+    const userId = await getUserId();
+    if (!userId) return;
+
+    const [readRaw, goalRaw, checkedRaw] = await Promise.all([
+      AsyncStorage.getItem(READ_KEY),
+      AsyncStorage.getItem(GOAL_KEY),
+      AsyncStorage.getItem(GOAL_CHECKED_KEY),
+    ]);
+
+    supabase.from('user_read_history').upsert({
+      user_id:      userId,
+      read_days:    readRaw    ? JSON.parse(readRaw)    : {},
+      goal_days:    goalRaw    ? JSON.parse(goalRaw)    : {},
+      goal_checked: checkedRaw ? JSON.parse(checkedRaw) : {},
+      updated_at:   new Date().toISOString(),
+    }, { onConflict: 'user_id' }).then(({ error }) => {
+      if (error) console.warn('Read history sync error:', error.message);
+    });
+  } catch {}
+}
+
+// ── Pull all read history from Supabase into local cache (call on sign-in) ─
+
+export async function syncReadHistoryFromRemote() {
+  try {
+    const userId = await getUserId();
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from('user_read_history')
+      .select('read_days, goal_days, goal_checked')
+      .eq('user_id', userId)
+      .single();
+
+    if (!error && data) {
+      await Promise.all([
+        data.read_days    && AsyncStorage.setItem(READ_KEY,         JSON.stringify(data.read_days)),
+        data.goal_days    && AsyncStorage.setItem(GOAL_KEY,         JSON.stringify(data.goal_days)),
+        data.goal_checked && AsyncStorage.setItem(GOAL_CHECKED_KEY, JSON.stringify(data.goal_checked)),
+      ].filter(Boolean));
+    }
+  } catch {}
 }
 
 // ── Read tracking ──────────────────────────────────────────
@@ -27,11 +81,11 @@ export async function markAsRead(type, insightId) {
   const today = todayKey();
   log[today] = { ...(log[today] ?? {}), [type]: true, [insightId]: true };
   await AsyncStorage.setItem(READ_KEY, JSON.stringify(log));
+  syncAllLogsToRemote();
 }
 
 export async function isReadToday(type, insightId) {
   const log = await getReadLog();
-  // If insightId provided, check specifically for this insight
   if (insightId) return !!(log[todayKey()]?.[insightId]);
   return !!(log[todayKey()]?.[type]);
 }
@@ -75,6 +129,7 @@ export async function markGoalImplemented(type) {
   const today = todayKey();
   log[today] = { ...(log[today] ?? {}), [type]: true };
   await AsyncStorage.setItem(GOAL_KEY, JSON.stringify(log));
+  syncAllLogsToRemote();
 }
 
 export async function getWeekGoalDays(type) {
@@ -132,6 +187,7 @@ export async function setGoalChecked(goalId, done) {
     const today = todayKey();
     log[today] = { ...(log[today] ?? {}), [goalId]: done };
     await AsyncStorage.setItem(GOAL_CHECKED_KEY, JSON.stringify(log));
+    syncAllLogsToRemote();
   } catch {}
 }
 

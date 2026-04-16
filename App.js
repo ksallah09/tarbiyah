@@ -1,6 +1,7 @@
-import React, { useEffect, useState, createContext, useContext } from 'react';
+import React, { useEffect, useState, useRef, createContext, useContext } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import InsightDetailScreen      from './src/screens/InsightDetailScreen';
 import VerseDetailScreen         from './src/screens/VerseDetailScreen';
 import FamilyGoalWizardScreen    from './src/screens/FamilyGoalWizardScreen';
 import FamilySyncScreen          from './src/screens/FamilySyncScreen';
+import AboutScreen               from './src/screens/AboutScreen';
 
 import OnboardingWelcome    from './src/screens/onboarding/OnboardingWelcome';
 import OnboardingAbout      from './src/screens/onboarding/OnboardingAbout';
@@ -30,6 +32,7 @@ import OnboardingAllSet     from './src/screens/onboarding/OnboardingAllSet';
 import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
+import { requestNotificationPermission } from './src/utils/notifications';
 
 const Tab        = createBottomTabNavigator();
 const Stack      = createNativeStackNavigator();
@@ -82,11 +85,11 @@ function CustomTabBar({ state, descriptors, navigation }) {
 
 function Tabs() {
   return (
-    <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+    <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }} lazy={false}>
       <Tab.Screen name="Home"     component={HomeScreen} />
-      <Tab.Screen name="Library"  component={LibraryScreen} />
-      <Tab.Screen name="Progress" component={ProgressScreen} />
       <Tab.Screen name="Learn"    component={LearnScreen} />
+      <Tab.Screen name="Progress" component={ProgressScreen} />
+      <Tab.Screen name="Library"  component={LibraryScreen} />
       <Tab.Screen name="Profile"  component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -121,6 +124,11 @@ function MainApp() {
         component={FamilySyncScreen}
         options={{ animation: 'slide_from_bottom' }}
       />
+      <Stack.Screen
+        name="About"
+        component={AboutScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -152,16 +160,34 @@ export function useAuth() { return useContext(AuthContext); }
 export default function App() {
   const [loading, setLoading]         = useState(true);
   const [onboarded, setOnboarded]     = useState(false);
+  const navigationRef                 = useRef(null);
+  const notifResponseListener         = useRef(null);
 
   useEffect(() => {
     Promise.all([isOnboardingComplete(), getSession()])
       .then(([complete]) => setOnboarded(complete))
       .finally(() => setLoading(false));
 
+    // Request notification permission on first open
+    requestNotificationPermission();
+
+    // Navigate to correct screen when user taps a notification
+    notifResponseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const screen = response.notification.request.content.data?.screen;
+      if (screen === 'Progress') {
+        navigationRef.current?.navigate('Tabs', { screen: 'Progress' });
+      } else {
+        navigationRef.current?.navigate('Tabs', { screen: 'Home' });
+      }
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') setOnboarded(false);
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      notifResponseListener.current?.remove();
+    };
   }, []);
 
   if (loading) {
@@ -180,7 +206,7 @@ export default function App() {
 
   return (
     <AuthContext.Provider value={{ handleSignOut }}>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           {onboarded ? (
             <RootStack.Screen name="MainApp" component={MainApp} />

@@ -23,11 +23,12 @@
     "axios": "^1.7.2",
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
-    "express": "^5.2.1",
-    "uuid": "^10.0.0",
     "expo": "~54.0.33",
+    "express": "^5.2.1",
+    "openai": "^6.34.0",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-native": "0.81.5",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

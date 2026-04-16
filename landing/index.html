@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tarbiyah — Raise with Purpose</title>
-  <meta name="description" content="Daily parenting insights rooted in Islamic wisdom and modern child development research. One spiritual insight and one research-backed tip, every day." />
-  <meta property="og:title" content="Tarbiyah — Raise with Purpose" />
-  <meta property="og:description" content="Daily parenting insights rooted in Islamic wisdom and modern child development research." />
+  <title>Tarbiyah — Your Guide to Prophetic Parenting</title>
+  <meta name="description" content="An app that helps Muslim parents nurture faith, character, and confidence in the ones they love most." />
+  <meta property="og:title" content="Tarbiyah — Your Guide to Prophetic Parenting" />
+  <meta property="og:description" content="An app that helps Muslim parents nurture faith, character, and confidence in the ones they love most." />
   <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,6 +20,8 @@
       --green-light: #E8F5EF;
       --gold:        #D4871A;
       --gold-light:  #FDF3E3;
+      --indigo:      #4F46E5;
+      --indigo-light:#EEF2FF;
       --text:        #1C1C1E;
       --muted:       #6B7280;
       --bg:          #F5F6F8;
@@ -137,7 +139,7 @@
       font-size: clamp(16px, 2.5vw, 20px);
       color: var(--muted);
       line-height: 1.7;
-      max-width: 520px;
+      max-width: 540px;
       margin: 0 auto 40px;
     }
 
@@ -207,9 +209,7 @@
       position: relative;
     }
 
-    .phone:nth-child(2) {
-      transform: translateY(28px);
-    }
+    .phone:nth-child(2) { transform: translateY(28px); }
 
     .phone-screen {
       background: var(--bg);
@@ -245,15 +245,9 @@
       display: flex;
     }
 
-    .phone-card-accent {
-      width: 4px;
-      flex-shrink: 0;
-    }
+    .phone-card-accent { width: 4px; flex-shrink: 0; }
 
-    .phone-card-body {
-      padding: 12px;
-      flex: 1;
-    }
+    .phone-card-body { padding: 12px; flex: 1; }
 
     .phone-card-label {
       font-size: 8px;
@@ -285,12 +279,11 @@
       text-transform: uppercase;
     }
 
-    /* ── STATS ── */
+    /* ── QUOTE BANNER ── */
     .stats {
       background: var(--green);
       padding: 56px 24px;
     }
-
 
     /* ── SECTION ── */
     section {
@@ -351,7 +344,11 @@
       box-shadow: 0 12px 32px rgba(0,0,0,0.08);
     }
 
-    .feature-icon {
+    .feature-card.highlight {
+      border: 1.5px solid var(--green-light);
+    }
+
+.feature-icon {
       width: 48px;
       height: 48px;
       border-radius: 14px;
@@ -362,8 +359,9 @@
       margin-bottom: 18px;
     }
 
-    .feature-icon.green { background: var(--green-light); }
-    .feature-icon.gold  { background: var(--gold-light); }
+    .feature-icon.green   { background: var(--green-light); }
+    .feature-icon.gold    { background: var(--gold-light); }
+    .feature-icon.indigo  { background: var(--indigo-light); }
 
     .feature-title {
       font-size: 17px;
@@ -381,15 +379,12 @@
     /* ── HOW IT WORKS ── */
     .steps {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 40px;
       margin-top: 56px;
-      position: relative;
     }
 
-    .step {
-      text-align: center;
-    }
+    .step { text-align: center; }
 
     .step-number {
       width: 52px;
@@ -431,59 +426,47 @@
       padding: 32px;
     }
 
-    .pillar.spiritual {
-      background: var(--green);
-      color: white;
-    }
+    .pillar.spiritual { background: var(--green); color: white; }
+    .pillar.science   { background: var(--gold-light); }
 
-    .pillar.science {
-      background: var(--gold-light);
-    }
+    .pillar-emoji { font-size: 32px; margin-bottom: 16px; }
 
-    .pillar-emoji {
-      font-size: 32px;
-      margin-bottom: 16px;
-    }
-
-    .pillar-title {
-      font-size: 20px;
-      font-weight: 800;
-      margin-bottom: 10px;
-    }
+    .pillar-title { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
 
     .pillar.spiritual .pillar-title { color: white; }
     .pillar.science   .pillar-title { color: var(--gold); }
 
-    .pillar-body {
-      font-size: 14px;
-      line-height: 1.75;
-    }
+    .pillar-body { font-size: 14px; line-height: 1.75; }
 
     .pillar.spiritual .pillar-body { color: rgba(255,255,255,0.75); }
     .pillar.science   .pillar-body { color: #78480A; }
 
-    .pillar-sources {
-      margin-top: 18px;
+    /* ── FOCUS AREAS ── */
+    .focus-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 10px;
+      margin-top: 32px;
     }
 
-    .pillar-chip {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 5px 12px;
+    .focus-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: white;
+      border: 1.5px solid #E8EAED;
       border-radius: 100px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
     }
 
-    .pillar.spiritual .pillar-chip {
-      background: rgba(255,255,255,0.15);
-      color: rgba(255,255,255,0.9);
-    }
-
-    .pillar.science .pillar-chip {
-      background: rgba(212,135,26,0.15);
-      color: var(--gold);
+    .focus-chip-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green-mid);
+      flex-shrink: 0;
     }
 
     /* ── CTA BANNER ── */
@@ -574,8 +557,7 @@
     }
 
     .footer-logo img {
-      width: 64px;
-      height: 64px;
+      width: 64px; height: 64px;
       object-fit: cover;
       border-radius: 16px;
     }
@@ -610,7 +592,6 @@
 
     /* ── RESPONSIVE ── */
     @media (max-width: 640px) {
-      .stats-inner { grid-template-columns: 1fr; gap: 28px; }
       .pillars { grid-template-columns: 1fr; }
       .phone:nth-child(2) { display: none; }
       .phone { width: 200px; }
@@ -633,7 +614,7 @@
 
     <div class="hero-badge">
       <span class="hero-badge-dot"></span>
-      Coming Soon to the App Store
+      Coming Soon — iOS & Android
     </div>
 
     <h1>Parenting Support<br/>Guided by <em>Faith</em> and Research.</h1>
@@ -643,14 +624,13 @@
     </p>
 
     <div class="hero-actions">
-      <a href="#notify" class="btn-primary">
-        🔔 Get Notified at Launch
+      <a href="#notify" class="btn-primary" onclick="document.getElementById('waitlist-email').focus()">
+        🔔 &nbsp;Get Notified at Launch
       </a>
       <a href="#features" class="btn-secondary">
-        Features
+        See Features
       </a>
     </div>
-
   </section>
 
   <!-- QUOTE BANNER -->
@@ -679,14 +659,14 @@
           <div class="pillar-emoji">🌙</div>
           <div class="pillar-title">Spiritual Insights</div>
           <div class="pillar-body">
-            Grounded in Quranic guidance, prophetic tradition, and scholarship on Islamic parenting — helping you raise children with taqwa, adab, and a strong sense of identity.
+            Grounded in Quranic guidance, prophetic tradition, and scholarship from leading Islamic parenting scholars — helping you raise children with taqwa, adab, and a strong sense of identity.
           </div>
         </div>
         <div class="pillar science">
           <div class="pillar-emoji">🔬</div>
           <div class="pillar-title">Research Insights</div>
           <div class="pillar-body">
-            Drawn from leading child development research and clinical expertise — practical, evidence-based guidance you can apply the same day you read it.
+            Drawn from leading child development research, clinical psychology, and pediatric expertise — practical, evidence-based guidance you can apply the same day you read it.
           </div>
         </div>
       </div>
@@ -702,48 +682,72 @@
         Designed to fit into the rhythm of your day — not add to your to-do list.
       </p>
       <div class="features-grid">
+
         <div class="feature-card">
           <div class="feature-icon green">📖</div>
           <div class="feature-title">Daily Insights</div>
           <div class="feature-body">
-            One spiritual insight and one research-backed tip, freshly generated every morning. Rotate with your day so every reading brings something new.
+            One spiritual insight and one research-backed tip, freshly generated every morning. Each comes with a practical action step you can try today.
           </div>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon green">🔖</div>
-          <div class="feature-title">Personal Library</div>
+
+        <div class="feature-card highlight">
+          <div class="feature-icon indigo">🧠</div>
+          <div class="feature-title">Personalized Learning</div>
           <div class="feature-body">
-            Bookmark any insight to revisit later. Search by topic, filter by type, and build a personal reference that grows with your parenting journey.
+            Go deeper on any parenting topic. Build a multi-lesson module on subjects like emotional regulation, Islamic discipline, or managing screen time — tailored to your family.
           </div>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon gold">🎯</div>
-          <div class="feature-title">Daily Action Steps</div>
+
+        <div class="feature-card highlight">
+          <div class="feature-icon green">🎯</div>
+          <div class="feature-title">Family Goals</div>
           <div class="feature-body">
-            Every insight comes with a practical goal — small, doable, and not overwhelming. One step at a time.
+            Set goals your family works toward together — praying in congregation, reading Quran, masjid visits, and more. Gentle reminders keep each goal on track without the pressure.
           </div>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon gold">📊</div>
-          <div class="feature-title">Progress Tracking</div>
-          <div class="feature-body">
-            Track your reading streaks and mark insights as read. Consistency builds better parenting habits over time.
-          </div>
-        </div>
+
         <div class="feature-card">
           <div class="feature-icon green">👤</div>
           <div class="feature-title">Personalized to Your Family</div>
           <div class="feature-body">
-            Tell us your children's ages and the parenting topics you care most about. Your insights stay relevant as your family grows.
+            Set your children's ages and your parenting focus areas — from Quran &amp; Prayer to Emotional Regulation, Screen Time, Special Needs, and more. Your insights stay relevant as your family grows.
           </div>
         </div>
+
+        <div class="feature-card highlight">
+          <div class="feature-icon green">🏡</div>
+          <div class="feature-title">Sync with Your Family</div>
+          <div class="feature-body">
+            Parenting is a team effort. Share your family goals with your co-parent so everyone stays aligned — same values, same approach.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon gold">📊</div>
+          <div class="feature-title">Progress Tracking</div>
+          <div class="feature-body">
+            Track your reading streaks, goal check-ins, and weekly consistency. See your month at a glance and build the habit one day at a time.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon green">🔖</div>
+          <div class="feature-title">Personal Library</div>
+          <div class="feature-body">
+            Bookmark any insight to revisit later. Build a personal reference of the guidance that resonated most, synced across all your devices.
+          </div>
+        </div>
+
+
         <div class="feature-card">
           <div class="feature-icon gold">🔗</div>
           <div class="feature-title">Cited Sources</div>
           <div class="feature-body">
-            Every insight links back to its source — an article, lecture, or research paper — so you can go deeper whenever you want.
+            Every insight links back to its source — a lecture, research paper, or article — so you can always go deeper on what resonates.
           </div>
         </div>
+
       </div>
     </div>
   </section>
@@ -765,13 +769,43 @@
         <div class="step">
           <div class="step-number">2</div>
           <div class="step-title">Get two insights a day</div>
-          <div class="step-body">A spiritual insight and a research insight, generated fresh each morning and tailored to your focus areas.</div>
+          <div class="step-body">A spiritual insight and a research insight, tailored to your focus areas. Each comes with one practical action step.</div>
         </div>
         <div class="step">
           <div class="step-number">3</div>
-          <div class="step-title">Take one action</div>
-          <div class="step-body">Each insight has a single, practical action step. Try it today. Save it for later. Build the habit one day at a time.</div>
+          <div class="step-title">Set your family goals</div>
+          <div class="step-body">Choose goals to work toward together — praying, reading Quran, outdoor time — and let the app hold you accountable with smart reminders.</div>
         </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-title">Keep growing</div>
+          <div class="step-body">Generate AI learning modules on any topic. Track your streaks. Save what moves you. Build the home you're working toward.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOCUS AREAS -->
+  <section class="features-bg">
+    <div class="section-inner">
+      <span class="section-tag">Personalization</span>
+      <h2 class="section-heading">Built Around<br/>Your Struggles</h2>
+      <p class="section-sub">
+        Choose the areas that matter most to you. Your insights and modules are shaped around what your family actually needs.
+      </p>
+      <div class="focus-grid">
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Spiritual Identity</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Quran &amp; Prayer</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Character Building</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Emotional Regulation</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Maintaining Patience</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Communication</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Discipline &amp; Boundaries</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Screen Time</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Social Skills</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Academic Growth</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Family Connection</div>
+        <div class="focus-chip"><span class="focus-chip-dot"></span>Special Needs Child</div>
       </div>
     </div>
   </section>
@@ -780,15 +814,101 @@
   <div class="cta-section" id="notify">
     <h2>Be the First to Know</h2>
     <p>
-      Tarbiyah is coming soon to iOS. Join the list and we'll let you know the moment it's live.
+      Tarbiyah is coming soon to iOS and Android. Drop your email and we'll notify you the moment it's live.
     </p>
-    <div class="cta-actions">
-      <a href="mailto:hello@tarbiyahapp.com?subject=Early Access&body=I'd love to be notified when Tarbiyah launches!" class="btn-white">
-        ✉️ &nbsp;Notify Me at Launch
-      </a>
-    </div>
-    <p style="margin-top:20px; font-size:13px; color:rgba(255,255,255,0.4);">No spam. Just a one-time launch email.</p>
+
+    <form id="waitlist-form" onsubmit="handleWaitlist(event)" style="max-width:420px;margin:0 auto;">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+        <input
+          id="waitlist-email"
+          type="email"
+          placeholder="your@email.com"
+          required
+          style="
+            flex:1;min-width:220px;
+            padding:14px 18px;
+            border-radius:14px;
+            border:none;
+            font-size:15px;
+            font-family:inherit;
+            outline:none;
+            color:#1C1C1E;
+          "
+        />
+        <button
+          type="submit"
+          id="waitlist-btn"
+          style="
+            background:white;
+            color:#1B3D2F;
+            font-size:15px;
+            font-weight:700;
+            padding:14px 24px;
+            border-radius:14px;
+            border:none;
+            cursor:pointer;
+            font-family:inherit;
+            box-shadow:0 4px 20px rgba(0,0,0,0.15);
+            transition:transform 0.15s;
+            white-space:nowrap;
+          "
+          onmouseover="this.style.transform='translateY(-2px)'"
+          onmouseout="this.style.transform='translateY(0)'"
+        >
+          🔔 &nbsp;Notify Me
+        </button>
+      </div>
+      <p id="waitlist-msg" style="margin-top:16px;font-size:14px;min-height:20px;color:rgba(255,255,255,0.5);"></p>
+    </form>
+
+    <p style="margin-top:8px; font-size:13px; color:rgba(255,255,255,0.35);">No spam. Just a one-time launch email.</p>
   </div>
+
+  <script>
+    async function handleWaitlist(e) {
+      e.preventDefault();
+      const email = document.getElementById('waitlist-email').value.trim().toLowerCase();
+      const btn   = document.getElementById('waitlist-btn');
+      const msg   = document.getElementById('waitlist-msg');
+
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      msg.style.color = 'rgba(255,255,255,0.5)';
+      msg.textContent = '';
+
+      try {
+        const res = await fetch('https://ydhoccgvweihnhlwtmnr.supabase.co/rest/v1/waitlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkaG9jY2d2d2VpaG5obHd0bW5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzODYyOTcsImV4cCI6MjA5MDk2MjI5N30.q6t7d6bEKNKH-uibnfAHEHlSfTFPjKspmndyce8xK0M',
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkaG9jY2d2d2VpaG5obHd0bW5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzODYyOTcsImV4cCI6MjA5MDk2MjI5N30.q6t7d6bEKNKH-uibnfAHEHlSfTFPjKspmndyce8xK0M',
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        if (res.status === 201) {
+          msg.style.color = '#6EE7B7';
+          msg.textContent = "✓ You're on the list! We'll email you at launch.";
+          document.getElementById('waitlist-email').value = '';
+          btn.textContent = '✓ Done';
+        } else if (res.status === 409) {
+          msg.style.color = 'rgba(255,255,255,0.6)';
+          msg.textContent = "You're already on the list — we'll be in touch!";
+          btn.disabled = false;
+          btn.textContent = '🔔 Notify Me';
+        } else {
+          throw new Error('Unexpected response');
+        }
+      } catch {
+        msg.style.color = '#FCA5A5';
+        msg.textContent = 'Something went wrong. Please try again.';
+        btn.disabled = false;
+        btn.textContent = '🔔 Notify Me';
+      }
+    }
+  </script>
 
   <!-- FOOTER -->
   <footer>

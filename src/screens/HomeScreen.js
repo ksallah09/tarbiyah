@@ -47,8 +47,6 @@ const SCIENCE_IMAGES = [
 ];
 
 const DAY_INDEX = Math.floor(Date.now() / 86_400_000);
-const dailySpiritualImage = SPIRITUAL_IMAGES[DAY_INDEX % SPIRITUAL_IMAGES.length];
-const dailyScienceImage   = SCIENCE_IMAGES[(DAY_INDEX + 1) % SCIENCE_IMAGES.length];
 
 const API_URL   = 'https://tarbiyah-production.up.railway.app';
 const CACHE_KEY = 'tarbiyah_daily_cache';
@@ -124,6 +122,12 @@ export default function HomeScreen({ navigation }) {
   const [animate, setAnimate]                = useState(false);
   const [ayahRead, setAyahRead]              = useState(false);
   const [tipIndex, setTipIndex]              = useState(0);
+  const [imgIndex, setImgIndex]              = useState(DAY_INDEX);
+  const [spiritReadToday, setSpiritReadToday] = useState(false);
+  const [sciReadToday,    setSciReadToday]    = useState(false);
+
+  const dailySpiritualImage = SPIRITUAL_IMAGES[imgIndex % SPIRITUAL_IMAGES.length];
+  const dailyScienceImage   = SCIENCE_IMAGES[(imgIndex + 1) % SCIENCE_IMAGES.length];
 
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
@@ -196,6 +200,8 @@ export default function HomeScreen({ navigation }) {
       getWeekReadDays('scientific').then(setScientificReadWeek);
       getWeekReadDays('quran').then(setQuranReadWeek);
       isReadToday('quran', dailyAyah.reference).then(setAyahRead);
+      isReadToday('spiritual',  null).then(setSpiritReadToday);
+      isReadToday('scientific', null).then(setSciReadToday);
 
       // Load name + decide whether to animate greeting
       Promise.all([getProfileName(), checkShouldAnimateGreeting()])
@@ -253,6 +259,21 @@ export default function HomeScreen({ navigation }) {
                   </Text>
                 )}
               </View>
+
+              {/* Today's progress */}
+              <View style={styles.heroProgress}>
+                <Text style={styles.heroProgressLabel}>TODAY'S PROGRESS</Text>
+                <View style={styles.heroProgressDots}>
+                  <View style={styles.heroProgressItem}>
+                    <View style={[styles.heroProgressDot, spiritReadToday && styles.heroProgressDotDone]} />
+                    <Text style={styles.heroProgressItemLabel}>Spiritual</Text>
+                  </View>
+                  <View style={styles.heroProgressItem}>
+                    <View style={[styles.heroProgressDot, sciReadToday && styles.heroProgressDotDone]} />
+                    <Text style={styles.heroProgressItemLabel}>Research</Text>
+                  </View>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -270,7 +291,7 @@ export default function HomeScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.insightCard}
                   activeOpacity={0.9}
-                  onPress={() => navigation.navigate('InsightDetail', { insight: spiritualInsight })}
+                  onPress={() => navigation.navigate('InsightDetail', { insight: spiritualInsight, imgIndex })}
                 >
                   <ImageBackground
                     source={dailySpiritualImage}
@@ -288,6 +309,12 @@ export default function HomeScreen({ navigation }) {
                           <Ionicons name="moon" size={10} color="rgba(255,255,255,0.9)" />
                           <Text style={styles.insightTypeText}>Spiritual Insight</Text>
                         </View>
+                        {spiritReadToday && (
+                          <View style={styles.insightReadBadge}>
+                            <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
+                            <Text style={styles.insightReadBadgeText}>Read Today</Text>
+                          </View>
+                        )}
                       </View>
                       <View style={styles.insightCardBottom}>
                         <Text style={styles.insightCardTitle}>{spiritualInsight.insightTitle}</Text>
@@ -309,7 +336,7 @@ export default function HomeScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.insightCard}
                   activeOpacity={0.9}
-                  onPress={() => navigation.navigate('InsightDetail', { insight: scienceInsight })}
+                  onPress={() => navigation.navigate('InsightDetail', { insight: scienceInsight, imgIndex })}
                 >
                   <ImageBackground
                     source={dailyScienceImage}
@@ -327,6 +354,12 @@ export default function HomeScreen({ navigation }) {
                           <Ionicons name="bulb-outline" size={10} color="rgba(255,255,255,0.9)" />
                           <Text style={styles.insightTypeText}>Research Insight</Text>
                         </View>
+                        {sciReadToday && (
+                          <View style={styles.insightReadBadge}>
+                            <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
+                            <Text style={styles.insightReadBadgeText}>Read Today</Text>
+                          </View>
+                        )}
                       </View>
                       <View style={styles.insightCardBottom}>
                         <Text style={styles.insightCardTitle}>{scienceInsight.insightTitle}</Text>
@@ -350,6 +383,7 @@ export default function HomeScreen({ navigation }) {
                   style={styles.devRefreshBtn}
                   onPress={async () => {
                     await AsyncStorage.removeItem(CACHE_KEY);
+                    setImgIndex(i => i + 1);
                     loadDaily();
                   }}
                 >
@@ -545,8 +579,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+    marginBottom: 20,
   },
   heroText: { flex: 1 },
+  heroProgress: {
+    gap: 6,
+    justifyContent: 'flex-start',
+  },
+  heroProgressLabel: {
+    fontSize: 10, fontWeight: '700', letterSpacing: 1.2,
+    color: 'rgba(255,255,255,0.45)',
+    lineHeight: 22,
+  },
+  heroProgressDots: {
+    flexDirection: 'row', gap: 16,
+  },
+  heroProgressItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+  },
+  heroProgressDot: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  heroProgressDotDone: {
+    backgroundColor: '#4ADE80',
+    borderColor: '#4ADE80',
+  },
+  heroProgressItemLabel: {
+    fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)',
+  },
   greetingLine: { color: '#FFFFFF' },
   greetingSmall: {
     fontSize: 14,
@@ -628,7 +690,17 @@ const styles = StyleSheet.create({
     flex: 1, borderRadius: 22, padding: 18,
     justifyContent: 'space-between',
   },
-  insightCardTop: { flexDirection: 'row' },
+  insightCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  insightReadBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 9, paddingVertical: 5,
+    borderRadius: 100,
+    borderWidth: 1, borderColor: 'rgba(74,222,128,0.4)',
+  },
+  insightReadBadgeText: {
+    fontSize: 10, fontWeight: '700', color: '#4ADE80', letterSpacing: 0.8,
+  },
   insightTypePill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: 'rgba(46,125,98,0.55)',

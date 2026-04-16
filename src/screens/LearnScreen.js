@@ -22,6 +22,7 @@ const SUGGESTED_PROMPTS = [
   'My child is struggling with screen time',
   'How do I raise a child with strong Islamic identity?',
   'My child is anxious and lacks confidence',
+  'Navigating puberty with my child',
 ];
 
 export default function LearnScreen({ navigation }) {
@@ -153,7 +154,7 @@ export default function LearnScreen({ navigation }) {
               {(showInput || !hasModules) && (
                 <>
                   <View style={styles.sectionTitleWrap}>
-                    <Text style={styles.sectionTitle}>SUGGESTED TOPICS</Text>
+                    <Text style={styles.sectionTitle}>EXAMPLE TOPICS</Text>
                   </View>
                   <View style={styles.promptsWrap}>
                     {SUGGESTED_PROMPTS.map((p, i) => (

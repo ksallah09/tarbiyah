@@ -20,6 +20,7 @@ import { supabase, verifyUserToken } from './config/supabase';
 import { seedSources, pickInsight, recordDelivery, getSourceById } from './data/database';
 import { buildDailyPayload } from './generators/insights';
 import { buildModuleSystemPrompt } from './prompts/module';
+import { generateModuleAudio } from './generators/audio';
 import { ExtractedContent, AppDailyPayload, AppModule, ModuleLesson } from './types';
 
 const app = express();
@@ -458,6 +459,30 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
   }
 });
 
+// ─── POST /learn/audio ────────────────────────────────────────────────────────
+// Generates a podcast-style audio overview for a module.
+// Returns { audioUrl } on success.
+
+app.post('/learn/audio', async (req: Request, res: Response) => {
+  try {
+    const mod = req.body as AppModule;
+    if (!mod?.id || !mod?.title) {
+      return res.status(400).json({ error: 'Full module object is required.' });
+    }
+
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
+      return res.status(503).json({ error: 'Audio generation is not configured on this server.' });
+    }
+
+    const audioUrl = await generateModuleAudio(mod, geminiKey);
+    return res.json({ audioUrl });
+  } catch (err) {
+    console.error('Audio generation error:', err);
+    return res.status(500).json({ error: 'Failed to generate audio. Please try again.' });
+  }
+});
+
 // ─── GET /modules ─────────────────────────────────────────────────────────────
 
 app.get('/modules', requireAuth, async (req: AuthRequest, res: Response) => {
@@ -521,6 +546,7 @@ async function start() {
     console.log(`  GET  /daily          — Personalized daily payload (auth required)`);
     console.log(`  GET  /daily/preview  — Daily payload preview (no auth)`);
     console.log(`  POST /learn/generate — Generate personalized parenting module`);
+    console.log(`  POST /learn/audio    — Generate podcast audio for a module`);
     console.log(`  GET  /modules        — Fetch user's saved modules (auth required)`);
     console.log(`  POST /modules        — Save/update a module (auth required)`);
     console.log(`  GET  /health         — Health check\n`);

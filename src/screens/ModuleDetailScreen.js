@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveModule } from '../utils/modules';
+import AudioPlayer from '../components/AudioPlayer';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -32,6 +34,9 @@ export default function ModuleDetailScreen({ route, navigation }) {
   const [module, setModule]         = useState(savedModule ?? null);
   const [activeLesson, setActiveLesson] = useState(null);
   const [stepIndex, setStepIndex]   = useState(0);
+  const [audioUrl, setAudioUrl]       = useState(savedModule?.audioUrl ?? null);
+  const [audioGenerating, setAudioGenerating] = useState(false);
+  const [audioError, setAudioError]   = useState(null);
 
   const progress    = useRef(new Animated.Value(0)).current;
   const animationRef = useRef(null);
@@ -102,6 +107,33 @@ export default function ModuleDetailScreen({ route, navigation }) {
       setError(err.message ?? 'Something went wrong. Please try again.');
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function generateAudio() {
+    if (!module) return;
+    setAudioGenerating(true);
+    setAudioError(null);
+    try {
+      const res = await fetch(`${API_URL}/learn/audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(module),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `Server error ${res.status}`);
+      }
+      const { audioUrl: url } = await res.json();
+      setAudioUrl(url);
+      // Persist audioUrl with the module
+      const updated = { ...module, audioUrl: url };
+      setModule(updated);
+      await saveModule(updated);
+    } catch (err) {
+      setAudioError(err.message ?? 'Could not generate audio. Please try again.');
+    } finally {
+      setAudioGenerating(false);
     }
   }
 
@@ -242,6 +274,46 @@ export default function ModuleDetailScreen({ route, navigation }) {
                   </Text>
                 </View>
               </LinearGradient>
+
+              {/* ── Audio Overview ── */}
+              <View style={styles.sheet}>
+                <View style={[styles.contentPad, { paddingBottom: 0 }]}>
+                  <View style={styles.sectionTitleWrap}>
+                    <Text style={styles.sectionTitle}>AUDIO OVERVIEW</Text>
+                  </View>
+
+                  {audioUrl ? (
+                    <AudioPlayer audioUrl={audioUrl} accentColor="#1B3D2F" />
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.audioGenerateBtn}
+                      onPress={generateAudio}
+                      disabled={audioGenerating}
+                      activeOpacity={0.85}
+                    >
+                      {audioGenerating ? (
+                        <>
+                          <ActivityIndicator color="#FFFFFF" size="small" />
+                          <Text style={styles.audioGenerateBtnText}>Generating audio…</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Ionicons name="headset" size={18} color="#FFFFFF" />
+                          <Text style={styles.audioGenerateBtnText}>Generate Audio Overview</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                  {audioError ? (
+                    <Text style={styles.audioErrorText}>{audioError}</Text>
+                  ) : null}
+                  {!audioUrl && !audioGenerating && (
+                    <Text style={styles.audioHint}>
+                      A short podcast-style conversation about your module — great for listening on the go.
+                    </Text>
+                  )}
+                </View>
+              </View>
 
               {/* ── Lessons ── */}
               <View style={styles.sheet}>
@@ -1115,5 +1187,41 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     fontStyle: 'italic',
+  },
+
+  // ── Audio overview ──
+  audioGenerateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#1B3D2F',
+    paddingVertical: 14,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  audioGenerateBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  audioHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 18,
+    paddingBottom: 8,
+  },
+  audioErrorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

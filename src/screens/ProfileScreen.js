@@ -13,12 +13,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import DarkHeader from '../components/DarkHeader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_FOCUS_AREAS, getFocusAreas, saveFocusAreas } from '../utils/focusAreas';
 import { getCurrentUser } from '../utils/auth';
 import { saveProfileToSupabase, syncProfileFromSupabase } from '../utils/profile';
 import { useAuth } from '../../App';
+import * as Notifications from 'expo-notifications';
+import { scheduleDailyNotification, cancelDailyNotification, requestNotificationPermission, buildTestNotificationContent } from '../utils/notifications';
+import { loadFamilyGoals, getGoalNotificationContent } from '../utils/familyGoals';
 
 const ITEM_HEIGHT = 48;
 const HOURS   = ['1','2','3','4','5','6','7','8','9','10','11','12'];
@@ -287,6 +291,7 @@ function SettingRow({ icon, iconBg, iconColor, title, subtitle, value, onPress, 
 
 export default function ProfileScreen() {
   const { handleSignOut: authSignOut } = useAuth();
+  const navigation = useNavigation();
   const [notifications,    setNotifications]    = useState(true);
   const [focusAreas,       setFocusAreas]       = useState([]);
   const [profileName,      setProfileName]      = useState('');
@@ -486,7 +491,6 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{profileName}</Text>
-            <Text style={styles.profileSince}>Member since January 2024</Text>
           </View>
           <TouchableOpacity style={styles.profileEditBtn} onPress={handleEditProfile}>
             <Ionicons name="pencil-outline" size={15} color="#2E7D62" />
@@ -586,6 +590,13 @@ export default function ProfileScreen() {
                   onValueChange={(val) => {
                     setNotifications(val);
                     saveProfile({ notifications: val });
+                    if (val) {
+                      requestNotificationPermission().then(granted => {
+                        if (granted) scheduleDailyNotification(reminderTime);
+                      });
+                    } else {
+                      cancelDailyNotification();
+                    }
                   }}
                   trackColor={{ false: '#E8EAED', true: '#34C759' }}
                   thumbColor={notifications ? '#1B3D2F' : '#FFF'}
@@ -607,6 +618,57 @@ export default function ProfileScreen() {
               iconColor="#9CA3AF"
               title="Help & Support"
               onPress={handleSupport}
+            />
+            <SettingRow
+              icon="information-circle-outline"
+              iconBg="#EEF2FF"
+              iconColor="#4F46E5"
+              title="About Tarbiyah"
+              onPress={() => navigation.navigate('About')}
+              last
+            />
+          </SettingsCard>
+        </View>
+
+        {/* ── DEV: Notification Tests ── */}
+        <Text style={styles.sectionTitle}>NOTIFICATION TESTS</Text>
+        <View style={styles.sectionBlock}>
+          <SettingsCard>
+            <SettingRow
+              icon="alarm-outline"
+              iconBg="#E8F5EF"
+              iconColor="#2E7D62"
+              title="Test Daily Insight Reminder"
+              subtitle="Fires in 5 seconds"
+              onPress={async () => {
+                const content = await buildTestNotificationContent();
+                await Notifications.scheduleNotificationAsync({
+                  content: { ...content, sound: true },
+                  trigger: { type: 'timeInterval', seconds: 5, repeats: false },
+                });
+                Alert.alert('Test Scheduled', 'Lock your screen — notification fires in 5 seconds.');
+              }}
+            />
+            <SettingRow
+              icon="flag-outline"
+              iconBg="#FDF3E3"
+              iconColor="#D4871A"
+              title="Test Family Goal Reminder"
+              subtitle="Uses your first active goal"
+              onPress={async () => {
+                const goals = await loadFamilyGoals();
+                if (!goals?.length) {
+                  Alert.alert('No Goals Set', 'Add a family goal on the Progress tab first.');
+                  return;
+                }
+                const goal = goals[0];
+                const content = getGoalNotificationContent(goal);
+                await Notifications.scheduleNotificationAsync({
+                  content,
+                  trigger: { type: 'timeInterval', seconds: 5, repeats: false },
+                });
+                Alert.alert('Test Scheduled', `Testing "${goal.title}" — lock your screen, fires in 5 seconds.`);
+              }}
               last
             />
           </SettingsCard>
@@ -629,6 +691,7 @@ export default function ProfileScreen() {
           setReminderTime(t);
           saveProfile({ reminderTime: t });
           setShowTimePicker(false);
+          if (notifications) scheduleDailyNotification(t);
         }}
       />
       <ChildrenEditorModal

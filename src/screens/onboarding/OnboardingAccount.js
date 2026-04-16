@@ -13,6 +13,9 @@ import { saveFocusAreas } from '../../utils/focusAreas';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signUp, signIn, signInWithApple, signInWithGoogle } from '../../utils/auth';
 import { saveProfileToSupabase, syncProfileFromSupabase } from '../../utils/profile';
+import { syncModulesFromRemote } from '../../utils/modules';
+import { syncReadHistoryFromRemote } from '../../utils/readInsights';
+import { syncGoalHistoryFromRemote } from '../../utils/goalHistory';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -104,6 +107,13 @@ export default function OnboardingAccount({ navigation, route }) {
     }
   }
 
+  // Sync all user data from Supabase after sign-in (fire-and-forget)
+  function syncAllUserData(userId) {
+    syncModulesFromRemote().catch(() => {});
+    syncReadHistoryFromRemote().catch(() => {});
+    syncGoalHistoryFromRemote().catch(() => {});
+  }
+
   // After returning-user sign-in: sync from Supabase.
   // If no profile row exists the account is new or was deleted —
   // show an alert, then on dismiss sign out, clear local data, and restart onboarding.
@@ -127,6 +137,7 @@ export default function OnboardingAccount({ navigation, route }) {
       );
       return;
     }
+    syncAllUserData(userId);
     navigation.replace('MainApp');
   }
 
@@ -136,6 +147,7 @@ export default function OnboardingAccount({ navigation, route }) {
   async function finishNewSignUp(userId) {
     const alreadyHasProfile = await syncProfileFromSupabase(userId);
     if (alreadyHasProfile) {
+      syncAllUserData(userId);
       Alert.alert(
         'Welcome Back',
         'You already have an account. We\'ve signed you in.',

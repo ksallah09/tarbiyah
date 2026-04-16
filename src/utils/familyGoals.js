@@ -1,28 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { supabase } from './supabase';
+import { requestNotificationPermission } from './notifications';
 
 const STORAGE_KEY = 'tarbiyah_family_goals_v1';
 const FAMILY_ID_KEY = 'tarbiyah_family_id';
 
-// ─── Notification setup ───────────────────────────────────────────────────────
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-export async function requestNotificationPermission() {
-  if (!Device.isDevice) return false;
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  if (existing === 'granted') return true;
-  const { status } = await Notifications.requestPermissionsAsync();
-  return status === 'granted';
-}
+export { requestNotificationPermission };
 
 // ─── Family ID (prep for spouse sync) ────────────────────────────────────────
 
@@ -171,6 +155,64 @@ export async function deleteFamilyGoal(goalId) {
   }
 }
 
+// ─── Goal-specific notification messages ─────────────────────────────────────
+
+const GOAL_MESSAGES = {
+  'pray together as a family': {
+    title: 'Time to pray together 🕌',
+    body: 'Salah in congregation — even at home — builds connection and spiritual discipline in your children.',
+  },
+  'eat together as a family': {
+    title: 'Family meal time 🍽️',
+    body: "The table is more than food — it's where your family bonds and children feel seen. Make it count.",
+  },
+  'go to the masjid together': {
+    title: 'Head to the masjid together 🌙',
+    body: 'Children who visit the masjid grow up feeling belonging to something greater. Time to go.',
+  },
+  'read quran as a family': {
+    title: "Quran time with your family 📖",
+    body: 'Even a few verses together plants seeds that grow for a lifetime. Open the Quran with your family.',
+  },
+  'make dua together': {
+    title: 'Raise your hands together 🤲',
+    body: 'When children see their parents make dua, they learn that Allah is close. Gather and supplicate together.',
+  },
+  'bedtime islamic story': {
+    title: "Bedtime story time 🌟",
+    body: 'Stories from the Quran and Seerah shape how your children see the world. Share one tonight.',
+  },
+  'family outdoor activity': {
+    title: 'Get outside together 🌿',
+    body: "Allah created the earth as a gift — explore it as a family. Time for your outdoor activity.",
+  },
+  'screen-free family time': {
+    title: 'Devices down, family first 📵',
+    body: "Your children remember presence more than presents. Put the screens away and be fully there.",
+  },
+  'family check-in': {
+    title: "How is everyone doing? 💬",
+    body: "Ask each child how they're truly feeling today. A few minutes of real listening goes a long way.",
+  },
+  'learn something islamic together': {
+    title: 'Islamic learning time 📚',
+    body: 'A hadith, a name of Allah, a lesson from history — small drops of knowledge fill a vessel over time.',
+  },
+};
+
+// Returns notification content for a real goal — used by the test button
+export function getGoalNotificationContent(goal) {
+  const key = goal.title?.toLowerCase().trim();
+  const match = GOAL_MESSAGES[key];
+  if (match) return { ...match, sound: true, data: { goalId: goal.id, screen: 'Progress' } };
+  return {
+    title: goal.title,
+    body: 'Time for your family goal. Every consistent step strengthens your home.',
+    sound: true,
+    data: { goalId: goal.id, screen: 'Progress' },
+  };
+}
+
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 const NOTIF_ID_KEY_PREFIX = 'tarbiyah_goal_notifs_';
@@ -197,25 +239,19 @@ async function scheduleGoalNotifications(goal) {
     const scheduledIds = [];
     const [hour, minute] = (goal.reminderTime || '08:00').split(':').map(Number);
 
+    const content = getGoalNotificationContent(goal);
+
     if (goal.frequencyType === 'daily') {
       const id = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Family Goal Reminder',
-          body: goal.title,
-          data: { goalId: goal.id },
-        },
-        trigger: { type: 'daily', hour, minute },
+        content,
+        trigger: { type: 'calendar', repeats: true, hour, minute },
       });
       scheduledIds.push(id);
     } else if (goal.frequencyType === 'weekly' && goal.reminderDays?.length) {
       for (const weekday of goal.reminderDays) {
         const id = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Family Goal Reminder',
-            body: goal.title,
-            data: { goalId: goal.id },
-          },
-          trigger: { type: 'weekly', weekday, hour, minute },
+          content,
+          trigger: { type: 'calendar', repeats: true, weekday, hour, minute },
         });
         scheduledIds.push(id);
       }
