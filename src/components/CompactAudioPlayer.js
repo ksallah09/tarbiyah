@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const SPEEDS = [1.0, 1.5, 2.0];
 
-export default function CompactAudioPlayer({ audioUrl, accentColor = '#1B3D2F' }) {
+export default function CompactAudioPlayer({ audioUrl, accentColor = '#1B3D2F', onComplete }) {
   const soundRef  = useRef(null);
   const [status, setStatus]         = useState(null);
   const [speedIndex, setSpeedIndex] = useState(0);
@@ -27,7 +27,11 @@ export default function CompactAudioPlayer({ audioUrl, accentColor = '#1B3D2F' }
         const { sound } = await Audio.Sound.createAsync(
           { uri: audioUrl },
           { shouldPlay: false, progressUpdateIntervalMillis: 500 },
-          (s) => { if (mounted) setStatus(s); }
+          (s) => {
+            if (!mounted) return;
+            setStatus(s);
+            if (s.didJustFinish && onComplete) onComplete();
+          }
         );
         soundRef.current = sound;
         if (mounted) setLoading(false);

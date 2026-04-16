@@ -21,9 +21,9 @@ const NARR_VOICE = 'Aoede'; // warm, clear female narrator
 function buildNarrationText(lesson: ModuleLesson): string {
   const parts: string[] = [
     `Lesson: ${lesson.title}.`,
-    lesson.objective,
+    lesson.objective ? `Your goal is ${lesson.objective.replace(/^To\s+/i, '')}` : null,
     lesson.whyItMatters,
-  ];
+  ].filter(Boolean) as string[];
 
   if (lesson.islamicGuidance) {
     parts.push(`From an Islamic perspective: ${lesson.islamicGuidance}`);

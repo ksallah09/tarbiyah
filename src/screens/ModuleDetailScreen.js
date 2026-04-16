@@ -381,6 +381,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
                               <CompactAudioPlayer
                                 audioUrl={lessonAudios[lesson.id]}
                                 accentColor={cfg.bg[0]}
+                                onComplete={() => { if (!lesson.completed) toggleLesson(lesson.id); }}
                               />
                             ) : (
                               <View style={styles.lessonAudioLoading}>
