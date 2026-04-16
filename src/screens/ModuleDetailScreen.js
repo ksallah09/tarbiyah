@@ -370,6 +370,35 @@ export default function ModuleDetailScreen({ route, navigation }) {
                           <View style={styles.lessonExpanded}>
                             <View style={styles.lessonExpandedDivider} />
 
+                            {/* Listen to this lesson */}
+                            <View style={styles.lessonListenHeader}>
+                              <Ionicons name="headset-outline" size={14} color={cfg.bg[0]} />
+                              <Text style={[styles.lessonListenLabel, { color: cfg.bg[0] }]}>
+                                Listen to this lesson
+                              </Text>
+                            </View>
+                            {lessonAudios[lesson.id] ? (
+                              <CompactAudioPlayer
+                                audioUrl={lessonAudios[lesson.id]}
+                                accentColor={cfg.bg[0]}
+                              />
+                            ) : (
+                              <View style={styles.lessonAudioLoading}>
+                                <ActivityIndicator size="small" color="#9CA3AF" />
+                                <Text style={styles.lessonAudioLoadingText}>Preparing narration…</Text>
+                              </View>
+                            )}
+
+                            <View style={styles.lessonExpandedDivider} />
+
+                            {/* Read this lesson */}
+                            <View style={[styles.lessonListenHeader, { marginTop: 4 }]}>
+                              <Ionicons name="book-outline" size={14} color={cfg.bg[0]} />
+                              <Text style={[styles.lessonListenLabel, { color: cfg.bg[0] }]}>
+                                Read this lesson
+                              </Text>
+                            </View>
+
                             {/* Objective */}
                             {!!lesson.objective && (
                               <Text style={styles.lessonObjective}>{lesson.objective}</Text>
@@ -473,19 +502,6 @@ export default function ModuleDetailScreen({ route, navigation }) {
                               <View style={styles.miniTakeaway}>
                                 <Ionicons name="sparkles" size={12} color="#D4871A" />
                                 <Text style={styles.miniTakeawayText}>{lesson.miniTakeaway}</Text>
-                              </View>
-                            )}
-
-                            {/* Lesson narration */}
-                            {lessonAudios[lesson.id] ? (
-                              <CompactAudioPlayer
-                                audioUrl={lessonAudios[lesson.id]}
-                                accentColor={cfg.bg[0]}
-                              />
-                            ) : (
-                              <View style={styles.lessonAudioLoading}>
-                                <ActivityIndicator size="small" color="#9CA3AF" />
-                                <Text style={styles.lessonAudioLoadingText}>Preparing narration…</Text>
                               </View>
                             )}
 
@@ -1171,6 +1187,23 @@ const styles = StyleSheet.create({
   },
 
   // ── Lesson audio ──
+  lessonListenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+  },
+  lessonListenLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.0,
+    textTransform: 'uppercase',
+  },
   lessonAudioLoading: {
     flexDirection: 'row',
     alignItems: 'center',
