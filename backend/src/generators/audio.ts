@@ -1,20 +1,20 @@
 /**
- * Per-lesson audio narration — Gemini single-speaker TTS
+ * Per-lesson audio narration — OpenAI TTS
  *
  * For each lesson:
- *   1. Lesson content is formatted into a natural narration text (no separate script step)
- *   2. gemini-2.5-flash-preview-tts renders it in one request with a single warm voice
- *   3. Raw PCM is wrapped in a WAV header and uploaded to Supabase Storage
+ *   1. Lesson content is formatted into a natural narration text
+ *   2. OpenAI tts-1 renders it as MP3 with the "nova" voice
+ *   3. MP3 is uploaded to Supabase Storage
  *
- * All 5 lessons are generated in parallel so total time ≈ slowest single lesson.
+ * Lessons are generated sequentially to avoid rate limits.
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '../config/supabase';
+import { getOpenAIClient } from '../config/openai';
 import { AppModule, ModuleLesson } from '../types';
 
-const TTS_MODEL  = 'gemini-2.5-flash-preview-tts';
-const NARR_VOICE = 'Aoede'; // warm, clear female narrator
+const TTS_MODEL  = 'tts-1';
+const NARR_VOICE = 'nova'; // warm, clear female narrator
 
 // ─── Narration text builder ───────────────────────────────────────────────────
 
@@ -47,103 +47,33 @@ function buildNarrationText(lesson: ModuleLesson): string {
   return parts.filter(Boolean).join(' ');
 }
 
-const NARRATION_SYSTEM = `You are a warm, knowledgeable narrator for Tarbiyah, an Islamic parenting app.
-Narrate the following lesson content directly to a Muslim parent in a calm, clear, encouraging tone —
-as if you are a trusted guide speaking to them personally. Be natural and conversational, not robotic.`;
+// ─── OpenAI TTS ───────────────────────────────────────────────────────────────
 
-// ─── Gemini single-speaker TTS ────────────────────────────────────────────────
+async function textToMp3(text: string): Promise<Buffer> {
+  const client = getOpenAIClient();
+  if (!client) throw new Error('OPENAI_API_KEY is not configured.');
 
-const TTS_MAX_RETRIES  = 3;
-const TTS_BASE_DELAY   = 5000; // ms — used when API doesn't specify a retry delay
+  const response = await client.audio.speech.create({
+    model: TTS_MODEL,
+    voice: NARR_VOICE,
+    input: text,
+    response_format: 'mp3',
+  });
 
-// Extract the retryDelay from a 429 error's errorDetails (e.g. "38s" → 40000ms)
-function getTtsRetryDelay(err: unknown): number {
-  try {
-    const details = (err as any)?.errorDetails;
-    if (Array.isArray(details)) {
-      for (const d of details) {
-        if (d?.retryDelay) {
-          const secs = parseInt(String(d.retryDelay), 10);
-          if (!isNaN(secs)) return secs * 1000 + 2000; // add 2s buffer
-        }
-      }
-    }
-  } catch {}
-  return TTS_BASE_DELAY;
-}
-
-async function textToWav(text: string, apiKey: string): Promise<Buffer> {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  // Pass system instruction on the model, not in the content — otherwise TTS reads it aloud
-  const model = genAI.getGenerativeModel({ model: TTS_MODEL, systemInstruction: NARRATION_SYSTEM });
-
-  let lastErr: unknown;
-  for (let attempt = 0; attempt <= TTS_MAX_RETRIES; attempt++) {
-    try {
-      const result = await (model as any).generateContent({
-        contents: [{ role: 'user', parts: [{ text }] }],
-        generationConfig: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: NARR_VOICE } },
-          },
-        },
-      });
-
-      const part = result.response.candidates?.[0]?.content?.parts?.[0];
-      if (!part?.inlineData?.data) throw new Error('Gemini TTS returned no audio data.');
-
-      const pcm = Buffer.from(part.inlineData.data, 'base64');
-      const mimeType: string = part.inlineData.mimeType ?? 'audio/pcm;rate=24000';
-      const rateMatch = mimeType.match(/rate=(\d+)/);
-      const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
-
-      return pcmToWav(pcm, sampleRate);
-    } catch (err) {
-      lastErr = err;
-      if (attempt < TTS_MAX_RETRIES) {
-        const delay = getTtsRetryDelay(err);
-        console.warn(`  ⚠ TTS error (attempt ${attempt + 1}/${TTS_MAX_RETRIES}) — retrying in ${delay / 1000}s...`);
-        await new Promise(r => setTimeout(r, delay));
-      }
-    }
-  }
-
-  throw lastErr;
-}
-
-function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bitsPerSample = 16): Buffer {
-  const dataSize   = pcm.length;
-  const header     = Buffer.alloc(44);
-
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + dataSize, 4);
-  header.write('WAVE', 8);
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20);                                        // PCM
-  header.writeUInt16LE(channels, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(sampleRate * channels * (bitsPerSample / 8), 28);
-  header.writeUInt16LE(channels * (bitsPerSample / 8), 32);
-  header.writeUInt16LE(bitsPerSample, 34);
-  header.write('data', 36);
-  header.writeUInt32LE(dataSize, 40);
-
-  return Buffer.concat([header, pcm]);
+  return Buffer.from(await response.arrayBuffer());
 }
 
 // ─── Supabase Storage upload ──────────────────────────────────────────────────
 
 const BUCKET = 'module-audio';
 
-async function uploadAudio(fileId: string, wavBuffer: Buffer): Promise<string> {
-  const fileName = `${fileId}.wav`;
+async function uploadAudio(fileId: string, mp3Buffer: Buffer): Promise<string> {
+  const fileName = `${fileId}.mp3`;
 
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(fileName, wavBuffer, {
-      contentType: 'audio/wav',
+    .upload(fileName, mp3Buffer, {
+      contentType: 'audio/mpeg',
       upsert: true,
     });
 
@@ -153,23 +83,21 @@ async function uploadAudio(fileId: string, wavBuffer: Buffer): Promise<string> {
   return data.publicUrl;
 }
 
-// ─── Main export — generates all lesson narrations in parallel ────────────────
+// ─── Main export ──────────────────────────────────────────────────────────────
 
 export async function generateAllLessonNarrations(
-  mod: AppModule,
-  apiKey: string
+  mod: AppModule
 ): Promise<Record<number, string>> {
-  console.log(`[audio] Generating narrations for ${mod.lessons.length} lessons sequentially`);
+  console.log(`[audio] Generating narrations for ${mod.lessons.length} lessons`);
 
   const audioMap: Record<number, string> = {};
 
-  // Sequential — the TTS model has a 10 req/min quota so parallel bursts trigger 429s
   for (const lesson of mod.lessons) {
     try {
       const text = buildNarrationText(lesson);
-      const wav  = await textToWav(text, apiKey);
-      const url  = await uploadAudio(`${mod.id}_lesson_${lesson.id}`, wav);
-      console.log(`[audio] Lesson ${lesson.id} done: ${(wav.length / 1024).toFixed(0)}KB`);
+      const mp3  = await textToMp3(text);
+      const url  = await uploadAudio(`${mod.id}_lesson_${lesson.id}`, mp3);
+      console.log(`[audio] Lesson ${lesson.id} done: ${(mp3.length / 1024).toFixed(0)}KB`);
       audioMap[lesson.id] = url;
     } catch (err) {
       console.error(`[audio] Lesson ${lesson.id} narration failed:`, err);

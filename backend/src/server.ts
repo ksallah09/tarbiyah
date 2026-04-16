@@ -484,12 +484,11 @@ app.post('/learn/audio/lessons', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Full module object with lessons is required.' });
     }
 
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (!geminiKey) {
+    if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({ error: 'Audio generation is not configured on this server.' });
     }
 
-    const audioMap = await generateAllLessonNarrations(mod, geminiKey);
+    const audioMap = await generateAllLessonNarrations(mod);
     return res.json({ audioMap });
   } catch (err) {
     console.error('Lesson audio generation error:', err);
