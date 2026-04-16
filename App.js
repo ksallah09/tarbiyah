@@ -181,8 +181,20 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') setOnboarded(false);
+      // Invalid/expired refresh token — clear stale session and send to sign-in
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        signOut().then(() => setOnboarded(false));
+      }
+    });
+
+    // Catch invalid refresh token errors globally (e.g. deleted user, revoked session)
+    supabase.auth.getSession().then(({ error }) => {
+      if (error?.message?.includes('Refresh Token Not Found') ||
+          error?.message?.includes('Invalid Refresh Token')) {
+        signOut().then(() => setOnboarded(false));
+      }
     });
     return () => {
       subscription.unsubscribe();

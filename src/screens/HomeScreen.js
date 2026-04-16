@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -126,6 +126,9 @@ export default function HomeScreen({ navigation }) {
   const [spiritReadToday, setSpiritReadToday] = useState(false);
   const [sciReadToday,    setSciReadToday]    = useState(false);
 
+  // Ref to always-current insight IDs so useFocusEffect (empty deps) can re-check on return
+  const insightIdsRef = useRef({ spiritual: null, scientific: null });
+
   const dailySpiritualImage = SPIRITUAL_IMAGES[imgIndex % SPIRITUAL_IMAGES.length];
   const dailyScienceImage   = SCIENCE_IMAGES[(imgIndex + 1) % SCIENCE_IMAGES.length];
 
@@ -200,8 +203,11 @@ export default function HomeScreen({ navigation }) {
       getWeekReadDays('scientific').then(setScientificReadWeek);
       getWeekReadDays('quran').then(setQuranReadWeek);
       isReadToday('quran', dailyAyah.reference).then(setAyahRead);
-      isReadToday('spiritual',  null).then(setSpiritReadToday);
-      isReadToday('scientific', null).then(setSciReadToday);
+
+      // Re-check insight read badges on every focus (e.g. returning from InsightDetail)
+      const { spiritual: spirId, scientific: sciId } = insightIdsRef.current;
+      if (spirId) isReadToday('spiritual', spirId).then(setSpiritReadToday);
+      if (sciId)  isReadToday('scientific', sciId).then(setSciReadToday);
 
       // Load name + decide whether to animate greeting
       Promise.all([getProfileName(), checkShouldAnimateGreeting()])
@@ -217,6 +223,24 @@ export default function HomeScreen({ navigation }) {
 
   const spiritualInsight = dailyData?.insights?.find(i => i.type === 'spiritual') ?? null;
   const scienceInsight   = dailyData?.insights?.find(i => i.type === 'scientific') ?? null;
+
+  // Keep ref current so useFocusEffect can always access the latest IDs
+  insightIdsRef.current = {
+    spiritual: spiritualInsight?.id ?? null,
+    scientific: scienceInsight?.id ?? null,
+  };
+
+  // On initial data load: check read status by specific insight ID so we don't
+  // pick up a stale type-level flag from a previous session synced via Supabase.
+  useEffect(() => {
+    if (spiritualInsight?.id) isReadToday('spiritual', spiritualInsight.id).then(setSpiritReadToday);
+    else setSpiritReadToday(false);
+  }, [spiritualInsight?.id]);
+
+  useEffect(() => {
+    if (scienceInsight?.id) isReadToday('scientific', scienceInsight.id).then(setSciReadToday);
+    else setSciReadToday(false);
+  }, [scienceInsight?.id]);
   const actionGoals      = dailyData?.actionGoals ?? [];
   const dailyDua         = getDailyDua();
   const dailyAyah        = getDailyAyah();
@@ -262,14 +286,20 @@ export default function HomeScreen({ navigation }) {
 
               {/* Today's progress */}
               <View style={styles.heroProgress}>
-                <Text style={styles.heroProgressLabel}>TODAY'S PROGRESS</Text>
+                <Text style={styles.heroProgressLabel}>TODAY'S LEARNING</Text>
                 <View style={styles.heroProgressDots}>
                   <View style={styles.heroProgressItem}>
-                    <View style={[styles.heroProgressDot, spiritReadToday && styles.heroProgressDotDone]} />
+                    {spiritReadToday
+                      ? <Ionicons name="checkmark-circle" size={14} color="#4ADE80" />
+                      : <View style={styles.heroProgressDot} />
+                    }
                     <Text style={styles.heroProgressItemLabel}>Spiritual</Text>
                   </View>
                   <View style={styles.heroProgressItem}>
-                    <View style={[styles.heroProgressDot, sciReadToday && styles.heroProgressDotDone]} />
+                    {sciReadToday
+                      ? <Ionicons name="checkmark-circle" size={14} color="#4ADE80" />
+                      : <View style={styles.heroProgressDot} />
+                    }
                     <Text style={styles.heroProgressItemLabel}>Research</Text>
                   </View>
                 </View>
@@ -320,7 +350,6 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.insightCardTitle}>{spiritualInsight.insightTitle}</Text>
                         <Text style={styles.insightCardBody} numberOfLines={3}>{spiritualInsight.body}</Text>
                         <View style={styles.insightCardFooter}>
-                          <Text style={styles.insightCardSpeaker}>{spiritualInsight.speakerName}</Text>
                           <View style={styles.insightReadMore}>
                             <Text style={styles.insightReadMoreText}>Read more</Text>
                             <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
@@ -365,7 +394,6 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.insightCardTitle}>{scienceInsight.insightTitle}</Text>
                         <Text style={styles.insightCardBody} numberOfLines={3}>{scienceInsight.body}</Text>
                         <View style={styles.insightCardFooter}>
-                          <Text style={styles.insightCardSpeaker}>{scienceInsight.speakerName}</Text>
                           <View style={styles.insightReadMore}>
                             <Text style={styles.insightReadMoreText}>Read more</Text>
                             <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
@@ -573,7 +601,7 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: '#1B3D2F',
     paddingHorizontal: 24,
-    paddingBottom: 28,
+    paddingBottom: 14,
   },
   heroRow: {
     flexDirection: 'row',
@@ -598,9 +626,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 7,
   },
   heroProgressDot: {
-    width: 10, height: 10, borderRadius: 5,
+    width: 14, height: 14, borderRadius: 7,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center', justifyContent: 'center',
   },
   heroProgressDotDone: {
     backgroundColor: '#4ADE80',
@@ -722,7 +751,7 @@ const styles = StyleSheet.create({
     fontSize: 13, color: 'rgba(255,255,255,0.78)', lineHeight: 20,
   },
   insightCardFooter: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
     marginTop: 4,
   },
   insightCardSpeaker: {

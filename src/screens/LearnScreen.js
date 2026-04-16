@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { loadModules, deleteModule } from '../utils/modules';
 
+// Module-level cache so state initialises instantly on re-mount
+let _modulesCache = null;
+
 const SUGGESTED_PROMPTS = [
   'My child has a lot of anger and tantrums',
   'I want to build a stronger connection with my teen',
@@ -28,15 +31,22 @@ const SUGGESTED_PROMPTS = [
 export default function LearnScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [input, setInput]     = useState('');
-  const [modules, setModules] = useState([]);
+  const [modules, setModules] = useState(_modulesCache ?? []);
   const [showInput, setShowInput] = useState(false);
+  const hasMountedRef = useRef(false);
 
-  // Eager load on mount so data is ready before the tab is first focused
-  useEffect(() => { loadModules().then(setModules); }, []);
+  // Initial load on mount
+  useEffect(() => {
+    loadModules().then(ms => { _modulesCache = ms; setModules(ms); });
+  }, []);
 
-  // Re-sync on every focus (picks up newly saved modules from ModuleDetail)
+  // Re-sync on subsequent focuses (picks up newly saved modules from ModuleDetail)
+  // Skip the very first focus since useEffect already handles initial load
   useFocusEffect(
-    useCallback(() => { loadModules().then(setModules); }, [])
+    useCallback(() => {
+      if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
+      loadModules().then(ms => { _modulesCache = ms; setModules(ms); });
+    }, [])
   );
 
   function handleDelete(mod) {

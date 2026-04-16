@@ -103,6 +103,15 @@ export async function deleteModule(moduleId) {
   }
 }
 
+function sortNewestFirst(modules) {
+  return [...modules].sort((a, b) => {
+    // IDs are "mod_<Date.now()>" — extract the timestamp for a reliable sort
+    const ta = parseInt((a.id ?? '').replace('mod_', ''), 10) || 0;
+    const tb = parseInt((b.id ?? '').replace('mod_', ''), 10) || 0;
+    return tb - ta;
+  });
+}
+
 /**
  * Load modules for the current user.
  * Priority: backend API → Supabase → AsyncStorage cache.
@@ -129,7 +138,7 @@ export async function loadModules() {
           for (const mod of localOnly) syncModuleToSupabase(mod, userId);
         }
 
-        const merged = [...localOnly, ...backendModules];
+        const merged = sortNewestFirst([...localOnly, ...backendModules]);
         await AsyncStorage.setItem(MODULES_KEY, JSON.stringify(merged));
         return merged;
       }
@@ -147,7 +156,7 @@ export async function loadModules() {
         .order('created_at', { ascending: false });
 
       if (!error && data?.length > 0) {
-        const modules = data.map(r => r.data);
+        const modules = sortNewestFirst(data.map(r => r.data));
         await AsyncStorage.setItem(MODULES_KEY, JSON.stringify(modules));
         return modules;
       }
@@ -165,7 +174,7 @@ export async function loadModules() {
   // Final fallback: local cache
   try {
     const raw = await AsyncStorage.getItem(MODULES_KEY);
-    return raw ? JSON.parse(raw) : [];
+    return raw ? sortNewestFirst(JSON.parse(raw)) : [];
   } catch {
     return [];
   }

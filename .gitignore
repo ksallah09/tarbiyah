@@ -35,3 +35,13 @@ web-build/
 
 # Google OAuth credentials
 assets/client_secret*.json
+assets/app-icons-1/*.json
+
+# Sensitive / review files — never commit
+openapikey.txt
+backend/source_knowledge_review.txt
+insights_needing_review.md
+insights_needing_review_summary.csv
+review-insights.md
+tarbiyah_insight_review_full.csv
+tarbiyah_insight_review_summary.md

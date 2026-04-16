@@ -19,6 +19,16 @@ import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+// Module-level caches so state initialises instantly on re-mount
+let _spirCache       = [];
+let _sciCache        = [];
+let _quranCache      = [];
+let _spirStreakCache  = 0;
+let _sciStreakCache   = 0;
+let _quranStreakCache = 0;
+let _familyGoalsCache = [];
+let _syncStatusCache  = { linked: false, partner: null };
+
 function MonthGrid({ days, color, todayColor }) {
   return (
     <View style={gridStyles.grid}>
@@ -65,42 +75,47 @@ const gridStyles = StyleSheet.create({
 });
 
 export default function ProgressScreen({ navigation }) {
-  const [spirMonth,   setSpiritualMonth]   = useState([]);
-  const [sciMonth,    setScientificMonth]  = useState([]);
-  const [quranMonth,  setQuranMonth]       = useState([]);
-  const [spirStreak,  setSpiritualStreak]  = useState(0);
-  const [sciStreak,   setScientificStreak] = useState(0);
-  const [quranStreak, setQuranStreak]      = useState(0);
-  const [familyGoals, setFamilyGoals]      = useState([]);
-  const [syncStatus,  setSyncStatus]       = useState({ linked: false, partner: null });
+  const [spirMonth,   setSpiritualMonth]   = useState(_spirCache);
+  const [sciMonth,    setScientificMonth]  = useState(_sciCache);
+  const [quranMonth,  setQuranMonth]       = useState(_quranCache);
+  const [spirStreak,  setSpiritualStreak]  = useState(_spirStreakCache);
+  const [sciStreak,   setScientificStreak] = useState(_sciStreakCache);
+  const [quranStreak, setQuranStreak]      = useState(_quranStreakCache);
+  const [familyGoals, setFamilyGoals]      = useState(_familyGoalsCache);
+  const [syncStatus,  setSyncStatus]       = useState(_syncStatusCache);
   const [refreshing,  setRefreshing]       = useState(false);
+  const hasMountedRef = useRef(false);
 
   const now = new Date();
   const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
   const refreshAll = useCallback(() => {
-    getMonthReadDays('spiritual').then(setSpiritualMonth);
-    getMonthReadDays('scientific').then(setScientificMonth);
-    getMonthReadDays('quran').then(setQuranMonth);
-    getStreak('spiritual').then(setSpiritualStreak);
-    getStreak('scientific').then(setScientificStreak);
-    getStreak('quran').then(setQuranStreak);
+    getMonthReadDays('spiritual').then(v  => { _spirCache       = v;  setSpiritualMonth(v); });
+    getMonthReadDays('scientific').then(v => { _sciCache        = v;  setScientificMonth(v); });
+    getMonthReadDays('quran').then(v      => { _quranCache      = v;  setQuranMonth(v); });
+    getStreak('spiritual').then(v         => { _spirStreakCache  = v;  setSpiritualStreak(v); });
+    getStreak('scientific').then(v        => { _sciStreakCache   = v;  setScientificStreak(v); });
+    getStreak('quran').then(v             => { _quranStreakCache = v;  setQuranStreak(v); });
     // Show cached status instantly, then refresh from server in background
     getCachedSyncStatus().then(cached => {
-      setSyncStatus(cached);
+      _syncStatusCache = cached; setSyncStatus(cached);
       getFamilySyncStatus().then(live => {
-        setSyncStatus(live);
+        _syncStatusCache = live; setSyncStatus(live);
         // Reload goals after sync resolves so new shared family_id is in effect
-        loadFamilyGoals().then(setFamilyGoals);
+        loadFamilyGoals().then(v => { _familyGoalsCache = v; setFamilyGoals(v); });
       });
     });
   }, []);
 
-  // Eager load on mount so data is ready before the tab is first focused
+  // Initial load on mount
   useEffect(() => { refreshAll(); }, []);
 
-  // Re-sync on every focus to pick up reads/updates from other tabs
-  useFocusEffect(useCallback(() => { refreshAll(); }, [refreshAll]));
+  // Re-sync on subsequent focuses to pick up reads/updates from other tabs
+  // Skip the very first focus since useEffect already handles initial load
+  useFocusEffect(useCallback(() => {
+    if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
+    refreshAll();
+  }, [refreshAll]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
