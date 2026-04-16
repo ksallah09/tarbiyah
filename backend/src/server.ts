@@ -21,6 +21,7 @@ import { seedSources, pickInsight, recordDelivery, getSourceById } from './data/
 import { buildDailyPayload } from './generators/insights';
 import { buildModuleSystemPrompt } from './prompts/module';
 import { generateAllLessonNarrations } from './generators/audio';
+import { generateJsonWithOpenAI } from './config/openai';
 import { ExtractedContent, AppDailyPayload, AppModule, ModuleLesson } from './types';
 
 const app = express();
@@ -389,7 +390,6 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
 
     const sourceContext = await buildModuleSourceContext(topic);
     const systemPrompt  = buildModuleSystemPrompt(sourceContext);
-    const model         = getJsonModel(MODEL_HEAVY, systemPrompt);
 
     const userPrompt = [
       `Parent's topic: ${topic.trim()}`,
@@ -397,11 +397,25 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
       focusAreas?.length ? `Parent's focus areas: ${focusAreas.join(', ')}` : null,
     ].filter(Boolean).join('\n');
 
-    const raw = await generateWithRetry(model, userPrompt, MODEL_HEAVY, systemPrompt);
+    // Try Gemini first (pro → flash fallback handled inside generateWithRetry)
+    // If Gemini is unavailable, fall back to OpenAI GPT-4o
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_HEAVY, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_HEAVY, systemPrompt);
+    } catch (geminiErr) {
+      console.warn('[learn/generate] Gemini unavailable, falling back to OpenAI:', (geminiErr as Error).message);
+      try {
+        raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+      } catch (openAiErr) {
+        console.error('[learn/generate] OpenAI fallback also failed:', (openAiErr as Error).message);
+        return res.status(503).json({ error: 'AI is experiencing high demand right now. Please try again in a moment.' });
+      }
+    }
 
     let parsed: Omit<AppModule, 'id' | 'totalLessons' | 'completedLessons' | 'createdAt'>;
     try {
-      // Strip markdown code fences if Gemini wraps the response despite responseMimeType
+      // Strip markdown code fences if the model wraps the response
       let jsonStr = raw.trim();
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
