@@ -402,7 +402,9 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
                             {/* Objective */}
                             {!!lesson.objective && (
-                              <Text style={styles.lessonObjective}>{lesson.objective}</Text>
+                              <Text style={styles.lessonObjective}>
+                                {'Your goal is to ' + lesson.objective.replace(/^To\s+/i, '')}
+                              </Text>
                             )}
 
                             {/* Why It Matters */}
