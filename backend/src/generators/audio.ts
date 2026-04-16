@@ -104,7 +104,20 @@ async function uploadAudio(fileId: string, mp3Buffer: Buffer): Promise<string> {
   return data.publicUrl;
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+// ─── Single lesson export (used by per-lesson parallel frontend requests) ─────
+
+export async function generateSingleLessonNarration(
+  moduleId: string,
+  lesson: ModuleLesson
+): Promise<string> {
+  const text = sanitizeForTts(buildNarrationText(lesson));
+  const mp3  = await textToMp3(text);
+  const url  = await uploadAudio(`${moduleId}_lesson_${lesson.id}`, mp3);
+  console.log(`[audio] Lesson ${lesson.id} done: ${(mp3.length / 1024).toFixed(0)}KB`);
+  return url;
+}
+
+// ─── Batch export (kept for reference) ───────────────────────────────────────
 
 export async function generateAllLessonNarrations(
   mod: AppModule

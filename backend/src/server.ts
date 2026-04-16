@@ -20,7 +20,7 @@ import { supabase, verifyUserToken } from './config/supabase';
 import { seedSources, pickInsight, recordDelivery, getSourceById } from './data/database';
 import { buildDailyPayload } from './generators/insights';
 import { buildModuleSystemPrompt } from './prompts/module';
-import { generateAllLessonNarrations } from './generators/audio';
+import { generateAllLessonNarrations, generateSingleLessonNarration } from './generators/audio';
 import { generateJsonWithOpenAI } from './config/openai';
 import { ExtractedContent, AppDailyPayload, AppModule, ModuleLesson } from './types';
 
@@ -473,26 +473,26 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
   }
 });
 
-// ─── POST /learn/audio/lessons ───────────────────────────────────────────────
-// Generates per-lesson narration audio for all lessons in a module in parallel.
-// Returns { audioMap: { [lessonId]: audioUrl } }
+// ─── POST /learn/audio/lesson ────────────────────────────────────────────────
+// Generates narration audio for a single lesson. Returns { url }.
+// Frontend calls this per-lesson in parallel so each player unlocks as it resolves.
 
-app.post('/learn/audio/lessons', async (req: Request, res: Response) => {
+app.post('/learn/audio/lesson', async (req: Request, res: Response) => {
   try {
-    const mod = req.body as AppModule;
-    if (!mod?.id || !mod?.lessons?.length) {
-      return res.status(400).json({ error: 'Full module object with lessons is required.' });
+    const { moduleId, lesson } = req.body;
+    if (!moduleId || !lesson?.id) {
+      return res.status(400).json({ error: 'moduleId and lesson are required.' });
     }
 
     if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({ error: 'Audio generation is not configured on this server.' });
     }
 
-    const audioMap = await generateAllLessonNarrations(mod);
-    return res.json({ audioMap });
+    const url = await generateSingleLessonNarration(moduleId, lesson);
+    return res.json({ url });
   } catch (err) {
-    console.error('Lesson audio generation error:', err);
-    return res.status(500).json({ error: 'Failed to generate lesson audio. Please try again.' });
+    console.error('Single lesson audio error:', err);
+    return res.status(500).json({ error: 'Failed to generate lesson audio.' });
   }
 });
 

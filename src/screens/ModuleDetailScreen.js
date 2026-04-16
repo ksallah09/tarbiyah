@@ -131,27 +131,36 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
   async function prefetchLessonAudios(mod) {
     setAudiosLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/learn/audio/lessons`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mod),
-      });
-      if (!res.ok) return;
-      const { audioMap } = await res.json();
-      setLessonAudios(audioMap);
-      // Persist URLs on each lesson so they survive app restarts
-      const updated = {
-        ...mod,
-        lessons: mod.lessons.map(l => ({ ...l, audioUrl: audioMap[l.id] ?? l.audioUrl })),
-      };
-      setModule(updated);
-      await saveModule(updated);
-    } catch {
-      // Silent fail — user can still read the lesson without audio
-    } finally {
-      setAudiosLoading(false);
-    }
+    // Fire one request per lesson in parallel — each resolves independently
+    // so the player for lesson 1 unlocks as soon as lesson 1 is ready.
+    const audioMap = {};
+    await Promise.allSettled(
+      mod.lessons.map(async (lesson) => {
+        try {
+          const res = await fetch(`${API_URL}/learn/audio/lesson`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ moduleId: mod.id, lesson }),
+          });
+          if (!res.ok) return;
+          const { url } = await res.json();
+          if (!url) return;
+          audioMap[lesson.id] = url;
+          // Update state immediately so this lesson's player unlocks right away
+          setLessonAudios(prev => ({ ...prev, [lesson.id]: url }));
+        } catch {
+          // Silent fail — lesson remains readable without audio
+        }
+      })
+    );
+    // Persist all URLs at once after all settle
+    const updated = {
+      ...mod,
+      lessons: mod.lessons.map(l => ({ ...l, audioUrl: audioMap[l.id] ?? l.audioUrl })),
+    };
+    setModule(updated);
+    await saveModule(updated);
+    setAudiosLoading(false);
   }
 
   const completedCount = module?.lessons?.filter(l => l.completed).length ?? 0;
