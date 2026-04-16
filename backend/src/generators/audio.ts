@@ -35,7 +35,10 @@ function buildNarrationText(lesson: ModuleLesson): string {
     parts.push(`Here are some practical steps. ${lesson.actionSteps.join('. ')}.`);
   }
   if (lesson.whatToSay?.length) {
-    parts.push(`You might say to your child: ${lesson.whatToSay[0]}`);
+    parts.push(`Here are some things you might say to your child. ${lesson.whatToSay.map((p: string, i: number) => `${i + 1}: "${p}"`).join('. ')}.`);
+  }
+  if (lesson.mistakesToAvoid?.length) {
+    parts.push(`And here are some common mistakes to avoid. ${lesson.mistakesToAvoid.join('. ')}.`);
   }
   if (lesson.reflectionQuestion) {
     parts.push(`A question to sit with: ${lesson.reflectionQuestion}`);
