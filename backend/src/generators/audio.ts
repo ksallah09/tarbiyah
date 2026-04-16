@@ -21,7 +21,7 @@ const NARR_VOICE = 'nova'; // warm, clear female narrator
 function buildNarrationText(lesson: ModuleLesson): string {
   const parts: string[] = [
     `Lesson: ${lesson.title}.`,
-    lesson.objective ? `Your goal is to ${lesson.objective.replace(/^To\s+/i, '')}` : null,
+    lesson.objective ? (() => { const o = lesson.objective.replace(/^To\s+/i, ''); return `Your goal is to ${o.charAt(0).toLowerCase()}${o.slice(1)}`; })() : null,
     lesson.whyItMatters,
   ].filter(Boolean) as string[];
 
@@ -45,6 +45,24 @@ function buildNarrationText(lesson: ModuleLesson): string {
   }
 
   return parts.filter(Boolean).join(' ');
+}
+
+// ─── TTS text sanitiser ───────────────────────────────────────────────────────
+// Expands Islamic abbreviations so the narrator reads them naturally
+
+function sanitizeForTts(text: string): string {
+  return text
+    // Prophet ﷺ abbreviations
+    .replace(/\(p\.?b\.?u\.?h\.?\)/gi, 'peace and blessings be upon him')
+    .replace(/\bp\.?b\.?u\.?h\.?\b/gi,  'peace and blessings be upon him')
+    .replace(/\(s\.?a\.?w\.?\)/gi,       'peace and blessings be upon him')
+    .replace(/\bs\.?a\.?w\.?\b/gi,       'peace and blessings be upon him')
+    // Allah ﷻ
+    .replace(/\(s\.?w\.?t\.?\)/gi,       'glorified and exalted be He')
+    .replace(/\bs\.?w\.?t\.?\b/gi,       'glorified and exalted be He')
+    // Companions
+    .replace(/\(r\.?a\.?\)/gi,           'may Allah be pleased with them')
+    .replace(/\(a\.?s\.?\)/gi,           'peace be upon him');
 }
 
 // ─── OpenAI TTS ───────────────────────────────────────────────────────────────
@@ -94,7 +112,7 @@ export async function generateAllLessonNarrations(
 
   for (const lesson of mod.lessons) {
     try {
-      const text = buildNarrationText(lesson);
+      const text = sanitizeForTts(buildNarrationText(lesson));
       const mp3  = await textToMp3(text);
       const url  = await uploadAudio(`${mod.id}_lesson_${lesson.id}`, mp3);
       console.log(`[audio] Lesson ${lesson.id} done: ${(mp3.length / 1024).toFixed(0)}KB`);
