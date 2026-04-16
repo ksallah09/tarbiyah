@@ -13,7 +13,7 @@ import { supabase } from '../config/supabase';
 import { getOpenAIClient } from '../config/openai';
 import { AppModule, ModuleLesson } from '../types';
 
-const TTS_MODEL  = 'tts-1-hd';
+const TTS_MODEL  = 'tts-1';
 const NARR_VOICE = 'sage'; // calm, warm narrator
 
 // ─── Narration text builder ───────────────────────────────────────────────────
