@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const TIP_CARD_WIDTH = SCREEN_WIDTH - 40 - 48; // peek: shows ~48px of next card
+const TIP_CARD_WIDTH = SCREEN_WIDTH - 80; // 20 left inset + 12 gap + 48 peek
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,14 +27,6 @@ import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification } from '../utils/notifications';
 import { supabase } from '../utils/supabase';
 
-const SPIRITUAL_IMAGES = [
-  require('../../assets/spiritual-1.jpg'),
-  require('../../assets/spiritual-2.jpg'),
-  require('../../assets/spiritual-3.jpg'),
-  require('../../assets/spiritual-4.jpg'),
-  require('../../assets/spiritual-5.jpg'),
-  require('../../assets/spiritual-7.jpg'),
-];
 
 const SCIENCE_IMAGES = [
   require('../../assets/science-1.jpg'),
@@ -129,10 +121,10 @@ export default function HomeScreen({ navigation }) {
   // Ref to always-current insight IDs so useFocusEffect (empty deps) can re-check on return
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
 
-  const dailySpiritualImage = SPIRITUAL_IMAGES[imgIndex % SPIRITUAL_IMAGES.length];
+  const dailySpiritualImage = require('../../assets/spiritual-5.jpg');
   const dailyScienceImage   = SCIENCE_IMAGES[(imgIndex + 1) % SCIENCE_IMAGES.length];
 
-  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const contentOpacity = useRef(new Animated.Value(1)).current;
 
   function revealContent() {
     Animated.timing(contentOpacity, {
@@ -213,6 +205,9 @@ export default function HomeScreen({ navigation }) {
       Promise.all([getProfileName(), checkShouldAnimateGreeting()])
         .then(([profileName, shouldAnimate]) => {
           setName(profileName || '');
+          if (shouldAnimate) {
+            contentOpacity.setValue(0); // hide before typewriter starts
+          }
           setAnimate(shouldAnimate);
           if (!shouldAnimate) revealContent();
         });
@@ -253,6 +248,8 @@ export default function HomeScreen({ navigation }) {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safe} edges={[]}>
+        {/* Top half green so pull-down overscroll shows correct color */}
+        <View style={styles.bgTop} />
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -308,8 +305,8 @@ export default function HomeScreen({ navigation }) {
           </View>
 
           {/* ── Content ── */}
-          <Animated.View style={[styles.sheet, { opacity: animate ? contentOpacity : 1 }]}>
-            <View style={styles.contentPad}>
+          <View style={styles.sheet}>
+            <Animated.View style={[styles.contentPad, { opacity: contentOpacity }]}>
 
               {/* TODAY'S PARENTING INSIGHTS */}
               <View style={styles.sectionTitleWrap}>
@@ -406,7 +403,7 @@ export default function HomeScreen({ navigation }) {
               )}
 
               {/* ── DEV: Refresh insights ── */}
-              {__DEV__ && (
+              {false && __DEV__ && (
                 <TouchableOpacity
                   style={styles.devRefreshBtn}
                   onPress={async () => {
@@ -431,6 +428,7 @@ export default function HomeScreen({ navigation }) {
                 decelerationRate="fast"
                 snapToInterval={TIP_CARD_WIDTH + 12}
                 snapToAlignment="start"
+                style={{ marginHorizontal: -20 }}
                 contentContainerStyle={styles.tipsScroll}
                 onScroll={e => {
                   const x = e.nativeEvent.contentOffset.x;
@@ -584,8 +582,8 @@ export default function HomeScreen({ navigation }) {
               </View>
 
               <View style={{ height: 32 }} />
-            </View>
-          </Animated.View>
+            </Animated.View>
+          </View>
 
         </ScrollView>
 
@@ -595,7 +593,8 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#1B3D2F' },
+  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
 
   // ── Hero header ──
   hero: {
@@ -674,8 +673,6 @@ const styles = StyleSheet.create({
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     overflow: 'hidden',
   },
   scrollContent: { flexGrow: 1 },
@@ -764,7 +761,7 @@ const styles = StyleSheet.create({
   },
 
   // ── Action Goals ──
-  tipsScroll: { paddingBottom: 6 },
+  tipsScroll: { paddingLeft: 20, paddingBottom: 6 },
   tipDotsRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 10, marginTop: 10, marginBottom: 4,

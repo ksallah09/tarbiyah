@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { getMonthReadDays, getStreak } from '../utils/readInsights';
 
-import { loadFamilyGoals, deleteFamilyGoal } from '../utils/familyGoals';
+import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal } from '../utils/familyGoals';
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -96,12 +96,20 @@ export default function ProgressScreen({ navigation }) {
     getStreak('spiritual').then(v         => { _spirStreakCache  = v;  setSpiritualStreak(v); });
     getStreak('scientific').then(v        => { _sciStreakCache   = v;  setScientificStreak(v); });
     getStreak('quran').then(v             => { _quranStreakCache = v;  setQuranStreak(v); });
-    // Show cached status instantly, then refresh from server in background
+
+    // Phase 1: show cached goals instantly (no network wait)
+    if (_familyGoalsCache.length === 0) {
+      loadFamilyGoalsCached().then(cached => {
+        if (cached.length > 0) { _familyGoalsCache = cached; setFamilyGoals(cached); }
+      });
+    }
+
+    // Phase 2: sync status (AsyncStorage instant → Supabase background)
     getCachedSyncStatus().then(cached => {
       _syncStatusCache = cached; setSyncStatus(cached);
       getFamilySyncStatus().then(live => {
         _syncStatusCache = live; setSyncStatus(live);
-        // Reload goals after sync resolves so new shared family_id is in effect
+        // Reload goals after sync resolves in case family_id changed
         loadFamilyGoals().then(v => { _familyGoalsCache = v; setFamilyGoals(v); });
       });
     });
@@ -148,6 +156,7 @@ export default function ProgressScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
+      <View style={styles.bgTop} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -337,14 +346,13 @@ export default function ProgressScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#1B3D2F' },
+  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1 },
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     overflow: 'hidden',
   },
   content: { paddingHorizontal: 20, paddingTop: 20 },

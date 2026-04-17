@@ -138,7 +138,21 @@ export async function loadModules() {
           for (const mod of localOnly) syncModuleToSupabase(mod, userId);
         }
 
-        const merged = sortNewestFirst([...localOnly, ...backendModules]);
+        // Preserve audioUrl on lessons from local cache — the backend API may not
+        // store or return lesson-level audio URLs, so we layer them back in here.
+        const mergedBackend = backendModules.map(bm => {
+          const lm = local.find(m => m.id === bm.id);
+          if (!lm?.lessons) return bm;
+          return {
+            ...bm,
+            lessons: bm.lessons?.map(l => {
+              const ll = lm.lessons.find(ll => ll.id === l.id);
+              return ll?.audioUrl ? { ...l, audioUrl: ll.audioUrl } : l;
+            }) ?? bm.lessons,
+          };
+        });
+
+        const merged = sortNewestFirst([...localOnly, ...mergedBackend]);
         await AsyncStorage.setItem(MODULES_KEY, JSON.stringify(merged));
         return merged;
       }
@@ -156,7 +170,22 @@ export async function loadModules() {
         .order('created_at', { ascending: false });
 
       if (!error && data?.length > 0) {
-        const modules = sortNewestFirst(data.map(r => r.data));
+        const remoteModules = data.map(r => r.data);
+        // Preserve audioUrl from local cache in case Supabase copy doesn't have them
+        const localRaw2 = await AsyncStorage.getItem(MODULES_KEY);
+        const local2 = localRaw2 ? JSON.parse(localRaw2) : [];
+        const withAudio = remoteModules.map(rm => {
+          const lm = local2.find(m => m.id === rm.id);
+          if (!lm?.lessons) return rm;
+          return {
+            ...rm,
+            lessons: rm.lessons?.map(l => {
+              const ll = lm.lessons.find(ll => ll.id === l.id);
+              return ll?.audioUrl ? { ...l, audioUrl: ll.audioUrl } : l;
+            }) ?? rm.lessons,
+          };
+        });
+        const modules = sortNewestFirst(withAudio);
         await AsyncStorage.setItem(MODULES_KEY, JSON.stringify(modules));
         return modules;
       }
@@ -172,6 +201,19 @@ export async function loadModules() {
   } catch {}
 
   // Final fallback: local cache
+  try {
+    const raw = await AsyncStorage.getItem(MODULES_KEY);
+    return raw ? sortNewestFirst(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fast AsyncStorage-only read — no network.
+ * Use for instant first-paint while loadModules() refreshes in background.
+ */
+export async function loadModulesCached() {
   try {
     const raw = await AsyncStorage.getItem(MODULES_KEY);
     return raw ? sortNewestFirst(JSON.parse(raw)) : [];

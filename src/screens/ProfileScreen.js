@@ -476,12 +476,13 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
+      <View style={styles.bgTop} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <DarkHeader title="Profile" />
+        <DarkHeader title="Profile" subtitle="Manage your account and preferences" />
         <View style={styles.sheet}>
         <View style={styles.content}>
         {/* ── Profile Card ── */}
@@ -706,14 +707,13 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#1B3D2F' },
+  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1 },
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     overflow: 'hidden',
   },
   content: { paddingTop: 8, paddingBottom: 32, paddingHorizontal: 20 },

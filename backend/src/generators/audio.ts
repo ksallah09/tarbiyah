@@ -3,7 +3,7 @@
  *
  * For each lesson:
  *   1. Lesson content is formatted into a natural narration text
- *   2. OpenAI tts-1 renders it as MP3 with the "nova" voice
+ *   2. OpenAI tts-1 renders it as MP3 with the "shimmer" voice
  *   3. MP3 is uploaded to Supabase Storage
  *
  * Lessons are generated sequentially to avoid rate limits.
@@ -14,7 +14,7 @@ import { getOpenAIClient } from '../config/openai';
 import { AppModule, ModuleLesson } from '../types';
 
 const TTS_MODEL  = 'tts-1';
-const NARR_VOICE = 'sage'; // calm, warm narrator
+const NARR_VOICE = 'shimmer'; // calm, warm narrator
 
 // ─── Narration text builder ───────────────────────────────────────────────────
 

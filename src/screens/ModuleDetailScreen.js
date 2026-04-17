@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { saveModule } from '../utils/modules';
-import CompactAudioPlayer from '../components/CompactAudioPlayer';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
+
+const DHIKR = [
+  { arabic: 'أَسْتَغْفِرُ اللّٰهَ', latin: 'Astaghfirullah', meaning: 'I seek forgiveness from Allah' },
+];
 
 const LESSON_COLORS = {
   spiritual: { bg: ['#1B3D2F', '#2E5E45'], icon: 'moon',        label: 'Spiritual' },
@@ -32,53 +36,42 @@ export default function ModuleDetailScreen({ route, navigation }) {
   const [generating, setGenerating] = useState(isNew);
   const [error, setError]           = useState(null);
   const [module, setModule]         = useState(savedModule ?? null);
-  const [activeLesson, setActiveLesson] = useState(null);
-  const [stepIndex, setStepIndex]   = useState(0);
   // lessonAudios: lessonId → URL (populated once background generation completes)
   const [lessonAudios, setLessonAudios] = useState(() => {
     const map = {};
     savedModule?.lessons?.forEach(l => { if (l.audioUrl) map[l.id] = l.audioUrl; });
     return map;
   });
-  const [audiosLoading, setAudiosLoading] = useState(false);
+  const audiosLoadingRef = useRef(false);
 
-  const progress      = useRef(new Animated.Value(0)).current;
-  const animationRef  = useRef(null);
-  const [progressPct, setProgressPct] = useState(0);
+  // ── Tasbih ────────────────────────────────────────────────────────────────────
+  const [tasbiCount, setTasbiCount]   = useState(0);
+  const beadPulseScale   = useRef(new Animated.Value(1)).current;
+  const beadPulseOpacity = useRef(new Animated.Value(0)).current;
 
-  const STEPS = [
-    { icon: 'moon',      text: 'Drawing from Islamic scholarship' },
-    { icon: 'flask',     text: 'Reviewing child development research' },
-    { icon: 'construct', text: 'Structuring your 5-lesson plan' },
-  ];
+  const dhikrIdx   = 0;
+  const displayNum = tasbiCount;
 
-  useEffect(() => {
-    const listener = progress.addListener(({ value }) => setProgressPct(Math.round(value * 100)));
-    return () => progress.removeListener(listener);
-  }, []);
-
-  function startProgressAnimation() {
-    // Animate to ~85% over ~12s in stages, leaving room to snap to 100% on completion
-    progress.setValue(0);
-    setProgressPct(0);
-    setStepIndex(0);
-    animationRef.current = Animated.sequence([
-      Animated.timing(progress, { toValue: 0.28, duration: 2000, useNativeDriver: false }),
-      Animated.timing(progress, { toValue: 0.55, duration: 3500, useNativeDriver: false }),
-      Animated.timing(progress, { toValue: 0.82, duration: 5000, useNativeDriver: false }),
-      Animated.timing(progress, { toValue: 0.88, duration: 4000, useNativeDriver: false }),
-    ]);
-    animationRef.current.start();
-
-    // Advance step labels at timed intervals
-    setTimeout(() => setStepIndex(1), 3000);
-    setTimeout(() => setStepIndex(2), 7000);
+  function handleTasbiTap() {
+    const next = tasbiCount + 1;
+    setTasbiCount(next);
+    // Stronger haptic every 100 taps
+    if (next % 100 === 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    // Pulse ring
+    beadPulseScale.setValue(1);
+    beadPulseOpacity.setValue(0.55);
+    Animated.parallel([
+      Animated.timing(beadPulseScale,   { toValue: 1.9, duration: 500, useNativeDriver: true }),
+      Animated.timing(beadPulseOpacity, { toValue: 0,   duration: 500, useNativeDriver: true }),
+    ]).start();
   }
 
-  function finishProgressAnimation(onDone) {
-    if (animationRef.current) animationRef.current.stop();
-    Animated.timing(progress, { toValue: 1, duration: 400, useNativeDriver: false }).start(onDone);
-  }
+  const scrollRef = useRef(null);
+  const abortRef  = useRef(null);
 
   useEffect(() => {
     if (!isNew) return;
@@ -88,7 +81,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
   async function generateModule() {
     setGenerating(true);
     setError(null);
-    startProgressAnimation();
+    abortRef.current = new AbortController();
     try {
       const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
       const profile = profileRaw ? JSON.parse(profileRaw) : {};
@@ -103,6 +96,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
           childrenAges: profile.childrenAges ?? null,
           focusAreas,
         }),
+        signal: abortRef.current.signal,
       });
 
       if (!res.ok) {
@@ -111,56 +105,79 @@ export default function ModuleDetailScreen({ route, navigation }) {
       }
 
       const mod = await res.json();
-      await new Promise(resolve => finishProgressAnimation(resolve));
       setModule(mod);
       await saveModule(mod);
+
+      // Mark loading so the useEffect below doesn't double-trigger
+      audiosLoadingRef.current = true;
+
+      // Wait for first lesson narration before dismissing tasbih screen
+      const firstLesson = mod.lessons?.[0];
+      if (firstLesson) {
+        try {
+          const audioRes = await fetch(`${API_URL}/learn/audio/lesson`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ moduleId: mod.id, lesson: firstLesson }),
+          });
+          if (audioRes.ok) {
+            const { url } = await audioRes.json();
+            if (url) setLessonAudios(prev => ({ ...prev, [firstLesson.id]: url }));
+          }
+        } catch { /* silent — lesson is still readable */ }
+      }
+
+      // Tasbih screen dismissed — generate remaining lessons in background
+      setGenerating(false);
+      prefetchLessonAudios(mod, 1);
+
     } catch (err) {
+      if (err.name === 'AbortError') return;
       setError(err.message ?? 'Something went wrong. Please try again.');
-    } finally {
       setGenerating(false);
     }
   }
 
-  // Silently pre-generate narrations for all lessons as soon as the module is ready
+  function cancelGeneration() {
+    abortRef.current?.abort();
+    navigation.goBack();
+  }
+
+  // For saved modules reopened from the list — kick off any missing audio
   useEffect(() => {
-    if (!module) return;
+    if (!module || isNew) return;
     const allDone = module.lessons.every(l => lessonAudios[l.id]);
-    if (allDone || audiosLoading) return;
-    prefetchLessonAudios(module);
+    if (allDone || audiosLoadingRef.current) return;
+    audiosLoadingRef.current = true;
+    prefetchLessonAudios(module, 0);
   }, [module?.id]);
 
-  async function prefetchLessonAudios(mod) {
-    setAudiosLoading(true);
-    // Fire one request per lesson in parallel — each resolves independently
-    // so the player for lesson 1 unlocks as soon as lesson 1 is ready.
+  async function prefetchLessonAudios(mod, startIndex = 0) {
     const audioMap = {};
-    await Promise.allSettled(
-      mod.lessons.map(async (lesson) => {
-        try {
-          const res = await fetch(`${API_URL}/learn/audio/lesson`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ moduleId: mod.id, lesson }),
-          });
-          if (!res.ok) return;
-          const { url } = await res.json();
-          if (!url) return;
-          audioMap[lesson.id] = url;
-          // Update state immediately so this lesson's player unlocks right away
-          setLessonAudios(prev => ({ ...prev, [lesson.id]: url }));
-        } catch {
-          // Silent fail — lesson remains readable without audio
-        }
-      })
-    );
-    // Persist all URLs at once after all settle
+    for (let i = startIndex; i < mod.lessons.length; i++) {
+      const lesson = mod.lessons[i];
+      try {
+        const res = await fetch(`${API_URL}/learn/audio/lesson`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ moduleId: mod.id, lesson }),
+        });
+        if (!res.ok) continue;
+        const { url } = await res.json();
+        if (!url) continue;
+        audioMap[lesson.id] = url;
+        setLessonAudios(prev => ({ ...prev, [lesson.id]: url }));
+      } catch {
+        // Silent fail — lesson remains readable without audio
+      }
+    }
     const updated = {
       ...mod,
       lessons: mod.lessons.map(l => ({ ...l, audioUrl: audioMap[l.id] ?? l.audioUrl })),
     };
     setModule(updated);
     await saveModule(updated);
-    setAudiosLoading(false);
+    audiosLoadingRef.current = false;
   }
 
   const completedCount = module?.lessons?.filter(l => l.completed).length ?? 0;
@@ -191,70 +208,64 @@ export default function ModuleDetailScreen({ route, navigation }) {
             <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            {generating ? 'Generating...' : 'Your Module'}
+            {generating ? '' : 'Your Module'}
           </Text>
           <View style={{ width: 36 }} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+        <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
 
-          {/* ── Generating state ── */}
+          {/* ── Generating state — Tasbih ── */}
           {generating && (
-            <View style={styles.sheet}>
-              <View style={styles.generatingWrap}>
-                <LinearGradient
-                  colors={['#1B3D2F', '#2E5E45']}
-                  style={styles.generatingIcon}
-                >
-                  <Ionicons name="sparkles" size={28} color="#D4871A" />
-                </LinearGradient>
-                <Text style={styles.generatingTitle}>Building Your Module</Text>
-                <Text style={styles.generatingBody}>
-                  Searching our curated Islamic and research sources to create your personalized lesson plan…
+            <LinearGradient colors={['#0D2419', '#1B3D2F', '#2A5240']} style={styles.tasbiScreen}>
+
+              {/* Top: preparing indicator */}
+              <View style={styles.tasbiTop}>
+                <View style={styles.tasbiIndicator}>
+                  <ActivityIndicator size="small" color="rgba(255,255,255,0.45)" />
+                  <Text style={styles.tasbiPreparingText}>Preparing your module…</Text>
+                </View>
+                <Text style={styles.tasbiMessage}>
+                  Your module is being prepared. This usually takes a few minutes — a perfect time for dhikr.
                 </Text>
-                <View style={styles.generatingTimeWrap}>
-                  <Ionicons name="time-outline" size={13} color="#D4871A" />
-                  <Text style={styles.generatingTimeText}>This usually takes 1–2 minutes</Text>
-                </View>
-
-                {/* Progress bar */}
-                <View style={styles.progressBarWrap}>
-                  <View style={styles.progressBarRow}>
-                    <View style={styles.progressBarTrack}>
-                      <Animated.View
-                        style={[
-                          styles.progressBarFill,
-                          { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.progressBarPct}>{progressPct}%</Text>
-                  </View>
-                </View>
-
-                {/* Step list */}
-                <View style={styles.generatingSteps}>
-                  {STEPS.map((s, i) => {
-                    const active  = i === stepIndex;
-                    const done    = i < stepIndex;
-                    return (
-                      <View key={i} style={styles.generatingStep}>
-                        <View style={[styles.generatingStepIcon, done && styles.generatingStepIconDone, active && styles.generatingStepIconActive]}>
-                          <Ionicons
-                            name={done ? 'checkmark' : s.icon}
-                            size={14}
-                            color={done ? '#FFFFFF' : active ? '#2E7D62' : '#9CA3AF'}
-                          />
-                        </View>
-                        <Text style={[styles.generatingStepText, done && styles.generatingStepTextDone, active && styles.generatingStepTextActive]}>
-                          {s.text}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
+                <Text style={styles.tasbiHint}>Tap the counter to begin</Text>
               </View>
-            </View>
+
+              {/* Center: dhikr + bead */}
+              <View style={styles.tasbiCenter}>
+                <Text style={styles.tasbiArabic}>{DHIKR[dhikrIdx].arabic}</Text>
+                <Text style={styles.tasbiLatin}>{DHIKR[dhikrIdx].latin}</Text>
+                <Text style={styles.tasbiMeaning}>{DHIKR[dhikrIdx].meaning}</Text>
+
+                {/* Bead */}
+                <TouchableOpacity
+                  style={styles.beadContainer}
+                  onPress={handleTasbiTap}
+                  activeOpacity={0.85}
+                >
+                  <Animated.View style={[
+                    styles.beadRing,
+                    { transform: [{ scale: beadPulseScale }], opacity: beadPulseOpacity },
+                  ]} />
+                  <View style={styles.bead}>
+                    <Text style={styles.beadCount}>{displayNum}</Text>
+                  </View>
+                </TouchableOpacity>
+
+
+                {tasbiCount > 0 && (
+                  <Text style={styles.tasbiTotal}>{tasbiCount} total</Text>
+                )}
+              </View>
+
+              {/* Bottom: cancel */}
+              <View style={styles.tasbiBottom}>
+                <TouchableOpacity style={styles.cancelGenerationBtn} onPress={cancelGeneration} activeOpacity={0.7}>
+                  <Text style={styles.cancelGenerationText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+
+            </LinearGradient>
           )}
 
           {/* ── Error state ── */}
@@ -334,7 +345,6 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
                   {module.lessons.map((lesson, i) => {
                     const cfg = LESSON_COLORS[lesson.type];
-                    const isExpanded = activeLesson === lesson.id;
                     const isLocked = i > 0 && !module.lessons[i - 1].completed;
 
                     return (
@@ -342,7 +352,19 @@ export default function ModuleDetailScreen({ route, navigation }) {
                         key={lesson.id}
                         style={[styles.lessonCard, lesson.completed && styles.lessonCardDone]}
                         activeOpacity={isLocked ? 1 : 0.85}
-                        onPress={() => !isLocked && setActiveLesson(isExpanded ? null : lesson.id)}
+                        onPress={() => {
+                          if (isLocked) return;
+                          navigation.navigate('LessonReader', {
+                            lesson,
+                            lessonIndex: i,
+                            totalLessons: module.lessons.length,
+                            audioUrl: lessonAudios[lesson.id] ?? null,
+                            gradientColors: cfg.bg,
+                            icon: cfg.icon,
+                            typeLabel: cfg.label,
+                            onComplete: () => toggleLesson(lesson.id),
+                          });
+                        }}
                       >
                         {/* Lesson row */}
                         <View style={styles.lessonRow}>
@@ -376,175 +398,10 @@ export default function ModuleDetailScreen({ route, navigation }) {
                           </View>
 
                           {!isLocked && (
-                            <Ionicons
-                              name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                              size={16}
-                              color="#9CA3AF"
-                            />
+                            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
                           )}
                         </View>
 
-                        {/* Expanded lesson content */}
-                        {isExpanded && !isLocked && (
-                          <View style={styles.lessonExpanded}>
-                            <View style={styles.lessonExpandedDivider} />
-
-                            {/* Listen to this lesson */}
-                            <View style={styles.lessonListenHeader}>
-                              <Ionicons name="headset-outline" size={14} color={cfg.bg[0]} />
-                              <Text style={[styles.lessonListenLabel, { color: cfg.bg[0] }]}>
-                                Listen to this lesson
-                              </Text>
-                            </View>
-                            {lessonAudios[lesson.id] ? (
-                              <CompactAudioPlayer
-                                audioUrl={lessonAudios[lesson.id]}
-                                accentColor={cfg.bg[0]}
-                                onComplete={() => { if (!lesson.completed) toggleLesson(lesson.id); }}
-                              />
-                            ) : (
-                              <View style={styles.lessonAudioLoading}>
-                                <ActivityIndicator size="small" color="#9CA3AF" />
-                                <Text style={styles.lessonAudioLoadingText}>Preparing narration…</Text>
-                              </View>
-                            )}
-
-                            <View style={styles.lessonExpandedDivider} />
-
-                            {/* Read this lesson */}
-                            <View style={[styles.lessonListenHeader, { marginTop: 4 }]}>
-                              <Ionicons name="book-outline" size={14} color={cfg.bg[0]} />
-                              <Text style={[styles.lessonListenLabel, { color: cfg.bg[0] }]}>
-                                Read this lesson
-                              </Text>
-                            </View>
-
-                            {/* Objective */}
-                            {!!lesson.objective && (
-                              <Text style={styles.lessonObjective}>
-                                {(() => {
-                                  const obj = lesson.objective.replace(/^To\s+/i, '');
-                                  return 'Your goal is to ' + obj.charAt(0).toLowerCase() + obj.slice(1);
-                                })()}
-                              </Text>
-                            )}
-
-                            {/* Why It Matters */}
-                            {!!lesson.whyItMatters && (
-                              <View style={styles.lessonSection}>
-                                <View style={styles.lessonSectionHeader}>
-                                  <Ionicons name="heart-outline" size={13} color="#1B3D2F" />
-                                  <Text style={styles.lessonSectionLabel}>Why It Matters</Text>
-                                </View>
-                                <Text style={styles.lessonSectionBody}>{lesson.whyItMatters}</Text>
-                              </View>
-                            )}
-
-                            {/* Islamic Guidance */}
-                            {!!lesson.islamicGuidance && (
-                              <View style={[styles.lessonSection, styles.lessonSectionGreen]}>
-                                <View style={styles.lessonSectionHeader}>
-                                  <Ionicons name="moon" size={13} color="#1B3D2F" />
-                                  <Text style={styles.lessonSectionLabel}>Islamic Guidance</Text>
-                                </View>
-                                <Text style={styles.lessonSectionBody}>{lesson.islamicGuidance}</Text>
-                              </View>
-                            )}
-
-                            {/* Research Insight */}
-                            {!!lesson.researchInsight && (
-                              <View style={[styles.lessonSection, styles.lessonSectionAmber]}>
-                                <View style={styles.lessonSectionHeader}>
-                                  <Ionicons name="flask-outline" size={13} color="#7A3A0A" />
-                                  <Text style={[styles.lessonSectionLabel, { color: '#7A3A0A' }]}>Research Insight</Text>
-                                </View>
-                                <Text style={[styles.lessonSectionBody, { color: '#5C2D07' }]}>{lesson.researchInsight}</Text>
-                              </View>
-                            )}
-
-                            {/* Action Steps */}
-                            {lesson.actionSteps?.length > 0 && (
-                              <View style={styles.lessonSection}>
-                                <View style={styles.lessonSectionHeader}>
-                                  <Ionicons name="list-outline" size={13} color="#1B3D2F" />
-                                  <Text style={styles.lessonSectionLabel}>Action Steps</Text>
-                                </View>
-                                {lesson.actionSteps.map((step, si) => (
-                                  <View key={si} style={styles.bulletRow}>
-                                    <View style={styles.bulletDot} />
-                                    <Text style={styles.bulletText}>{step}</Text>
-                                  </View>
-                                ))}
-                              </View>
-                            )}
-
-                            {/* What to Say */}
-                            {lesson.whatToSay?.length > 0 && (
-                              <View style={styles.lessonSection}>
-                                <View style={styles.lessonSectionHeader}>
-                                  <Ionicons name="chatbubble-ellipses-outline" size={13} color="#1B3D2F" />
-                                  <Text style={styles.lessonSectionLabel}>What to Say</Text>
-                                </View>
-                                {lesson.whatToSay.map((phrase, pi) => (
-                                  <View key={pi} style={styles.speechBubble}>
-                                    <Text style={styles.speechText}>"{phrase}"</Text>
-                                  </View>
-                                ))}
-                              </View>
-                            )}
-
-                            {/* Mistakes to Avoid */}
-                            {lesson.mistakesToAvoid?.length > 0 && (
-                              <View style={styles.lessonSection}>
-                                <View style={styles.lessonSectionHeader}>
-                                  <Ionicons name="close-circle-outline" size={13} color="#B45309" />
-                                  <Text style={[styles.lessonSectionLabel, { color: '#B45309' }]}>Mistakes to Avoid</Text>
-                                </View>
-                                {lesson.mistakesToAvoid.map((m, mi) => (
-                                  <View key={mi} style={styles.bulletRow}>
-                                    <View style={[styles.bulletDot, { backgroundColor: '#B45309' }]} />
-                                    <Text style={[styles.bulletText, { color: '#78350F' }]}>{m}</Text>
-                                  </View>
-                                ))}
-                              </View>
-                            )}
-
-                            {/* Reflection Question */}
-                            {!!lesson.reflectionQuestion && (
-                              <View style={[styles.lessonSection, styles.lessonSectionBlue]}>
-                                <View style={styles.lessonSectionHeader}>
-                                  <Ionicons name="help-circle-outline" size={13} color="#1A2744" />
-                                  <Text style={[styles.lessonSectionLabel, { color: '#1A2744' }]}>Reflect</Text>
-                                </View>
-                                <Text style={[styles.lessonSectionBody, { color: '#1A2744', fontStyle: 'italic' }]}>
-                                  {lesson.reflectionQuestion}
-                                </Text>
-                              </View>
-                            )}
-
-                            {/* Mini Takeaway */}
-                            {!!lesson.miniTakeaway && (
-                              <View style={styles.miniTakeaway}>
-                                <Ionicons name="sparkles" size={12} color="#D4871A" />
-                                <Text style={styles.miniTakeawayText}>{lesson.miniTakeaway}</Text>
-                              </View>
-                            )}
-
-                            <TouchableOpacity
-                              style={[styles.markDoneBtn, lesson.completed && styles.markUndoneBtn]}
-                              onPress={() => toggleLesson(lesson.id)}
-                            >
-                              <Ionicons
-                                name={lesson.completed ? 'refresh' : 'checkmark-circle'}
-                                size={16}
-                                color={lesson.completed ? '#6B7280' : '#FFFFFF'}
-                              />
-                              <Text style={[styles.markDoneBtnText, lesson.completed && styles.markUndoneText]}>
-                                {lesson.completed ? 'Mark Incomplete' : 'Mark as Complete'}
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        )}
                       </TouchableOpacity>
                     );
                   })}
@@ -719,113 +576,127 @@ const styles = StyleSheet.create({
   },
   contentPad: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36 },
 
-  // ── Generating ──
-  generatingWrap: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 48,
-    paddingBottom: 40,
-  },
-  generatingIcon: {
-    width: 72, height: 72, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 24,
-  },
-  generatingTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1B3D2F',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  generatingBody: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-  generatingTimeWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginBottom: 28,
-  },
-  generatingTimeText: {
-    fontSize: 12,
-    color: '#D4871A',
-    fontWeight: '600',
-  },
-  progressBarWrap: {
-    width: '100%',
-    marginBottom: 28,
-  },
-  progressBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  progressBarTrack: {
+  // ── Tasbih generating screen ──
+  tasbiScreen: {
     flex: 1,
-    height: 8,
-    backgroundColor: '#E8F5EF',
-    borderRadius: 8,
-    overflow: 'hidden',
   },
-  progressBarPct: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2E7D62',
-    minWidth: 36,
-    textAlign: 'right',
+  tasbiTop: {
+    alignItems: 'center',
+    paddingTop: 28,
   },
-  progressBarFill: {
-    height: 8,
-    backgroundColor: '#2E7D62',
-    borderRadius: 8,
-  },
-  progressPercent: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2E7D62',
-    textAlign: 'right',
-  },
-  generatingSteps: { width: '100%', gap: 10 },
-  generatingStep: {
+  tasbiIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 20,
   },
-  generatingStepIcon: {
-    width: 32, height: 32, borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  generatingStepIconActive: {
-    backgroundColor: '#E8F5EF',
-  },
-  generatingStepIconDone: {
-    backgroundColor: '#2E7D62',
-  },
-  generatingStepText: {
+  tasbiPreparingText: {
     fontSize: 13,
-    color: '#9CA3AF',
+    color: 'rgba(255,255,255,0.55)',
     fontWeight: '500',
   },
-  generatingStepTextActive: {
-    color: '#1B3D2F',
-    fontWeight: '600',
+  tasbiMessage: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: 20,
+    paddingHorizontal: 28,
   },
-  generatingStepTextDone: {
-    color: '#6B7280',
+  tasbiHint: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.28)',
+    marginTop: 8,
+    letterSpacing: 0.3,
+  },
+  tasbiCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tasbiArabic: {
+    fontSize: 34,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  tasbiLatin: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  tasbiMeaning: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.3)',
+    marginBottom: 36,
+    letterSpacing: 0.3,
+  },
+  beadContainer: {
+    width: 160, height: 160,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 28,
+  },
+  beadRing: {
+    position: 'absolute',
+    width: 160, height: 160,
+    borderRadius: 80,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  bead: {
+    width: 140, height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  beadCount: {
+    fontSize: 56,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -2,
+  },
+  tasbiDots: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  tasbiDot: {
+    width: 7, height: 7,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  tasbiDotActive: {
+    width: 22,
+    backgroundColor: '#FFFFFF',
+  },
+  tasbiTotal: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.3)',
+    fontWeight: '500',
+  },
+  tasbiBottom: {
+    alignItems: 'center',
+    paddingBottom: 32,
+  },
+  cancelGenerationBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  cancelGenerationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.45)',
   },
 
   // ── Module hero ──

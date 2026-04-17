@@ -53,6 +53,7 @@ export default function LibraryScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
+      <View style={styles.bgTop} />
       <StatusBar style="light" />
 
       <DarkHeader title="Library" subtitle={subtitleText} />
@@ -175,12 +176,11 @@ export default function LibraryScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#1B3D2F' },
+  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
   sheet: {
     flex: 1,
     backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     overflow: 'hidden',
   },
 

@@ -13,6 +13,7 @@ import LibraryScreen       from './src/screens/LibraryScreen';
 import ProgressScreen      from './src/screens/ProgressScreen';
 import LearnScreen         from './src/screens/LearnScreen';
 import ModuleDetailScreen  from './src/screens/ModuleDetailScreen';
+import LessonReaderScreen  from './src/screens/LessonReaderScreen';
 import ProfileScreen       from './src/screens/ProfileScreen';
 import InsightDetailScreen      from './src/screens/InsightDetailScreen';
 import VerseDetailScreen         from './src/screens/VerseDetailScreen';
@@ -110,6 +111,11 @@ function MainApp() {
         options={{ animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
+        name="LessonReader"
+        component={LessonReaderScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
         name="VerseDetail"
         component={VerseDetailScreen}
         options={{ animation: 'slide_from_bottom' }}
@@ -146,15 +152,13 @@ function OnboardingStack() {
       <Stack.Screen name="OnboardingReminder"   component={OnboardingReminder} />
       <Stack.Screen name="OnboardingAccount"    component={OnboardingAccount} />
       <Stack.Screen name="OnboardingAllSet"     component={OnboardingAllSet} />
-      {/* AllSet can navigate to MainApp via replace */}
-      <Stack.Screen name="MainApp" component={MainApp} options={{ animation: 'fade' }} />
     </Stack.Navigator>
   );
 }
 
 // ─── Root — decides onboarding vs main app ────────────────────────────────────
 
-export const AuthContext = createContext({ signOut: () => {} });
+export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {} });
 export function useAuth() { return useContext(AuthContext); }
 
 export default function App() {
@@ -216,8 +220,12 @@ export default function App() {
     setOnboarded(false);
   }
 
+  async function handleCompleteOnboarding() {
+    setOnboarded(true);
+  }
+
   return (
-    <AuthContext.Provider value={{ handleSignOut }}>
+    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding }}>
       <NavigationContainer ref={navigationRef}>
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           {onboarded ? (

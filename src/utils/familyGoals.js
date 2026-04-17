@@ -25,6 +25,19 @@ export async function getFamilyId() {
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Fast AsyncStorage-only read — no network.
+ * Use for instant first-paint while loadFamilyGoals() refreshes in background.
+ */
+export async function loadFamilyGoalsCached() {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function loadFamilyGoals() {
   try {
     const { data: session } = await supabase.auth.getSession();

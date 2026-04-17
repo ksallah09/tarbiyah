@@ -56,7 +56,6 @@ export default function OnboardingWelcome({ navigation }) {
           >
             <Text style={styles.btnText}>Begin</Text>
           </TouchableOpacity>
-          <Text style={styles.hint}>Takes about 2 minutes</Text>
         </Animated.View>
       </LinearGradient>
     </>

@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import TypewriterText from '../../components/TypewriterText';
 import ProgressDots from './ProgressDots';
-import { saveOnboardingData, resetOnboarding } from '../../utils/onboarding';
+import { saveOnboardingData, resetOnboarding, markOnboardingComplete } from '../../utils/onboarding';
+import { useAuth } from '../../../App';
 import { saveFocusAreas } from '../../utils/focusAreas';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signUp, signIn, signInWithApple, signInWithGoogle } from '../../utils/auth';
@@ -21,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function OnboardingAccount({ navigation, route }) {
   const insets            = useSafeAreaInsets();
+  const { completeOnboarding } = useAuth();
   const data              = route.params ?? {};
   const isReturningUser   = data.isReturningUser ?? false;
   const [email, setEmail]       = useState('');
@@ -138,7 +140,8 @@ export default function OnboardingAccount({ navigation, route }) {
       return;
     }
     syncAllUserData(userId);
-    navigation.replace('MainApp');
+    await markOnboardingComplete();
+    completeOnboarding();
   }
 
   // For Apple/Google sign-ups: the auth call is an upsert, so it succeeds
@@ -151,7 +154,7 @@ export default function OnboardingAccount({ navigation, route }) {
       Alert.alert(
         'Welcome Back',
         'You already have an account. We\'ve signed you in.',
-        [{ text: 'OK', onPress: () => navigation.replace('MainApp') }]
+        [{ text: 'OK', onPress: async () => { await markOnboardingComplete(); completeOnboarding(); } }]
       );
       return;
     }

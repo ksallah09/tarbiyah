@@ -4,12 +4,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import TypewriterText from '../../components/TypewriterText';
+import { useAuth } from '../../../App';
+import { markOnboardingComplete } from '../../utils/onboarding';
 
-export default function OnboardingAllSet({ navigation, route }) {
+export default function OnboardingAllSet({ route }) {
   const insets      = useSafeAreaInsets();
   const name        = route.params?.name ?? 'friend';
   const [done, setDone]     = useState(false);
   const btnOpacity          = useRef(new Animated.Value(0)).current;
+  const { completeOnboarding } = useAuth();
 
   function handleComplete() {
     setDone(true);
@@ -49,7 +52,7 @@ export default function OnboardingAllSet({ navigation, route }) {
           <TouchableOpacity
             style={styles.btn}
             activeOpacity={0.85}
-            onPress={() => navigation.replace('MainApp')}
+            onPress={async () => { await markOnboardingComplete(); completeOnboarding(); }}
           >
             <Text style={styles.btnText}>Open Tarbiyah</Text>
           </TouchableOpacity>

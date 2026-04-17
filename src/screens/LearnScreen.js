@@ -6,15 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import { loadModules, deleteModule } from '../utils/modules';
+import { loadModules, loadModulesCached, deleteModule } from '../utils/modules';
 
 // Module-level cache so state initialises instantly on re-mount
 let _modulesCache = null;
@@ -35,8 +33,15 @@ export default function LearnScreen({ navigation }) {
   const [showInput, setShowInput] = useState(false);
   const hasMountedRef = useRef(false);
 
-  // Initial load on mount
+  // Initial load on mount — two-phase: AsyncStorage instant, then network refresh
   useEffect(() => {
+    // Phase 1: show locally-cached data immediately (no network)
+    if (!_modulesCache) {
+      loadModulesCached().then(cached => {
+        if (cached.length > 0) { _modulesCache = cached; setModules(cached); }
+      });
+    }
+    // Phase 2: background refresh from Railway/Supabase
     loadModules().then(ms => { _modulesCache = ms; setModules(ms); });
   }, []);
 
@@ -79,11 +84,7 @@ export default function LearnScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.bottom + 10}
-      >
+        <View style={styles.bgTop} />
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ flexGrow: 1 }}
@@ -249,13 +250,13 @@ export default function LearnScreen({ navigation }) {
             </View>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#1B3D2F' },
+  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
 
   // ── Hero ──
   hero: {
@@ -288,8 +289,6 @@ const styles = StyleSheet.create({
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     overflow: 'hidden',
   },
   contentPad: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36 },

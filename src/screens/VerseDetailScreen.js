@@ -38,7 +38,7 @@ export default function VerseDetailScreen({ route, navigation }) {
             <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerLabel}>VERSE OF THE DAY</Text>
+            <Text style={styles.headerLabel}>VERSES OF THE DAY</Text>
           </View>
           {read ? (
             <View style={styles.readBadge}>
