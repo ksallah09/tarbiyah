@@ -11,7 +11,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -44,7 +44,15 @@ import { requestNotificationPermission } from './src/utils/notifications';
 
 const DAY_INDEX = Math.floor(Date.now() / 86_400_000);
 
-const SPLASH_IMAGE = require('./assets/spiritual-5.jpg');
+const SPLASH_IMAGES = [
+  require('./assets/spiritual-3.jpg-old.jpg'),
+  require('./assets/spiritual-4.jpg-old.jpg'),
+  require('./assets/spiritual-5.jpg'),
+  require('./assets/spiritual-8.jpg'),
+  require('./assets/Spiritual-6.jpg-old.jpg'),
+  require('./assets/spiritual-7.jpg'),
+];
+const SPLASH_IMAGE = SPLASH_IMAGES[Math.floor(Math.random() * SPLASH_IMAGES.length)];
 
 const SPLASH_QUOTES = [
   { text: 'Each of you is a shepherd, and each of you is responsible for his flock.', source: 'Prophet Muhammad ﷺ' },
@@ -60,6 +68,7 @@ const SPLASH_QUOTES = [
 function AppSplashOverlay({ onContinue }) {
   const insets       = useSafeAreaInsets();
   const opacity      = useRef(new Animated.Value(0)).current;
+  const [visible, setVisible] = useState(true);
   const [quoteIdx, setQuoteIdx] = useState(DAY_INDEX % SPLASH_QUOTES.length);
   const quote        = SPLASH_QUOTES[quoteIdx];
 
@@ -69,51 +78,51 @@ function AppSplashOverlay({ onContinue }) {
 
   function handleContinue() {
     Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true })
-      .start(() => onContinue());
+      .start(() => { setVisible(false); onContinue(); });
   }
 
+  if (!visible) return null;
+
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity }]}>
-        <ImageBackground source={SPLASH_IMAGE} style={{ flex: 1 }} resizeMode="cover">
-          <LinearGradient
-            colors={['rgba(10,28,20,0.35)', 'rgba(8,22,16,0.92)']}
-            style={[splashStyles.overlay, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 }]}
-          >
-            <View style={splashStyles.brand}>
-              <Image
-                source={require('./assets/app-icons-1/logo-Picsart-BackgroundRemover.png')}
-                style={splashStyles.logo}
-                resizeMode="contain"
-              />
-              <Text style={splashStyles.brandName}>Tarbiyah</Text>
-            </View>
+    <Animated.View style={[StyleSheet.absoluteFill, { opacity, zIndex: 999 }]}>
+      <ImageBackground source={SPLASH_IMAGE} style={{ flex: 1 }} resizeMode="cover">
+        <LinearGradient
+          colors={['rgba(10,28,20,0.35)', 'rgba(8,22,16,0.92)']}
+          style={[splashStyles.overlay, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 }]}
+        >
+          <View style={splashStyles.brand}>
+            <Image
+              source={require('./assets/app-icons-1/logo-Picsart-BackgroundRemover.png')}
+              style={splashStyles.logo}
+              resizeMode="contain"
+            />
+            <Text style={splashStyles.brandName}>Tarbiyah</Text>
+          </View>
 
-            <View style={splashStyles.quoteWrap}>
-              <Text style={splashStyles.quoteText}>{'\u201C'}{quote.text}{'\u201D'}</Text>
-              <View style={splashStyles.quoteDivider} />
-              <Text style={splashStyles.quoteSource}>— {quote.source}</Text>
-            </View>
+          <View style={splashStyles.quoteWrap}>
+            <Text style={splashStyles.quoteText}>{'\u201C'}{quote.text}{'\u201D'}</Text>
+            <View style={splashStyles.quoteDivider} />
+            <Text style={splashStyles.quoteSource}>— {quote.source}</Text>
+          </View>
 
-            <View style={splashStyles.footer}>
-              {__DEV__ && (
-                <TouchableOpacity
-                  style={splashStyles.devBtn}
-                  onPress={() => setQuoteIdx(i => (i + 1) % SPLASH_QUOTES.length)}
-                >
-                  <Ionicons name="refresh-outline" size={13} color="rgba(255,255,255,0.35)" />
-                  <Text style={splashStyles.devBtnText}>Rotate quote (dev)</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={splashStyles.continueBtn} onPress={handleContinue} activeOpacity={0.7}>
-                <Text style={splashStyles.continueBtnText}>Continue</Text>
-                <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
+          <View style={splashStyles.footer}>
+            {__DEV__ && (
+              <TouchableOpacity
+                style={splashStyles.devBtn}
+                onPress={() => setQuoteIdx(i => (i + 1) % SPLASH_QUOTES.length)}
+              >
+                <Ionicons name="refresh-outline" size={13} color="rgba(255,255,255,0.35)" />
+                <Text style={splashStyles.devBtnText}>Rotate quote (dev)</Text>
               </TouchableOpacity>
-            </View>
-          </LinearGradient>
-        </ImageBackground>
-      </Animated.View>
-    </Modal>
+            )}
+            <TouchableOpacity style={splashStyles.continueBtn} onPress={handleContinue} activeOpacity={0.7}>
+              <Text style={splashStyles.continueBtnText}>Continue</Text>
+              <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </ImageBackground>
+    </Animated.View>
   );
 }
 
@@ -378,6 +387,7 @@ export default function App() {
   if (loading) return <View style={styles.splash} />;
 
   return (
+    <SafeAreaProvider>
     <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding }}>
       <NavigationContainer ref={navigationRef}>
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
@@ -393,6 +403,7 @@ export default function App() {
         )}
       </NavigationContainer>
     </AuthContext.Provider>
+    </SafeAreaProvider>
   );
 }
 
