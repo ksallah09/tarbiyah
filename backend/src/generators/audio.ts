@@ -13,8 +13,10 @@ import { supabase } from '../config/supabase';
 import { getOpenAIClient } from '../config/openai';
 import { AppModule, ModuleLesson } from '../types';
 
-const TTS_MODEL  = 'tts-1';
-const NARR_VOICE = 'shimmer'; // calm, warm narrator
+const TTS_MODEL         = 'tts-1';
+const DEFAULT_VOICE     = 'shimmer';
+const ALLOWED_VOICES    = ['shimmer', 'onyx', 'nova', 'alloy', 'fable', 'echo'] as const;
+type TtsVoice = typeof ALLOWED_VOICES[number];
 
 // ─── Narration text builder ───────────────────────────────────────────────────
 
@@ -99,13 +101,13 @@ function sanitizeForTts(text: string): string {
 
 // ─── OpenAI TTS ───────────────────────────────────────────────────────────────
 
-async function textToMp3(text: string): Promise<Buffer> {
+async function textToMp3(text: string, voice: TtsVoice = DEFAULT_VOICE): Promise<Buffer> {
   const client = getOpenAIClient();
   if (!client) throw new Error('OPENAI_API_KEY is not configured.');
 
   const response = await client.audio.speech.create({
     model: TTS_MODEL,
-    voice: NARR_VOICE,
+    voice,
     input: text,
     response_format: 'mp3',
   });
@@ -137,12 +139,19 @@ async function uploadAudio(fileId: string, mp3Buffer: Buffer): Promise<string> {
 
 export async function generateSingleLessonNarration(
   moduleId: string,
-  lesson: ModuleLesson
+  lesson: ModuleLesson,
+  voiceInput?: string,
 ): Promise<string> {
+  const voice: TtsVoice = ALLOWED_VOICES.includes(voiceInput as TtsVoice)
+    ? (voiceInput as TtsVoice)
+    : DEFAULT_VOICE;
+  const fileId = voice === DEFAULT_VOICE
+    ? `${moduleId}_lesson_${lesson.id}`
+    : `${moduleId}_lesson_${lesson.id}_${voice}`;
   const text = sanitizeForTts(buildNarrationText(lesson));
-  const mp3  = await textToMp3(text);
-  const url  = await uploadAudio(`${moduleId}_lesson_${lesson.id}`, mp3);
-  console.log(`[audio] Lesson ${lesson.id} done: ${(mp3.length / 1024).toFixed(0)}KB`);
+  const mp3  = await textToMp3(text, voice);
+  const url  = await uploadAudio(fileId, mp3);
+  console.log(`[audio] Lesson ${lesson.id} (${voice}) done: ${(mp3.length / 1024).toFixed(0)}KB`);
   return url;
 }
 

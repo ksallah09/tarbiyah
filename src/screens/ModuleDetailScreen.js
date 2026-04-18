@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Animated,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { saveModule } from '../utils/modules';
+import { rs, hp } from '../utils/responsive';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -48,6 +50,8 @@ export default function ModuleDetailScreen({ route, navigation }) {
     return map;
   });
   const audiosLoadingRef = useRef(false);
+  const [voice, setVoice]                       = useState(null);
+  const [showVoicePicker, setShowVoicePicker]   = useState(false);
 
   // ── Tasbih ────────────────────────────────────────────────────────────────────
   const [tasbiCount, setTasbiCount]   = useState(0);
@@ -80,11 +84,10 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     if (!isNew) return;
-    setGenerating(true);
-    generateModule();
+    setShowVoicePicker(true);
   }, []);
 
-  async function generateModule() {
+  async function generateModule(selectedVoice) {
     setGenerating(true);
     setError(null);
     abortRef.current = new AbortController();
@@ -114,17 +117,15 @@ export default function ModuleDetailScreen({ route, navigation }) {
       setModule(mod);
       await saveModule(mod);
 
-      // Mark loading so the useEffect below doesn't double-trigger
       audiosLoadingRef.current = true;
 
-      // Wait for first lesson narration before dismissing tasbih screen
       const firstLesson = mod.lessons?.[0];
       if (firstLesson) {
         try {
           const audioRes = await fetch(`${API_URL}/learn/audio/lesson`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ moduleId: mod.id, lesson: firstLesson }),
+            body: JSON.stringify({ moduleId: mod.id, lesson: firstLesson, voice: selectedVoice }),
           });
           if (audioRes.ok) {
             const { url } = await audioRes.json();
@@ -133,9 +134,8 @@ export default function ModuleDetailScreen({ route, navigation }) {
         } catch { /* silent — lesson is still readable */ }
       }
 
-      // Tasbih screen dismissed — generate remaining lessons in background
       setGenerating(false);
-      prefetchLessonAudios(mod, 1);
+      prefetchLessonAudios(mod, 1, selectedVoice);
 
     } catch (err) {
       if (err.name === 'AbortError') return;
@@ -158,7 +158,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
     prefetchLessonAudios(module, 0);
   }, [module?.id]);
 
-  async function prefetchLessonAudios(mod, startIndex = 0) {
+  async function prefetchLessonAudios(mod, startIndex = 0, selectedVoice) {
     const audioMap = {};
     for (let i = startIndex; i < mod.lessons.length; i++) {
       const lesson = mod.lessons[i];
@@ -166,7 +166,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
         const res = await fetch(`${API_URL}/learn/audio/lesson`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ moduleId: mod.id, lesson }),
+          body: JSON.stringify({ moduleId: mod.id, lesson, voice: selectedVoice }),
         });
         if (!res.ok) continue;
         const { url } = await res.json();
@@ -206,6 +206,59 @@ export default function ModuleDetailScreen({ route, navigation }) {
   return (
     <>
       <StatusBar style="light" />
+
+      {/* ── Voice picker modal ── */}
+      <Modal visible={showVoicePicker} transparent animationType="fade">
+        <View style={styles.voiceModalBackdrop}>
+          <View style={styles.voiceModal}>
+            <Text style={styles.voiceModalTitle}>Choose Your Narrator</Text>
+            <Text style={styles.voiceModalSubtitle}>You can change this next time you generate a module.</Text>
+
+            <TouchableOpacity
+              style={styles.voiceOption}
+              activeOpacity={0.8}
+              onPress={() => {
+                setVoice('shimmer');
+                setShowVoicePicker(false);
+                setGenerating(true);
+                generateModule('shimmer');
+              }}
+            >
+              <View style={[styles.voiceOptionIcon, { backgroundColor: '#E8F5EF' }]}>
+                <Ionicons name="mic" size={22} color="#2E7D62" />
+              </View>
+              <View style={styles.voiceOptionText}>
+                <Text style={styles.voiceOptionName}>Warm & Gentle</Text>
+                <Text style={styles.voiceOptionDesc}>Female voice — calm and nurturing</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.voiceOption}
+              activeOpacity={0.8}
+              onPress={() => {
+                setVoice('onyx');
+                setShowVoicePicker(false);
+                setGenerating(true);
+                generateModule('onyx');
+              }}
+            >
+              <View style={[styles.voiceOptionIcon, { backgroundColor: '#EEF2FF' }]}>
+                <Ionicons name="mic" size={22} color="#4F46E5" />
+              </View>
+              <View style={styles.voiceOptionText}>
+                <Text style={styles.voiceOptionName}>Deep & Calm</Text>
+                <Text style={styles.voiceOptionDesc}>Male voice — rich and authoritative</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.voiceCancelBtn} onPress={() => { setShowVoicePicker(false); navigation.goBack(); }}>
+              <Text style={styles.voiceCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <SafeAreaView style={styles.safe} edges={[]}>
 
         {/* ── Header ── */}
@@ -577,6 +630,71 @@ export default function ModuleDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#1B3D2F' },
 
+  // ── Voice picker modal ──
+  voiceModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  voiceModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 28,
+    paddingBottom: 40,
+    gap: 16,
+  },
+  voiceModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  voiceModalSubtitle: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: -8,
+    marginBottom: 4,
+  },
+  voiceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#F3F4F6',
+  },
+  voiceOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceOptionText: { flex: 1 },
+  voiceOptionName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 3,
+  },
+  voiceOptionDesc: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  voiceCancelBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  voiceCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+
   // ── Header ──
   header: {
     backgroundColor: '#1B3D2F',
@@ -604,17 +722,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
   },
-  contentPad: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36 },
+  contentPad: { paddingHorizontal: hp, paddingTop: 24, paddingBottom: 36 },
 
   // ── Dhikr picker ──
   pickerContent: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: hp,
     paddingTop: 40,
     paddingBottom: 32,
   },
   pickerTitle: {
-    fontSize: 28,
+    fontSize: rs(28),
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.5,
@@ -644,7 +762,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   pickerOptionArabic: {
-    fontSize: 20,
+    fontSize: rs(20),
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 2,
@@ -798,7 +916,7 @@ const styles = StyleSheet.create({
 
   // ── Module hero ──
   moduleHero: {
-    paddingHorizontal: 24,
+    paddingHorizontal: hp,
     paddingTop: 8,
   },
   moduleTopicChip: {
@@ -814,7 +932,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   moduleTitle: {
-    fontSize: 22,
+    fontSize: rs(22),
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.3,
@@ -991,7 +1109,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   errorTitle: {
-    fontSize: 20,
+    fontSize: rs(20),
     fontWeight: '800',
     color: '#1B1B1B',
     marginBottom: 10,
@@ -1118,7 +1236,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   completedTitle: {
-    fontSize: 18,
+    fontSize: rs(18),
     fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 8,

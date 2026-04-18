@@ -479,7 +479,7 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
 
 app.post('/learn/audio/lesson', async (req: Request, res: Response) => {
   try {
-    const { moduleId, lesson } = req.body;
+    const { moduleId, lesson, voice } = req.body;
     if (!moduleId || !lesson?.id) {
       return res.status(400).json({ error: 'moduleId and lesson are required.' });
     }
@@ -488,7 +488,7 @@ app.post('/learn/audio/lesson', async (req: Request, res: Response) => {
       return res.status(503).json({ error: 'Audio generation is not configured on this server.' });
     }
 
-    const url = await generateSingleLessonNarration(moduleId, lesson);
+    const url = await generateSingleLessonNarration(moduleId, lesson, voice);
     return res.json({ url });
   } catch (err) {
     console.error('Single lesson audio error:', err);
