@@ -1,12 +1,19 @@
 import React, { useEffect, useState, useRef, createContext, useContext } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import {
+  View, ActivityIndicator, StyleSheet, Text, TouchableOpacity,
+  Animated, ImageBackground, Image, Modal,
+} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+SplashScreen.preventAutoHideAsync();
 
 import HomeScreen          from './src/screens/HomeScreen';
 import LibraryScreen       from './src/screens/LibraryScreen';
@@ -34,6 +41,149 @@ import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission } from './src/utils/notifications';
+
+const DAY_INDEX = Math.floor(Date.now() / 86_400_000);
+
+const SPLASH_IMAGE = require('./assets/spiritual-5.jpg');
+
+const SPLASH_QUOTES = [
+  { text: 'Each of you is a shepherd, and each of you is responsible for his flock.', source: 'Prophet Muhammad ﷺ' },
+  { text: 'The best of you are the best to their families.', source: 'Prophet Muhammad ﷺ' },
+  { text: 'He is not one of us who does not show mercy to our young and respect to our elders.', source: 'Prophet Muhammad ﷺ' },
+  { text: 'The believer with the most complete faith is the one with the best character, and the one most kind to their family.', source: 'Prophet Muhammad ﷺ' },
+  { text: 'When a human being dies, his deeds come to an end except for three: ongoing charity, beneficial knowledge, and a righteous child who prays for him.', source: 'Prophet Muhammad ﷺ' },
+  { text: 'There has certainly been for you in the Messenger of Allah an excellent example for anyone whose hope is in Allah and the Last Day.', source: 'Quran 33:21' },
+];
+
+// ─── App splash overlay ───────────────────────────────────────────────────────
+
+function AppSplashOverlay({ onContinue }) {
+  const insets       = useSafeAreaInsets();
+  const opacity      = useRef(new Animated.Value(0)).current;
+  const [quoteIdx, setQuoteIdx] = useState(DAY_INDEX % SPLASH_QUOTES.length);
+  const quote        = SPLASH_QUOTES[quoteIdx];
+
+  useEffect(() => {
+    Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+  }, []);
+
+  function handleContinue() {
+    Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true })
+      .start(() => onContinue());
+  }
+
+  return (
+    <Modal visible transparent animationType="none" statusBarTranslucent>
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity }]}>
+        <ImageBackground source={SPLASH_IMAGE} style={{ flex: 1 }} resizeMode="cover">
+          <LinearGradient
+            colors={['rgba(10,28,20,0.35)', 'rgba(8,22,16,0.92)']}
+            style={[splashStyles.overlay, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 }]}
+          >
+            <View style={splashStyles.brand}>
+              <Image
+                source={require('./assets/app-icons-1/logo-Picsart-BackgroundRemover.png')}
+                style={splashStyles.logo}
+                resizeMode="contain"
+              />
+              <Text style={splashStyles.brandName}>Tarbiyah</Text>
+            </View>
+
+            <View style={splashStyles.quoteWrap}>
+              <Text style={splashStyles.quoteText}>{'\u201C'}{quote.text}{'\u201D'}</Text>
+              <View style={splashStyles.quoteDivider} />
+              <Text style={splashStyles.quoteSource}>— {quote.source}</Text>
+            </View>
+
+            <View style={splashStyles.footer}>
+              {__DEV__ && (
+                <TouchableOpacity
+                  style={splashStyles.devBtn}
+                  onPress={() => setQuoteIdx(i => (i + 1) % SPLASH_QUOTES.length)}
+                >
+                  <Ionicons name="refresh-outline" size={13} color="rgba(255,255,255,0.35)" />
+                  <Text style={splashStyles.devBtnText}>Rotate quote (dev)</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={splashStyles.continueBtn} onPress={handleContinue} activeOpacity={0.7}>
+                <Text style={splashStyles.continueBtnText}>Continue</Text>
+                <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </ImageBackground>
+      </Animated.View>
+    </Modal>
+  );
+}
+
+const splashStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    paddingHorizontal: 28,
+    justifyContent: 'space-between',
+  },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  logo: { width: 42, height: 42 },
+  brandName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 1,
+  },
+  quoteWrap: { gap: 0 },
+  quoteText: {
+    fontSize: 20,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    lineHeight: 30,
+    letterSpacing: 0.1,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  quoteDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginBottom: 16,
+  },
+  quoteSource: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  footer: { gap: 4 },
+  continueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+  },
+  continueBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 0.3,
+  },
+  devBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  devBtnText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.3)',
+    fontWeight: '500',
+  },
+});
 
 const Tab        = createBottomTabNavigator();
 const Stack      = createNativeStackNavigator();
@@ -164,13 +314,22 @@ export function useAuth() { return useContext(AuthContext); }
 export default function App() {
   const [loading, setLoading]         = useState(true);
   const [onboarded, setOnboarded]     = useState(false);
+  const [showAppSplash, setShowAppSplash] = useState(false);
   const navigationRef                 = useRef(null);
   const notifResponseListener         = useRef(null);
 
   useEffect(() => {
     Promise.all([isOnboardingComplete(), getSession()])
-      .then(([complete]) => setOnboarded(complete))
-      .finally(() => setLoading(false));
+      .then(([complete]) => {
+        setOnboarded(complete);
+        if (complete) setShowAppSplash(true);
+      })
+      .finally(async () => {
+        setLoading(false);
+        // Hold briefly so assets settle before native splash disappears
+        await new Promise(r => setTimeout(r, 600));
+        await SplashScreen.hideAsync();
+      });
 
     // Request notification permission on first open
     requestNotificationPermission();
@@ -206,14 +365,6 @@ export default function App() {
     };
   }, []);
 
-  if (loading) {
-    return (
-      <View style={styles.splash}>
-        <ActivityIndicator color="#1B3D2F" size="large" />
-      </View>
-    );
-  }
-
   async function handleSignOut() {
     await signOut();
     await resetOnboarding();
@@ -223,6 +374,8 @@ export default function App() {
   async function handleCompleteOnboarding() {
     setOnboarded(true);
   }
+
+  if (loading) return <View style={styles.splash} />;
 
   return (
     <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding }}>
@@ -234,6 +387,10 @@ export default function App() {
             <RootStack.Screen name="Onboarding" component={OnboardingStack} />
           )}
         </RootStack.Navigator>
+
+        {showAppSplash && (
+          <AppSplashOverlay onContinue={() => setShowAppSplash(false)} />
+        )}
       </NavigationContainer>
     </AuthContext.Provider>
   );
@@ -242,9 +399,7 @@ export default function App() {
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F6F8',
+    backgroundColor: '#FFFFFF',
   },
   tabBar: {
     flexDirection: 'row',
