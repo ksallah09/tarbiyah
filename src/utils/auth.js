@@ -59,6 +59,7 @@ const CACHE_KEYS = [
   'tarbiyah_family_goals_v1',
   'tarbiyah_family_id',
   'tarbiyah_partner_cache',
+  'tarbiyah_goal_completions_v1',
 ];
 
 /** Sign out — clears Supabase session and all user-specific local data. */

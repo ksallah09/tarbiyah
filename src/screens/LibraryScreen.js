@@ -64,13 +64,19 @@ export default function LibraryScreen({ navigation }) {
         <View style={styles.controls}>
           <View style={styles.searchBar}>
             <Ionicons name="search-outline" size={17} color="#9CA3AF" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by title, content or author..."
-              placeholderTextColor="#9CA3AF"
-              value={query}
-              onChangeText={setQuery}
-            />
+            <View style={{ flex: 1 }}>
+              {!query && (
+                <Text style={styles.searchPlaceholder} pointerEvents="none">
+                  Search by title, content or author...
+                </Text>
+              )}
+              <TextInput
+                style={styles.searchInput}
+                placeholder=""
+                value={query}
+                onChangeText={setQuery}
+              />
+            </View>
             {query.length > 0 && (
               <TouchableOpacity onPress={() => setQuery('')}>
                 <Ionicons name="close-circle" size={17} color="#9CA3AF" />
@@ -206,7 +212,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  searchInput: { flex: 1, fontSize: 14, color: '#1A1A2E' },
+  searchInput: { fontSize: 14, color: '#1A1A2E', letterSpacing: 0 },
+  searchPlaceholder: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    fontSize: 14, color: '#9CA3AF', letterSpacing: 0,
+    pointerEvents: 'none',
+  },
   filterRow: { paddingHorizontal: 4, gap: 8, alignItems: 'center' },
   scrollDots: {
     flexDirection: 'row',

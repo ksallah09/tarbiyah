@@ -81,15 +81,16 @@ export default function FamilyGoalWizardScreen({ navigation, route }) {
 
     const record = {
       id,
-      icon:          goal.icon,
-      iconColor:     goal.iconColor,
-      title:         goal.title,
-      frequencyType: frequency.type,
+      icon:           goal.icon,
+      iconColor:      goal.iconColor,
+      title:          goal.title,
+      frequencyType:  frequency.type,
       frequencyLabel: frequency.label,
-      reminderDays:  frequency.days,
+      frequency:      frequency.daysPerWeek,
+      reminderDays:   frequency.days,
       reminderEnabled,
       reminderTime,
-      active: true,
+      active:    true,
       createdAt: editGoal?.createdAt ?? new Date().toISOString(),
     };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,18 @@ import {
   Share,
   Linking,
   ImageBackground,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 import { saveInsight, unsaveInsight, isInsightSaved } from '../utils/savedInsights';
 import { markAsRead, isReadToday } from '../utils/readInsights';
+import { rs, hp } from '../utils/responsive';
 
 const SPIRITUAL_IMAGES = [
   require('../../assets/spiritual-1.jpg'),
@@ -36,8 +41,10 @@ const SCIENCE_IMAGES = [
 
 export default function InsightDetailScreen({ route, navigation }) {
   const { insight, imgIndex = Math.floor(Date.now() / 86_400_000) } = route.params;
-  const [saved, setSaved] = useState(false);
-  const [read, setRead]   = useState(false);
+  const [saved, setSaved]       = useState(false);
+  const [read, setRead]         = useState(false);
+  const [sharing, setSharing]   = useState(false);
+  const shareCardRef            = useRef(null);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -61,8 +68,21 @@ export default function InsightDetailScreen({ route, navigation }) {
   }
 
   async function handleShare() {
-    const text = `${insight.insightTitle}\n\n${insight.body}\n\n— ${insight.speakerName}\n\nShared from Tarbiyah`;
-    await Share.share({ message: text });
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await captureRef(shareCardRef, { format: 'jpg', quality: 0.95 });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/jpeg', dialogTitle: 'Share Insight' });
+      } else {
+        await Share.share({ message: `${insight.insightTitle}\n\n${insight.body}\n\n— ${insight.speakerName}\n\nShared from Tarbiyah` });
+      }
+    } catch {
+      await Share.share({ message: `${insight.insightTitle}\n\n${insight.body}\n\n— ${insight.speakerName}\n\nShared from Tarbiyah` });
+    } finally {
+      setSharing(false);
+    }
   }
 
   const isSpiritual  = insight.type === 'spiritual';
@@ -109,8 +129,11 @@ export default function InsightDetailScreen({ route, navigation }) {
               <Text style={styles.backLabel}>Back</Text>
             </TouchableOpacity>
             <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.headerActionBtn} onPress={handleShare}>
-                <Ionicons name="share-outline" size={20} color="#fff" />
+              <TouchableOpacity style={styles.headerActionBtn} onPress={handleShare} disabled={sharing}>
+                {sharing
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Ionicons name="share-outline" size={20} color="#fff" />
+                }
               </TouchableOpacity>
               <TouchableOpacity style={styles.headerActionBtn} onPress={toggleSave}>
                 <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={20} color="#fff" />
@@ -222,6 +245,54 @@ export default function InsightDetailScreen({ route, navigation }) {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* ── Off-screen share card (captured as image) ── */}
+      <View style={styles.shareCardWrap}>
+        <View ref={shareCardRef} style={styles.shareCard} collapsable={false}>
+          <Image source={headerImage} style={styles.shareCardBgAbsolute} resizeMode="cover" />
+          <LinearGradient
+            colors={isSpiritual ? ['rgba(10,28,20,0.2)', 'rgba(8,22,14,0.95)'] : ['rgba(30,15,5,0.2)', 'rgba(25,12,4,0.95)']}
+            style={styles.shareCardOverlay}
+          >
+              {/* Top: type label */}
+              <View style={[styles.shareCardPill, { backgroundColor: accentColor + 'CC' }]}>
+                <Text style={styles.shareCardPillText}>{typeLabel.toUpperCase()}</Text>
+              </View>
+
+              {/* Quote body */}
+              <View style={styles.shareCardBody}>
+                <Text style={styles.shareCardTitle}>{insight.insightTitle}</Text>
+                <Text style={styles.shareCardExcerpt}>{insight.body}</Text>
+              </View>
+
+              {/* Bottom: Tarbiyah branding */}
+              <View style={styles.shareCardBrand}>
+                <View style={styles.shareCardBrandRight}>
+                  <View style={styles.shareCardBrandNameRow}>
+                    <Image
+                      source={require('../../assets/app-icons-1/logo-Picsart-BackgroundRemover.png')}
+                      style={styles.shareCardLogo}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.shareCardBrandName}>Tarbiyah: Islamic Parenting</Text>
+                  </View>
+                  <Text style={styles.shareCardBrandTag}>Download the app and get daily insights!</Text>
+                  <View style={styles.shareCardStorePills}>
+                    <View style={styles.shareCardDownload}>
+                      <Ionicons name="logo-apple" size={11} color="rgba(255,255,255,0.6)" />
+                      <Text style={styles.shareCardDownloadText}>App Store</Text>
+                    </View>
+                    <View style={styles.shareCardDownload}>
+                      <Ionicons name="logo-google-playstore" size={11} color="rgba(255,255,255,0.6)" />
+                      <Text style={styles.shareCardDownloadText}>Google Play</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+          </LinearGradient>
+        </View>
+      </View>
+
     </SafeAreaView>
   );
 }
@@ -235,7 +306,7 @@ const styles = StyleSheet.create({
   },
   headerImg: {},
   headerOverlay: {
-    paddingHorizontal: 22,
+    paddingHorizontal: hp,
     paddingBottom: 30,
   },
   headerNav: {
@@ -282,7 +353,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   headerInsightTitle: {
-    fontSize: 24,
+    fontSize: rs(24),
     fontWeight: '800',
     color: '#FFFFFF',
     lineHeight: 31,
@@ -298,7 +369,7 @@ const styles = StyleSheet.create({
 
   // ── Scroll ──
   scroll: { flex: 1, backgroundColor: '#FFFFFF' },
-  content: { paddingHorizontal: 22, paddingTop: 28 },
+  content: { paddingHorizontal: hp, paddingTop: 28 },
 
   // ── Section label ──
   sectionLabel: {
@@ -310,7 +381,7 @@ const styles = StyleSheet.create({
 
   // ── Body ──
   bodyText: {
-    fontSize: 16,
+    fontSize: rs(16),
     color: '#1C1C1E',
     lineHeight: 28,
     marginBottom: 4,
@@ -340,7 +411,7 @@ const styles = StyleSheet.create({
   goalContent: { flex: 1 },
   goalMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
   goalMetaLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase' },
-  goalText: { fontSize: 16, color: '#1C1C1E', lineHeight: 28 },
+  goalText: { fontSize: rs(16), color: '#1C1C1E', lineHeight: 28 },
   goalTextDone: { color: '#A0ADB8', textDecorationLine: 'line-through' },
 
   // ── Tags ──
@@ -368,6 +439,115 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 
+  // ── Share card (off-screen) ──
+  shareCardWrap: {
+    position: 'absolute',
+    top: -9999,
+    left: 0,
+    width: 375,
+  },
+  shareCard: {
+    width: 375,
+    overflow: 'hidden',
+  },
+  shareCardBgAbsolute: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  shareCardOverlay: {
+    padding: 32,
+    paddingBottom: 28,
+    gap: 28,
+  },
+  shareCardPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 100,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  shareCardPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 1.4,
+  },
+  shareCardBody: {
+    gap: 14,
+  },
+  shareCardTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    lineHeight: 34,
+    letterSpacing: -0.3,
+  },
+  shareCardExcerpt: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.82)',
+    lineHeight: 24,
+  },
+  shareCardSpeaker: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 4,
+  },
+  shareCardBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+    paddingTop: 16,
+  },
+  shareCardBrandRight: {
+    flex: 1,
+    gap: 3,
+  },
+  shareCardBrandNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shareCardLogo: {
+    width: 28,
+    height: 28,
+  },
+  shareCardBrandName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: 0.3,
+  },
+  shareCardBrandTag: {
+    fontSize: 10,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 2,
+  },
+  shareCardStorePills: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  shareCardDownload: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  shareCardDownloadText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+  },
+
   // ── Source block ──
   sourceBlock: {
     gap: 10,
@@ -380,7 +560,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   sourceTitle: {
-    fontSize: 16,
+    fontSize: rs(16),
     fontWeight: '700',
     color: '#1C1C1E',
     lineHeight: 22,

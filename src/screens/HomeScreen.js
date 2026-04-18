@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Animated,
   ImageBackground,
+  Image,
   Dimensions,
+  Animated,
+  Modal,
 } from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -22,10 +24,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import fallbackData from '../data/insights.json';
 import { getWeekReadDays, isReadToday, getStreak } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
+import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
+import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification } from '../utils/notifications';
 import { supabase } from '../utils/supabase';
+import { rs, hp } from '../utils/responsive';
 
 
 const SCIENCE_IMAGES = [
@@ -39,6 +44,37 @@ const SCIENCE_IMAGES = [
 ];
 
 const DAY_INDEX = Math.floor(Date.now() / 86_400_000);
+
+const SPLASH_IMAGES = [
+  require('../../assets/spiritual-5.jpg'),
+];
+
+const SPLASH_QUOTES = [
+  {
+    text: 'Each of you is a shepherd, and each of you is responsible for his flock.',
+    source: 'Prophet Muhammad ﷺ',
+  },
+  {
+    text: 'The best of you are the best to their families.',
+    source: 'Prophet Muhammad ﷺ',
+  },
+  {
+    text: 'He is not one of us who does not show mercy to our young and respect to our elders.',
+    source: 'Prophet Muhammad ﷺ',
+  },
+  {
+    text: 'The believer with the most complete faith is the one with the best character, and the one most kind to their family.',
+    source: 'Prophet Muhammad ﷺ',
+  },
+  {
+    text: 'When a human being dies, his deeds come to an end except for three: ongoing charity, beneficial knowledge, and a righteous child who prays for him.',
+    source: 'Prophet Muhammad ﷺ',
+  },
+  {
+    text: 'There has certainly been for you in the Messenger of Allah an excellent example for anyone whose hope is in Allah and the Last Day.',
+    source: 'Quran 33:21',
+  },
+];
 
 const API_URL   = 'https://tarbiyah-production.up.railway.app';
 const CACHE_KEY = 'tarbiyah_daily_cache';
@@ -120,6 +156,21 @@ export default function HomeScreen({ navigation }) {
   const [streak,      setStreak]      = useState(0);
   const [sciStreak,   setSciStreak]   = useState(0);
   const [quranStreak, setQuranStreak] = useState(0);
+  const [familyGoals,  setFamilyGoals]  = useState([]);
+  const [completions,  setCompletions]  = useState([]);
+  const [showSplash,      setShowSplash]      = useState(true);
+  const [splashQuoteIdx,  setSplashQuoteIdx]  = useState(DAY_INDEX % SPLASH_QUOTES.length);
+  const splashOpacity                         = useRef(new Animated.Value(1)).current;
+  const splashImage  = SPLASH_IMAGES[DAY_INDEX % SPLASH_IMAGES.length];
+  const splashQuote  = SPLASH_QUOTES[splashQuoteIdx];
+
+  function dismissSplash() {
+    Animated.timing(splashOpacity, {
+      toValue: 0,
+      duration: 600,
+      useNativeDriver: true,
+    }).start(() => setShowSplash(false));
+  }
 
   // Ref to always-current insight IDs so useFocusEffect (empty deps) can re-check on return
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
@@ -135,13 +186,6 @@ export default function HomeScreen({ navigation }) {
   const dailySpiritualImage = SPIRITUAL_CARD_IMAGES[imgIndex % SPIRITUAL_CARD_IMAGES.length];
   const dailyScienceImage   = SCIENCE_IMAGES[(imgIndex + 1) % SCIENCE_IMAGES.length];
 
-  const contentOpacity = useRef(new Animated.Value(1)).current;
-
-  function revealContent() {
-    Animated.timing(contentOpacity, {
-      toValue: 1, duration: 500, useNativeDriver: true,
-    }).start();
-  }
 
   async function loadDaily() {
     const today = new Date().toISOString().split('T')[0];
@@ -219,16 +263,22 @@ export default function HomeScreen({ navigation }) {
       Promise.all([getProfileName(), checkShouldAnimateGreeting()])
         .then(([profileName, shouldAnimate]) => {
           setName(profileName || '');
-          if (shouldAnimate) {
-            contentOpacity.setValue(0); // hide before typewriter starts
-          }
           setAnimate(shouldAnimate);
-          if (!shouldAnimate) revealContent();
         });
 
       loadDaily();
+
+      // Load family goals + completions (cached for instant paint, live in background)
+      loadFamilyGoalsCached().then(setFamilyGoals);
+      loadFamilyGoals().then(setFamilyGoals);
+      loadCompletions().then(setCompletions);
     }, [])
   );
+
+  async function handleLogCompletion(goalId) {
+    const updated = await logCompletion(goalId);
+    setCompletions(updated);
+  }
 
   const spiritualInsight = dailyData?.insights?.find(i => i.type === 'spiritual') ?? null;
   const scienceInsight   = dailyData?.insights?.find(i => i.type === 'scientific') ?? null;
@@ -291,7 +341,6 @@ export default function HomeScreen({ navigation }) {
                       0: styles.greetingSmall,
                       1: styles.greetingName,
                     }}
-                    onComplete={revealContent}
                   />
                 ) : (
                   <Text>
@@ -328,7 +377,7 @@ export default function HomeScreen({ navigation }) {
 
           {/* ── Content ── */}
           <View style={styles.sheet}>
-            <Animated.View style={[styles.contentPad, { opacity: contentOpacity }]}>
+            <View style={styles.contentPad}>
 
               {/* TODAY'S PARENTING INSIGHTS */}
               <View style={styles.sectionTitleWrap}>
@@ -494,6 +543,75 @@ export default function HomeScreen({ navigation }) {
                 </View>
               )}
 
+              {/* FAMILY GOALS */}
+              {familyGoals.length === 0 && (
+                <>
+                  <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+                    <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.homeGoalEmptyCard}
+                    onPress={() => navigation.navigate('Progress')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="people-outline" size={18} color="#2E7D62" />
+                    <Text style={styles.homeGoalEmptyText}>No family goals yet</Text>
+                    <Text style={styles.homeGoalEmptyLink}>Set goals on the Progress tab →</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              {familyGoals.length > 0 && (
+                <>
+                  <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+                    <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('Progress')}>
+                      <Text style={styles.sectionSeeAll}>See all</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {familyGoals.map(goal => {
+                    const target    = goal.frequency ?? 1;
+                    const count     = countThisWeek(completions, goal.id);
+                    const doneToday = isCompletedToday(completions, goal.id);
+                    const goalMet   = count >= target;
+                    const dotCount  = Math.min(target, 7);
+                    return (
+                      <View key={goal.id} style={styles.homeGoalCard}>
+                        <View style={[styles.homeGoalIconWrap, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '20' }]}>
+                          <Ionicons name={goal.icon ?? 'trophy'} size={16} color={goal.iconColor ?? '#2E7D62'} />
+                        </View>
+                        <View style={styles.homeGoalBody}>
+                          <Text style={styles.homeGoalTitle} numberOfLines={1}>{goal.title}</Text>
+                          <View style={styles.homeGoalTrackerRow}>
+                            <View style={styles.homeGoalDots}>
+                              {Array.from({ length: dotCount }).map((_, i) => (
+                                <View key={i} style={[styles.homeGoalDot, i < count && { backgroundColor: goal.iconColor ?? '#2E7D62' }]} />
+                              ))}
+                            </View>
+                            <Text style={styles.homeGoalCount}>{count}/{target}</Text>
+                          </View>
+                        </View>
+                        {goalMet ? (
+                          <View style={styles.homeGoalMetPill}>
+                            <Ionicons name="checkmark-circle" size={13} color="#2E7D62" />
+                            <Text style={styles.homeGoalMetText}>Done</Text>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={[styles.homeGoalLogBtn, doneToday && styles.homeGoalLogBtnDone]}
+                            onPress={() => handleLogCompletion(goal.id)}
+                            disabled={doneToday}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name={doneToday ? 'checkmark' : 'add'} size={14} color={doneToday ? '#2E7D62' : '#FFFFFF'} />
+                            {!doneToday && <Text style={styles.homeGoalLogBtnText}>Log it</Text>}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                </>
+              )}
+
               {/* VERSES OF THE DAY */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
                 <Text style={styles.sectionTitle}>VERSES OF THE DAY</Text>
@@ -616,12 +734,63 @@ export default function HomeScreen({ navigation }) {
               </View>
 
               <View style={{ height: 32 }} />
-            </Animated.View>
+            </View>
           </View>
 
         </ScrollView>
 
       </SafeAreaView>
+
+      {/* ── Loading splash — rendered in a Modal so it covers the tab bar too ── */}
+      <Modal visible={showSplash} transparent animationType="none" statusBarTranslucent>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: splashOpacity }]}>
+          <ImageBackground
+            source={splashImage}
+            style={{ flex: 1 }}
+            resizeMode="cover"
+          >
+            <LinearGradient
+              colors={['rgba(10,28,20,0.35)', 'rgba(8,22,16,0.92)']}
+              style={[styles.splashOverlay, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 }]}
+            >
+              <View style={styles.splashBrand}>
+                <Image
+                  source={require('../../assets/app-icons-1/logo-Picsart-BackgroundRemover.png')}
+                  style={styles.splashLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.splashBrandText}>Tarbiyah</Text>
+              </View>
+
+              <View style={styles.splashQuoteWrap}>
+                <Text style={styles.splashQuote}>{'\u201C'}{splashQuote.text}{'\u201D'}</Text>
+                <View style={styles.splashDivider} />
+                <Text style={styles.splashQuoteSource}>— {splashQuote.source}</Text>
+              </View>
+
+              <View style={styles.splashFooter}>
+                {__DEV__ && (
+                  <TouchableOpacity
+                    style={styles.splashDevBtn}
+                    onPress={() => setSplashQuoteIdx(i => (i + 1) % SPLASH_QUOTES.length)}
+                  >
+                    <Ionicons name="refresh-outline" size={13} color="rgba(255,255,255,0.35)" />
+                    <Text style={styles.splashDevBtnText}>Rotate quote (dev)</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.splashBtn}
+                  onPress={dismissSplash}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.splashBtnText}>Continue</Text>
+                  <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </ImageBackground>
+        </Animated.View>
+      </Modal>
     </>
   );
 }
@@ -632,7 +801,7 @@ const styles = StyleSheet.create({
 
   // ── Hero header ──
   hero: {
-    paddingHorizontal: 24,
+    paddingHorizontal: hp,
     paddingBottom: 14,
     overflow: 'hidden',
   },
@@ -727,7 +896,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   scrollContent: { flexGrow: 1 },
-  contentPad: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 36 },
+  contentPad: { paddingHorizontal: hp, paddingTop: 8, paddingBottom: 36 },
 
   // ── Section titles ──
   sectionTitleWrap: {
@@ -744,6 +913,88 @@ const styles = StyleSheet.create({
   sectionUnderline: {
     width: 3, height: 13, borderRadius: 2,
     backgroundColor: '#1B3D2F', opacity: 0.3,
+  },
+  sectionSeeAll: {
+    fontSize: 11, fontWeight: '700', color: '#2E7D62', marginLeft: 'auto',
+  },
+
+  // ── Home family goal empty state ──
+  homeGoalEmptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#1B3D2F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2E7D62',
+  },
+  homeGoalEmptyText: {
+    fontSize: 13, fontWeight: '600', color: '#6B7280', flex: 1,
+  },
+  homeGoalEmptyLink: {
+    fontSize: 12, fontWeight: '700', color: '#2E7D62',
+  },
+
+  // ── Home family goal cards ──
+  homeGoalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#1B3D2F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2E7D62',
+  },
+  homeGoalIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  homeGoalBody: { flex: 1 },
+  homeGoalTitle: {
+    fontSize: 13, fontWeight: '700', color: '#111827', marginBottom: 6,
+  },
+  homeGoalTrackerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+  },
+  homeGoalDots: { flexDirection: 'row', gap: 3 },
+  homeGoalDot: {
+    width: 7, height: 7, borderRadius: 4,
+    backgroundColor: '#E5E7EB',
+  },
+  homeGoalCount: {
+    fontSize: 10, color: '#9CA3AF', fontWeight: '600',
+  },
+  homeGoalMetPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#E8F5EF', borderRadius: 20,
+    paddingHorizontal: 8, paddingVertical: 5,
+  },
+  homeGoalMetText: {
+    fontSize: 11, color: '#2E7D62', fontWeight: '700',
+  },
+  homeGoalLogBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#2E7D62', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  homeGoalLogBtnDone: { backgroundColor: '#E8F5EF' },
+  homeGoalLogBtnText: {
+    fontSize: 11, color: '#FFFFFF', fontWeight: '700',
   },
 
   // ── Insight cards ──
@@ -792,7 +1043,7 @@ const styles = StyleSheet.create({
   },
   insightCardBottom: { gap: 8 },
   insightCardTitle: {
-    fontSize: 20, fontWeight: '800', color: '#FFFFFF',
+    fontSize: rs(20), fontWeight: '800', color: '#FFFFFF',
     lineHeight: 26, letterSpacing: -0.3,
   },
   insightCardBody: {
@@ -890,7 +1141,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   islamicArabic: {
-    fontSize: 20,
+    fontSize: rs(20),
     color: '#FFFFFF',
     textAlign: 'right',
     lineHeight: 36,
@@ -965,7 +1216,7 @@ const styles = StyleSheet.create({
     color: '#4ADE80',
   },
   verseArabicPreview: {
-    fontSize: 18,
+    fontSize: rs(18),
     color: '#FFFFFF',
     textAlign: 'right',
     lineHeight: 34,
@@ -1027,6 +1278,80 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: 'rgba(255,255,255,0.4)',
     letterSpacing: 0.3,
+  },
+
+  // ── Loading splash ──
+  splashOverlay: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 28,
+  },
+  splashBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  splashLogo: {
+    width: 42,
+    height: 42,
+  },
+  splashBrandText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 1,
+  },
+  splashQuoteWrap: {
+    gap: 0,
+  },
+  splashQuote: {
+    fontSize: rs(20),
+    fontWeight: '500',
+    color: '#FFFFFF',
+    lineHeight: rs(30),
+    letterSpacing: 0.1,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  splashDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginBottom: 16,
+  },
+  splashQuoteSource: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  splashFooter: {
+    gap: 4,
+  },
+  splashBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+  },
+  splashBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 0.3,
+  },
+  splashDevBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  splashDevBtnText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.3)',
+    fontWeight: '500',
   },
 
   // ── Streak card ──

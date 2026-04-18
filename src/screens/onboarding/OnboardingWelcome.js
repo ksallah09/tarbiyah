@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import TypewriterText from '../../components/TypewriterText';
+import { rs, hp } from '../../utils/responsive';
 
 const LINES = [
   'Bismillah.',
@@ -65,7 +66,7 @@ export default function OnboardingWelcome({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 32,
+    paddingHorizontal: rs(28),
     justifyContent: 'space-between',
   },
   arabicWrap: {
@@ -95,10 +96,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   lineLarge: {
-    fontSize: 34,
+    fontSize: rs(34),
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 42,
+    lineHeight: rs(42),
     marginTop: 6,
   },
   lineMid: {

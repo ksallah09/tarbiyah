@@ -261,35 +261,43 @@ export default function OnboardingAccount({ navigation, route }) {
 
             <View style={styles.fieldWrap}>
               <Text style={styles.fieldLabel}>EMAIL</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@example.com"
-                placeholderTextColor="rgba(255,255,255,0.25)"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
-              />
+              <View>
+                {!email && <Text style={styles.inputPlaceholder} pointerEvents="none">you@example.com</Text>}
+                <TextInput
+                  style={styles.input}
+                  placeholder=""
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                />
+              </View>
             </View>
 
             <View style={styles.fieldWrap}>
               <Text style={styles.fieldLabel}>
                 {isReturningUser ? 'PASSWORD' : 'CREATE A PASSWORD'}
               </Text>
-              <TextInput
-                ref={passwordRef}
-                style={styles.input}
-                placeholder={isReturningUser ? 'Enter your password' : 'Choose a password (min. 6 characters)'}
-                placeholderTextColor="rgba(255,255,255,0.25)"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                returnKeyType="done"
-                onSubmitEditing={isReturningUser ? handleSignIn : handleCreate}
-              />
+              <View>
+                {!password && (
+                  <Text style={styles.inputPlaceholder} pointerEvents="none">
+                    {isReturningUser ? 'Enter your password' : 'Choose a password (min. 6 characters)'}
+                  </Text>
+                )}
+                <TextInput
+                  ref={passwordRef}
+                  style={styles.input}
+                  placeholder=""
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  returnKeyType="done"
+                  onSubmitEditing={isReturningUser ? handleSignIn : handleCreate}
+                />
+              </View>
             </View>
 
             {!isReturningUser && (
@@ -355,6 +363,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     paddingVertical: 10,
     paddingHorizontal: 2,
+    letterSpacing: 0,
+  },
+  inputPlaceholder: {
+    position: 'absolute',
+    top: 10,
+    left: 2,
+    fontSize: 18,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.25)',
+    letterSpacing: 0,
+    pointerEvents: 'none',
   },
   appleBtn: {
     width: '100%',

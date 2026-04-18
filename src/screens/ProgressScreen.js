@@ -16,6 +16,8 @@ import { getMonthReadDays, getStreak } from '../utils/readInsights';
 
 import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal } from '../utils/familyGoals';
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
+import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
+import { rs, hp } from '../utils/responsive';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -26,8 +28,9 @@ let _quranCache      = [];
 let _spirStreakCache  = 0;
 let _sciStreakCache   = 0;
 let _quranStreakCache = 0;
-let _familyGoalsCache = [];
-let _syncStatusCache  = { linked: false, partner: null };
+let _familyGoalsCache  = [];
+let _completionsCache  = [];
+let _syncStatusCache   = { linked: false, partner: null };
 
 function MonthGrid({ days, color, todayColor }) {
   return (
@@ -81,8 +84,9 @@ export default function ProgressScreen({ navigation }) {
   const [spirStreak,  setSpiritualStreak]  = useState(_spirStreakCache);
   const [sciStreak,   setScientificStreak] = useState(_sciStreakCache);
   const [quranStreak, setQuranStreak]      = useState(_quranStreakCache);
-  const [familyGoals, setFamilyGoals]      = useState(_familyGoalsCache);
-  const [syncStatus,  setSyncStatus]       = useState(_syncStatusCache);
+  const [familyGoals,  setFamilyGoals]  = useState(_familyGoalsCache);
+  const [completions,  setCompletions]  = useState(_completionsCache);
+  const [syncStatus,   setSyncStatus]   = useState(_syncStatusCache);
   const [refreshing,  setRefreshing]       = useState(false);
   const hasMountedRef = useRef(false);
 
@@ -97,12 +101,13 @@ export default function ProgressScreen({ navigation }) {
     getStreak('scientific').then(v        => { _sciStreakCache   = v;  setScientificStreak(v); });
     getStreak('quran').then(v             => { _quranStreakCache = v;  setQuranStreak(v); });
 
-    // Phase 1: show cached goals instantly (no network wait)
+    // Phase 1: show cached goals + completions instantly (no network wait)
     if (_familyGoalsCache.length === 0) {
       loadFamilyGoalsCached().then(cached => {
         if (cached.length > 0) { _familyGoalsCache = cached; setFamilyGoals(cached); }
       });
     }
+    loadCompletions().then(v => { _completionsCache = v; setCompletions(v); });
 
     // Phase 2: sync status (AsyncStorage instant → Supabase background)
     getCachedSyncStatus().then(cached => {
@@ -134,6 +139,7 @@ export default function ProgressScreen({ navigation }) {
       getStreak('spiritual').then(setSpiritualStreak),
       getStreak('scientific').then(setScientificStreak),
       getStreak('quran').then(setQuranStreak),
+      loadCompletions().then(v => { _completionsCache = v; setCompletions(v); }),
       getFamilySyncStatus().then(live => {
         setSyncStatus(live);
         return loadFamilyGoals().then(setFamilyGoals);
@@ -153,6 +159,12 @@ export default function ProgressScreen({ navigation }) {
     });
     return () => sub.remove();
   }, [refreshAll]);
+
+  async function handleLogCompletion(goalId) {
+    const updated = await logCompletion(goalId);
+    _completionsCache = updated;
+    setCompletions(updated);
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
@@ -206,44 +218,80 @@ export default function ProgressScreen({ navigation }) {
             </View>
           </TouchableOpacity>
         ) : (
-          familyGoals.map(goal => (
-            <View key={goal.id} style={styles.familyGoalCard}>
-              <View style={[styles.familyGoalIconWrap, { backgroundColor: '#2E7D62' }]}>
-                <Ionicons name={goal.icon ?? 'trophy'} size={18} color="#F5C242" />
-              </View>
-              <View style={styles.familyGoalBody}>
-                <Text style={styles.familyGoalTitle}>{goal.title}</Text>
-                <View style={styles.familyGoalMeta}>
-                  <Ionicons name="repeat-outline" size={11} color="#9CA3AF" />
-                  <Text style={styles.familyGoalMetaText}>{goal.frequencyLabel}</Text>
-                  {goal.reminderEnabled && (
-                    <>
-                      <View style={styles.familyGoalMetaDot} />
-                      <Ionicons name="notifications-outline" size={11} color="#9CA3AF" />
-                      <Text style={styles.familyGoalMetaText}>Reminder on</Text>
-                    </>
-                  )}
+          familyGoals.map(goal => {
+            const target    = goal.frequency ?? 1;
+            const count     = countThisWeek(completions, goal.id);
+            const doneToday = isCompletedToday(completions, goal.id);
+            const goalMet   = count >= target;
+            const dotCount  = Math.min(target, 7);
+            return (
+              <View key={goal.id} style={[styles.familyGoalCard, { alignItems: 'flex-start' }]}>
+                <View style={[styles.familyGoalIconWrap, { backgroundColor: '#2E7D62', marginTop: 2 }]}>
+                  <Ionicons name={goal.icon ?? 'trophy'} size={18} color="#F5C242" />
+                </View>
+                <View style={styles.familyGoalBody}>
+                  <Text style={styles.familyGoalTitle}>{goal.title}</Text>
+                  <View style={styles.familyGoalMeta}>
+                    <Ionicons name="repeat-outline" size={11} color="#9CA3AF" />
+                    <Text style={styles.familyGoalMetaText}>{goal.frequencyLabel}</Text>
+                    {goal.reminderEnabled && (
+                      <>
+                        <View style={styles.familyGoalMetaDot} />
+                        <Ionicons name="notifications-outline" size={11} color="#9CA3AF" />
+                        <Text style={styles.familyGoalMetaText}>Reminder on</Text>
+                      </>
+                    )}
+                  </View>
+
+                  {/* ── Completion tracker ── */}
+                  <View style={styles.trackerStrip}>
+                    <View style={styles.trackerDots}>
+                      {Array.from({ length: dotCount }).map((_, i) => (
+                        <View key={i} style={[styles.trackerDot, i < count && styles.trackerDotFilled]} />
+                      ))}
+                    </View>
+                    <Text style={styles.trackerCount}>{count}/{target} this week</Text>
+                    <View style={styles.trackerSpacer} />
+                    {goalMet ? (
+                      <View style={styles.trackerMetPill}>
+                        <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
+                        <Text style={styles.trackerMetText}>Goal met</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.trackerLogBtn, doneToday && styles.trackerLogBtnDone]}
+                        onPress={() => handleLogCompletion(goal.id)}
+                        disabled={doneToday}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#FFFFFF'} />
+                        <Text style={[styles.trackerLogBtnText, doneToday && { color: '#2E7D62' }]}>
+                          {doneToday ? 'Done today' : 'Log it'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+                <View style={[styles.familyGoalActions, { marginTop: 2 }]}>
+                  <TouchableOpacity
+                    style={styles.familyGoalEditBtn}
+                    onPress={() => navigation.navigate('FamilyGoalWizard', { goal })}
+                  >
+                    <Ionicons name="pencil-outline" size={14} color="#6B7C45" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.familyGoalDeleteBtn}
+                    onPress={async () => {
+                      await deleteFamilyGoal(goal.id);
+                      setFamilyGoals(prev => prev.filter(g => g.id !== goal.id));
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
+                  </TouchableOpacity>
                 </View>
               </View>
-              <View style={styles.familyGoalActions}>
-                <TouchableOpacity
-                  style={styles.familyGoalEditBtn}
-                  onPress={() => navigation.navigate('FamilyGoalWizard', { goal })}
-                >
-                  <Ionicons name="pencil-outline" size={14} color="#6B7C45" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.familyGoalDeleteBtn}
-                  onPress={async () => {
-                    await deleteFamilyGoal(goal.id);
-                    setFamilyGoals(prev => prev.filter(g => g.id !== goal.id));
-                  }}
-                >
-                  <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
+            );
+          })
         )}
 
         {/* Family sync status */}
@@ -372,7 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F6F8',
     overflow: 'hidden',
   },
-  content: { paddingHorizontal: 20, paddingTop: 20 },
+  content: { paddingHorizontal: hp, paddingTop: 20 },
 
   // ── Streak inline ──
   trackCardSpiritual: { borderTopWidth: 2, borderTopColor: '#1B3D2F' },
@@ -500,7 +548,7 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
   },
-  familyGoalBody: { flex: 1 },
+  familyGoalBody: { flex: 1, minWidth: 0 },
   familyGoalTitle: {
     fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 5,
   },
@@ -508,12 +556,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
   },
   familyGoalMetaText: {
-    fontSize: 11, color: '#6B7280', fontWeight: '500',
+    fontSize: 11, color: '#6B7280', fontWeight: '500', flexShrink: 1,
   },
   familyGoalMetaDot: {
     width: 3, height: 3, borderRadius: 2,
     backgroundColor: '#D1D5DB', marginHorizontal: 2,
   },
+  // ── Completion tracker ──
+  trackerStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F1F3',
+  },
+  trackerDots: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
+  },
+  trackerDot: {
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: '#E5E7EB',
+  },
+  trackerDotFilled: {
+    backgroundColor: '#2E7D62',
+  },
+  trackerCount: {
+    fontSize: 11, color: '#6B7280', fontWeight: '600', flexShrink: 0,
+  },
+  trackerSpacer: { flex: 1 },
+  trackerMetPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#E8F5EF', borderRadius: 20,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  trackerMetText: {
+    fontSize: 11, color: '#2E7D62', fontWeight: '700',
+  },
+  trackerLogBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#2E7D62', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  trackerLogBtnDone: { backgroundColor: '#E8F5EF' },
+  trackerLogBtnText: {
+    fontSize: 11, color: '#FFFFFF', fontWeight: '700',
+  },
+
   familyGoalActions: {
     flexDirection: 'row', gap: 8,
   },

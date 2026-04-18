@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
   // ── Profile card ──
   profileCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 24,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 24, marginTop: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },

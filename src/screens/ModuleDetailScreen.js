@@ -87,6 +87,17 @@ export default function ModuleDetailScreen({ route, navigation }) {
     setShowVoicePicker(true);
   }, []);
 
+  // Intercept back navigation while generating — abort the request cleanly
+  useEffect(() => {
+    if (!generating) return;
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+      abortRef.current?.abort();
+      navigation.dispatch(e.data.action);
+    });
+    return unsubscribe;
+  }, [generating, navigation]);
+
   async function generateModule(selectedVoice) {
     setGenerating(true);
     setError(null);
@@ -228,8 +239,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
                 <Ionicons name="mic" size={22} color="#2E7D62" />
               </View>
               <View style={styles.voiceOptionText}>
-                <Text style={styles.voiceOptionName}>Warm & Gentle</Text>
-                <Text style={styles.voiceOptionDesc}>Female voice — calm and nurturing</Text>
+                <Text style={styles.voiceOptionName}>Female Voice</Text>
               </View>
             </TouchableOpacity>
 
@@ -247,8 +257,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
                 <Ionicons name="mic" size={22} color="#4F46E5" />
               </View>
               <View style={styles.voiceOptionText}>
-                <Text style={styles.voiceOptionName}>Deep & Calm</Text>
-                <Text style={styles.voiceOptionDesc}>Male voice — rich and authoritative</Text>
+                <Text style={styles.voiceOptionName}>Male Voice</Text>
               </View>
             </TouchableOpacity>
 
@@ -280,8 +289,9 @@ export default function ModuleDetailScreen({ route, navigation }) {
               <View style={styles.pickerContent}>
                 <Text style={styles.pickerTitle}>Dhikr While You Wait</Text>
                 <Text style={styles.pickerSubtitle}>
-                  Your personalized module is being prepared — this usually takes a few minutes. Make the most of the time. Choose your dhikr.
+                  Your personalized module will take a few minutes to prepare. Make dhikr while you wait.
                 </Text>
+                <Text style={styles.pickerChooseLabel}>Choose your dhikr</Text>
 
                 <View style={styles.pickerOptions}>
                   {DHIKR_OPTIONS.map((d, i) => (
@@ -307,6 +317,12 @@ export default function ModuleDetailScreen({ route, navigation }) {
           {/* ── Generating state — Tasbih ── */}
           {generating && selectedDhikr && (
             <LinearGradient colors={['#0D2419', '#1B3D2F', '#2A5240']} style={styles.tasbiScreen}>
+
+              {/* Top: preparing indicator */}
+              <View style={styles.tasbiPreparingRow}>
+                <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
+                <Text style={styles.tasbiPreparingText}>Preparing your module — make dhikr while you wait</Text>
+              </View>
 
               {/* Center: dhikr + bead */}
               <View style={styles.tasbiCenter}>
@@ -742,7 +758,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.55)',
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+  pickerChooseLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    color: 'rgba(255,255,255,0.75)',
+    marginBottom: 14,
   },
   pickerOptions: {
     gap: 10,
@@ -780,6 +803,20 @@ const styles = StyleSheet.create({
   // ── Tasbih generating screen ──
   tasbiScreen: {
     flex: 1,
+  },
+  tasbiPreparingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingTop: 20,
+    paddingBottom: 4,
+  },
+  tasbiPreparingText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 0.3,
   },
   tasbiTop: {
     alignItems: 'center',

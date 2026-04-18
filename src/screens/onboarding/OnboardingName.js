@@ -53,17 +53,19 @@ export default function OnboardingName({ navigation, route }) {
             </View>
 
             <Animated.View style={[styles.inputWrap, { opacity: inputOpacity }]}>
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                placeholder="Your name..."
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                returnKeyType="next"
-                onSubmitEditing={handleNext}
-              />
+              <View>
+                {!name && <Text style={styles.inputPlaceholder} pointerEvents="none">Your name...</Text>}
+                <TextInput
+                  ref={inputRef}
+                  style={styles.input}
+                  placeholder=""
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={handleNext}
+                />
+              </View>
               <TouchableOpacity
                 style={[styles.btn, !name.trim() && styles.btnDisabled]}
                 onPress={handleNext}
@@ -115,6 +117,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     paddingVertical: 12,
     paddingHorizontal: 4,
+    letterSpacing: 0,
+  },
+  inputPlaceholder: {
+    position: 'absolute',
+    top: 12,
+    left: 4,
+    fontSize: 22,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.3)',
+    letterSpacing: 0,
+    pointerEvents: 'none',
   },
   btn: {
     backgroundColor: '#FFFFFF',

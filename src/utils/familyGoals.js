@@ -13,11 +13,21 @@ export { requestNotificationPermission };
 export async function getFamilyId() {
   let id = await AsyncStorage.getItem(FAMILY_ID_KEY);
   if (!id) {
-    // Generate a stable family ID tied to the user's auth ID if available
     const { data } = await supabase.auth.getSession();
-    id = data?.session?.user?.id
-      ? `family_${data.session.user.id}`
-      : `family_local_${Date.now()}`;
+    const userId = data?.session?.user?.id;
+
+    if (userId) {
+      // Check if this user is already a member of a family (e.g. after logout/login)
+      const { data: memberships } = await supabase
+        .from('family_members')
+        .select('family_id')
+        .eq('user_id', userId)
+        .limit(1);
+      id = memberships?.[0]?.family_id ?? `family_${userId}`;
+    } else {
+      id = `family_local_${Date.now()}`;
+    }
+
     await AsyncStorage.setItem(FAMILY_ID_KEY, id);
   }
   return id;
@@ -62,6 +72,7 @@ export async function loadFamilyGoals() {
             iconColor:       r.icon_color,
             frequencyType:   r.frequency_type,
             frequencyLabel:  r.frequency_label,
+            frequency:       r.frequency ?? (r.frequency_type === 'daily' ? 7 : (r.reminder_days?.length ?? 1)),
             reminderEnabled: r.reminder_enabled,
             reminderTime:    r.reminder_time,
             reminderDays:    r.reminder_days,
@@ -77,18 +88,19 @@ export async function loadFamilyGoals() {
           if (localGoals.length > 0) {
             for (const goal of localGoals) {
               const row = {
-                id:              goal.id,
-                family_id:       familyId,
-                title:           goal.title,
-                icon:            goal.icon,
-                icon_color:      goal.iconColor,
-                frequency_type:  goal.frequencyType,
-                frequency_label: goal.frequencyLabel,
+                id:               goal.id,
+                family_id:        familyId,
+                title:            goal.title,
+                icon:             goal.icon,
+                icon_color:       goal.iconColor,
+                frequency_type:   goal.frequencyType,
+                frequency_label:  goal.frequencyLabel,
+                frequency:        goal.frequency,
                 reminder_enabled: goal.reminderEnabled,
-                reminder_time:   goal.reminderTime,
-                reminder_days:   goal.reminderDays,
-                active:          goal.active ?? true,
-                created_at:      goal.createdAt ?? new Date().toISOString(),
+                reminder_time:    goal.reminderTime,
+                reminder_days:    goal.reminderDays,
+                active:           goal.active ?? true,
+                created_at:       goal.createdAt ?? new Date().toISOString(),
               };
               supabase.from('family_goals').upsert(row, { onConflict: 'id' }).then();
             }
@@ -126,18 +138,19 @@ export async function saveFamilyGoal(goal) {
     const familyId = await getFamilyId();
     // Map camelCase local fields to snake_case DB columns
     const row = {
-      id:              goal.id,
-      family_id:       familyId,
-      title:           goal.title,
-      icon:            goal.icon,
-      icon_color:      goal.iconColor,
-      frequency_type:  goal.frequencyType,
-      frequency_label: goal.frequencyLabel,
+      id:               goal.id,
+      family_id:        familyId,
+      title:            goal.title,
+      icon:             goal.icon,
+      icon_color:       goal.iconColor,
+      frequency_type:   goal.frequencyType,
+      frequency_label:  goal.frequencyLabel,
+      frequency:        goal.frequency,
       reminder_enabled: goal.reminderEnabled,
-      reminder_time:   goal.reminderTime,
-      reminder_days:   goal.reminderDays,
-      active:          goal.active ?? true,
-      created_at:      goal.createdAt ?? new Date().toISOString(),
+      reminder_time:    goal.reminderTime,
+      reminder_days:    goal.reminderDays,
+      active:           goal.active ?? true,
+      created_at:       goal.createdAt ?? new Date().toISOString(),
     };
     supabase
       .from('family_goals')
