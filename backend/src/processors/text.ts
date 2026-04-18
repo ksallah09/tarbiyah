@@ -5,6 +5,7 @@ import {
   TEXT_EXTRACTION_PROMPT,
 } from '../prompts/system';
 import { Source, ExtractedContent, GeminiExtractionResponse } from '../types';
+import { parseJsonRobustly } from '../utils/json';
 
 const MAX_CONTENT_CHARS = 80_000; // Gemini 1.5 Flash handles up to 1M tokens, but we cap for efficiency
 
@@ -39,14 +40,31 @@ export async function processTextSource(
 async function fetchAndExtractText(url: string, title: string): Promise<string> {
   console.log(`  → Fetching text content: ${title}`);
 
-  const response = await axios.get<string>(url, {
-    timeout: 20_000,
-    responseType: 'text',
-    headers: {
-      'User-Agent': 'TarbiyahApp/1.0 (Content Processor)',
-      Accept: 'text/html,text/plain,application/xhtml+xml',
-    },
-  });
+  let response;
+  try {
+    response = await axios.get<string>(url, {
+      timeout: 20_000,
+      responseType: 'text',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; TarbiyahApp/1.0)',
+        Accept: 'text/html,text/plain,application/xhtml+xml',
+      },
+    });
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status;
+    if (status === 404) {
+      throw new Error(
+        `URL_NOT_FOUND: "${url}" returned 404. The article may have moved. ` +
+        `Update the URL in sources.ts and re-run.`
+      );
+    }
+    if (status === 403 || status === 429) {
+      throw new Error(
+        `URL_BLOCKED: "${url}" returned ${status}. The site is blocking the request.`
+      );
+    }
+    throw err;
+  }
 
   const content = response.data;
 
@@ -106,7 +124,7 @@ async function extractInsightsFromText(
 
   let parsed: GeminiExtractionResponse;
   try {
-    parsed = JSON.parse(raw) as GeminiExtractionResponse;
+    parsed = parseJsonRobustly(raw) as GeminiExtractionResponse;
   } catch {
     throw new Error(
       `Text processor: Gemini returned unparseable JSON for source "${source.title}".\n` +

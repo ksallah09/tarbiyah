@@ -5,11 +5,12 @@
  * any that haven't been run yet. Replaces the Supabase Storage PDF workflow.
  *
  * Usage:
- *   npx ts-node src/scripts/process-url-sources.ts              # process unprocessed only
- *   npx ts-node src/scripts/process-url-sources.ts --rerun      # reprocess everything
- *   npx ts-node src/scripts/process-url-sources.ts --list       # just list sources, no processing
- *   npx ts-node src/scripts/process-url-sources.ts --category science    # only science sources
- *   npx ts-node src/scripts/process-url-sources.ts --category spiritual  # only spiritual sources
+ *   npx ts-node src/scripts/process-url-sources.ts                        # process unprocessed (4 insights each)
+ *   npx ts-node src/scripts/process-url-sources.ts --rerun                # reprocess everything
+ *   npx ts-node src/scripts/process-url-sources.ts --list                 # just list sources, no processing
+ *   npx ts-node src/scripts/process-url-sources.ts --category science     # only science sources
+ *   npx ts-node src/scripts/process-url-sources.ts --category spiritual   # only spiritual sources
+ *   npx ts-node src/scripts/process-url-sources.ts --count 6              # generate 6 insights per source
  */
 
 import * as dotenv from 'dotenv';
@@ -27,12 +28,16 @@ import {
 import { processSingleSource } from '../pipeline/daily';
 import { Source } from '../types';
 
-const RERUN    = process.argv.includes('--rerun');
+const RERUN     = process.argv.includes('--rerun');
 const LIST_ONLY = process.argv.includes('--list');
 const CATEGORY  = (() => {
   const idx = process.argv.indexOf('--category');
   return idx !== -1 ? process.argv[idx + 1] : null;
 })() as Source['category'] | null;
+const COUNT = (() => {
+  const idx = process.argv.indexOf('--count');
+  return idx !== -1 ? parseInt(process.argv[idx + 1], 10) : 4;
+})();
 
 async function isAlreadyProcessed(sourceId: string): Promise<boolean> {
   if (RERUN) return false;
@@ -50,6 +55,7 @@ async function main() {
   console.log('  Tarbiyah — URL Source Processor');
   if (CATEGORY) console.log(`  Category filter: ${CATEGORY}`);
   if (RERUN)    console.log('  Mode: --rerun (reprocessing all)');
+  console.log(`  Insights per source: ${COUNT}`);
   console.log('══════════════════════════════════════════\n');
 
   // Register all curated sources in Supabase
@@ -91,7 +97,7 @@ async function main() {
 
     console.log(`\nProcessing: "${source.title}" [${source.type}]`);
     try {
-      await processSingleSource(source);
+      await processSingleSource(source, COUNT);
 
       // Auto-approve and publish new draft insights from this source
       const drafts = await getDraftInsights();

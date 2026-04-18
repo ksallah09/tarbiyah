@@ -18,8 +18,12 @@ import { saveModule } from '../utils/modules';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
-const DHIKR = [
-  { arabic: 'أَسْتَغْفِرُ اللّٰهَ', latin: 'Astaghfirullah', meaning: 'I seek forgiveness from Allah' },
+const DHIKR_OPTIONS = [
+  { arabic: 'أَسْتَغْفِرُ اللّٰهَ',      latin: 'Astaghfirullah',    meaning: 'I seek forgiveness from Allah'  },
+  { arabic: 'سُبْحَانَ اللّٰهِ',          latin: 'SubhanAllah',       meaning: 'Glory be to Allah'              },
+  { arabic: 'الْحَمْدُ لِلّٰهِ',           latin: 'Alhamdulillah',     meaning: 'All praise is due to Allah'     },
+  { arabic: 'اللّٰهُ أَكْبَرُ',            latin: 'Allahu Akbar',      meaning: 'Allah is the Greatest'          },
+  { arabic: 'لَا إِلٰهَ إِلَّا اللّٰهُ', latin: 'La ilaha illa Allah', meaning: 'There is no god but Allah'     },
 ];
 
 const LESSON_COLORS = {
@@ -33,9 +37,10 @@ export default function ModuleDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { topic, isNew, module: savedModule } = route.params;
 
-  const [generating, setGenerating] = useState(isNew);
-  const [error, setError]           = useState(null);
-  const [module, setModule]         = useState(savedModule ?? null);
+  const [selectedDhikr, setSelectedDhikr] = useState(null);
+  const [generating, setGenerating]       = useState(false);
+  const [error, setError]                 = useState(null);
+  const [module, setModule]               = useState(savedModule ?? null);
   // lessonAudios: lessonId → URL (populated once background generation completes)
   const [lessonAudios, setLessonAudios] = useState(() => {
     const map = {};
@@ -49,8 +54,8 @@ export default function ModuleDetailScreen({ route, navigation }) {
   const beadPulseScale   = useRef(new Animated.Value(1)).current;
   const beadPulseOpacity = useRef(new Animated.Value(0)).current;
 
-  const dhikrIdx   = 0;
-  const displayNum = tasbiCount;
+  const activeDhikr = selectedDhikr ?? DHIKR_OPTIONS[0];
+  const displayNum  = tasbiCount;
 
   function handleTasbiTap() {
     const next = tasbiCount + 1;
@@ -75,6 +80,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     if (!isNew) return;
+    setGenerating(true);
     generateModule();
   }, []);
 
@@ -215,29 +221,48 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
         <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
 
-          {/* ── Generating state — Tasbih ── */}
-          {generating && (
+          {/* ── Dhikr picker ── */}
+          {generating && !selectedDhikr && (
             <LinearGradient colors={['#0D2419', '#1B3D2F', '#2A5240']} style={styles.tasbiScreen}>
-
-              {/* Top: preparing indicator */}
-              <View style={styles.tasbiTop}>
-                <View style={styles.tasbiIndicator}>
-                  <ActivityIndicator size="small" color="rgba(255,255,255,0.45)" />
-                  <Text style={styles.tasbiPreparingText}>Preparing your module…</Text>
-                </View>
-                <Text style={styles.tasbiMessage}>
-                  Your module is being prepared. This usually takes a few minutes — a perfect time for dhikr.
+              <View style={styles.pickerContent}>
+                <Text style={styles.pickerTitle}>Dhikr While You Wait</Text>
+                <Text style={styles.pickerSubtitle}>
+                  Your personalized module is being prepared — this usually takes a few minutes. Make the most of the time. Choose your dhikr.
                 </Text>
-                <Text style={styles.tasbiHint}>Tap the counter to begin</Text>
+
+                <View style={styles.pickerOptions}>
+                  {DHIKR_OPTIONS.map((d, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.pickerOption}
+                      activeOpacity={0.8}
+                      onPress={() => setSelectedDhikr(d)}
+                    >
+                      <View style={styles.pickerOptionLeft}>
+                        <Text style={styles.pickerOptionArabic}>{d.arabic}</Text>
+                        <Text style={styles.pickerOptionLatin}>{d.latin}</Text>
+                        <Text style={styles.pickerOptionMeaning}>{d.meaning}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
+            </LinearGradient>
+          )}
+
+          {/* ── Generating state — Tasbih ── */}
+          {generating && selectedDhikr && (
+            <LinearGradient colors={['#0D2419', '#1B3D2F', '#2A5240']} style={styles.tasbiScreen}>
 
               {/* Center: dhikr + bead */}
               <View style={styles.tasbiCenter}>
-                <Text style={styles.tasbiArabic}>{DHIKR[dhikrIdx].arabic}</Text>
-                <Text style={styles.tasbiLatin}>{DHIKR[dhikrIdx].latin}</Text>
-                <Text style={styles.tasbiMeaning}>{DHIKR[dhikrIdx].meaning}</Text>
+                <Text style={styles.tasbiArabic}>{activeDhikr.arabic}</Text>
+                <Text style={styles.tasbiLatin}>{activeDhikr.latin}</Text>
+                <Text style={styles.tasbiMeaning}>{activeDhikr.meaning}</Text>
 
                 {/* Bead */}
+                <Text style={styles.tapTitle}>Tap to count your dhikr</Text>
                 <TouchableOpacity
                   style={styles.beadContainer}
                   onPress={handleTasbiTap}
@@ -251,7 +276,6 @@ export default function ModuleDetailScreen({ route, navigation }) {
                     <Text style={styles.beadCount}>{displayNum}</Text>
                   </View>
                 </TouchableOpacity>
-
 
                 {tasbiCount > 0 && (
                   <Text style={styles.tasbiTotal}>{tasbiCount} total</Text>
@@ -391,6 +415,12 @@ export default function ModuleDetailScreen({ route, navigation }) {
                               <Text style={styles.lessonDuration}>
                                 <Ionicons name="time-outline" size={10} color="#9CA3AF" /> {lesson.duration}
                               </Text>
+                              {lesson.completed && (
+                                <View style={styles.completedPill}>
+                                  <Ionicons name="checkmark" size={9} color="#16A34A" />
+                                  <Text style={styles.completedPillText}>Completed</Text>
+                                </View>
+                              )}
                             </View>
                             <Text style={[styles.lessonTitle, isLocked && styles.lessonTitleLocked]}>
                               {lesson.title}
@@ -576,6 +606,59 @@ const styles = StyleSheet.create({
   },
   contentPad: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36 },
 
+  // ── Dhikr picker ──
+  pickerContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 32,
+  },
+  pickerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    marginBottom: 14,
+  },
+  pickerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.55)',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  pickerOptions: {
+    gap: 10,
+  },
+  pickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  pickerOptionLeft: {
+    flex: 1,
+    gap: 3,
+  },
+  pickerOptionArabic: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  pickerOptionLatin: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.75)',
+  },
+  pickerOptionMeaning: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.35)',
+  },
+
   // ── Tasbih generating screen ──
   tasbiScreen: {
     flex: 1,
@@ -637,6 +720,13 @@ const styles = StyleSheet.create({
     marginBottom: 36,
     letterSpacing: 0.3,
   },
+  tapTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 20,
+    letterSpacing: 0.2,
+  },
   beadContainer: {
     width: 160, height: 160,
     alignItems: 'center', justifyContent: 'center',
@@ -662,6 +752,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: -2,
+  },
+  beadHint: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    fontWeight: '500',
+    marginTop: 4,
+    letterSpacing: 1,
   },
   tasbiDots: {
     flexDirection: 'row',
@@ -796,6 +893,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 4,
+  },
+  completedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  completedPillText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#16A34A',
+    letterSpacing: 0.3,
   },
   lessonTypeChip: {
     flexDirection: 'row',

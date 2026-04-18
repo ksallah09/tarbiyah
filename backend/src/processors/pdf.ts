@@ -8,6 +8,7 @@ import {
   SYSTEM_INSTRUCTION,
   PDF_EXTRACTION_PROMPT,
 } from '../prompts/system';
+import { parseJsonRobustly } from '../utils/json';
 import { Source, ExtractedContent, GeminiExtractionResponse } from '../types';
 
 const POLL_INTERVAL_MS = 3000;
@@ -160,7 +161,7 @@ async function extractFromUploadedPdf(
 
   let parsed: GeminiExtractionResponse;
   try {
-    parsed = JSON.parse(raw) as GeminiExtractionResponse;
+    parsed = parseJsonRobustly(raw) as GeminiExtractionResponse;
   } catch {
     throw new Error(
       `PDF processor: Gemini returned unparseable JSON for source "${source.title}".\n` +

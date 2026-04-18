@@ -20,7 +20,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import fallbackData from '../data/insights.json';
-import { getWeekReadDays, isReadToday } from '../utils/readInsights';
+import { getWeekReadDays, isReadToday, getStreak } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
@@ -117,11 +117,22 @@ export default function HomeScreen({ navigation }) {
   const [imgIndex, setImgIndex]              = useState(DAY_INDEX);
   const [spiritReadToday, setSpiritReadToday] = useState(false);
   const [sciReadToday,    setSciReadToday]    = useState(false);
+  const [streak,      setStreak]      = useState(0);
+  const [sciStreak,   setSciStreak]   = useState(0);
+  const [quranStreak, setQuranStreak] = useState(0);
 
   // Ref to always-current insight IDs so useFocusEffect (empty deps) can re-check on return
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
 
-  const dailySpiritualImage = require('../../assets/spiritual-5.jpg');
+  const heroImage = require('../../assets/spiritual-5.jpg');
+
+  const SPIRITUAL_CARD_IMAGES = [
+    require('../../assets/spiritual-1.jpg'),
+    require('../../assets/spiritual-2.jpg'),
+    require('../../assets/spiritual-5.jpg'),
+    require('../../assets/spiritual-7.jpg'),
+  ];
+  const dailySpiritualImage = SPIRITUAL_CARD_IMAGES[imgIndex % SPIRITUAL_CARD_IMAGES.length];
   const dailyScienceImage   = SCIENCE_IMAGES[(imgIndex + 1) % SCIENCE_IMAGES.length];
 
   const contentOpacity = useRef(new Animated.Value(1)).current;
@@ -194,6 +205,9 @@ export default function HomeScreen({ navigation }) {
       getWeekReadDays('spiritual').then(setSpiritualReadWeek);
       getWeekReadDays('scientific').then(setScientificReadWeek);
       getWeekReadDays('quran').then(setQuranReadWeek);
+      getStreak('spiritual').then(setStreak);
+      getStreak('scientific').then(setSciStreak);
+      getStreak('quran').then(setQuranStreak);
       isReadToday('quran', dailyAyah.reference).then(setAyahRead);
 
       // Re-check insight read badges on every focus (e.g. returning from InsightDetail)
@@ -256,7 +270,15 @@ export default function HomeScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
         >
           {/* ── Dark hero header ── */}
-          <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
+          <ImageBackground
+            source={heroImage}
+            style={[styles.hero, { paddingTop: insets.top + 20 }]}
+            imageStyle={styles.heroBgImage}
+          >
+            <LinearGradient
+              colors={['rgba(10,28,20,0.82)', 'rgba(27,61,47,0.75)']}
+              style={StyleSheet.absoluteFill}
+            />
             <View style={styles.heroRow}>
               <View style={styles.heroText}>
                 {animate ? (
@@ -302,7 +324,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
               </View>
             </View>
-          </View>
+          </ImageBackground>
 
           {/* ── Content ── */}
           <View style={styles.sheet}>
@@ -403,7 +425,7 @@ export default function HomeScreen({ navigation }) {
               )}
 
               {/* ── DEV: Refresh insights ── */}
-              {false && __DEV__ && (
+              {__DEV__ && (
                 <TouchableOpacity
                   style={styles.devRefreshBtn}
                   onPress={async () => {
@@ -558,6 +580,10 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.streakHeaderRow}>
                   <Ionicons name="moon" size={13} color="#2E7D62" />
                   <Text style={[styles.streakLabel, { color: '#2E7D62' }]}>Spiritual</Text>
+                  <View style={styles.streakBadge}>
+                    <Ionicons name="flame" size={11} color="#2E7D62" />
+                    <Text style={[styles.streakBadgeNum, { color: '#2E7D62' }]}>{streak} day streak</Text>
+                  </View>
                 </View>
                 <Text style={styles.streakSubLabel}>Days you read a spiritual insight</Text>
                 <WeekRow days={spirReadWeek} color="#1B3D2F" todayColor="#D6EFE3" />
@@ -567,6 +593,10 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.streakHeaderRow}>
                   <Ionicons name="bulb-outline" size={13} color="#D4871A" />
                   <Text style={[styles.streakLabel, { color: '#D4871A' }]}>Research</Text>
+                  <View style={styles.streakBadge}>
+                    <Ionicons name="flame" size={11} color="#D4871A" />
+                    <Text style={[styles.streakBadgeNum, { color: '#D4871A' }]}>{sciStreak} day streak</Text>
+                  </View>
                 </View>
                 <Text style={styles.streakSubLabel}>Days you read a scientific insight</Text>
                 <WeekRow days={sciReadWeek} color="#D4871A" todayColor="#FDE8C0" />
@@ -576,6 +606,10 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.streakHeaderRow}>
                   <Ionicons name="book-outline" size={13} color="#6B9FD4" />
                   <Text style={[styles.streakLabel, { color: '#6B9FD4' }]}>Quran</Text>
+                  <View style={styles.streakBadge}>
+                    <Ionicons name="flame" size={11} color="#6B9FD4" />
+                    <Text style={[styles.streakBadgeNum, { color: '#6B9FD4' }]}>{quranStreak} day streak</Text>
+                  </View>
                 </View>
                 <Text style={styles.streakSubLabel}>Days you read the verses of the day</Text>
                 <WeekRow days={quranReadWeek} color="#1A3A6B" todayColor="#D0E4F7" />
@@ -598,9 +632,12 @@ const styles = StyleSheet.create({
 
   // ── Hero header ──
   hero: {
-    backgroundColor: '#1B3D2F',
     paddingHorizontal: 24,
     paddingBottom: 14,
+    overflow: 'hidden',
+  },
+  heroBgImage: {
+    resizeMode: 'cover',
   },
   heroRow: {
     flexDirection: 'row',
@@ -617,6 +654,20 @@ const styles = StyleSheet.create({
     fontSize: 10, fontWeight: '700', letterSpacing: 1.2,
     color: 'rgba(255,255,255,0.45)',
     lineHeight: 22,
+  },
+  heroStreakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  heroStreakEmoji: {
+    fontSize: 13,
+  },
+  heroStreakText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   heroProgressDots: {
     flexDirection: 'row', gap: 16,
@@ -985,6 +1036,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
   streakHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
+  streakBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    marginLeft: 'auto',
+  },
+  streakBadgeNum: { fontSize: 11, fontWeight: '700' },
   streakLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
   streakSubLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginBottom: 10, marginTop: -10 },
 });

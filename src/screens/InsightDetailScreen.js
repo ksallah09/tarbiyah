@@ -19,8 +19,6 @@ import { markAsRead, isReadToday } from '../utils/readInsights';
 const SPIRITUAL_IMAGES = [
   require('../../assets/spiritual-1.jpg'),
   require('../../assets/spiritual-2.jpg'),
-  require('../../assets/spiritual-3.jpg'),
-  require('../../assets/spiritual-4.jpg'),
   require('../../assets/spiritual-5.jpg'),
   require('../../assets/spiritual-7.jpg'),
 ];

@@ -283,6 +283,23 @@ export default function ProgressScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
+        {/* ── Streak counters ── */}
+        <Text style={[styles.sectionTitle, { marginTop: 28 }]}>CURRENT LEARNING STREAKS</Text>
+        <View style={styles.streakRow}>
+          {[
+            { label: 'Spiritual',  streak: spirStreak,  icon: 'moon',        color: '#2E7D62', bg: '#E8F5EF' },
+            { label: 'Research',   streak: sciStreak,   icon: 'bulb-outline', color: '#D4871A', bg: '#FEF3E7' },
+            { label: 'Quran',      streak: quranStreak, icon: 'book-outline', color: '#1A3A6B', bg: '#EEF4FB' },
+          ].map(({ label, streak, icon, color, bg }) => (
+            <View key={label} style={[styles.streakCountCard, { backgroundColor: bg }]}>
+              <Ionicons name={icon} size={16} color={color} />
+              <Text style={[styles.streakCountNum, { color }]}>{streak}</Text>
+              <Text style={[styles.streakCountLabel, { color }]}>{label}</Text>
+              <Text style={styles.streakCountSub}>day streak</Text>
+            </View>
+          ))}
+        </View>
+
         {/* ── This Month ── */}
         <Text style={[styles.sectionTitle, { marginTop: 28 }]}>THIS MONTH</Text>
 
@@ -377,6 +394,38 @@ const styles = StyleSheet.create({
     color: '#1B3D2F',
     letterSpacing: 0.4,
     marginBottom: 14,
+  },
+  streakRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 4,
+  },
+  streakCountCard: {
+    flex: 1,
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    gap: 2,
+  },
+  streakCountNum: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -1,
+    marginTop: 6,
+  },
+  streakCountEmoji: {
+    fontSize: 14, // kept for layout spacing — rendered as Ionicons
+  },
+  streakCountLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    marginTop: 4,
+  },
+  streakCountSub: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontWeight: '500',
   },
   addGoalBtn: {
     flexDirection: 'row',

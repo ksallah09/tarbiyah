@@ -1,13 +1,15 @@
 import { Part } from '@google/generative-ai';
-import { getJsonModel, generateWithRetry, MODEL_HEAVY } from '../config/gemini';
+import { getJsonModel, generateWithRetry, MODEL_HEAVY, MODEL_FAST } from '../config/gemini';
 import { SYSTEM_INSTRUCTION, YOUTUBE_EXTRACTION_PROMPT } from '../prompts/system';
 import { Source, ExtractedContent, GeminiExtractionResponse } from '../types';
+import { parseJsonRobustly } from '../utils/json';
+
+// gemini-1.5-flash supports up to 2M tokens — used as fallback for very long videos
+const MODEL_LONG_VIDEO = 'gemini-1.5-flash';
 
 export async function processYouTubeSource(
   source: Pick<Source, 'id' | 'title' | 'url' | 'author' | 'speakerName' | 'tags' | 'description' | 'language'>
 ): Promise<ExtractedContent> {
-  const model = getJsonModel(MODEL_HEAVY, SYSTEM_INSTRUCTION);
-
   const parts: Part[] = [
     { text: buildContextPreamble(source) },
     { fileData: { mimeType: 'video/*', fileUri: source.url } },
@@ -16,11 +18,25 @@ export async function processYouTubeSource(
 
   console.log(`  → Analyzing YouTube video: ${source.title}`);
 
-  const raw = await generateWithRetry(model, parts, MODEL_HEAVY, SYSTEM_INSTRUCTION);
+  let raw: string;
+  try {
+    const model = getJsonModel(MODEL_HEAVY, SYSTEM_INSTRUCTION);
+    raw = await generateWithRetry(model, parts, MODEL_HEAVY, SYSTEM_INSTRUCTION);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Token limit exceeded — fall back to gemini-1.5-flash which supports 2M tokens
+    if (msg.includes('token count exceeds') || msg.includes('400')) {
+      console.warn(`  ⚠ Video too long for ${MODEL_HEAVY} — retrying with ${MODEL_LONG_VIDEO} (2M token context)`);
+      const fallback = getJsonModel(MODEL_LONG_VIDEO, SYSTEM_INSTRUCTION);
+      raw = await generateWithRetry(fallback, parts, MODEL_LONG_VIDEO, SYSTEM_INSTRUCTION);
+    } else {
+      throw err;
+    }
+  }
 
   let parsed: GeminiExtractionResponse;
   try {
-    parsed = JSON.parse(raw) as GeminiExtractionResponse;
+    parsed = parseJsonRobustly(raw) as GeminiExtractionResponse;
   } catch {
     throw new Error(
       `YouTube processor: Gemini returned unparseable JSON for "${source.title}".\n` +
