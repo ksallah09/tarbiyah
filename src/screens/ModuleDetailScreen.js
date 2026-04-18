@@ -166,7 +166,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
     const allDone = module.lessons.every(l => lessonAudios[l.id]);
     if (allDone || audiosLoadingRef.current) return;
     audiosLoadingRef.current = true;
-    prefetchLessonAudios(module, 0);
+    prefetchLessonAudios(module, 0, voice ?? undefined);
   }, [module?.id]);
 
   async function prefetchLessonAudios(mod, startIndex = 0, selectedVoice) {
@@ -373,7 +373,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
                 </LinearGradient>
                 <Text style={styles.errorTitle}>Couldn't Generate Module</Text>
                 <Text style={styles.errorBody}>{error}</Text>
-                <TouchableOpacity style={styles.retryBtn} onPress={generateModule}>
+                <TouchableOpacity style={styles.retryBtn} onPress={() => generateModule(voice ?? 'shimmer')}>
                   <Ionicons name="refresh" size={16} color="#FFFFFF" />
                   <Text style={styles.retryBtnText}>Try Again</Text>
                 </TouchableOpacity>
