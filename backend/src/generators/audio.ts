@@ -66,17 +66,35 @@ function buildNarrationText(lesson: ModuleLesson): string {
 
 function sanitizeForTts(text: string): string {
   return text
-    // Prophet ﷺ abbreviations
+    // ── Islamic symbols (Unicode) ─────────────────────────────────────────────
+    .replace(/ﷺ/g,  'peace and blessings be upon him')
+    .replace(/ﷻ/g,  'glorified and exalted be He')
+
+    // ── Prayer abbreviations — parenthetical and standalone ───────────────────
     .replace(/\(p\.?b\.?u\.?h\.?\)/gi, 'peace and blessings be upon him')
-    .replace(/\bp\.?b\.?u\.?h\.?\b/gi,  'peace and blessings be upon him')
-    .replace(/\(s\.?a\.?w\.?\)/gi,       'peace and blessings be upon him')
-    .replace(/\bs\.?a\.?w\.?\b/gi,       'peace and blessings be upon him')
-    // Allah ﷻ
-    .replace(/\(s\.?w\.?t\.?\)/gi,       'glorified and exalted be He')
-    .replace(/\bs\.?w\.?t\.?\b/gi,       'glorified and exalted be He')
-    // Companions
-    .replace(/\(r\.?a\.?\)/gi,           'may Allah be pleased with them')
-    .replace(/\(a\.?s\.?\)/gi,           'peace be upon him');
+    .replace(/\bp\.?b\.?u\.?h\.?\b/gi, 'peace and blessings be upon him')
+    .replace(/\(s\.?a\.?w\.?\)/gi,     'peace and blessings be upon him')
+    .replace(/\bs\.?a\.?w\.?\b/gi,     'peace and blessings be upon him')
+    .replace(/\(s\.?w\.?t\.?\)/gi,     'glorified and exalted be He')
+    .replace(/\bs\.?w\.?t\.?\b/gi,     'glorified and exalted be He')
+    .replace(/\(r\.?a\.?\)/gi,         'may Allah be pleased with them')
+    .replace(/\(a\.?s\.?\)/gi,         'peace be upon him')
+
+    // ── Arabic script in parentheses — remove entirely ────────────────────────
+    // Matches any parenthetical that contains at least one Arabic Unicode character
+    .replace(/\([^)]*[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF][^)]*\)/g, '')
+
+    // ── Arabic transliterations in parentheses — remove entirely ─────────────
+    // Matches short parentheticals (1–3 words, no punctuation) that are likely
+    // Islamic transliterations rather than English explanatory phrases
+    .replace(/\(([a-zA-Z\u2018\u2019'-]{2,30})\)/g, '')
+
+    // ── Stray Arabic characters left outside parentheses ─────────────────────
+    .replace(/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+/g, '')
+
+    // ── Clean up any double spaces left by removals ───────────────────────────
+    .replace(/  +/g, ' ')
+    .trim();
 }
 
 // ─── OpenAI TTS ───────────────────────────────────────────────────────────────
