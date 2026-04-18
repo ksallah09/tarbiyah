@@ -16,7 +16,8 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tarbiyah.parenting",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
