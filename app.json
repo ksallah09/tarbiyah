@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/app-icons-1/logo-Picsart-BackgroundRemover.png",
+      "image": "./assets/app-icons-1/logo-single.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
