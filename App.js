@@ -68,7 +68,7 @@ function AppSplashOverlay({ onContinue }) {
   const insets       = useSafeAreaInsets();
   const opacity      = useRef(new Animated.Value(0)).current;
   const [visible, setVisible] = useState(true);
-  const [quoteIdx, setQuoteIdx] = useState(DAY_INDEX % SPLASH_QUOTES.length);
+  const [quoteIdx, setQuoteIdx] = useState(Math.floor(Math.random() * SPLASH_QUOTES.length));
   const quote        = SPLASH_QUOTES[quoteIdx];
 
   useEffect(() => {
