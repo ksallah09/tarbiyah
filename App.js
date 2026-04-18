@@ -45,7 +45,6 @@ import { requestNotificationPermission } from './src/utils/notifications';
 const DAY_INDEX = Math.floor(Date.now() / 86_400_000);
 
 const SPLASH_IMAGES = [
-  require('./assets/spiritual-3.jpg-old.jpg'),
   require('./assets/spiritual-4.jpg-old.jpg'),
   require('./assets/spiritual-5.jpg'),
   require('./assets/spiritual-8.jpg'),
