@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/app-icons-1/logo-single.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.tarbiyah.parenting",
       "usesAppleSignIn": true,
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "adaptiveIcon": {
