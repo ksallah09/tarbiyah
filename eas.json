@@ -15,13 +15,11 @@
     "preview": {
       "distribution": "internal"
     },
-    "production": {}
+    "production": {
+      "autoIncrement": true
+    }
   },
   "submit": {
-    "production": {
-      "ios": {
-        "autoIncrement": true
-      }
-    }
+    "production": {}
   }
 }
