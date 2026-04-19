@@ -169,19 +169,24 @@ export async function generateInviteCode() {
     .is('used_by', null)
     .is('cancelled', false);
 
-  const code = generateCode();
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-  const { error } = await supabase.from('family_invites').insert({
-    family_id:    familyId,
-    invite_code:  code,
-    created_by:   userId,
-    creator_name: displayName,
-    expires_at:   expiresAt,
-    cancelled:    false,
-  });
-
-  if (error) throw new Error(error.message);
+  let code;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    code = generateCode();
+    const { error } = await supabase.from('family_invites').insert({
+      family_id:    familyId,
+      invite_code:  code,
+      created_by:   userId,
+      creator_name: displayName,
+      expires_at:   expiresAt,
+      cancelled:    false,
+    });
+    if (!error) break;
+    // Retry only on unique constraint violation
+    if (!error.message.includes('duplicate') && !error.message.includes('unique')) throw new Error(error.message);
+    if (attempt === 4) throw new Error('Could not generate a unique code. Please try again.');
+  }
   return { code, expiresAt };
 }
 
