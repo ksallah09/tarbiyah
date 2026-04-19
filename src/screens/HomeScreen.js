@@ -479,19 +479,29 @@ export default function HomeScreen({ navigation }) {
               >
                 {actionGoals.map((goal, index) => {
                   const isSpiritual = goal.type === 'spiritual';
+                  const bgImage = isSpiritual
+                    ? require('../../assets/Spiritual-6.jpg-old.jpg')
+                    : require('../../assets/science-7.jpg');
+                  const overlayColors = isSpiritual
+                    ? ['rgba(10,30,20,0.45)', 'rgba(10,30,20,0.85)']
+                    : ['rgba(30,15,5,0.45)', 'rgba(30,15,5,0.85)'];
                   return (
-                    <View
+                    <ImageBackground
                       key={goal.id}
-                      style={[styles.goalCard, isSpiritual ? styles.goalGreen : styles.goalAmber, index < actionGoals.length - 1 && { marginRight: 12 }]}
+                      source={bgImage}
+                      style={[styles.goalCard, index < actionGoals.length - 1 && { marginRight: 12 }]}
+                      imageStyle={{ borderRadius: 20 }}
+                      resizeMode="cover"
                     >
+                      <LinearGradient colors={overlayColors} style={StyleSheet.absoluteFill} borderRadius={20} />
                       <View style={styles.goalCardInner}>
-                        <View style={[styles.goalTypePill, { backgroundColor: isSpiritual ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.15)' }]}>
+                        <View style={[styles.goalTypePill, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                           <Ionicons name={isSpiritual ? 'moon' : 'bulb-outline'} size={10} color="rgba(255,255,255,0.9)" />
                           <Text style={styles.goalTypePillText}>{goal.label}</Text>
                         </View>
                         <Text style={styles.goalText}>{goal.text}</Text>
                       </View>
-                    </View>
+                    </ImageBackground>
                   );
                 })}
               </ScrollView>
