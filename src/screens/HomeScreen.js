@@ -619,11 +619,16 @@ export default function HomeScreen({ navigation }) {
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
                 <Text style={styles.sectionTitle}>DUA OF THE DAY</Text>
               </View>
-              <LinearGradient
-                colors={['#1B3D2F', '#2E5E45']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              <ImageBackground
+                source={require('../../assets/spiritual-5.jpg')}
                 style={styles.islamicCard}
+                imageStyle={{ borderRadius: 20 }}
+                resizeMode="cover"
               >
+                <LinearGradient
+                  colors={['rgba(5,14,10,0.78)', 'rgba(5,14,10,0.92)']}
+                  style={StyleSheet.absoluteFill}
+                />
                 <View style={styles.islamicCardTopRow}>
                   <View style={{ flexDirection: 'row' }}>
                     <Ionicons name="hand-left-outline" size={13} color="rgba(255,255,255,0.5)" />
@@ -639,7 +644,7 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.islamicTranslit}>{dailyDua.transliteration}</Text>
                 <Text style={styles.islamicTranslation}>{dailyDua.translation}</Text>
                 <Text style={styles.islamicRef}>{dailyDua.reference}</Text>
-              </LinearGradient>
+              </ImageBackground>
 
               {/* THIS WEEK */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
