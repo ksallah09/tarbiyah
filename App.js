@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, createContext, useContext } from 'react';
 import {
-  View, ActivityIndicator, StyleSheet, Text, TouchableOpacity,
-  Animated, ImageBackground, Image, Modal,
+  View, ActivityIndicator, StyleSheet, Text,
+  Animated,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
@@ -9,7 +9,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -42,17 +41,6 @@ import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission } from './src/utils/notifications';
 
-const DAY_INDEX = Math.floor(Date.now() / 86_400_000);
-
-const SPLASH_IMAGES = [
-  require('./assets/spiritual-4.jpg-old.jpg'),
-  require('./assets/spiritual-5.jpg'),
-  require('./assets/spiritual-8.jpg'),
-  require('./assets/Spiritual-6.jpg-old.jpg'),
-  require('./assets/spiritual-7.jpg'),
-];
-const SPLASH_IMAGE = SPLASH_IMAGES[Math.floor(Math.random() * SPLASH_IMAGES.length)];
-
 const SPLASH_QUOTES = [
   { text: 'Each of you is a shepherd, and each of you is responsible for his flock.', source: 'Prophet Muhammad ﷺ' },
   { text: 'The best of you are the best to their families.', source: 'Prophet Muhammad ﷺ' },
@@ -64,132 +52,71 @@ const SPLASH_QUOTES = [
 
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
-function AppSplashOverlay({ onContinue }) {
-  const insets       = useSafeAreaInsets();
-  const opacity      = useRef(new Animated.Value(0)).current;
-  const [visible, setVisible] = useState(true);
-  const [quoteIdx, setQuoteIdx] = useState(Math.floor(Math.random() * SPLASH_QUOTES.length));
-  const quote        = SPLASH_QUOTES[quoteIdx];
+function AppSplashOverlay({ onDismiss }) {
+  const [visible, setVisible]   = useState(true);
+  const screenOpacity           = useRef(new Animated.Value(1)).current;
+  const titleOpacity            = useRef(new Animated.Value(0)).current;
+  const quoteOpacity            = useRef(new Animated.Value(0)).current;
+  const quote = SPLASH_QUOTES[Math.floor(Math.random() * SPLASH_QUOTES.length)];
 
   useEffect(() => {
-    Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+    Animated.sequence([
+      // Title fades in
+      Animated.timing(titleOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.delay(400),
+      // Quote fades in
+      Animated.timing(quoteOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.delay(1800),
+      // Everything fades out
+      Animated.timing(screenOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start(() => { setVisible(false); onDismiss(); });
   }, []);
-
-  function handleContinue() {
-    Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true })
-      .start(() => { setVisible(false); onContinue(); });
-  }
 
   if (!visible) return null;
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, { opacity, zIndex: 999 }]}>
-      <ImageBackground source={SPLASH_IMAGE} style={{ flex: 1 }} resizeMode="cover">
-        <LinearGradient
-          colors={['rgba(10,28,20,0.35)', 'rgba(8,22,16,0.92)']}
-          style={[splashStyles.overlay, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 }]}
-        >
-          <View style={splashStyles.brand}>
-            <Image
-              source={require('./assets/app-icons-1/logo-Picsart-BackgroundRemover.png')}
-              style={splashStyles.logo}
-              resizeMode="contain"
-            />
-            <Text style={splashStyles.brandName}>Tarbiyah</Text>
-          </View>
+    <Animated.View style={[StyleSheet.absoluteFill, { opacity: screenOpacity, zIndex: 999, backgroundColor: '#1B3D2F', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }]}>
+      <Animated.View style={{ opacity: titleOpacity, alignItems: 'center', marginBottom: 40 }}>
+        <Text style={splashStyles.titleLine1}>Your Guide to</Text>
+        <Text style={splashStyles.titleLine2}>Prophetic Parenting</Text>
+      </Animated.View>
 
-          <View style={splashStyles.quoteWrap}>
-            <Text style={splashStyles.quoteText}>{'\u201C'}{quote.text}{'\u201D'}</Text>
-            <View style={splashStyles.quoteDivider} />
-            <Text style={splashStyles.quoteSource}>— {quote.source}</Text>
-          </View>
-
-          <View style={splashStyles.footer}>
-            {__DEV__ && (
-              <TouchableOpacity
-                style={splashStyles.devBtn}
-                onPress={() => setQuoteIdx(i => (i + 1) % SPLASH_QUOTES.length)}
-              >
-                <Ionicons name="refresh-outline" size={13} color="rgba(255,255,255,0.35)" />
-                <Text style={splashStyles.devBtnText}>Rotate quote (dev)</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={splashStyles.continueBtn} onPress={handleContinue} activeOpacity={0.7}>
-              <Text style={splashStyles.continueBtnText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-      </ImageBackground>
+      <Animated.View style={{ opacity: quoteOpacity, alignItems: 'center' }}>
+        <Text style={splashStyles.quoteText}>{'\u201C'}{quote.text}{'\u201D'}</Text>
+        <Text style={splashStyles.quoteSource}>{quote.source.toUpperCase()}</Text>
+      </Animated.View>
     </Animated.View>
   );
 }
 
 const splashStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    paddingHorizontal: 28,
-    justifyContent: 'space-between',
-  },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  logo: { width: 42, height: 42 },
-  brandName: {
-    fontSize: 18,
+  titleLine1: {
+    fontSize: 30,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.75)',
-    letterSpacing: 1,
-  },
-  quoteWrap: { gap: 0 },
-  quoteText: {
-    fontSize: 20,
-    fontWeight: '500',
     color: '#FFFFFF',
-    lineHeight: 30,
-    letterSpacing: 0.1,
     textAlign: 'center',
-    marginBottom: 20,
   },
-  quoteDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+  titleLine2: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#C9A84C',
+    textAlign: 'center',
+  },
+  quoteText: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 26,
+    textAlign: 'center',
     marginBottom: 16,
+    fontStyle: 'italic',
   },
   quoteSource: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
-    letterSpacing: 0.5,
-    textAlign: 'center',
-  },
-  footer: { gap: 4 },
-  continueBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-  },
-  continueBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 0.3,
-  },
-  devBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-  },
-  devBtnText: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '500',
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 1.5,
+    textAlign: 'center',
   },
 });
 
@@ -398,7 +325,7 @@ export default function App() {
         </RootStack.Navigator>
 
         {showAppSplash && (
-          <AppSplashOverlay onContinue={() => setShowAppSplash(false)} />
+          <AppSplashOverlay onDismiss={() => setShowAppSplash(false)} />
         )}
       </NavigationContainer>
     </AuthContext.Provider>
