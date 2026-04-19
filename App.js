@@ -11,6 +11,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFonts, Amiri_400Regular, Amiri_700Bold } from '@expo-google-fonts/amiri';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -245,6 +246,7 @@ export default function App() {
   const [showAppSplash, setShowAppSplash] = useState(false);
   const navigationRef                 = useRef(null);
   const notifResponseListener         = useRef(null);
+  const [fontsLoaded]                 = useFonts({ Amiri_400Regular, Amiri_700Bold });
 
   useEffect(() => {
     Promise.all([isOnboardingComplete(), getSession()])

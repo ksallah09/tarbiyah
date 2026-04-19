@@ -1037,11 +1037,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   islamicArabic: {
-    fontSize: rs(20),
+    fontSize: rs(22),
     color: '#FFFFFF',
     textAlign: 'right',
-    lineHeight: 36,
-    fontWeight: '600',
+    lineHeight: 42,
+    fontFamily: 'Amiri_700Bold',
     marginBottom: 2,
   },
   islamicDivider: {
@@ -1112,11 +1112,11 @@ const styles = StyleSheet.create({
     color: '#4ADE80',
   },
   verseArabicPreview: {
-    fontSize: rs(18),
+    fontSize: rs(20),
     color: '#FFFFFF',
     textAlign: 'right',
-    lineHeight: 34,
-    fontWeight: '500',
+    lineHeight: 40,
+    fontFamily: 'Amiri_400Regular',
     marginBottom: 14,
   },
   verseDivider: {
