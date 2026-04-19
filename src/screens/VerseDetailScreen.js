@@ -186,12 +186,11 @@ const styles = StyleSheet.create({
   },
 
   arabic: {
-    fontSize: 26,
+    fontSize: 28,
     color: '#FFFFFF',
     textAlign: 'right',
-    lineHeight: 52,
-    fontWeight: '500',
-    letterSpacing: 0.5,
+    lineHeight: 56,
+    fontFamily: 'Amiri_400Regular',
     marginBottom: 14,
   },
 
