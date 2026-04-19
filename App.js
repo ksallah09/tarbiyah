@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, createContext, useContext } from 'react';
 import {
   View, ActivityIndicator, StyleSheet, Text,
-  Animated,
+  Animated, TouchableOpacity,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
