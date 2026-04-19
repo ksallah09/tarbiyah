@@ -890,8 +890,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 11, fontWeight: '700',
-    color: '#1B3D2F', letterSpacing: 0.8,
+    fontSize: 15, fontWeight: '700',
+    color: '#1B3D2F', letterSpacing: 0.3,
   },
   sectionUnderline: {
     width: 3, height: 13, borderRadius: 2,
