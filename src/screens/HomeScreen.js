@@ -11,6 +11,8 @@ import {
   Dimensions,
   Share,
 } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const TIP_CARD_WIDTH = SCREEN_WIDTH - 80; // 20 left inset + 12 gap + 48 peek
@@ -127,8 +129,28 @@ export default function HomeScreen({ navigation }) {
   const [quranStreak, setQuranStreak] = useState(0);
   const [familyGoals,  setFamilyGoals]  = useState([]);
   const [completions,  setCompletions]  = useState([]);
+  const [duaSharing, setDuaSharing] = useState(false);
+  const duaShareCardRef = useRef(null);
   // Ref to always-current insight IDs so useFocusEffect (empty deps) can re-check on return
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
+
+  async function handleShareDua() {
+    if (duaSharing || !dailyDua) return;
+    setDuaSharing(true);
+    try {
+      const uri = await captureRef(duaShareCardRef, { format: 'jpg', quality: 0.95 });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/jpeg', dialogTitle: 'Share Dua' });
+      } else {
+        await Share.share({ message: `${dailyDua.arabic}\n\n${dailyDua.transliteration}\n\n"${dailyDua.translation}"\n\n— ${dailyDua.reference}\n\nShared from Tarbiyah` });
+      }
+    } catch {
+      await Share.share({ message: `${dailyDua.arabic}\n\n${dailyDua.transliteration}\n\n"${dailyDua.translation}"\n\n— ${dailyDua.reference}\n\nShared from Tarbiyah` });
+    } finally {
+      setDuaSharing(false);
+    }
+  }
 
 
   const SPIRITUAL_CARD_IMAGES = [
@@ -635,17 +657,7 @@ export default function HomeScreen({ navigation }) {
                     <Ionicons name="hand-left-outline" size={13} color="rgba(255,255,255,0.5)" />
                     <Ionicons name="hand-right-outline" size={13} color="rgba(255,255,255,0.5)" />
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <Text style={styles.islamicCardLabel}>DUA</Text>
-                    <TouchableOpacity
-                      onPress={() => Share.share({
-                        message: `${dailyDua.title ? dailyDua.title + '\n\n' : ''}${dailyDua.arabic}\n\n${dailyDua.transliteration}\n\n"${dailyDua.translation}"\n\n— ${dailyDua.reference}\n\nShared from Tarbiyah`,
-                      })}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="share-outline" size={16} color="rgba(255,255,255,0.55)" />
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={styles.islamicCardLabel}>DUA</Text>
                 </View>
                 {dailyDua.title ? (
                   <Text style={styles.islamicDuaTitle}>{dailyDua.title}</Text>
@@ -655,6 +667,14 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.islamicTranslit}>{dailyDua.transliteration}</Text>
                 <Text style={styles.islamicTranslation}>{dailyDua.translation}</Text>
                 <Text style={styles.islamicRef}>{dailyDua.reference}</Text>
+
+                <TouchableOpacity style={styles.duaShareBtn} onPress={handleShareDua} activeOpacity={0.8} disabled={duaSharing}>
+                  {duaSharing
+                    ? <ActivityIndicator size="small" color="#1B3D2F" />
+                    : <Ionicons name="share-outline" size={15} color="#1B3D2F" />
+                  }
+                  <Text style={styles.duaShareBtnText}>Share Dua</Text>
+                </TouchableOpacity>
               </ImageBackground>
 
               {/* THIS WEEK */}
@@ -708,6 +728,42 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
 
       </SafeAreaView>
+
+      {/* ── Off-screen dua share card ── */}
+      <View style={styles.duaShareCardWrap}>
+        <View ref={duaShareCardRef} style={styles.duaShareCard} collapsable={false}>
+          <Image source={require('../../assets/spiritual-5.jpg')} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <LinearGradient colors={['rgba(15,50,35,0.4)', 'rgba(5,20,12,0.95)']} style={styles.duaShareCardOverlay}>
+            <View style={styles.duaShareCardPill}>
+              <Text style={styles.duaShareCardPillText}>DUA OF THE DAY</Text>
+            </View>
+            <View style={styles.duaShareCardBody}>
+              {dailyDua?.title ? <Text style={styles.duaShareCardTitle}>{dailyDua.title}</Text> : null}
+              <Text style={styles.duaShareCardArabic}>{dailyDua?.arabic}</Text>
+              <Text style={styles.duaShareCardTranslit}>{dailyDua?.transliteration}</Text>
+              <Text style={styles.duaShareCardTranslation}>{'\u201C'}{dailyDua?.translation}{'\u201D'}</Text>
+              <Text style={styles.duaShareCardRef}>{dailyDua?.reference}</Text>
+            </View>
+            <View style={styles.duaShareCardBrand}>
+              <View style={styles.duaShareCardBrandRow}>
+                <Image source={require('../../assets/app-icons-1/logo-Picsart-BackgroundRemover.png')} style={styles.duaShareCardLogo} resizeMode="contain" />
+                <Text style={styles.duaShareCardBrandName}>Tarbiyah: Islamic Parenting</Text>
+              </View>
+              <Text style={styles.duaShareCardBrandTag}>Download the app and get daily insights!</Text>
+              <View style={styles.duaShareCardStorePills}>
+                <View style={styles.duaShareCardPillStore}>
+                  <Ionicons name="logo-apple" size={11} color="rgba(255,255,255,0.6)" />
+                  <Text style={styles.duaShareCardPillStoreText}>App Store</Text>
+                </View>
+                <View style={styles.duaShareCardPillStore}>
+                  <Ionicons name="logo-google-playstore" size={11} color="rgba(255,255,255,0.6)" />
+                  <Text style={styles.duaShareCardPillStoreText}>Google Play</Text>
+                </View>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+      </View>
     </>
   );
 }
@@ -1211,4 +1267,43 @@ const styles = StyleSheet.create({
   streakBadgeNum: { fontSize: 11, fontWeight: '700' },
   streakLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
   streakSubLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginBottom: 10, marginTop: -10 },
+
+  // ── Share Dua button ──
+  duaShareBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 7, marginTop: 14, backgroundColor: '#FFFFFF',
+    borderRadius: 12, paddingVertical: 11,
+  },
+  duaShareBtnText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+
+  // ── Off-screen dua share card ──
+  duaShareCardWrap: { position: 'absolute', top: -9999, left: 0, width: 375 },
+  duaShareCard: { width: 375, overflow: 'hidden' },
+  duaShareCardOverlay: { padding: 32, paddingBottom: 28, gap: 24 },
+  duaShareCardPill: {
+    alignSelf: 'flex-start', borderRadius: 100,
+    paddingHorizontal: 14, paddingVertical: 6,
+    backgroundColor: 'rgba(27,61,47,0.8)',
+  },
+  duaShareCardPillText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1.4 },
+  duaShareCardBody: { gap: 12 },
+  duaShareCardTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
+  duaShareCardArabic: { fontSize: 26, fontFamily: 'Amiri_700Bold', color: '#FFFFFF', textAlign: 'right', lineHeight: 48 },
+  duaShareCardTranslit: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' },
+  duaShareCardTranslation: { fontSize: 15, color: 'rgba(255,255,255,0.85)', lineHeight: 24, fontStyle: 'italic' },
+  duaShareCardRef: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
+  duaShareCardBrand: {
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)', paddingTop: 16, gap: 4,
+  },
+  duaShareCardBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  duaShareCardLogo: { width: 22, height: 22 },
+  duaShareCardBrandName: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  duaShareCardBrandTag: { fontSize: 11, color: 'rgba(255,255,255,0.5)' },
+  duaShareCardStorePills: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  duaShareCardPillStore: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  duaShareCardPillStoreText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
 });
