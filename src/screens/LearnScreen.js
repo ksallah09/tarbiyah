@@ -161,28 +161,6 @@ export default function LearnScreen({ navigation }) {
                 </View>
               )}
 
-              {/* ── Suggested prompts — always shown in input mode, otherwise only before first module ── */}
-              {(showInput || !hasModules) && (
-                <>
-                  <View style={styles.sectionTitleWrap}>
-                    <Text style={styles.sectionTitle}>EXAMPLE TOPICS</Text>
-                  </View>
-                  <View style={styles.promptsWrap}>
-                    {SUGGESTED_PROMPTS.map((p, i) => (
-                      <TouchableOpacity
-                        key={i}
-                        style={styles.promptChip}
-                        onPress={() => handleGenerate(p)}
-                        activeOpacity={0.75}
-                      >
-                        <Ionicons name="bulb-outline" size={14} color="#2E7D62" />
-                        <Text style={styles.promptText}>{p}</Text>
-                        <Ionicons name="arrow-forward" size={12} color="#2E7D62" />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
-              )}
 
               {/* ── Saved modules ── */}
               {hasModules && !showInput && (
