@@ -41,7 +41,7 @@ import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission } from './src/utils/notifications';
 
-const SPLASH_QUOTE = { text: 'The best of you are the best to their families.', source: 'Prophet Muhammad ﷺ' };
+const SPLASH_QUOTE = { text: 'There has certainly been for you in the Messenger of Allah an excellent example.', source: 'Quran 33:21' };
 
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
