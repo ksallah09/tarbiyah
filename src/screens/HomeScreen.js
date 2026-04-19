@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
+  ImageBackground,
   Dimensions,
 } from 'react-native';
 
