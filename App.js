@@ -41,14 +41,7 @@ import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission } from './src/utils/notifications';
 
-const SPLASH_QUOTES = [
-  { text: 'Each of you is a shepherd, and each of you is responsible for his flock.', source: 'Prophet Muhammad ﷺ' },
-  { text: 'The best of you are the best to their families.', source: 'Prophet Muhammad ﷺ' },
-  { text: 'He is not one of us who does not show mercy to our young and respect to our elders.', source: 'Prophet Muhammad ﷺ' },
-  { text: 'The believer with the most complete faith is the one with the best character, and the one most kind to their family.', source: 'Prophet Muhammad ﷺ' },
-  { text: 'When a human being dies, his deeds come to an end except for three: ongoing charity, beneficial knowledge, and a righteous child who prays for him.', source: 'Prophet Muhammad ﷺ' },
-  { text: 'There has certainly been for you in the Messenger of Allah an excellent example for anyone whose hope is in Allah and the Last Day.', source: 'Quran 33:21' },
-];
+const SPLASH_QUOTE = { text: 'The best of you are the best to their families.', source: 'Prophet Muhammad ﷺ' };
 
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
@@ -57,7 +50,7 @@ function AppSplashOverlay({ onDismiss }) {
   const screenOpacity           = useRef(new Animated.Value(1)).current;
   const titleOpacity            = useRef(new Animated.Value(0)).current;
   const quoteOpacity            = useRef(new Animated.Value(0)).current;
-  const quote = SPLASH_QUOTES[Math.floor(Math.random() * SPLASH_QUOTES.length)];
+  const quote = SPLASH_QUOTE;
 
   useEffect(() => {
     Animated.sequence([
