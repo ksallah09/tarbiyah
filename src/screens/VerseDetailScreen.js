@@ -5,12 +5,15 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { markAsRead, isReadToday } from '../utils/readInsights';
+
+const BG_IMAGE = require('../../assets/spiritual-8.jpg');
 
 export default function VerseDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -30,6 +33,11 @@ export default function VerseDetailScreen({ route, navigation }) {
   return (
     <>
       <StatusBar style="light" />
+      <ImageBackground source={BG_IMAGE} style={{ flex: 1 }} resizeMode="cover">
+        <LinearGradient
+          colors={['rgba(5,14,10,0.82)', 'rgba(5,14,10,0.92)']}
+          style={StyleSheet.absoluteFill}
+        />
       <SafeAreaView style={styles.safe} edges={[]}>
 
         {/* Header */}
@@ -121,12 +129,13 @@ export default function VerseDetailScreen({ route, navigation }) {
         </ScrollView>
 
       </SafeAreaView>
+      </ImageBackground>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0C1829' },
+  safe: { flex: 1, backgroundColor: 'transparent' },
 
   header: {
     flexDirection: 'row',
