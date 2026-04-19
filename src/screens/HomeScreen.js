@@ -626,7 +626,7 @@ export default function HomeScreen({ navigation }) {
                 resizeMode="cover"
               >
                 <LinearGradient
-                  colors={['rgba(5,14,10,0.78)', 'rgba(5,14,10,0.92)']}
+                  colors={['rgba(15,50,35,0.55)', 'rgba(10,35,25,0.80)']}
                   style={StyleSheet.absoluteFill}
                 />
                 <View style={styles.islamicCardTopRow}>
