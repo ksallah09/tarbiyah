@@ -141,7 +141,8 @@ export default function HomeScreen({ navigation }) {
 
 
   async function loadDaily() {
-    const today = new Date().toISOString().split('T')[0];
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const raw = await AsyncStorage.getItem(CACHE_KEY).catch(() => null);
 
     if (raw) {
@@ -183,8 +184,9 @@ export default function HomeScreen({ navigation }) {
 
       const data = await res.json();
       if (data.insights) {
-        setDailyData(data);
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        const dataWithLocalDate = { ...data, date: today };
+        setDailyData(dataWithLocalDate);
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(dataWithLocalDate));
         await refreshDailyNotification();
         saveGoalsForDate(data.date, data.actionGoals ?? []);
       }
