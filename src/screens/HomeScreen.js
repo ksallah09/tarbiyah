@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  ImageBackground,
   Image,
   Dimensions,
 } from 'react-native';
@@ -129,7 +128,6 @@ export default function HomeScreen({ navigation }) {
   // Ref to always-current insight IDs so useFocusEffect (empty deps) can re-check on return
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
 
-  const heroImage = require('../../assets/spiritual-5.jpg');
 
   const SPIRITUAL_CARD_IMAGES = [
     require('../../assets/spiritual-1.jpg'),
@@ -274,15 +272,7 @@ export default function HomeScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
         >
           {/* ── Dark hero header ── */}
-          <ImageBackground
-            source={heroImage}
-            style={[styles.hero, { paddingTop: insets.top + 20 }]}
-            imageStyle={styles.heroBgImage}
-          >
-            <LinearGradient
-              colors={['rgba(10,28,20,0.82)', 'rgba(27,61,47,0.75)']}
-              style={StyleSheet.absoluteFill}
-            />
+          <View style={[styles.hero, { paddingTop: insets.top + 20, backgroundColor: '#1B3D2F' }]}>
             <View style={styles.heroRow}>
               <View style={styles.heroText}>
                 {animate ? (
@@ -327,7 +317,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
               </View>
             </View>
-          </ImageBackground>
+          </View>
 
           {/* ── Content ── */}
           <View style={styles.sheet}>
