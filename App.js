@@ -59,7 +59,7 @@ function AppSplashOverlay({ onDismiss }) {
       Animated.delay(400),
       // Quote fades in
       Animated.timing(quoteOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.delay(2800),
+      Animated.delay(3800),
       // Everything fades out
       Animated.timing(screenOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start(() => { setVisible(false); onDismiss(); });
