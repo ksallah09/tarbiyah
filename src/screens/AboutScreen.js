@@ -193,10 +193,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1B3D2F',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   sectionCard: {
     backgroundColor: '#FFFFFF',

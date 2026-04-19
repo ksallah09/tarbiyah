@@ -721,8 +721,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '700', color: '#1B3D2F', marginBottom: 0 },
 
   sectionTitle: {
-    fontSize: 13, fontWeight: '700', color: '#1B3D2F',
-    letterSpacing: 0.4, marginBottom: 10,
+    fontSize: 15, fontWeight: '700', color: '#1B3D2F',
+    letterSpacing: 0.3, marginBottom: 10,
   },
   sectionBlock: { marginBottom: 24 },
 

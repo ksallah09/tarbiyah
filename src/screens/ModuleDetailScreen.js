@@ -140,7 +140,15 @@ export default function ModuleDetailScreen({ route, navigation }) {
           });
           if (audioRes.ok) {
             const { url } = await audioRes.json();
-            if (url) setLessonAudios(prev => ({ ...prev, [firstLesson.id]: url }));
+            if (url) {
+              setLessonAudios(prev => ({ ...prev, [firstLesson.id]: url }));
+              mod = {
+                ...mod,
+                lessons: mod.lessons.map(l => l.id === firstLesson.id ? { ...l, audioUrl: url } : l),
+              };
+              setModule(mod);
+              await saveModule(mod);
+            }
           }
         } catch { /* silent — lesson is still readable */ }
       }
@@ -223,7 +231,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
         <View style={styles.voiceModalBackdrop}>
           <View style={styles.voiceModal}>
             <Text style={styles.voiceModalTitle}>Choose Your Narrator</Text>
-            <Text style={styles.voiceModalSubtitle}>You can change this next time you generate a module.</Text>
+            <Text style={styles.voiceModalSubtitle}>Your narrator will read each lesson aloud so you can listen hands-free. Choose the voice that feels most comfortable for you.</Text>
 
             <TouchableOpacity
               style={styles.voiceOption}
@@ -1005,10 +1013,10 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1B3D2F',
-    letterSpacing: 0.8,
+    letterSpacing: 0.3,
   },
 
   // ── Lesson cards ──

@@ -381,9 +381,11 @@ const styles = StyleSheet.create({
 
   // ── Body ──
   bodyText: {
-    fontSize: rs(16),
-    color: '#1C1C1E',
-    lineHeight: 28,
+    fontSize: rs(17),
+    color: '#2C2C2E',
+    lineHeight: 30,
+    letterSpacing: 0.15,
+    fontWeight: '300',
     marginBottom: 4,
   },
 
@@ -411,7 +413,7 @@ const styles = StyleSheet.create({
   goalContent: { flex: 1 },
   goalMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
   goalMetaLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase' },
-  goalText: { fontSize: rs(16), color: '#1C1C1E', lineHeight: 28 },
+  goalText: { fontSize: rs(17), color: '#2C2C2E', lineHeight: 30, letterSpacing: 0.15, fontWeight: '300' },
   goalTextDone: { color: '#A0ADB8', textDecorationLine: 'line-through' },
 
   // ── Tags ──

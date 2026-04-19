@@ -124,6 +124,7 @@ export default function HomeScreen({ navigation }) {
   const [imgIndex, setImgIndex]              = useState(DAY_INDEX);
   const [spiritReadToday, setSpiritReadToday] = useState(false);
   const [sciReadToday,    setSciReadToday]    = useState(false);
+  // const [trendingChallenges, setTrendingChallenges] = useState([]); // TODO: re-enable in future release
   const [streak,      setStreak]      = useState(0);
   const [sciStreak,   setSciStreak]   = useState(0);
   const [quranStreak, setQuranStreak] = useState(0);
@@ -158,6 +159,7 @@ export default function HomeScreen({ navigation }) {
     require('../../assets/spiritual-2.jpg'),
     require('../../assets/spiritual-5.jpg'),
     require('../../assets/spiritual-7.jpg'),
+    require('../../assets/spiritual-10.jpg'),
   ];
   const dailySpiritualImage = SPIRITUAL_CARD_IMAGES[imgIndex % SPIRITUAL_CARD_IMAGES.length];
   const dailyScienceImage   = SCIENCE_IMAGES[(imgIndex + 1) % SCIENCE_IMAGES.length];
@@ -209,6 +211,7 @@ export default function HomeScreen({ navigation }) {
       if (data.insights) {
         const dataWithLocalDate = { ...data, date: today };
         setDailyData(dataWithLocalDate);
+        setImgIndex(Math.floor(Date.now() / 86_400_000));
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(dataWithLocalDate));
         await refreshDailyNotification();
         saveGoalsForDate(data.date, data.actionGoals ?? []);
@@ -221,6 +224,14 @@ export default function HomeScreen({ navigation }) {
       setLoading(false);
     }
   }
+
+  // TODO: re-enable trending challenges fetch in future release
+  // useEffect(() => {
+  //   fetch(`${API_URL}/trending/challenges`)
+  //     .then(r => r.json())
+  //     .then(data => { if (Array.isArray(data) && data.length) setTrendingChallenges(data); })
+  //     .catch(() => {});
+  // }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -377,12 +388,6 @@ export default function HomeScreen({ navigation }) {
                           <Ionicons name="moon" size={10} color="rgba(255,255,255,0.9)" />
                           <Text style={styles.insightTypeText}>Spiritual Insight</Text>
                         </View>
-                        {spiritReadToday && (
-                          <View style={styles.insightReadBadge}>
-                            <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
-                            <Text style={styles.insightReadBadgeText}>Read Today</Text>
-                          </View>
-                        )}
                       </View>
                       <View style={styles.insightCardBottom}>
                         <Text style={styles.insightCardTitle}>{spiritualInsight.insightTitle}</Text>
@@ -480,8 +485,8 @@ export default function HomeScreen({ navigation }) {
                 {actionGoals.map((goal, index) => {
                   const isSpiritual = goal.type === 'spiritual';
                   const bgImage = isSpiritual
-                    ? require('../../assets/Spiritual-6.jpg-old.jpg')
-                    : require('../../assets/science-7.jpg');
+                    ? require('../../assets/spiritual-10.jpg')
+                    : require('../../assets/science-1.jpg');
                   const overlayColors = isSpiritual
                     ? ['rgba(10,30,20,0.45)', 'rgba(10,30,20,0.85)']
                     : ['rgba(30,15,5,0.45)', 'rgba(30,15,5,0.85)'];
@@ -592,8 +597,10 @@ export default function HomeScreen({ navigation }) {
                 </>
               )}
 
+              {/* YOU'RE NOT ALONE — hidden, re-enable in future release */}
+
               {/* VERSES OF THE DAY */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+              <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
                 <Text style={styles.sectionTitle}>VERSES OF THE DAY</Text>
               </View>
               <TouchableOpacity
@@ -1285,6 +1292,54 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingVertical: 11,
   },
   duaShareBtnText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+
+  // ── You're Not Alone ──
+  trendingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  trendingCardSubtitle: {
+    fontSize: 12,
+    color: 'rgba(27,61,47,0.45)',
+    marginBottom: 8,
+    marginTop: 10,
+    letterSpacing: 0.2,
+  },
+  trendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+  },
+  trendingRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(27,61,47,0.07)',
+  },
+  trendingLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1B3D2F',
+    letterSpacing: 0.1,
+  },
+  trendingCountBadge: {
+    backgroundColor: 'rgba(27,61,47,0.07)',
+    borderRadius: 100,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  trendingCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(27,61,47,0.55)',
+  },
 
   // ── Off-screen dua share card ──
   duaShareCardWrap: { position: 'absolute', top: -9999, left: 0, width: 375 },

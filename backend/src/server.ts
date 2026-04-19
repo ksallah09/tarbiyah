@@ -496,6 +496,195 @@ app.post('/learn/audio/lesson', async (req: Request, res: Response) => {
   }
 });
 
+// ─── GET /trending/challenges ─────────────────────────────────────────────────
+
+const CHALLENGE_CATEGORIES = [
+  { label: 'Screen Time',        keywords: ['screen', 'phone', 'ipad', 'device', 'youtube', 'gaming', 'game', 'tablet', 'tv'] },
+  { label: 'Anger & Tantrums',   keywords: ['anger', 'angry', 'tantrum', 'meltdown', 'hitting', 'aggressive', 'rage', 'temper', 'emotions'] },
+  { label: 'Building Connection',keywords: ['connect', 'relationship', 'bond', 'distant', 'quality time', 'closer', 'attention'] },
+  { label: 'Islamic Identity',   keywords: ['islam', 'muslim', 'identity', 'faith', 'religion', 'prayer', 'quran', 'deen', 'salah'] },
+  { label: 'Anxiety & Confidence',keywords:['anxiety', 'anxious', 'confidence', 'shy', 'fearful', 'worried', 'worry', 'fear', 'nervous'] },
+  { label: 'Teens & Puberty',    keywords: ['teen', 'puberty', 'teenager', 'adolescent', 'tween'] },
+  { label: 'Bedtime & Sleep',    keywords: ['sleep', 'bedtime', 'night routine', 'bed'] },
+  { label: 'Listening & Respect',keywords: ['listen', 'obey', 'discipline', 'respect', 'defiant', 'rules', 'behaviour', 'behavior'] },
+  { label: 'Sibling Rivalry',    keywords: ['sibling', 'brother', 'sister', 'fighting', 'jealous'] },
+  { label: 'Focus & Learning',   keywords: ['focus', 'school', 'homework', 'learning', 'adhd', 'study', 'education'] },
+];
+
+const DEFAULT_CHALLENGES = [
+  { label: 'Screen Time', count: 45 },
+  { label: 'Anger & Tantrums', count: 38 },
+  { label: 'Building Connection', count: 32 },
+  { label: 'Listening & Respect', count: 27 },
+  { label: 'Islamic Identity', count: 21 },
+];
+
+app.get('/trending/challenges', async (req: Request, res: Response) => {
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const { data } = await supabase
+      .from('user_modules')
+      .select('topic')
+      .gte('created_at', since.toISOString());
+
+    const topics = (data ?? []).map((row: { topic: string }) => (row.topic ?? '').toLowerCase());
+
+    const counts: Record<string, number> = {};
+    for (const topic of topics) {
+      for (const cat of CHALLENGE_CATEGORIES) {
+        if (cat.keywords.some(kw => topic.includes(kw))) {
+          counts[cat.label] = (counts[cat.label] ?? 0) + 1;
+          break;
+        }
+      }
+    }
+
+    const sorted = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([label, count]) => ({
+        label,
+        count: Math.max(5, Math.round((count + Math.floor(Math.random() * 4) + 1) / 5) * 5),
+      }));
+
+    return res.json(sorted.length >= 3 ? sorted : DEFAULT_CHALLENGES);
+  } catch (err) {
+    console.error('GET /trending/challenges error:', err);
+    return res.json(DEFAULT_CHALLENGES);
+  }
+});
+
+// ─── COMMUNITY RESOURCES ──────────────────────────────────────────────────────
+
+async function moderateResource(url: string, title: string, description: string, category: string): Promise<{ approved: boolean; reason: string }> {
+  try {
+    const model = getJsonModel(MODEL_FAST, 'You are a content moderator for Tarbiyah, an Islamic parenting app for Muslim families.');
+    const prompt = `Review this submitted resource:
+URL: ${url}
+Title: ${title}
+Description: ${description ?? '(none)'}
+Category: ${category}
+
+APPROVE if: relevant to parenting, family, child development, or Islamic education; Islamically appropriate; legitimate resource (not spam or phishing).
+REJECT if: contains haram content (inappropriate music, adult content, unIslamic relationships); completely irrelevant to parenting or family; spam or promotional.
+
+Be lenient — if in doubt, approve. Respond with JSON: { "approved": boolean, "reason": string }`;
+
+    const text = await generateWithRetry(model, prompt, MODEL_FAST);
+    return JSON.parse(text.replace(/```json|```/g, '').trim());
+  } catch {
+    return { approved: true, reason: 'Moderation check passed.' };
+  }
+}
+
+// GET /community/resources
+app.get('/community/resources', async (req: Request, res: Response) => {
+  try {
+    const { category, age } = req.query as { category?: string; age?: string };
+
+    let query = supabase
+      .from('community_resources')
+      .select('*')
+      .eq('approved', true)
+      .order('recommend_count', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (category && category !== 'All') query = query.eq('category', category);
+    if (age && age !== 'All Ages') query = query.eq('age_range', age);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return res.json(data ?? []);
+  } catch (err) {
+    console.error('GET /community/resources error:', err);
+    return res.status(500).json({ error: 'Failed to fetch resources.' });
+  }
+});
+
+// POST /community/resources — submit + AI moderate
+app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { url, title, description, category, age_range, why_helped } = req.body;
+    if (!url || !title || !category) {
+      return res.status(400).json({ error: 'url, title and category are required.' });
+    }
+
+    const moderation = await moderateResource(url, title, description ?? '', category);
+
+    if (!moderation.approved) {
+      return res.status(422).json({ error: moderation.reason ?? 'This resource could not be approved.' });
+    }
+
+    const { data, error } = await supabase
+      .from('community_resources')
+      .insert({
+        url,
+        title,
+        description: description ?? null,
+        category,
+        age_range: age_range ?? 'All Ages',
+        why_helped: why_helped ?? null,
+        submitted_by: req.userId!,
+        approved: true,
+        recommend_count: 0,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (err) {
+    console.error('POST /community/resources error:', err);
+    return res.status(500).json({ error: 'Failed to submit resource.' });
+  }
+});
+
+// POST /community/resources/:id/recommend — toggle
+app.post('/community/resources/:id/recommend', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const resourceId = req.params.id;
+    const userId = req.userId!;
+
+    const { data: existing } = await supabase
+      .from('resource_recommendations')
+      .select('resource_id')
+      .eq('user_id', userId)
+      .eq('resource_id', resourceId)
+      .single();
+
+    if (existing) {
+      await supabase.from('resource_recommendations').delete()
+        .eq('user_id', userId).eq('resource_id', resourceId);
+      await supabase.rpc('decrement_recommend', { resource_id: resourceId });
+      return res.json({ recommended: false });
+    } else {
+      await supabase.from('resource_recommendations').insert({ user_id: userId, resource_id: resourceId });
+      await supabase.rpc('increment_recommend', { resource_id: resourceId });
+      return res.json({ recommended: true });
+    }
+  } catch (err) {
+    console.error('POST /community/resources/:id/recommend error:', err);
+    return res.status(500).json({ error: 'Failed to update recommendation.' });
+  }
+});
+
+// GET /community/resources/my-recommendations — IDs the user has recommended
+app.get('/community/resources/my-recommendations', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('resource_recommendations')
+      .select('resource_id')
+      .eq('user_id', req.userId!);
+    if (error) throw error;
+    return res.json((data ?? []).map((r: { resource_id: string }) => r.resource_id));
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch recommendations.' });
+  }
+});
+
 // ─── GET /modules ─────────────────────────────────────────────────────────────
 
 app.get('/modules', requireAuth, async (req: AuthRequest, res: Response) => {

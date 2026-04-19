@@ -26,12 +26,29 @@ const SUGGESTED_PROMPTS = [
   'Navigating puberty with my child',
 ];
 
-export default function LearnScreen({ navigation }) {
+export default function LearnScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [input, setInput]     = useState('');
   const [modules, setModules] = useState(_modulesCache ?? []);
   const [showInput, setShowInput] = useState(false);
   const hasMountedRef = useRef(false);
+
+  useEffect(() => {
+    const topic = route?.params?.initialTopic;
+    if (topic) {
+      navigation.navigate('ModuleDetail', { topic, isNew: true });
+      navigation.setParams({ initialTopic: undefined });
+    }
+  }, [route?.params?.initialTopic]);
+
+  useEffect(() => {
+    const prefill = route?.params?.prefillTopic;
+    if (prefill) {
+      setInput(prefill);
+      setShowInput(true);
+      navigation.setParams({ prefillTopic: undefined });
+    }
+  }, [route?.params?.prefillTopic]);
 
   // Initial load on mount — two-phase: AsyncStorage instant, then network refresh
   useEffect(() => {
@@ -120,7 +137,6 @@ export default function LearnScreen({ navigation }) {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.generateBtnTitle}>Generate Personalized Lesson</Text>
-                      <Text style={styles.generateBtnSub}>Describe your challenge or goal</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
                   </LinearGradient>
@@ -381,10 +397,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1B3D2F',
-    letterSpacing: 0.8,
+    letterSpacing: 0.3,
   },
   sectionCount: {
     fontSize: 11,

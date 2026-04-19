@@ -144,16 +144,17 @@ function CustomTabBar({ state, descriptors, navigation }) {
             onPress={() => navigation.navigate(route.name)}
             activeOpacity={0.7}
           >
-            {/* Active pill highlight */}
-            {focused && <View style={styles.tabPill} />}
-            <Ionicons
-              name={focused ? cfg.filled : cfg.outline}
-              size={22}
-              color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.35)'}
-            />
-            <Text style={[styles.tabLabel, { color: focused ? '#FFFFFF' : 'rgba(255,255,255,0.35)' }]}>
-              {route.name}
-            </Text>
+            <>
+              {focused && <View style={styles.tabPill} />}
+              <Ionicons
+                name={focused ? cfg.filled : cfg.outline}
+                size={22}
+                color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.35)'}
+              />
+              <Text style={[styles.tabLabel, { color: focused ? '#FFFFFF' : 'rgba(255,255,255,0.35)' }]}>
+                {route.name}
+              </Text>
+            </>
           </TouchableOpacity>
         );
       })}
@@ -167,8 +168,8 @@ function Tabs() {
   return (
     <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }} lazy={false}>
       <Tab.Screen name="Home"     component={HomeScreen} />
-      <Tab.Screen name="Learn"    component={LearnScreen} />
       <Tab.Screen name="Progress" component={ProgressScreen} />
+      <Tab.Screen name="Learn"    component={LearnScreen} />
       <Tab.Screen name="Library"  component={LibraryScreen} />
       <Tab.Screen name="Profile"  component={ProfileScreen} />
     </Tab.Navigator>
