@@ -9,6 +9,7 @@ import {
   Image,
   ImageBackground,
   Dimensions,
+  Share,
 } from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -634,7 +635,17 @@ export default function HomeScreen({ navigation }) {
                     <Ionicons name="hand-left-outline" size={13} color="rgba(255,255,255,0.5)" />
                     <Ionicons name="hand-right-outline" size={13} color="rgba(255,255,255,0.5)" />
                   </View>
-                  <Text style={styles.islamicCardLabel}>DUA</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Text style={styles.islamicCardLabel}>DUA</Text>
+                    <TouchableOpacity
+                      onPress={() => Share.share({
+                        message: `${dailyDua.title ? dailyDua.title + '\n\n' : ''}${dailyDua.arabic}\n\n${dailyDua.transliteration}\n\n"${dailyDua.translation}"\n\n— ${dailyDua.reference}\n\nShared from Tarbiyah`,
+                      })}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="share-outline" size={16} color="rgba(255,255,255,0.55)" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 {dailyDua.title ? (
                   <Text style={styles.islamicDuaTitle}>{dailyDua.title}</Text>
