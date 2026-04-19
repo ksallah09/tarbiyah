@@ -153,8 +153,14 @@ export default function HomeScreen({ navigation }) {
   }
 
 
-  const dailySpiritualImage = require('../../assets/Spiritual-6.jpg-old.jpg');
-  const dailyScienceImage   = require('../../assets/science-7.jpg');
+  const SPIRITUAL_CARD_IMAGES = [
+    require('../../assets/spiritual-1.jpg'),
+    require('../../assets/spiritual-2.jpg'),
+    require('../../assets/spiritual-5.jpg'),
+    require('../../assets/spiritual-7.jpg'),
+  ];
+  const dailySpiritualImage = SPIRITUAL_CARD_IMAGES[imgIndex % SPIRITUAL_CARD_IMAGES.length];
+  const dailyScienceImage   = SCIENCE_IMAGES[(imgIndex + 1) % SCIENCE_IMAGES.length];
 
 
   async function loadDaily() {
