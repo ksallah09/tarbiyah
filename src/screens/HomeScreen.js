@@ -259,7 +259,7 @@ export default function HomeScreen({ navigation }) {
   const dailyAyah        = getDailyAyah();
 
   const greetingLines = name
-    ? ['As-Salāmu ʿAlaykum,', name + '.']
+    ? ['As-Salāmu ʿAlaykum,', name]
     : ['As-Salāmu ʿAlaykum.'];
 
   return (
@@ -301,7 +301,7 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.greetingSmall}>
                       {'As-Salāmu ʿAlaykum' + (name ? ',' : '.') + '\n'}
                     </Text>
-                    {name ? <Text style={styles.greetingName}>{name}.</Text> : null}
+                    {name ? <Text style={styles.greetingName}>{name}</Text> : null}
                   </Text>
                 )}
               </View>
