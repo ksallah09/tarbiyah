@@ -66,7 +66,10 @@ export default function LessonReaderScreen({ route, navigation }) {
 
     async function load() {
       try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+        });
         const { sound } = await Audio.Sound.createAsync(
           { uri: audioUrl },
           { shouldPlay: false, progressUpdateIntervalMillis: 250 },
