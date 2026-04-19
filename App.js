@@ -342,7 +342,7 @@ export default function App() {
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1B3D2F',
   },
   tabBar: {
     flexDirection: 'row',
