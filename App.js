@@ -255,14 +255,20 @@ export default function App() {
 
   useEffect(() => {
     Promise.all([isOnboardingComplete(), getSession()])
-      .then(([complete]) => {
+      .then(async ([complete]) => {
         setOnboarded(complete);
-        if (complete) setShowAppSplash(true);
+        if (complete) {
+          setShowAppSplash(true);
+          setLoading(false);
+          await new Promise(r => setTimeout(r, 600));
+        } else {
+          // New user — dismiss native splash immediately, go straight to onboarding
+          setLoading(false);
+        }
+        await SplashScreen.hideAsync();
       })
-      .finally(async () => {
+      .catch(async () => {
         setLoading(false);
-        // Hold briefly so assets settle before native splash disappears
-        await new Promise(r => setTimeout(r, 600));
         await SplashScreen.hideAsync();
       });
 
