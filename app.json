@@ -40,7 +40,8 @@
           "color": "#1B3D2F",
           "sounds": []
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

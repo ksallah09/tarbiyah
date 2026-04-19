@@ -1,42 +1,41 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Animated,
+  View, Text, TouchableOpacity, StyleSheet, Animated, Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import TypewriterText from '../../components/TypewriterText';
 import ProgressDots from './ProgressDots';
 
-const HOURS   = ['6', '7', '8', '9', '10', '11', '12'];
-const MINUTES = ['00', '15', '30', '45'];
-const PERIODS = ['AM', 'PM'];
+function formatTime(date) {
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const period = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
+const DEFAULT_TIME = (() => { const d = new Date(); d.setHours(7, 0, 0, 0); return d; })();
 
 export default function OnboardingReminder({ navigation, route }) {
-  const insets          = useSafeAreaInsets();
-  const data            = route.params ?? {};
-  const [hour, setHour]     = useState('7');
-  const [minute, setMinute] = useState('00');
-  const [period, setPeriod] = useState('AM');
+  const insets                            = useSafeAreaInsets();
+  const data                              = route.params ?? {};
+  const [time, setTime]                   = useState(DEFAULT_TIME);
   const [subtitleReady, setSubtitleReady] = useState(false);
   const [pickerReady, setPickerReady]     = useState(false);
   const contentOpacity                    = useRef(new Animated.Value(0)).current;
 
-  function handleQuestionComplete() {
-    setSubtitleReady(true);
-  }
-
   function handleSubtitleComplete() {
     setPickerReady(true);
-    Animated.timing(contentOpacity, {
-      toValue: 1, duration: 500, useNativeDriver: true,
-    }).start();
+    Animated.timing(contentOpacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
   }
 
   function handleNext() {
     navigation.navigate('OnboardingAccount', {
       ...data,
-      reminderTime: `${hour}:${minute} ${period}`,
+      reminderTime: formatTime(time),
     });
   }
 
@@ -52,7 +51,7 @@ export default function OnboardingReminder({ navigation, route }) {
               lines={['When should we\ncheck in with you?']}
               charDelay={30}
               style={styles.question}
-              onComplete={handleQuestionComplete}
+              onComplete={() => setSubtitleReady(true)}
             />
             {subtitleReady && (
               <TypewriterText
@@ -65,59 +64,14 @@ export default function OnboardingReminder({ navigation, route }) {
           </View>
 
           <Animated.View style={[styles.pickerWrap, { opacity: contentOpacity }]}>
-            {/* Time display */}
-            <View style={styles.timeDisplay}>
-              <Text style={styles.timeText}>{hour}:{minute}</Text>
-              <Text style={styles.timePeriod}>{period}</Text>
-            </View>
-
-            {/* Hour row */}
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Hour</Text>
-              <View style={styles.chips}>
-                {HOURS.map(h => (
-                  <TouchableOpacity
-                    key={h}
-                    style={[styles.chip, hour === h && styles.chipActive]}
-                    onPress={() => setHour(h)}
-                  >
-                    <Text style={[styles.chipText, hour === h && styles.chipTextActive]}>{h}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Minute row */}
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Minute</Text>
-              <View style={styles.chips}>
-                {MINUTES.map(m => (
-                  <TouchableOpacity
-                    key={m}
-                    style={[styles.chip, minute === m && styles.chipActive]}
-                    onPress={() => setMinute(m)}
-                  >
-                    <Text style={[styles.chipText, minute === m && styles.chipTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* AM / PM */}
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Period</Text>
-              <View style={styles.chips}>
-                {PERIODS.map(p => (
-                  <TouchableOpacity
-                    key={p}
-                    style={[styles.chip, period === p && styles.chipActive]}
-                    onPress={() => setPeriod(p)}
-                  >
-                    <Text style={[styles.chipText, period === p && styles.chipTextActive]}>{p}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            <DateTimePicker
+              value={time}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(_, selected) => { if (selected) setTime(selected); }}
+              themeVariant="dark"
+              style={styles.picker}
+            />
           </Animated.View>
 
           <Animated.View style={{ opacity: contentOpacity, marginTop: 32 }}>
@@ -162,58 +116,11 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   pickerWrap: {
-    gap: 20,
+    alignItems: 'center',
   },
-  timeDisplay: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
-    marginBottom: 8,
-  },
-  timeText: {
-    fontSize: 52,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    lineHeight: 60,
-  },
-  timePeriod: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.5)',
-    marginBottom: 8,
-  },
-  row: {
-    gap: 10,
-  },
-  rowLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 1.4,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.18)',
-  },
-  chipActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
-  },
-  chipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.55)',
-  },
-  chipTextActive: {
-    color: '#1B3D2F',
+  picker: {
+    width: '100%',
+    height: 180,
   },
   btn: {
     backgroundColor: '#FFFFFF',
@@ -235,7 +142,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.35)',
     fontWeight: '500',
   },
-  
   backBtn: { alignItems: 'center', paddingVertical: 12 },
   backText: { fontSize: 13, color: 'rgba(255,255,255,0.35)', fontWeight: '500' },
 });
