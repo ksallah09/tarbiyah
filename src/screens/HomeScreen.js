@@ -567,11 +567,16 @@ export default function HomeScreen({ navigation }) {
                 activeOpacity={0.88}
                 onPress={() => navigation.navigate('VerseDetail', { verse: dailyAyah })}
               >
-                <LinearGradient
-                  colors={['#0C1829', '#1A2F5A']}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                <ImageBackground
+                  source={require('../../assets/spiritual-8.jpg')}
                   style={styles.verseCard}
+                  imageStyle={{ borderRadius: 20 }}
+                  resizeMode="cover"
                 >
+                <LinearGradient
+                  colors={['rgba(5,14,10,0.78)', 'rgba(5,14,10,0.92)']}
+                  style={StyleSheet.absoluteFill}
+                />
                   {/* Top row */}
                   <View style={styles.verseCardTopRow}>
                     <View style={styles.verseRefChip}>
@@ -607,7 +612,7 @@ export default function HomeScreen({ navigation }) {
                       </>
                     )}
                   </View>
-                </LinearGradient>
+                </ImageBackground>
               </TouchableOpacity>
 
               {/* DUA OF THE DAY */}
