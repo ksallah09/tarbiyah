@@ -276,6 +276,8 @@ export default function App() {
       const screen = response.notification.request.content.data?.screen;
       if (screen === 'Progress') {
         navigationRef.current?.navigate('Tabs', { screen: 'Progress' });
+      } else if (screen === 'Resources') {
+        navigationRef.current?.navigate('Tabs', { screen: 'Resources' });
       } else {
         navigationRef.current?.navigate('Tabs', { screen: 'Home' });
       }

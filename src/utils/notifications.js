@@ -11,9 +11,10 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const DAILY_NOTIF_ID_KEY  = 'tarbiyah_daily_notif_id';
-const DAILY_CACHE_KEY     = 'tarbiyah_daily_cache';
-const PROFILE_KEY         = 'tarbiyah_profile';
+const DAILY_NOTIF_ID_KEY   = 'tarbiyah_daily_notif_id';
+const WEEKLY_SHARE_NOTIF_ID_KEY = 'tarbiyah_weekly_share_notif_id';
+const DAILY_CACHE_KEY      = 'tarbiyah_daily_cache';
+const PROFILE_KEY          = 'tarbiyah_profile';
 
 // ─── Rotating message pool ────────────────────────────────────────────────────
 const FALLBACK_MESSAGES = [
@@ -166,6 +167,42 @@ export async function scheduleDailyNotification(reminderTimeStr) {
   await AsyncStorage.setItem(DAILY_NOTIF_ID_KEY, id);
 }
 
+// ─── Schedule weekly share reminder (Fridays at 7 PM) ────────────────────────
+export async function scheduleWeeklyShareNotification() {
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
+
+  await cancelWeeklyShareNotification();
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: '📚 Help a fellow parent today',
+      body: 'Share a resource that\'s helped your family — a video, article, or activity. It only takes a minute.',
+      sound: true,
+      data: { screen: 'Resources' },
+    },
+    trigger: {
+      type: 'calendar',
+      repeats: true,
+      weekday: 6, // Friday (1=Sunday … 6=Friday)
+      hour: 19,
+      minute: 0,
+    },
+  });
+
+  await AsyncStorage.setItem(WEEKLY_SHARE_NOTIF_ID_KEY, id);
+}
+
+export async function cancelWeeklyShareNotification() {
+  try {
+    const id = await AsyncStorage.getItem(WEEKLY_SHARE_NOTIF_ID_KEY);
+    if (id) {
+      await Notifications.cancelScheduledNotificationAsync(id);
+      await AsyncStorage.removeItem(WEEKLY_SHARE_NOTIF_ID_KEY);
+    }
+  } catch {}
+}
+
 // ─── Cancel daily notification ────────────────────────────────────────────────
 export async function cancelDailyNotification() {
   try {
@@ -189,5 +226,6 @@ export async function refreshDailyNotification() {
 
     const reminderTime = profile.reminderTime ?? '8:00 AM';
     await scheduleDailyNotification(reminderTime);
+    await scheduleWeeklyShareNotification();
   } catch {}
 }
