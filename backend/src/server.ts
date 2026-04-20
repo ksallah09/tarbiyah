@@ -738,6 +738,65 @@ app.get('/community/resources/my-recommendations', requireAuth, async (req: Auth
   }
 });
 
+// PATCH /community/resources/:id — edit own resource
+app.patch('/community/resources/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, description, category, age_range, why_helped } = req.body;
+
+    const { data: existing, error: fetchErr } = await supabase
+      .from('community_resources')
+      .select('submitted_by')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !existing) return res.status(404).json({ error: 'Resource not found.' });
+    if (existing.submitted_by !== req.userId!) return res.status(403).json({ error: 'Not authorised.' });
+
+    const { data, error } = await supabase
+      .from('community_resources')
+      .update({
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+        ...(category !== undefined && { category }),
+        ...(age_range !== undefined && { age_range }),
+        ...(why_helped !== undefined && { why_helped }),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (err) {
+    console.error('PATCH /community/resources/:id error:', err);
+    return res.status(500).json({ error: 'Failed to update resource.' });
+  }
+});
+
+// DELETE /community/resources/:id — delete own resource
+app.delete('/community/resources/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const { data: existing, error: fetchErr } = await supabase
+      .from('community_resources')
+      .select('submitted_by')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !existing) return res.status(404).json({ error: 'Resource not found.' });
+    if (existing.submitted_by !== req.userId!) return res.status(403).json({ error: 'Not authorised.' });
+
+    const { error } = await supabase.from('community_resources').delete().eq('id', id);
+    if (error) throw error;
+    return res.json({ deleted: true });
+  } catch (err) {
+    console.error('DELETE /community/resources/:id error:', err);
+    return res.status(500).json({ error: 'Failed to delete resource.' });
+  }
+});
+
 // ─── GET /modules ─────────────────────────────────────────────────────────────
 
 app.get('/modules', requireAuth, async (req: AuthRequest, res: Response) => {

@@ -12,6 +12,7 @@ import {
   Linking,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,6 +55,10 @@ export default function LibraryScreen({ navigation }) {
   const [activeAge, setActiveAge]             = useState('All Ages');
   const [myRecommendations, setMyRecommendations] = useState(new Set());
   const [mySavedIds, setMySavedIds]           = useState(new Set());
+  const [currentUserId, setCurrentUserId]     = useState(null);
+
+  // ── Edit mode ──
+  const [editingResource, setEditingResource] = useState(null); // resource being edited
 
   // ── Submit modal ──
   const [showSubmit, setShowSubmit]     = useState(false);
@@ -76,6 +81,9 @@ export default function LibraryScreen({ navigation }) {
       getSavedResources().then(list => {
         setSavedResources(list);
         setMySavedIds(new Set(list.map(r => r.id)));
+      });
+      supabase.auth.getSession().then(({ data }) => {
+        setCurrentUserId(data?.session?.user?.id ?? null);
       });
     }, [])
   );
@@ -161,6 +169,41 @@ export default function LibraryScreen({ navigation }) {
     }
   }
 
+  function openEdit(resource) {
+    setEditingResource(resource);
+    setSubmitUrl(resource.url ?? '');
+    setSubmitTitle(resource.title ?? '');
+    setSubmitDesc(resource.description ?? '');
+    setSubmitCategory(resource.category ?? 'Lecture/Video');
+    setSubmitAge(resource.age_range ?? 'All Ages');
+    setSubmitWhy(resource.why_helped ?? '');
+    setSubmitTags([]);
+    setSubmitError('');
+    setShowSubmit(true);
+  }
+
+  async function handleDelete(resource) {
+    Alert.alert('Delete Resource', 'Are you sure you want to remove this resource?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          const { data: session } = await supabase.auth.getSession();
+          const token = session?.session?.access_token;
+          try {
+            await fetch(`${API_URL}/community/resources/${resource.id}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            setResources(prev => prev.filter(r => r.id !== resource.id));
+          } catch {
+            Alert.alert('Error', 'Could not delete. Please try again.');
+          }
+        },
+      },
+    ]);
+  }
+
   async function handleSaveResource(resource) {
     const isSaved = mySavedIds.has(resource.id);
     if (isSaved) {
@@ -184,26 +227,49 @@ export default function LibraryScreen({ navigation }) {
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
-      const res = await fetch(`${API_URL}/community/resources`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          url: submitUrl.trim(),
-          title: submitTitle.trim(),
-          description: submitDesc.trim() || undefined,
-          category: submitCategory,
-          age_range: submitAge,
-          why_helped: submitWhy.trim() || undefined,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        setSubmitError(err.error ?? 'Could not submit. Please try again.');
-        return;
+
+      if (editingResource) {
+        const res = await fetch(`${API_URL}/community/resources/${editingResource.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            title: submitTitle.trim(),
+            description: submitDesc.trim() || undefined,
+            category: submitCategory,
+            age_range: submitAge,
+            why_helped: submitWhy.trim() || undefined,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          setSubmitError(err.error ?? 'Could not update. Please try again.');
+          return;
+        }
+        const updated = await res.json();
+        setResources(prev => prev.map(r => r.id === updated.id ? updated : r));
+        closeSubmit();
+      } else {
+        const res = await fetch(`${API_URL}/community/resources`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            url: submitUrl.trim(),
+            title: submitTitle.trim(),
+            description: submitDesc.trim() || undefined,
+            category: submitCategory,
+            age_range: submitAge,
+            why_helped: submitWhy.trim() || undefined,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          setSubmitError(err.error ?? 'Could not submit. Please try again.');
+          return;
+        }
+        setSubmitSuccess(true);
+        resetSubmitForm();
+        if (activeTab === 'community') fetchResources();
       }
-      setSubmitSuccess(true);
-      resetSubmitForm();
-      if (activeTab === 'community') fetchResources();
     } catch {
       setSubmitError('Something went wrong. Please try again.');
     } finally {
@@ -225,6 +291,7 @@ export default function LibraryScreen({ navigation }) {
   function closeSubmit() {
     setShowSubmit(false);
     setSubmitSuccess(false);
+    setEditingResource(null);
     resetSubmitForm();
   }
 
@@ -447,6 +514,7 @@ export default function LibraryScreen({ navigation }) {
                 renderItem={({ item }) => {
                   const recommended = myRecommendations.has(item.id);
                   const saved = mySavedIds.has(item.id);
+                  const isOwner = currentUserId && item.submitted_by === currentUserId;
                   return (
                     <View style={styles.resourceCard}>
                       <View style={styles.resourceCardTop}>
@@ -454,6 +522,22 @@ export default function LibraryScreen({ navigation }) {
                           <Text style={styles.resourceCatText}>{item.category}</Text>
                         </View>
                         <Text style={styles.resourceAge}>{item.age_range}</Text>
+                        {isOwner && (
+                          <View style={{ flexDirection: 'row', gap: 4, marginLeft: 'auto' }}>
+                            <TouchableOpacity
+                              onPress={() => openEdit(item)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons name="pencil-outline" size={16} color="#6B7280" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleDelete(item)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                            </TouchableOpacity>
+                          </View>
+                        )}
                       </View>
                       <Text style={styles.resourceTitle}>{item.title}</Text>
                       {item.submitter_name ? (
@@ -516,7 +600,7 @@ export default function LibraryScreen({ navigation }) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Share a Resource</Text>
+              <Text style={styles.modalTitle}>{editingResource ? 'Edit Resource' : 'Share a Resource'}</Text>
               <TouchableOpacity onPress={closeSubmit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={22} color="#374151" />
               </TouchableOpacity>
@@ -621,10 +705,10 @@ export default function LibraryScreen({ navigation }) {
                 >
                   {submitting
                     ? <ActivityIndicator color="#FFFFFF" size="small" />
-                    : <Text style={styles.submitBtnText}>Submit Resource</Text>
+                    : <Text style={styles.submitBtnText}>{editingResource ? 'Save Changes' : 'Submit Resource'}</Text>
                   }
                 </TouchableOpacity>
-                <Text style={styles.submitNote}>All submissions are reviewed before going live.</Text>
+                {!editingResource && <Text style={styles.submitNote}>All submissions are reviewed before going live.</Text>}
                 <View style={{ height: 32 }} />
               </ScrollView>
             )}
