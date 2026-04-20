@@ -55,8 +55,10 @@ function AppSplashOverlay({ onDismiss }) {
 
   useEffect(() => {
     Animated.sequence([
+      // Wait for native splash to fully dismiss before starting
+      Animated.delay(700),
       // Title fades in
-      Animated.timing(titleOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(titleOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.delay(400),
       // Quote fades in
       Animated.timing(quoteOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
