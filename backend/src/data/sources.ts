@@ -433,6 +433,58 @@ export const CURATED_SOURCES: Omit<Source, 'addedAt'>[] = [
   },
 
   {
+    id: 'yt-spiritual-42',
+    title: 'Advice & Tips on How to Raise Children in this Land | Shaykh Dr Yasir Qadhi',
+    url: 'https://www.youtube.com/watch?v=9ALE6BjigO0',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Dr. Yasir Qadhi',
+    author: 'Yasir Qadhi',
+    tags: ['parenting', 'family-dynamics', 'surah-yusuf', 'tarbiyah', 'love', 'trust', 'jealousy'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-43',
+    title: 'Islamic Parenting Seminar, Part 1, With Ustadha Zaynab Ansari',
+    url: 'https://youtu.be/lagk8gsi2wg',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Ustadha Zaynab Ansari',
+    author: 'Zaynab Ansari',
+    tags: ['tarbiyah', 'adab', 'character', 'family-dynamics', 'faith', 'parenting'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-44',
+    title: 'Islamic Parenting Seminar, Part 2, With Ustadha Zaynab Ansari',
+    url: 'https://youtu.be/5-HNV-yKyEw',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Ustadha Zaynab Ansari',
+    author: 'Zaynab Ansari',
+    tags: ['tarbiyah', 'adab', 'character', 'family-dynamics', 'faith', 'parenting'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
+    id: 'yt-spiritual-45',
+    title: 'Islamic Parenting Seminar, Part 3, With Ustadha Zaynab Ansari',
+    url: 'https://youtu.be/bEK6QX50hhQ',
+    type: 'youtube',
+    category: 'spiritual',
+    speakerName: 'Ustadha Zaynab Ansari',
+    author: 'Zaynab Ansari',
+    tags: ['tarbiyah', 'adab', 'character', 'family-dynamics', 'faith', 'parenting'],
+    language: 'en',
+    isActive: true,
+  },
+
+  {
     id: 'yt-spiritual-33',
     title: 'Raising Confident Muslim Kids in the Digital Age W/Dr. Rania Awaad + Imam Khalid Latif',
     url: 'https://www.youtube.com/watch?v=1NVCaa_eqTA',
