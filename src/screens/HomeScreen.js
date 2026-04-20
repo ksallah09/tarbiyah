@@ -10,6 +10,7 @@ import {
   ImageBackground,
   Dimensions,
   Share,
+  Animated,
 } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -132,8 +133,9 @@ export default function HomeScreen({ navigation }) {
   const [completions,  setCompletions]  = useState([]);
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
-  // Ref to always-current insight IDs so useFocusEffect (empty deps) can re-check on return
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
+  const sheetSlide   = useRef(new Animated.Value(40)).current;
+  const sheetOpacity = useRef(new Animated.Value(0)).current;
 
   async function handleShareDua() {
     if (duaSharing || !dailyDua) return;
@@ -289,6 +291,14 @@ export default function HomeScreen({ navigation }) {
     if (scienceInsight?.id) isReadToday('scientific', scienceInsight.id).then(setSciReadToday);
     else setSciReadToday(false);
   }, [scienceInsight?.id]);
+  useEffect(() => {
+    if (loading) return;
+    Animated.parallel([
+      Animated.timing(sheetOpacity, { toValue: 1, duration: 480, useNativeDriver: true }),
+      Animated.timing(sheetSlide,   { toValue: 0, duration: 480, useNativeDriver: true }),
+    ]).start();
+  }, [loading]);
+
   const actionGoals      = dailyData?.actionGoals ?? [];
   const dailyDua         = getDailyDua();
   const dailyAyah        = getDailyAyah();
@@ -357,13 +367,12 @@ export default function HomeScreen({ navigation }) {
           </View>
 
           {/* ── Content ── */}
-          <View style={styles.sheet}>
+          <Animated.View style={[styles.sheet, { opacity: sheetOpacity, transform: [{ translateY: sheetSlide }] }]}>
             <View style={styles.contentPad}>
 
               {/* TODAY'S PARENTING INSIGHTS */}
               <View style={styles.sectionTitleWrap}>
                 <Text style={styles.sectionTitle}>TODAY'S PARENTING INSIGHTS</Text>
-                {loading && <ActivityIndicator size="small" color="#1B3D2F" style={{ marginLeft: 8 }} />}
               </View>
 
               {spiritualInsight && (
@@ -461,71 +470,6 @@ export default function HomeScreen({ navigation }) {
                   <Ionicons name="refresh-outline" size={13} color="#6B7280" />
                   <Text style={styles.devRefreshText}>Refresh Insights (dev only)</Text>
                 </TouchableOpacity>
-              )}
-
-              {/* TODAY'S TIPS */}
-              <View style={styles.sectionTitleWrap}>
-                <Text style={styles.sectionTitle}>TODAY'S TIPS</Text>
-              </View>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                decelerationRate="fast"
-                snapToInterval={TIP_CARD_WIDTH + 12}
-                snapToAlignment="start"
-                style={{ marginHorizontal: -20 }}
-                contentContainerStyle={styles.tipsScroll}
-                onScroll={e => {
-                  const x = e.nativeEvent.contentOffset.x;
-                  setTipIndex(Math.round(x / (TIP_CARD_WIDTH + 12)));
-                }}
-                scrollEventThrottle={16}
-              >
-                {actionGoals.map((goal, index) => {
-                  const isSpiritual = goal.type === 'spiritual';
-                  const bgImage = isSpiritual
-                    ? require('../../assets/spiritual-10.jpg')
-                    : require('../../assets/science-1.jpg');
-                  const overlayColors = isSpiritual
-                    ? ['rgba(10,30,20,0.45)', 'rgba(10,30,20,0.85)']
-                    : ['rgba(30,15,5,0.45)', 'rgba(30,15,5,0.85)'];
-                  return (
-                    <ImageBackground
-                      key={goal.id}
-                      source={bgImage}
-                      style={[styles.goalCard, index < actionGoals.length - 1 && { marginRight: 12 }]}
-                      imageStyle={{ borderRadius: 20 }}
-                      resizeMode="cover"
-                    >
-                      <LinearGradient colors={overlayColors} style={StyleSheet.absoluteFill} borderRadius={20} />
-                      <View style={styles.goalCardInner}>
-                        <View style={[styles.goalTypePill, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-                          <Ionicons name={isSpiritual ? 'moon' : 'bulb-outline'} size={10} color="rgba(255,255,255,0.9)" />
-                          <Text style={styles.goalTypePillText}>{goal.label}</Text>
-                        </View>
-                        <Text style={styles.goalText}>{goal.text}</Text>
-                      </View>
-                    </ImageBackground>
-                  );
-                })}
-              </ScrollView>
-
-              {/* Swipe dots + counter */}
-              {actionGoals.length > 1 && (
-                <View style={styles.tipDotsRow}>
-                  <View style={styles.tipDots}>
-                    {actionGoals.map((_, i) => (
-                      <View
-                        key={i}
-                        style={[styles.tipDot, i === tipIndex && styles.tipDotActive]}
-                      />
-                    ))}
-                  </View>
-                  <Text style={styles.tipCounter}>
-                    {tipIndex + 1} / {actionGoals.length}
-                  </Text>
-                </View>
               )}
 
               {/* FAMILY GOALS */}
@@ -740,7 +684,7 @@ export default function HomeScreen({ navigation }) {
 
               <View style={{ height: 32 }} />
             </View>
-          </View>
+          </Animated.View>
 
         </ScrollView>
 
@@ -786,7 +730,7 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  safe: { flex: 1, backgroundColor: '#1B3D2F' },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
 
   // ── Hero header ──
