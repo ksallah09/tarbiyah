@@ -666,7 +666,7 @@ app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Resp
     const { data: profile } = await supabase
       .from('profiles')
       .select('name')
-      .eq('id', req.userId!)
+      .eq('user_id', req.userId!)
       .single();
     const submitterName: string | null = profile?.name ?? null;
 
