@@ -519,7 +519,7 @@ export default function LibraryScreen({ navigation }) {
               <FlatList
                 data={myPosts}
                 keyExtractor={item => item.id}
-                contentContainerStyle={[styles.listContent, { paddingBottom: 32 }]}
+                contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 32 }]}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                   <RefreshControl
