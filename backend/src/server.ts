@@ -695,7 +695,6 @@ app.get('/community/resources', async (req: Request, res: Response) => {
       .from('community_resources')
       .select('*')
       .eq('approved', true)
-      .order('recommend_count', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(50);
 

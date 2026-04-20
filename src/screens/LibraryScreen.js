@@ -40,6 +40,22 @@ const CATEGORY_CONFIG = {
 function catConfig(category) {
   return CATEGORY_CONFIG[category] ?? { color: '#6B7280', icon: 'grid-outline' };
 }
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks}w ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
 const AGE_RANGES = ['All Ages', 'Toddler (0–3)', 'Young Child (4–7)', 'Pre-teen (8–11)', 'Teen (12+)'];
 
 const REFLECTION_TAGS = [
@@ -450,6 +466,7 @@ export default function LibraryScreen({ navigation }) {
                             <Text style={[styles.resourceCatText, { color: cfg.color }]}>{item.category}</Text>
                           </View>
                           <Text style={styles.resourceAge}>{item.age_range}</Text>
+                          <Text style={styles.resourceTime}>{timeAgo(item.created_at)}</Text>
                         </View>
                         <Text style={styles.resourceTitle}>{item.title}</Text>
                         {item.submitter_name ? (
@@ -589,6 +606,7 @@ export default function LibraryScreen({ navigation }) {
                       <Text style={styles.rejectionNote}>{item.rejection_reason}</Text>
                     ) : null}
                     <Text style={styles.resourceTitle}>{item.title}</Text>
+                    <Text style={styles.resourceTime}>{timeAgo(item.created_at)}</Text>
                     {item.why_helped ? (
                       <Text style={styles.resourceWhy}>"{item.why_helped}"</Text>
                     ) : null}
@@ -679,6 +697,7 @@ export default function LibraryScreen({ navigation }) {
                           <Text style={[styles.resourceCatText, { color: cfg.color }]}>{item.category}</Text>
                         </View>
                         <Text style={styles.resourceAge}>{item.age_range}</Text>
+                        <Text style={styles.resourceTime}>{timeAgo(item.created_at)}</Text>
                         {isOwner && (
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
                             <TouchableOpacity onPress={() => openEdit(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -999,6 +1018,7 @@ const styles = StyleSheet.create({
   },
   resourceCatText: { fontSize: 11, fontWeight: '700' },
   resourceAge: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  resourceTime: { fontSize: 11, color: '#C4C9D4', fontWeight: '500', marginLeft: 'auto' },
   resourceTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', lineHeight: 21, marginBottom: 4 },
   resourcePostedBy: { fontSize: 12, color: '#9CA3AF', fontWeight: '500', marginBottom: 8 },
   ownerActionText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
