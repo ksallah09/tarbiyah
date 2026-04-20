@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,6 +52,7 @@ export default function LibraryScreen({ navigation }) {
   // ── Community ──
   const [resources, setResources]             = useState([]);
   const [resourcesLoading, setResourcesLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeCategory, setActiveCategory]   = useState('All');
   const [activeAge, setActiveAge]             = useState('All Ages');
   const [myRecommendations, setMyRecommendations] = useState(new Set());
@@ -85,12 +87,9 @@ export default function LibraryScreen({ navigation }) {
       supabase.auth.getSession().then(({ data }) => {
         setCurrentUserId(data?.session?.user?.id ?? null);
       });
-    }, [])
+      fetchResources();
+    }, [activeCategory, activeAge])
   );
-
-  useEffect(() => {
-    if (activeTab === 'community') fetchResources();
-  }, [activeTab, activeCategory, activeAge]);
 
   useEffect(() => {
     const url = submitUrl.trim();
@@ -109,8 +108,8 @@ export default function LibraryScreen({ navigation }) {
     return () => clearTimeout(metaDebounceRef.current);
   }, [submitUrl]);
 
-  async function fetchResources() {
-    setResourcesLoading(true);
+  async function fetchResources(isPullRefresh = false) {
+    isPullRefresh ? setRefreshing(true) : setResourcesLoading(true);
     try {
       const params = new URLSearchParams();
       if (activeCategory !== 'All') params.set('category', activeCategory);
@@ -133,6 +132,7 @@ export default function LibraryScreen({ navigation }) {
       setResources([]);
     } finally {
       setResourcesLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -511,6 +511,13 @@ export default function LibraryScreen({ navigation }) {
                 keyExtractor={item => item.id}
                 contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={() => fetchResources(true)}
+                    tintColor="#1B3D2F"
+                  />
+                }
                 renderItem={({ item }) => {
                   const recommended = myRecommendations.has(item.id);
                   const saved = mySavedIds.has(item.id);
