@@ -367,7 +367,7 @@ export default function LibraryScreen({ navigation }) {
     ? (totalLibraryCount === 0 ? 'Nothing saved yet' : `${totalLibraryCount} saved item${totalLibraryCount !== 1 ? 's' : ''}`)
     : activeTab === 'myposts'
     ? (myPosts.length === 0 ? 'No posts yet' : `${myPosts.length} post${myPosts.length !== 1 ? 's' : ''}`)
-    : 'Parent-curated resources';
+    : 'Parents helping parents';
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
