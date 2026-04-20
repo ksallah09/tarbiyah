@@ -8,8 +8,6 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
       "backgroundColor": "#1B3D2F"
     },
     "scheme": "com.tarbiyah.parenting",
@@ -20,6 +18,9 @@
       "buildNumber": "4",
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
+      },
+      "splash": {
+        "backgroundColor": "#1B3D2F"
       }
     },
     "android": {
