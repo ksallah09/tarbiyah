@@ -828,17 +828,28 @@ export default function LibraryScreen({ navigation }) {
                 {submitError ? <Text style={styles.submitError}>{submitError}</Text> : null}
 
                 <TouchableOpacity
-                  style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
+                  style={[styles.submitBtn, submitting && { opacity: 0.7 }]}
                   onPress={handleSubmit}
                   disabled={submitting}
                   activeOpacity={0.85}
                 >
                   {submitting
-                    ? <ActivityIndicator color="#FFFFFF" size="small" />
+                    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                        <Text style={styles.submitBtnText}>
+                          {editingResource ? 'Saving...' : 'Reviewing…'}
+                        </Text>
+                      </View>
                     : <Text style={styles.submitBtnText}>{editingResource ? 'Save Changes' : 'Submit Resource'}</Text>
                   }
                 </TouchableOpacity>
-                {!editingResource && <Text style={styles.submitNote}>All submissions are reviewed before going live.</Text>}
+                {!editingResource && (
+                  <Text style={styles.submitNote}>
+                    {submitting
+                      ? 'Our AI is checking your submission to keep the community safe. This takes a few seconds.'
+                      : 'All submissions are reviewed by AI before going live.'}
+                  </Text>
+                )}
                 <View style={{ height: 32 }} />
               </ScrollView>
             )}
