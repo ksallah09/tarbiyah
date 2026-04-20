@@ -302,11 +302,15 @@ export default function LibraryScreen({ navigation }) {
         });
         if (!res.ok) {
           const err = await res.json();
-          setSubmitError(err.error ?? 'Could not submit. Please try again.');
+          const message = err.error ?? 'Could not submit. Please try again.';
+          const hint = err.hint ? `\n\n${err.hint}` : '';
+          setSubmitError(message + hint);
           return;
         }
-        setSubmitSuccess(true);
+        const result = await res.json();
+        setSubmitSuccess(result._pending ? 'pending' : true);
         resetSubmitForm();
+        fetchMyPosts();
         if (activeTab === 'community') fetchResources();
       }
     } catch {
@@ -547,25 +551,43 @@ export default function LibraryScreen({ navigation }) {
                 }
                 renderItem={({ item }) => {
                   const cfg = catConfig(item.category);
+                  const isPending = item.pending_review && !item.approved && !item.rejected;
+                  const isRejected = item.rejected;
                   return (
                   <View style={styles.resourceCard}>
-                    <View style={[styles.resourceAccent, { backgroundColor: cfg.color }]} />
+                    <View style={[styles.resourceAccent, { backgroundColor: isRejected ? '#DC2626' : isPending ? '#D97706' : cfg.color }]} />
                     <View style={styles.resourceBody}>
                     <View style={styles.resourceCardTop}>
                       <View style={[styles.resourceCatPill, { backgroundColor: cfg.color + '18' }]}>
                         <Ionicons name={cfg.icon} size={11} color={cfg.color} />
                         <Text style={[styles.resourceCatText, { color: cfg.color }]}>{item.category}</Text>
                       </View>
-                      <Text style={styles.resourceAge}>{item.age_range}</Text>
+                      {isPending && (
+                        <View style={styles.statusPill}>
+                          <Ionicons name="time-outline" size={11} color="#D97706" />
+                          <Text style={[styles.statusPillText, { color: '#D97706' }]}>Under Review</Text>
+                        </View>
+                      )}
+                      {isRejected && (
+                        <View style={[styles.statusPill, { backgroundColor: '#FEE2E2' }]}>
+                          <Ionicons name="close-circle-outline" size={11} color="#DC2626" />
+                          <Text style={[styles.statusPillText, { color: '#DC2626' }]}>Not Approved</Text>
+                        </View>
+                      )}
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
-                        <TouchableOpacity onPress={() => openEdit(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Text style={styles.ownerActionText}>Edit</Text>
-                        </TouchableOpacity>
+                        {!isRejected && (
+                          <TouchableOpacity onPress={() => openEdit(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Text style={styles.ownerActionText}>Edit</Text>
+                          </TouchableOpacity>
+                        )}
                         <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                           <Ionicons name="trash-outline" size={16} color="#DC2626" />
                         </TouchableOpacity>
                       </View>
                     </View>
+                    {isRejected && item.rejection_reason ? (
+                      <Text style={styles.rejectionNote}>{item.rejection_reason}</Text>
+                    ) : null}
                     <Text style={styles.resourceTitle}>{item.title}</Text>
                     {item.why_helped ? (
                       <Text style={styles.resourceWhy}>"{item.why_helped}"</Text>
@@ -738,11 +760,21 @@ export default function LibraryScreen({ navigation }) {
 
             {submitSuccess ? (
               <View style={styles.successState}>
-                <View style={styles.successIcon}>
-                  <Ionicons name="checkmark-circle" size={56} color="#2E7D62" />
+                <View style={[styles.successIcon, submitSuccess === 'pending' && { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons
+                    name={submitSuccess === 'pending' ? 'time-outline' : 'checkmark-circle'}
+                    size={56}
+                    color={submitSuccess === 'pending' ? '#D97706' : '#2E7D62'}
+                  />
                 </View>
-                <Text style={styles.successTitle}>JazakAllah Khayran!</Text>
-                <Text style={styles.successBody}>Your resource has been shared with the community.</Text>
+                <Text style={styles.successTitle}>
+                  {submitSuccess === 'pending' ? 'Under Review' : 'JazakAllah Khayran!'}
+                </Text>
+                <Text style={styles.successBody}>
+                  {submitSuccess === 'pending'
+                    ? 'Our AI review service is temporarily busy. Your resource has been saved and will be reviewed shortly. You can track it in My Posts.'
+                    : 'Your resource has been shared with the community.'}
+                </Text>
                 <TouchableOpacity style={styles.successBtn} onPress={closeSubmit}>
                   <Text style={styles.successBtnText}>Done</Text>
                 </TouchableOpacity>
@@ -970,6 +1002,12 @@ const styles = StyleSheet.create({
   resourceTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', lineHeight: 21, marginBottom: 4 },
   resourcePostedBy: { fontSize: 12, color: '#9CA3AF', fontWeight: '500', marginBottom: 8 },
   ownerActionText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#FEF3C7', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  statusPillText: { fontSize: 11, fontWeight: '700' },
+  rejectionNote: { fontSize: 12, color: '#DC2626', lineHeight: 18, marginBottom: 8, fontStyle: 'italic' },
   recommendCount: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8 },
   recommendCountText: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
   resourceWhy: { fontSize: 13, color: '#6B7280', lineHeight: 20, fontStyle: 'italic', marginBottom: 12 },

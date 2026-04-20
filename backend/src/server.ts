@@ -603,24 +603,86 @@ app.get('/community/metadata', async (req: Request, res: Response) => {
 
 // ─── COMMUNITY RESOURCES ──────────────────────────────────────────────────────
 
-async function moderateResource(url: string, title: string, description: string, category: string): Promise<{ approved: boolean; reason: string }> {
+const DAILY_SUBMISSION_LIMIT = 5;
+const CRON_SECRET = process.env.CRON_SECRET ?? '';
+
+// ── 1. URL safety via Google Safe Browsing ────────────────────────────────────
+async function checkUrlSafety(url: string): Promise<{ safe: boolean; threat?: string }> {
+  const apiKey = process.env.GOOGLE_SAFE_BROWSING_KEY;
+  if (!apiKey) return { safe: true };
   try {
-    const model = getJsonModel(MODEL_FAST, 'You are a content moderator for Tarbiyah, an Islamic parenting app for Muslim families.');
-    const prompt = `Review this submitted resource:
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(
+      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          client: { clientId: 'tarbiyah', clientVersion: '1.0' },
+          threatInfo: {
+            threatTypes: ['MALWARE', 'SOCIAL_ENGINEERING', 'UNWANTED_SOFTWARE', 'POTENTIALLY_HARMFUL_APPLICATION'],
+            platformTypes: ['ANY_PLATFORM'],
+            threatEntryTypes: ['URL'],
+            threatEntries: [{ url }],
+          },
+        }),
+      }
+    );
+    clearTimeout(timeout);
+    const data = await res.json() as { matches?: { threatType: string }[] };
+    if (data.matches && data.matches.length > 0) return { safe: false, threat: data.matches[0].threatType };
+    return { safe: true };
+  } catch {
+    return { safe: true }; // fail open if Safe Browsing is unreachable
+  }
+}
+
+// ── 2. AI moderation via Gemini ───────────────────────────────────────────────
+async function moderateResource(
+  url: string, title: string, description: string, category: string
+): Promise<{ approved: boolean; pending: boolean; reason: string }> {
+  try {
+    const model = getJsonModel(
+      MODEL_FAST,
+      'You are a content moderator for Tarbiyah, an Islamic parenting app for Muslim families following Sunni Islamic principles.'
+    );
+    const prompt = `Review this community-submitted parenting resource:
 URL: ${url}
 Title: ${title}
-Description: ${description ?? '(none)'}
+Description: ${description || '(none)'}
 Category: ${category}
 
-APPROVE if: relevant to parenting, family, child development, or Islamic education; Islamically appropriate; legitimate resource (not spam or phishing).
-REJECT if: contains haram content (inappropriate music, adult content, unIslamic relationships); completely irrelevant to parenting or family; spam or promotional.
+APPROVE if:
+- Relevant to parenting, child development, family life, or Islamic education
+- Islamically appropriate and consistent with Sunni values
+- A legitimate resource (not spam, phishing, or a commercial sales page)
+- Author/channel may be non-Muslim as long as content is appropriate for Muslim families
 
-Be lenient — if in doubt, approve. Respond with JSON: { "approved": boolean, "reason": string }`;
+REJECT only if clearly:
+- Contains haram content (adult/sexual content, inappropriate music, un-Islamic relationships)
+- Promotes beliefs that contradict core Islamic principles (e.g. shirk, kufr)
+- Completely unrelated to parenting or family (e.g. random news, sports, politics)
+- Spam, phishing, or purely commercial with no educational value
+
+When in doubt, APPROVE. Give the submitter the benefit of the doubt.
+
+Respond with JSON only — no markdown: { "approved": boolean, "reason": string }`;
 
     const text = await generateWithRetry(model, prompt, MODEL_FAST);
-    return JSON.parse(text.replace(/```json|```/g, '').trim());
-  } catch {
-    return { approved: true, reason: 'Moderation check passed.' };
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(cleaned);
+    if (typeof result.approved !== 'boolean') throw new Error('Invalid response shape');
+    return { ...result, pending: false };
+  } catch (err: any) {
+    // If Gemini is down or returns malformed JSON — queue for retry rather than fail open
+    const isGeminiDown = err?.message?.includes('fetch') || err instanceof SyntaxError;
+    if (isGeminiDown) {
+      return { approved: false, pending: true, reason: 'AI review temporarily unavailable.' };
+    }
+    // Any other unexpected error — fail open (don't punish the user)
+    return { approved: true, pending: false, reason: 'Moderation check passed.' };
   }
 }
 
@@ -657,10 +719,32 @@ app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Resp
       return res.status(400).json({ error: 'url, title and category are required.' });
     }
 
+    // ── Mitigation 2: Rate limit — 5 submissions per user per day ─────────────
+    const since = new Date(Date.now() - 86_400_000).toISOString();
+    const { count } = await supabase
+      .from('community_resources')
+      .select('*', { count: 'exact', head: true })
+      .eq('submitted_by', req.userId!)
+      .gte('created_at', since);
+    if ((count ?? 0) >= DAILY_SUBMISSION_LIMIT) {
+      return res.status(429).json({ error: 'You can share up to 5 resources per day. Please try again tomorrow.' });
+    }
+
+    // ── Mitigation 1: URL safety check ────────────────────────────────────────
+    const safety = await checkUrlSafety(url);
+    if (!safety.safe) {
+      return res.status(422).json({ error: 'This URL was flagged as unsafe and cannot be submitted.' });
+    }
+
+    // ── Mitigation 1+5: AI moderation with fallback queue ─────────────────────
     const moderation = await moderateResource(url, title, description ?? '', category);
 
-    if (!moderation.approved) {
-      return res.status(422).json({ error: moderation.reason ?? 'This resource could not be approved.' });
+    if (!moderation.approved && !moderation.pending) {
+      // Hard rejection — clear content violation
+      return res.status(422).json({
+        error: moderation.reason ?? 'This resource could not be approved.',
+        hint: 'Please review the content and try again, or submit a different resource.',
+      });
     }
 
     const { data: profile } = await supabase
@@ -681,17 +765,22 @@ app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Resp
         why_helped: why_helped ?? null,
         submitted_by: req.userId!,
         submitter_name: submitterName,
-        approved: true,
+        approved: moderation.pending ? false : true,
+        pending_review: moderation.pending ?? false,
+        rejected: false,
         recommend_count: 0,
       })
       .select()
       .single();
 
     if (error) throw error;
-    return res.json(data);
+    return res.status(moderation.pending ? 202 : 200).json({
+      ...data,
+      _pending: moderation.pending ?? false,
+    });
   } catch (err) {
     console.error('POST /community/resources error:', err);
-    return res.status(500).json({ error: 'Failed to submit resource.' });
+    return res.status(500).json({ error: 'Failed to submit resource. Please try again.' });
   }
 });
 
@@ -750,6 +839,53 @@ app.get('/community/resources/my-posts', requireAuth, async (req: AuthRequest, r
     return res.json(data ?? []);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to fetch your posts.' });
+  }
+});
+
+// POST /community/resources/retry-pending — cron job retries pending AI moderation
+app.post('/community/resources/retry-pending', async (req: Request, res: Response) => {
+  if (req.headers['x-cron-secret'] !== CRON_SECRET) {
+    return res.status(401).json({ error: 'Unauthorised.' });
+  }
+  try {
+    const { data: pending, error } = await supabase
+      .from('community_resources')
+      .select('*')
+      .eq('approved', false)
+      .eq('pending_review', true)
+      .eq('rejected', false)
+      .limit(20);
+
+    if (error) throw error;
+    if (!pending?.length) return res.json({ retried: 0 });
+
+    let approved = 0, stillPending = 0, rejected = 0;
+
+    for (const resource of pending) {
+      const moderation = await moderateResource(resource.url, resource.title, resource.description ?? '', resource.category);
+
+      if (moderation.pending) {
+        stillPending++;
+        continue; // Gemini still down — leave it, try next cycle
+      }
+
+      if (moderation.approved) {
+        await supabase.from('community_resources').update({ approved: true, pending_review: false }).eq('id', resource.id);
+        approved++;
+      } else {
+        await supabase.from('community_resources').update({
+          rejected: true,
+          pending_review: false,
+          rejection_reason: moderation.reason,
+        }).eq('id', resource.id);
+        rejected++;
+      }
+    }
+
+    return res.json({ retried: pending.length, approved, rejected, stillPending });
+  } catch (err) {
+    console.error('retry-pending error:', err);
+    return res.status(500).json({ error: 'Retry job failed.' });
   }
 });
 
