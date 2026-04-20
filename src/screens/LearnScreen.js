@@ -268,7 +268,6 @@ export default function LearnScreen({ navigation, route }) {
                     onChangeText={setInput}
                     multiline
                     maxLength={300}
-                    autoFocus
                   />
                   <Text style={styles.wizardTopicsLabel}>COMMON TOPICS</Text>
                   <View style={styles.wizardTopicsGrid}>
