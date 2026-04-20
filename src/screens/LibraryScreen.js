@@ -28,6 +28,18 @@ import { supabase } from '../utils/supabase';
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 const CATEGORIES = ['All', 'Lecture/Video', 'Article/Book', 'Activity/Printable', 'Duas & Adhkar', 'Podcast', 'Other'];
+
+const CATEGORY_CONFIG = {
+  'Lecture/Video':      { color: '#2E7D62', icon: 'play-circle-outline' },
+  'Article/Book':       { color: '#D4871A', icon: 'book-outline' },
+  'Activity/Printable': { color: '#7C3AED', icon: 'color-palette-outline' },
+  'Duas & Adhkar':      { color: '#0D9488', icon: 'moon-outline' },
+  'Podcast':            { color: '#2563EB', icon: 'mic-outline' },
+  'Other':              { color: '#6B7280', icon: 'grid-outline' },
+};
+function catConfig(category) {
+  return CATEGORY_CONFIG[category] ?? { color: '#6B7280', icon: 'grid-outline' };
+}
 const AGE_RANGES = ['All Ages', 'Toddler (0–3)', 'Young Child (4–7)', 'Pre-teen (8–11)', 'Teen (12+)'];
 
 const REFLECTION_TAGS = [
@@ -423,11 +435,15 @@ export default function LibraryScreen({ navigation }) {
                 }
                 renderItem={({ item }) => {
                   if (item._listKind === 'resource') {
+                    const cfg = catConfig(item.category);
                     return (
                       <View style={styles.resourceCard}>
+                        <View style={[styles.resourceAccent, { backgroundColor: cfg.color }]} />
+                        <View style={styles.resourceBody}>
                         <View style={styles.resourceCardTop}>
-                          <View style={styles.resourceCatPill}>
-                            <Text style={styles.resourceCatText}>{item.category}</Text>
+                          <View style={[styles.resourceCatPill, { backgroundColor: cfg.color + '18' }]}>
+                            <Ionicons name={cfg.icon} size={11} color={cfg.color} />
+                            <Text style={[styles.resourceCatText, { color: cfg.color }]}>{item.category}</Text>
                           </View>
                           <Text style={styles.resourceAge}>{item.age_range}</Text>
                         </View>
@@ -459,6 +475,7 @@ export default function LibraryScreen({ navigation }) {
                             <Ionicons name="open-outline" size={15} color="#1B3D2F" />
                             <Text style={styles.openBtnText}>Open</Text>
                           </TouchableOpacity>
+                        </View>
                         </View>
                       </View>
                     );
@@ -528,11 +545,16 @@ export default function LibraryScreen({ navigation }) {
                     tintColor="#1B3D2F"
                   />
                 }
-                renderItem={({ item }) => (
+                renderItem={({ item }) => {
+                  const cfg = catConfig(item.category);
+                  return (
                   <View style={styles.resourceCard}>
+                    <View style={[styles.resourceAccent, { backgroundColor: cfg.color }]} />
+                    <View style={styles.resourceBody}>
                     <View style={styles.resourceCardTop}>
-                      <View style={styles.resourceCatPill}>
-                        <Text style={styles.resourceCatText}>{item.category}</Text>
+                      <View style={[styles.resourceCatPill, { backgroundColor: cfg.color + '18' }]}>
+                        <Ionicons name={cfg.icon} size={11} color={cfg.color} />
+                        <Text style={[styles.resourceCatText, { color: cfg.color }]}>{item.category}</Text>
                       </View>
                       <Text style={styles.resourceAge}>{item.age_range}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
@@ -562,8 +584,10 @@ export default function LibraryScreen({ navigation }) {
                         <Text style={styles.recommendCountText}>{item.recommend_count ?? 0}</Text>
                       </View>
                     </View>
+                    </View>
                   </View>
-                )}
+                  );
+                }}
               />
             )}
           </>
@@ -622,11 +646,15 @@ export default function LibraryScreen({ navigation }) {
                   const recommended = myRecommendations.has(item.id);
                   const saved = mySavedIds.has(item.id);
                   const isOwner = currentUserId && item.submitted_by === currentUserId;
+                  const cfg = catConfig(item.category);
                   return (
                     <View style={styles.resourceCard}>
+                      <View style={[styles.resourceAccent, { backgroundColor: cfg.color }]} />
+                      <View style={styles.resourceBody}>
                       <View style={styles.resourceCardTop}>
-                        <View style={styles.resourceCatPill}>
-                          <Text style={styles.resourceCatText}>{item.category}</Text>
+                        <View style={[styles.resourceCatPill, { backgroundColor: cfg.color + '18' }]}>
+                          <Ionicons name={cfg.icon} size={11} color={cfg.color} />
+                          <Text style={[styles.resourceCatText, { color: cfg.color }]}>{item.category}</Text>
                         </View>
                         <Text style={styles.resourceAge}>{item.age_range}</Text>
                         {isOwner && (
@@ -676,6 +704,7 @@ export default function LibraryScreen({ navigation }) {
                           <Ionicons name="open-outline" size={15} color="#1B3D2F" />
                           <Text style={styles.openBtnText}>Open</Text>
                         </TouchableOpacity>
+                      </View>
                       </View>
                     </View>
                   );
@@ -914,16 +943,18 @@ const styles = StyleSheet.create({
   // ── Community resource cards ──
   resourceCard: {
     backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 12,
-    padding: 16,
+    flexDirection: 'row', overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
+  resourceAccent: { width: 4 },
+  resourceBody: { flex: 1, padding: 14 },
   resourceCardTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   resourceCatPill: {
-    backgroundColor: 'rgba(27,61,47,0.08)',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4,
   },
-  resourceCatText: { fontSize: 11, fontWeight: '700', color: '#1B3D2F' },
+  resourceCatText: { fontSize: 11, fontWeight: '700' },
   resourceAge: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
   resourceTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', lineHeight: 21, marginBottom: 4 },
   resourcePostedBy: { fontSize: 12, color: '#9CA3AF', fontWeight: '500', marginBottom: 8 },
