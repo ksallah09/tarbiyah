@@ -61,9 +61,11 @@ export default function LibraryScreen({ navigation }) {
   const [submitAge, setSubmitAge]       = useState('All Ages');
   const [submitWhy, setSubmitWhy]       = useState('');
   const [submitTags, setSubmitTags]     = useState([]);
-  const [submitting, setSubmitting]     = useState(false);
-  const [submitError, setSubmitError]   = useState('');
+  const [submitting, setSubmitting]       = useState(false);
+  const [submitError, setSubmitError]     = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [fetchingMeta, setFetchingMeta]   = useState(false);
+  const metaDebounceRef = useRef(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,6 +76,23 @@ export default function LibraryScreen({ navigation }) {
   useEffect(() => {
     if (activeTab === 'community') fetchResources();
   }, [activeTab, activeCategory, activeAge]);
+
+  useEffect(() => {
+    const url = submitUrl.trim();
+    if (!url.startsWith('http')) return;
+    clearTimeout(metaDebounceRef.current);
+    metaDebounceRef.current = setTimeout(async () => {
+      setFetchingMeta(true);
+      try {
+        const res = await fetch(`${API_URL}/community/metadata?url=${encodeURIComponent(url)}`);
+        const { title, description } = await res.json();
+        if (title) setSubmitTitle(prev => prev || title);
+        if (description) setSubmitDesc(prev => prev || description);
+      } catch {}
+      finally { setFetchingMeta(false); }
+    }, 600);
+    return () => clearTimeout(metaDebounceRef.current);
+  }, [submitUrl]);
 
   async function fetchResources() {
     setResourcesLoading(true);
@@ -443,7 +462,10 @@ export default function LibraryScreen({ navigation }) {
                   keyboardType="url"
                 />
 
-                <Text style={styles.fieldLabel}>Title *</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                  <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Title *</Text>
+                  {fetchingMeta && <ActivityIndicator size="small" color="#1B3D2F" />}
+                </View>
                 <TextInput
                   style={styles.textInput}
                   placeholder="What is this resource called?"

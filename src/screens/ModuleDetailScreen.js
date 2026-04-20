@@ -37,20 +37,19 @@ const LESSON_COLORS = {
 
 export default function ModuleDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
-  const { topic, isNew, module: savedModule } = route.params;
+  const { topic, isNew, module: savedModule, voice: preselectedVoice } = route.params;
 
   const [selectedDhikr, setSelectedDhikr] = useState(null);
   const [generating, setGenerating]       = useState(false);
   const [error, setError]                 = useState(null);
   const [module, setModule]               = useState(savedModule ?? null);
-  // lessonAudios: lessonId → URL (populated once background generation completes)
   const [lessonAudios, setLessonAudios] = useState(() => {
     const map = {};
     savedModule?.lessons?.forEach(l => { if (l.audioUrl) map[l.id] = l.audioUrl; });
     return map;
   });
   const audiosLoadingRef = useRef(false);
-  const [voice, setVoice]                       = useState(null);
+  const [voice, setVoice]                       = useState(preselectedVoice ?? null);
   const [showVoicePicker, setShowVoicePicker]   = useState(false);
 
   // ── Tasbih ────────────────────────────────────────────────────────────────────
@@ -84,7 +83,11 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     if (!isNew) return;
-    setShowVoicePicker(true);
+    if (preselectedVoice) {
+      generateModule(preselectedVoice);
+    } else {
+      setShowVoicePicker(true);
+    }
   }, []);
 
   // Intercept back navigation while generating — abort the request cleanly

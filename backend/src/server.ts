@@ -556,6 +556,42 @@ app.get('/trending/challenges', async (req: Request, res: Response) => {
   }
 });
 
+// ─── GET /community/metadata ──────────────────────────────────────────────────
+
+app.get('/community/metadata', async (req: Request, res: Response) => {
+  const { url } = req.query as { url?: string };
+  if (!url) return res.status(400).json({ error: 'url is required.' });
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Tarbiyah/1.0)',
+        'Accept': 'text/html',
+      },
+    });
+    clearTimeout(timeout);
+
+    const html = await response.text();
+
+    const ogTitle    = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1]
+                    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)?.[1];
+    const ogDesc     = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1]
+                    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)?.[1];
+    const pageTitle  = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim();
+
+    const title = ogTitle ?? pageTitle ?? '';
+    const description = ogDesc ?? '';
+
+    return res.json({ title, description });
+  } catch {
+    return res.json({ title: '', description: '' });
+  }
+});
+
 // ─── COMMUNITY RESOURCES ──────────────────────────────────────────────────────
 
 async function moderateResource(url: string, title: string, description: string, category: string): Promise<{ approved: boolean; reason: string }> {
