@@ -38,7 +38,7 @@ const REFLECTION_TAGS = [
 
 export default function LibraryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState('library');
+  const [activeTab, setActiveTab] = useState('community');
 
   // ── My Library ──
   const [insights, setInsights]         = useState([]);
@@ -225,22 +225,22 @@ export default function LibraryScreen({ navigation }) {
       <View style={styles.bgTop} />
       <StatusBar style="light" />
 
-      <DarkHeader title="Library" subtitle={subtitleText} />
+      <DarkHeader title="Resources" subtitle={subtitleText} />
 
       {/* ── Tab toggle ── */}
       <View style={styles.tabToggleWrap}>
         <View style={styles.tabToggle}>
           <TouchableOpacity
-            style={[styles.tabToggleBtn, activeTab === 'library' && styles.tabToggleBtnActive]}
-            onPress={() => setActiveTab('library')}
-          >
-            <Text style={[styles.tabToggleText, activeTab === 'library' && styles.tabToggleTextActive]}>My Library</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             style={[styles.tabToggleBtn, activeTab === 'community' && styles.tabToggleBtnActive]}
             onPress={() => setActiveTab('community')}
           >
             <Text style={[styles.tabToggleText, activeTab === 'community' && styles.tabToggleTextActive]}>Community</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabToggleBtn, activeTab === 'library' && styles.tabToggleBtnActive]}
+            onPress={() => setActiveTab('library')}
+          >
+            <Text style={[styles.tabToggleText, activeTab === 'library' && styles.tabToggleTextActive]}>My Library</Text>
           </TouchableOpacity>
         </View>
       </View>

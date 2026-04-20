@@ -122,7 +122,7 @@ const RootStack  = createNativeStackNavigator();
 
 const TAB_CONFIG = {
   Home:     { filled: 'home',        outline: 'home-outline' },
-  Library:  { filled: 'library',     outline: 'library-outline' },
+  Resources: { filled: 'compass',      outline: 'compass-outline' },
   Progress: { filled: 'trending-up', outline: 'trending-up-outline' },
   Learn:    { filled: 'layers',      outline: 'layers-outline' },
   Profile:  { filled: 'person',      outline: 'person-outline' },
@@ -170,7 +170,7 @@ function Tabs() {
       <Tab.Screen name="Home"     component={HomeScreen} />
       <Tab.Screen name="Progress" component={ProgressScreen} />
       <Tab.Screen name="Learn"    component={LearnScreen} />
-      <Tab.Screen name="Library"  component={LibraryScreen} />
+      <Tab.Screen name="Resources" component={LibraryScreen} />
       <Tab.Screen name="Profile"  component={ProfileScreen} />
     </Tab.Navigator>
   );

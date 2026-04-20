@@ -583,8 +583,17 @@ app.get('/community/metadata', async (req: Request, res: Response) => {
                     ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)?.[1];
     const pageTitle  = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim();
 
-    const title = ogTitle ?? pageTitle ?? '';
-    const description = ogDesc ?? '';
+    const decodeEntities = (str: string) =>
+      str.replace(/&amp;/g, '&')
+         .replace(/&lt;/g, '<')
+         .replace(/&gt;/g, '>')
+         .replace(/&quot;/g, '"')
+         .replace(/&#39;/g, "'")
+         .replace(/&apos;/g, "'")
+         .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+
+    const title = decodeEntities(ogTitle ?? pageTitle ?? '');
+    const description = decodeEntities(ogDesc ?? '');
 
     return res.json({ title, description });
   } catch {
