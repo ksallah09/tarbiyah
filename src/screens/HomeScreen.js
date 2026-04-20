@@ -313,6 +313,8 @@ export default function HomeScreen({ navigation }) {
       <SafeAreaView style={styles.safe} edges={[]}>
         {/* Top half green so pull-down overscroll shows correct color */}
         <View style={styles.bgTop} />
+        {/* Bottom cap — fades in with sheet to cover green on downward overscroll */}
+        <Animated.View style={[styles.bgBottom, { opacity: sheetOpacity }]} />
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -732,6 +734,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#1B3D2F' },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
+  bgBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120, backgroundColor: '#F5F6F8' },
 
   // ── Hero header ──
   hero: {
