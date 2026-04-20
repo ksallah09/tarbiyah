@@ -58,6 +58,8 @@ function timeAgo(dateStr) {
 }
 const AGE_RANGES = ['All Ages', 'Toddler (0–3)', 'Young Child (4–7)', 'Pre-teen (8–11)', 'Teen (12+)'];
 
+const RESOURCES_CACHE_KEY = 'tarbiyah_community_resources_cache';
+
 const REFLECTION_TAGS = [
   'Worked for us',
   'Takes consistency',
@@ -143,6 +145,20 @@ export default function LibraryScreen({ navigation }) {
   }, [submitUrl]);
 
   async function fetchResources(isPullRefresh = false) {
+    // Load cache instantly on first load (not pull-to-refresh)
+    if (!isPullRefresh) {
+      try {
+        const cached = await AsyncStorage.getItem(RESOURCES_CACHE_KEY);
+        if (cached) {
+          const { data: cachedData, category, age } = JSON.parse(cached);
+          if (category === activeCategory && age === activeAge) {
+            setResources(cachedData);
+            setResourcesLoading(false);
+          }
+        }
+      } catch {}
+    }
+
     isPullRefresh ? setRefreshing(true) : setResourcesLoading(true);
     try {
       const params = new URLSearchParams();
@@ -150,7 +166,15 @@ export default function LibraryScreen({ navigation }) {
       if (activeAge !== 'All Ages') params.set('age', activeAge);
       const res = await fetch(`${API_URL}/community/resources?${params}`);
       const data = await res.json();
-      setResources(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setResources(list);
+
+      // Persist to cache (only for unfiltered view to keep it simple)
+      if (activeCategory === 'All' && activeAge === 'All Ages') {
+        AsyncStorage.setItem(RESOURCES_CACHE_KEY, JSON.stringify({
+          data: list, category: activeCategory, age: activeAge,
+        }));
+      }
 
       // Fetch user's recommendations
       const { data: session } = await supabase.auth.getSession();
@@ -162,9 +186,8 @@ export default function LibraryScreen({ navigation }) {
         const recData = await recRes.json();
         setMyRecommendations(new Set(Array.isArray(recData) ? recData : []));
       }
-    } catch {
-      setResources([]);
-    } finally {
+    } catch {}
+    finally {
       setResourcesLoading(false);
       setRefreshing(false);
     }
