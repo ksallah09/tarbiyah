@@ -530,13 +530,14 @@ export default function LibraryScreen({ navigation }) {
                         </View>
                         <Text style={styles.resourceAge}>{item.age_range}</Text>
                         {isOwner && (
-                          <TouchableOpacity
-                            onPress={() => openEdit(item)}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            style={{ marginLeft: 'auto' }}
-                          >
-                            <Ionicons name="pencil-outline" size={16} color="#6B7280" />
-                          </TouchableOpacity>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
+                            <TouchableOpacity onPress={() => openEdit(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Text style={styles.ownerActionText}>Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                            </TouchableOpacity>
+                          </View>
                         )}
                       </View>
                       <Text style={styles.resourceTitle}>{item.title}</Text>
@@ -575,15 +576,6 @@ export default function LibraryScreen({ navigation }) {
                           <Ionicons name="open-outline" size={15} color="#1B3D2F" />
                           <Text style={styles.openBtnText}>Open</Text>
                         </TouchableOpacity>
-                        {isOwner && (
-                          <TouchableOpacity
-                            onPress={() => handleDelete(item)}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            style={{ marginLeft: 'auto' }}
-                          >
-                            <Ionicons name="trash-outline" size={17} color="#DC2626" />
-                          </TouchableOpacity>
-                        )}
                       </View>
                     </View>
                   );
@@ -835,6 +827,7 @@ const styles = StyleSheet.create({
   resourceAge: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
   resourceTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', lineHeight: 21, marginBottom: 4 },
   resourcePostedBy: { fontSize: 12, color: '#9CA3AF', fontWeight: '500', marginBottom: 8 },
+  ownerActionText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   resourceWhy: { fontSize: 13, color: '#6B7280', lineHeight: 20, fontStyle: 'italic', marginBottom: 12 },
   resourceActions: { flexDirection: 'row', gap: 8 },
   recommendBtn: {
