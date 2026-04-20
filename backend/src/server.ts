@@ -738,6 +738,21 @@ app.get('/community/resources/my-recommendations', requireAuth, async (req: Auth
   }
 });
 
+// GET /community/resources/my-posts — resources submitted by the current user
+app.get('/community/resources/my-posts', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('community_resources')
+      .select('*')
+      .eq('submitted_by', req.userId!)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return res.json(data ?? []);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch your posts.' });
+  }
+});
+
 // PATCH /community/resources/:id — edit own resource
 app.patch('/community/resources/:id', requireAuth, async (req: AuthRequest, res: Response) => {
   try {

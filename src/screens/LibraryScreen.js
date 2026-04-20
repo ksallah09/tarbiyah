@@ -59,8 +59,13 @@ export default function LibraryScreen({ navigation }) {
   const [mySavedIds, setMySavedIds]           = useState(new Set());
   const [currentUserId, setCurrentUserId]     = useState(null);
 
+  // ── My Posts ──
+  const [myPosts, setMyPosts]               = useState([]);
+  const [myPostsLoading, setMyPostsLoading] = useState(false);
+  const [myPostsRefreshing, setMyPostsRefreshing] = useState(false);
+
   // ── Edit mode ──
-  const [editingResource, setEditingResource] = useState(null); // resource being edited
+  const [editingResource, setEditingResource] = useState(null);
 
   // ── Submit modal ──
   const [showSubmit, setShowSubmit]     = useState(false);
@@ -88,6 +93,7 @@ export default function LibraryScreen({ navigation }) {
         setCurrentUserId(data?.session?.user?.id ?? null);
       });
       fetchResources();
+      fetchMyPosts();
     }, [activeCategory, activeAge])
   );
 
@@ -133,6 +139,25 @@ export default function LibraryScreen({ navigation }) {
     } finally {
       setResourcesLoading(false);
       setRefreshing(false);
+    }
+  }
+
+  async function fetchMyPosts(isPullRefresh = false) {
+    isPullRefresh ? setMyPostsRefreshing(true) : setMyPostsLoading(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (!token) { setMyPosts([]); return; }
+      const res = await fetch(`${API_URL}/community/resources/my-posts`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setMyPosts(Array.isArray(data) ? data : []);
+    } catch {
+      setMyPosts([]);
+    } finally {
+      setMyPostsLoading(false);
+      setMyPostsRefreshing(false);
     }
   }
 
@@ -196,6 +221,7 @@ export default function LibraryScreen({ navigation }) {
               headers: { Authorization: `Bearer ${token}` },
             });
             setResources(prev => prev.filter(r => r.id !== resource.id));
+            setMyPosts(prev => prev.filter(r => r.id !== resource.id));
           } catch {
             Alert.alert('Error', 'Could not delete. Please try again.');
           }
@@ -247,6 +273,7 @@ export default function LibraryScreen({ navigation }) {
         }
         const updated = await res.json();
         setResources(prev => prev.map(r => r.id === updated.id ? updated : r));
+        setMyPosts(prev => prev.map(r => r.id === updated.id ? updated : r));
         closeSubmit();
       } else {
         const res = await fetch(`${API_URL}/community/resources`, {
@@ -306,6 +333,8 @@ export default function LibraryScreen({ navigation }) {
   const totalLibraryCount = insights.length + savedResources.length;
   const subtitleText = activeTab === 'library'
     ? (totalLibraryCount === 0 ? 'Nothing saved yet' : `${totalLibraryCount} saved item${totalLibraryCount !== 1 ? 's' : ''}`)
+    : activeTab === 'myposts'
+    ? (myPosts.length === 0 ? 'No posts yet' : `${myPosts.length} post${myPosts.length !== 1 ? 's' : ''}`)
     : 'Parent-curated resources';
 
   return (
@@ -329,6 +358,12 @@ export default function LibraryScreen({ navigation }) {
             onPress={() => setActiveTab('library')}
           >
             <Text style={[styles.tabToggleText, activeTab === 'library' && styles.tabToggleTextActive]}>My Library</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabToggleBtn, activeTab === 'myposts' && styles.tabToggleBtnActive]}
+            onPress={() => setActiveTab('myposts')}
+          >
+            <Text style={[styles.tabToggleText, activeTab === 'myposts' && styles.tabToggleTextActive]}>My Posts</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -464,6 +499,71 @@ export default function LibraryScreen({ navigation }) {
                     </TouchableOpacity>
                   );
                 }}
+              />
+            )}
+          </>
+        ) : activeTab === 'myposts' ? (
+          // ─── MY POSTS ─────────────────────────────────────────────────────
+          <>
+            {myPostsLoading ? (
+              <View style={styles.empty}>
+                <ActivityIndicator size="large" color="#1B3D2F" />
+              </View>
+            ) : myPosts.length === 0 ? (
+              <View style={styles.empty}>
+                <Ionicons name="cloud-upload-outline" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyTitle}>No posts yet</Text>
+                <Text style={styles.emptyBody}>Resources you share with the community will appear here.</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={myPosts}
+                keyExtractor={item => item.id}
+                contentContainerStyle={[styles.listContent, { paddingBottom: 32 }]}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={myPostsRefreshing}
+                    onRefresh={() => fetchMyPosts(true)}
+                    tintColor="#1B3D2F"
+                  />
+                }
+                renderItem={({ item }) => (
+                  <View style={styles.resourceCard}>
+                    <View style={styles.resourceCardTop}>
+                      <View style={styles.resourceCatPill}>
+                        <Text style={styles.resourceCatText}>{item.category}</Text>
+                      </View>
+                      <Text style={styles.resourceAge}>{item.age_range}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
+                        <TouchableOpacity onPress={() => openEdit(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Text style={styles.ownerActionText}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <Text style={styles.resourceTitle}>{item.title}</Text>
+                    {item.why_helped ? (
+                      <Text style={styles.resourceWhy}>"{item.why_helped}"</Text>
+                    ) : null}
+                    <View style={styles.resourceActions}>
+                      <TouchableOpacity
+                        style={styles.openBtn}
+                        onPress={() => { if (item.url) Linking.openURL(item.url); }}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="open-outline" size={15} color="#1B3D2F" />
+                        <Text style={styles.openBtnText}>Open</Text>
+                      </TouchableOpacity>
+                      <View style={styles.recommendCount}>
+                        <Ionicons name="heart" size={13} color="#9CA3AF" />
+                        <Text style={styles.recommendCountText}>{item.recommend_count ?? 0}</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
               />
             )}
           </>
@@ -828,6 +928,8 @@ const styles = StyleSheet.create({
   resourceTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', lineHeight: 21, marginBottom: 4 },
   resourcePostedBy: { fontSize: 12, color: '#9CA3AF', fontWeight: '500', marginBottom: 8 },
   ownerActionText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  recommendCount: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8 },
+  recommendCountText: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
   resourceWhy: { fontSize: 13, color: '#6B7280', lineHeight: 20, fontStyle: 'italic', marginBottom: 12 },
   resourceActions: { flexDirection: 'row', gap: 8 },
   recommendBtn: {
