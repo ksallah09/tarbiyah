@@ -523,20 +523,13 @@ export default function LibraryScreen({ navigation }) {
                         </View>
                         <Text style={styles.resourceAge}>{item.age_range}</Text>
                         {isOwner && (
-                          <View style={{ flexDirection: 'row', gap: 4, marginLeft: 'auto' }}>
-                            <TouchableOpacity
-                              onPress={() => openEdit(item)}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="pencil-outline" size={16} color="#6B7280" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleDelete(item)}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="trash-outline" size={16} color="#DC2626" />
-                            </TouchableOpacity>
-                          </View>
+                          <TouchableOpacity
+                            onPress={() => openEdit(item)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ marginLeft: 'auto' }}
+                          >
+                            <Ionicons name="pencil-outline" size={16} color="#6B7280" />
+                          </TouchableOpacity>
                         )}
                       </View>
                       <Text style={styles.resourceTitle}>{item.title}</Text>
@@ -575,6 +568,15 @@ export default function LibraryScreen({ navigation }) {
                           <Ionicons name="open-outline" size={15} color="#1B3D2F" />
                           <Text style={styles.openBtnText}>Open</Text>
                         </TouchableOpacity>
+                        {isOwner && (
+                          <TouchableOpacity
+                            onPress={() => handleDelete(item)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ marginLeft: 'auto' }}
+                          >
+                            <Ionicons name="trash-outline" size={17} color="#DC2626" />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                   );
