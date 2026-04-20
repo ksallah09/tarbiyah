@@ -663,6 +663,13 @@ app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Resp
       return res.status(422).json({ error: moderation.reason ?? 'This resource could not be approved.' });
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', req.userId!)
+      .single();
+    const submitterName: string | null = profile?.name ?? null;
+
     const { data, error } = await supabase
       .from('community_resources')
       .insert({
@@ -673,6 +680,7 @@ app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Resp
         age_range: age_range ?? 'All Ages',
         why_helped: why_helped ?? null,
         submitted_by: req.userId!,
+        submitter_name: submitterName,
         approved: true,
         recommend_count: 0,
       })

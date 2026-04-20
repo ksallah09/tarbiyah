@@ -19,6 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import DarkHeader from '../components/DarkHeader';
 import { useFocusEffect } from '@react-navigation/native';
 import { getSavedInsights, unsaveInsight } from '../utils/savedInsights';
+import { getSavedResources, saveResource, unsaveResource } from '../utils/savedResources';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../utils/supabase';
 
@@ -41,9 +42,10 @@ export default function LibraryScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('community');
 
   // ── My Library ──
-  const [insights, setInsights]         = useState([]);
-  const [query, setQuery]               = useState('');
-  const [activeTopic, setActiveTopic]   = useState('All');
+  const [insights, setInsights]           = useState([]);
+  const [savedResources, setSavedResources] = useState([]);
+  const [query, setQuery]                 = useState('');
+  const [activeTopic, setActiveTopic]     = useState('All');
 
   // ── Community ──
   const [resources, setResources]             = useState([]);
@@ -51,6 +53,7 @@ export default function LibraryScreen({ navigation }) {
   const [activeCategory, setActiveCategory]   = useState('All');
   const [activeAge, setActiveAge]             = useState('All Ages');
   const [myRecommendations, setMyRecommendations] = useState(new Set());
+  const [mySavedIds, setMySavedIds]           = useState(new Set());
 
   // ── Submit modal ──
   const [showSubmit, setShowSubmit]     = useState(false);
@@ -70,6 +73,10 @@ export default function LibraryScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       getSavedInsights().then(setInsights);
+      getSavedResources().then(list => {
+        setSavedResources(list);
+        setMySavedIds(new Set(list.map(r => r.id)));
+      });
     }, [])
   );
 
@@ -154,6 +161,19 @@ export default function LibraryScreen({ navigation }) {
     }
   }
 
+  async function handleSaveResource(resource) {
+    const isSaved = mySavedIds.has(resource.id);
+    if (isSaved) {
+      await unsaveResource(resource.id);
+      setMySavedIds(prev => { const next = new Set(prev); next.delete(resource.id); return next; });
+      setSavedResources(prev => prev.filter(r => r.id !== resource.id));
+    } else {
+      await saveResource(resource);
+      setMySavedIds(prev => new Set([...prev, resource.id]));
+      setSavedResources(prev => [...prev, { ...resource, kind: 'resource' }]);
+    }
+  }
+
   async function handleSubmit() {
     if (!submitUrl.trim() || !submitTitle.trim()) {
       setSubmitError('Please add a URL and title.');
@@ -216,8 +236,9 @@ export default function LibraryScreen({ navigation }) {
     return matchTopic && (!q || i.insightTitle?.toLowerCase().includes(q) || i.body?.toLowerCase().includes(q));
   });
 
+  const totalLibraryCount = insights.length + savedResources.length;
   const subtitleText = activeTab === 'library'
-    ? (insights.length === 0 ? 'No saved insights yet' : `${insights.length} saved insight${insights.length !== 1 ? 's' : ''}`)
+    ? (totalLibraryCount === 0 ? 'Nothing saved yet' : `${totalLibraryCount} saved item${totalLibraryCount !== 1 ? 's' : ''}`)
     : 'Parent-curated resources';
 
   return (
@@ -277,21 +298,69 @@ export default function LibraryScreen({ navigation }) {
               )}
             </View>
 
-            {filtered.length === 0 ? (
+            {totalLibraryCount === 0 ? (
               <View style={styles.empty}>
                 <Ionicons name="bookmark-outline" size={48} color="#D1D5DB" />
-                <Text style={styles.emptyTitle}>{insights.length === 0 ? 'Nothing saved yet' : 'No matches found'}</Text>
-                <Text style={styles.emptyBody}>
-                  {insights.length === 0 ? 'Tap the bookmark icon on any insight to save it here.' : 'Try a different search or filter.'}
-                </Text>
+                <Text style={styles.emptyTitle}>Nothing saved yet</Text>
+                <Text style={styles.emptyBody}>Bookmark insights or save community resources to find them here.</Text>
               </View>
             ) : (
               <FlatList
-                data={filtered}
-                keyExtractor={item => item.id}
-                contentContainerStyle={styles.listContent}
+                data={[
+                  ...filtered.map(i => ({ ...i, _listKind: 'insight' })),
+                  ...savedResources.map(r => ({ ...r, _listKind: 'resource' })),
+                ]}
+                keyExtractor={item => item._listKind + item.id}
+                contentContainerStyle={[styles.listContent, { paddingBottom: 32 }]}
                 showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.empty}>
+                    <Text style={styles.emptyTitle}>No matches found</Text>
+                    <Text style={styles.emptyBody}>Try a different search or filter.</Text>
+                  </View>
+                }
                 renderItem={({ item }) => {
+                  if (item._listKind === 'resource') {
+                    return (
+                      <View style={styles.resourceCard}>
+                        <View style={styles.resourceCardTop}>
+                          <View style={styles.resourceCatPill}>
+                            <Text style={styles.resourceCatText}>{item.category}</Text>
+                          </View>
+                          <Text style={styles.resourceAge}>{item.age_range}</Text>
+                        </View>
+                        <Text style={styles.resourceTitle}>{item.title}</Text>
+                        {item.submitter_name ? (
+                          <Text style={styles.resourcePostedBy}>Shared by {item.submitter_name}</Text>
+                        ) : null}
+                        {item.why_helped ? (
+                          <Text style={styles.resourceWhy}>"{item.why_helped}"</Text>
+                        ) : null}
+                        <View style={styles.resourceActions}>
+                          <TouchableOpacity
+                            style={[styles.saveBtn, styles.saveBtnActive]}
+                            onPress={async () => {
+                              await unsaveResource(item.id);
+                              setMySavedIds(prev => { const next = new Set(prev); next.delete(item.id); return next; });
+                              setSavedResources(prev => prev.filter(r => r.id !== item.id));
+                            }}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name="bookmark" size={15} color="#FFFFFF" />
+                            <Text style={[styles.saveBtnText, { color: '#FFFFFF' }]}>Saved</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.openBtn}
+                            onPress={() => { if (item.url) Linking.openURL(item.url); }}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name="open-outline" size={15} color="#1B3D2F" />
+                            <Text style={styles.openBtnText}>Open</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  }
                   const isSpiritual = item.type === 'spiritual';
                   const accentColor = isSpiritual ? '#2E7D62' : '#D4871A';
                   return (
@@ -377,6 +446,7 @@ export default function LibraryScreen({ navigation }) {
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => {
                   const recommended = myRecommendations.has(item.id);
+                  const saved = mySavedIds.has(item.id);
                   return (
                     <View style={styles.resourceCard}>
                       <View style={styles.resourceCardTop}>
@@ -386,6 +456,9 @@ export default function LibraryScreen({ navigation }) {
                         <Text style={styles.resourceAge}>{item.age_range}</Text>
                       </View>
                       <Text style={styles.resourceTitle}>{item.title}</Text>
+                      {item.submitter_name ? (
+                        <Text style={styles.resourcePostedBy}>Shared by {item.submitter_name}</Text>
+                      ) : null}
                       {item.why_helped ? (
                         <Text style={styles.resourceWhy}>"{item.why_helped}"</Text>
                       ) : null}
@@ -398,6 +471,16 @@ export default function LibraryScreen({ navigation }) {
                           <Ionicons name={recommended ? 'heart' : 'heart-outline'} size={15} color={recommended ? '#FFFFFF' : '#1B3D2F'} />
                           <Text style={[styles.recommendBtnText, recommended && { color: '#FFFFFF' }]}>
                             {item.recommend_count > 0 ? `${item.recommend_count} recommend` : 'Recommend'}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.saveBtn, saved && styles.saveBtnActive]}
+                          onPress={() => handleSaveResource(item)}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={15} color={saved ? '#FFFFFF' : '#1B3D2F'} />
+                          <Text style={[styles.saveBtnText, saved && { color: '#FFFFFF' }]}>
+                            {saved ? 'Saved' : 'Save'}
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -657,7 +740,8 @@ const styles = StyleSheet.create({
   },
   resourceCatText: { fontSize: 11, fontWeight: '700', color: '#1B3D2F' },
   resourceAge: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
-  resourceTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', lineHeight: 21, marginBottom: 8 },
+  resourceTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', lineHeight: 21, marginBottom: 4 },
+  resourcePostedBy: { fontSize: 12, color: '#9CA3AF', fontWeight: '500', marginBottom: 8 },
   resourceWhy: { fontSize: 13, color: '#6B7280', lineHeight: 20, fontStyle: 'italic', marginBottom: 12 },
   resourceActions: { flexDirection: 'row', gap: 8 },
   recommendBtn: {
@@ -667,6 +751,13 @@ const styles = StyleSheet.create({
   },
   recommendBtnActive: { backgroundColor: '#1B3D2F' },
   recommendBtnText: { fontSize: 13, fontWeight: '600', color: '#1B3D2F' },
+  saveBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
+    backgroundColor: 'rgba(27,61,47,0.07)',
+  },
+  saveBtnActive: { backgroundColor: '#1B3D2F' },
+  saveBtnText: { fontSize: 13, fontWeight: '600', color: '#1B3D2F' },
   openBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
