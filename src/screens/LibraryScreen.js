@@ -14,6 +14,7 @@ import {
   Platform,
   Alert,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -480,8 +481,15 @@ export default function LibraryScreen({ navigation }) {
                   if (item._listKind === 'resource') {
                     const cfg = catConfig(item.category);
                     return (
-                      <View style={styles.resourceCard}>
-                        <View style={[styles.resourceAccent, { backgroundColor: cfg.color }]} />
+                      <View style={[styles.resourceCard, item.thumbnail_url ? styles.resourceCardColumn : null]}>
+                        {item.thumbnail_url ? (
+                          <>
+                            <Image source={{ uri: item.thumbnail_url }} style={styles.resourceThumb} resizeMode="cover" />
+                            <View style={[styles.resourceThumbAccent, { backgroundColor: cfg.color }]} />
+                          </>
+                        ) : (
+                          <View style={[styles.resourceAccent, { backgroundColor: cfg.color }]} />
+                        )}
                         <View style={styles.resourceBody}>
                         <View style={styles.resourceCardTop}>
                           <View style={[styles.resourceCatPill, { backgroundColor: cfg.color + '18' }]}>
@@ -711,8 +719,15 @@ export default function LibraryScreen({ navigation }) {
                   const isOwner = currentUserId && item.submitted_by === currentUserId;
                   const cfg = catConfig(item.category);
                   return (
-                    <View style={styles.resourceCard}>
-                      <View style={[styles.resourceAccent, { backgroundColor: cfg.color }]} />
+                    <View style={[styles.resourceCard, item.thumbnail_url ? styles.resourceCardColumn : null]}>
+                      {item.thumbnail_url ? (
+                        <>
+                          <Image source={{ uri: item.thumbnail_url }} style={styles.resourceThumb} resizeMode="cover" />
+                          <View style={[styles.resourceThumbAccent, { backgroundColor: cfg.color }]} />
+                        </>
+                      ) : (
+                        <View style={[styles.resourceAccent, { backgroundColor: cfg.color }]} />
+                      )}
                       <View style={styles.resourceBody}>
                       <View style={styles.resourceCardTop}>
                         <View style={[styles.resourceCatPill, { backgroundColor: cfg.color + '18' }]}>
@@ -1042,6 +1057,9 @@ const styles = StyleSheet.create({
   resourceCatText: { fontSize: 11, fontWeight: '700' },
   resourceAge: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
   resourceTime: { fontSize: 11, color: '#C4C9D4', fontWeight: '500', marginLeft: 'auto' },
+  resourceCardColumn: { flexDirection: 'column' },
+  resourceThumb: { width: '100%', height: 160, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: '#F3F4F6' },
+  resourceThumbAccent: { height: 3, width: '100%' },
   resourceTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', lineHeight: 21, marginBottom: 4 },
   resourcePostedBy: { fontSize: 12, color: '#9CA3AF', fontWeight: '500', marginBottom: 8 },
   ownerActionText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
