@@ -463,6 +463,8 @@ export default function ModuleDetailScreen({ route, navigation }) {
                             lessonIndex: i,
                             totalLessons: module.lessons.length,
                             audioUrl: lessonAudios[lesson.id] ?? null,
+                            moduleId: module.id,
+                            voice: voice ?? undefined,
                             gradientColors: cfg.bg,
                             icon: cfg.icon,
                             typeLabel: cfg.label,

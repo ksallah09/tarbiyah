@@ -659,16 +659,12 @@ async function fetchThumbnail(url: string): Promise<string | null> {
   }
 }
 
-// ── 2. AI moderation via Gemini ───────────────────────────────────────────────
+// ── 2. AI moderation via Gemini → OpenAI fallback ────────────────────────────
 async function moderateResource(
   url: string, title: string, description: string, category: string
 ): Promise<{ approved: boolean; pending: boolean; reason: string }> {
-  try {
-    const model = getJsonModel(
-      MODEL_FAST,
-      'You are a content moderator for Tarbiyah, an Islamic parenting app for Muslim families following Sunni Islamic principles.'
-    );
-    const prompt = `Review this community-submitted parenting resource:
+  const systemPrompt = 'You are a content moderator for Tarbiyah, an Islamic parenting app for Muslim families following Sunni Islamic principles.';
+  const prompt = `Review this community-submitted parenting resource:
 URL: ${url}
 Title: ${title}
 Description: ${description || '(none)'}
@@ -690,19 +686,29 @@ When in doubt, APPROVE. Give the submitter the benefit of the doubt.
 
 Respond with JSON only — no markdown: { "approved": boolean, "reason": string }`;
 
-    const text = await generateWithRetry(model, prompt, MODEL_FAST);
+  function parseResult(text: string): { approved: boolean; pending: boolean; reason: string } {
     const cleaned = text.replace(/```json|```/g, '').trim();
     const result = JSON.parse(cleaned);
     if (typeof result.approved !== 'boolean') throw new Error('Invalid response shape');
     return { ...result, pending: false };
-  } catch (err: any) {
-    // If Gemini is down or returns malformed JSON — queue for retry rather than fail open
-    const isGeminiDown = err?.message?.includes('fetch') || err instanceof SyntaxError;
-    if (isGeminiDown) {
-      return { approved: false, pending: true, reason: 'AI review temporarily unavailable.' };
-    }
-    // Any other unexpected error — fail open (don't punish the user)
-    return { approved: true, pending: false, reason: 'Moderation check passed.' };
+  }
+
+  // Try Gemini first
+  try {
+    const model = getJsonModel(MODEL_FAST, systemPrompt);
+    const text = await generateWithRetry(model, prompt, MODEL_FAST);
+    return parseResult(text);
+  } catch (geminiErr: any) {
+    console.warn('[moderateResource] Gemini failed, trying OpenAI:', geminiErr?.message);
+  }
+
+  // Fallback to OpenAI
+  try {
+    const text = await generateJsonWithOpenAI(systemPrompt, prompt);
+    return parseResult(text);
+  } catch (openaiErr: any) {
+    console.warn('[moderateResource] OpenAI also failed:', openaiErr?.message);
+    return { approved: false, pending: true, reason: 'AI review temporarily unavailable.' };
   }
 }
 

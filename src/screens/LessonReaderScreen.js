@@ -10,14 +10,18 @@ import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
 
 const SPEEDS = [1.0, 1.5, 2.0];
+const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 export default function LessonReaderScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const {
     lesson, lessonIndex, totalLessons,
-    audioUrl, gradientColors, icon, typeLabel,
+    audioUrl: initialAudioUrl, moduleId, voice,
+    gradientColors, icon, typeLabel,
     onComplete,
   } = route.params;
+
+  const [audioUrl, setAudioUrl] = useState(initialAudioUrl ?? null);
 
   const accentColor = gradientColors[0];
 
@@ -28,6 +32,35 @@ export default function LessonReaderScreen({ route, navigation }) {
   const [audioLoading, setAudioLoading] = useState(!!audioUrl);
   const [audioError,   setAudioError]   = useState(false);
   const [speedIndex,   setSpeedIndex]   = useState(0);
+  const pollRef = useRef(null);
+
+  // Poll for audio URL if it wasn't ready when the screen opened
+  useEffect(() => {
+    if (audioUrl || !moduleId) return;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10;
+
+    async function tryFetch() {
+      try {
+        const res = await fetch(`${API_URL}/learn/audio/lesson`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ moduleId, lesson, voice }),
+        });
+        if (res.ok) {
+          const { url } = await res.json();
+          if (url) { setAudioUrl(url); return; }
+        }
+      } catch {}
+      attempts++;
+      if (attempts < MAX_ATTEMPTS) {
+        pollRef.current = setTimeout(tryFetch, 5000);
+      }
+    }
+
+    pollRef.current = setTimeout(tryFetch, 3000);
+    return () => clearTimeout(pollRef.current);
+  }, []);
 
   // ── Compact hero on scroll ────────────────────────────────────────────────────
   const compactAnim = useRef(new Animated.Value(0)).current;

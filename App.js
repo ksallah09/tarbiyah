@@ -37,6 +37,7 @@ import OnboardingReminder   from './src/screens/onboarding/OnboardingReminder';
 import OnboardingAccount    from './src/screens/onboarding/OnboardingAccount';
 import OnboardingAllSet     from './src/screens/onboarding/OnboardingAllSet';
 
+import FeatureTourScreen from './src/screens/FeatureTourScreen';
 import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
@@ -234,6 +235,7 @@ function OnboardingStack() {
       <Stack.Screen name="OnboardingReminder"   component={OnboardingReminder} />
       <Stack.Screen name="OnboardingAccount"    component={OnboardingAccount} />
       <Stack.Screen name="OnboardingAllSet"     component={OnboardingAllSet} />
+      <Stack.Screen name="FeatureTour"          component={FeatureTourScreen} options={{ animation: 'fade' }} />
     </Stack.Navigator>
   );
 }

@@ -15,6 +15,8 @@ import {
   Alert,
   RefreshControl,
   Image,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,6 +72,62 @@ const REFLECTION_TAGS = [
   'Watch together',
 ];
 
+const LOADING_MESSAGES = [
+  'Gathering wisdom from the community…',
+  'Parents helping parents…',
+  'Finding resources for your family…',
+  'Collecting shared knowledge…',
+  'Loading community favorites…',
+  'Bringing you the best from Muslim parents…',
+];
+
+function ResourcesLoadingView() {
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [msgIndex, setMsgIndex] = useState(0);
+
+  useEffect(() => {
+    let idx = 0;
+    function cycle() {
+      Animated.sequence([
+        Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start(() => {
+        idx = (idx + 1) % LOADING_MESSAGES.length;
+        setMsgIndex(idx);
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+      });
+    }
+    const interval = setInterval(cycle, 2200);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View style={styles.empty}>
+      <ActivityIndicator size="large" color="#1B3D2F" />
+      <Animated.Text style={[styles.loadingMsg, { opacity: fadeAnim }]}>
+        {LOADING_MESSAGES[msgIndex]}
+      </Animated.Text>
+    </View>
+  );
+}
+
+function ResourceThumb({ uri, accentColor, cardStyle, accentStyle, onHide }) {
+  return (
+    <>
+      <Image
+        source={{ uri }}
+        style={cardStyle}
+        resizeMode="cover"
+        onError={onHide}
+        onLoad={e => {
+          const { width, height } = e.nativeEvent.source;
+          if (width < 100 || height < 100) onHide();
+        }}
+      />
+      <View style={[accentStyle, { backgroundColor: accentColor }]} />
+    </>
+  );
+}
+
 export default function LibraryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('community');
@@ -89,6 +147,41 @@ export default function LibraryScreen({ navigation }) {
   const [myRecommendations, setMyRecommendations] = useState(new Set());
   const [mySavedIds, setMySavedIds]           = useState(new Set());
   const [currentUserId, setCurrentUserId]     = useState(null);
+  const [hiddenThumbs, setHiddenThumbs]       = useState(new Set());
+
+  // ── Loading overlay ──
+  const SCREEN_HEIGHT = Dimensions.get('window').height;
+  const overlayTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const overlayActiveRef = useRef(false);
+
+  function showLoadingOverlay() {
+    overlayActiveRef.current = true;
+    setOverlayVisible(true);
+    overlayTranslateY.setValue(SCREEN_HEIGHT);
+    Animated.spring(overlayTranslateY, {
+      toValue: 0,
+      tension: 60,
+      friction: 12,
+      useNativeDriver: true,
+    }).start();
+  }
+
+  function hideLoadingOverlay() {
+    if (!overlayActiveRef.current) return;
+    overlayActiveRef.current = false;
+    setTimeout(() => {
+      Animated.timing(overlayTranslateY, {
+        toValue: SCREEN_HEIGHT,
+        duration: 480,
+        useNativeDriver: true,
+      }).start(() => setOverlayVisible(false));
+    }, 2000);
+  }
+
+  useEffect(() => {
+    if (!resourcesLoading) hideLoadingOverlay();
+  }, [resourcesLoading]);
 
   // ── My Posts ──
   const [myPosts, setMyPosts]               = useState([]);
@@ -115,6 +208,7 @@ export default function LibraryScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      showLoadingOverlay();
       getSavedInsights().then(setInsights);
       getSavedResources().then(list => {
         setSavedResources(list);
@@ -125,8 +219,15 @@ export default function LibraryScreen({ navigation }) {
       });
       fetchResources();
       fetchMyPosts();
-    }, [activeCategory, activeAge])
+    }, [])
   );
+
+  // Filter changes reload silently — no overlay
+  const isFirstFocus = useRef(true);
+  useEffect(() => {
+    if (isFirstFocus.current) { isFirstFocus.current = false; return; }
+    fetchResources();
+  }, [activeCategory, activeAge]);
 
   useEffect(() => {
     const url = submitUrl.trim();
@@ -481,12 +582,9 @@ export default function LibraryScreen({ navigation }) {
                   if (item._listKind === 'resource') {
                     const cfg = catConfig(item.category);
                     return (
-                      <View style={[styles.resourceCard, item.thumbnail_url ? styles.resourceCardColumn : null]}>
-                        {item.thumbnail_url ? (
-                          <>
-                            <Image source={{ uri: item.thumbnail_url }} style={styles.resourceThumb} resizeMode="cover" />
-                            <View style={[styles.resourceThumbAccent, { backgroundColor: cfg.color }]} />
-                          </>
+                      <View style={[styles.resourceCard, item.thumbnail_url && !hiddenThumbs.has(item.id) ? styles.resourceCardColumn : null]}>
+                        {item.thumbnail_url && !hiddenThumbs.has(item.id) ? (
+                          <ResourceThumb uri={item.thumbnail_url} accentColor={cfg.color} cardStyle={styles.resourceThumb} accentStyle={styles.resourceThumbAccent} onHide={() => setHiddenThumbs(prev => new Set(prev).add(item.id))} />
                         ) : (
                           <View style={[styles.resourceAccent, { backgroundColor: cfg.color }]} />
                         )}
@@ -691,9 +789,7 @@ export default function LibraryScreen({ navigation }) {
             </View>
 
             {resourcesLoading ? (
-              <View style={styles.empty}>
-                <ActivityIndicator size="large" color="#1B3D2F" />
-              </View>
+              <ResourcesLoadingView />
             ) : resources.length === 0 ? (
               <View style={styles.empty}>
                 <Ionicons name="people-outline" size={48} color="#D1D5DB" />
@@ -719,10 +815,19 @@ export default function LibraryScreen({ navigation }) {
                   const isOwner = currentUserId && item.submitted_by === currentUserId;
                   const cfg = catConfig(item.category);
                   return (
-                    <View style={[styles.resourceCard, item.thumbnail_url ? styles.resourceCardColumn : null]}>
-                      {item.thumbnail_url ? (
+                    <View style={[styles.resourceCard, item.thumbnail_url && !hiddenThumbs.has(item.id) ? styles.resourceCardColumn : null]}>
+                      {item.thumbnail_url && !hiddenThumbs.has(item.id) ? (
                         <>
-                          <Image source={{ uri: item.thumbnail_url }} style={styles.resourceThumb} resizeMode="cover" />
+                          <Image
+                            source={{ uri: item.thumbnail_url }}
+                            style={styles.resourceThumb}
+                            resizeMode="cover"
+                            onError={() => setHiddenThumbs(prev => new Set(prev).add(item.id))}
+                            onLoad={e => {
+                              const { width, height } = e.nativeEvent.source;
+                              if (width < 100 || height < 100) setHiddenThumbs(prev => new Set(prev).add(item.id));
+                            }}
+                          />
                           <View style={[styles.resourceThumbAccent, { backgroundColor: cfg.color }]} />
                         </>
                       ) : (
@@ -945,11 +1050,53 @@ export default function LibraryScreen({ navigation }) {
           </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ── Resources loading overlay ── */}
+      {overlayVisible && (
+        <Animated.View
+          style={[styles.loadingOverlay, { transform: [{ translateY: overlayTranslateY }] }]}
+          pointerEvents="none"
+        >
+          <Text style={styles.loadingOverlayHadith}>
+            "The most beloved to Allah
+          </Text>
+          <Text style={styles.loadingOverlayHadith}>
+            are those most beneficial
+          </Text>
+          <Text style={styles.loadingOverlayHadith}>
+            to people"
+          </Text>
+          <Text style={styles.loadingOverlayAttribution}>— Prophet Muhammad ﷺ</Text>
+          <Text style={styles.loadingOverlayTagline}>Parents helping parents</Text>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  loadingOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: '#1B3D2F',
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 40,
+    zIndex: 100,
+  },
+  loadingOverlayHadith: {
+    fontSize: 26, fontWeight: '700', letterSpacing: 0.3,
+    color: '#D4A843', textAlign: 'center', lineHeight: 38,
+    fontStyle: 'italic',
+  },
+  loadingOverlayAttribution: {
+    fontSize: 13, fontWeight: '500',
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 16, textAlign: 'center', letterSpacing: 0.5,
+  },
+  loadingOverlayTagline: {
+    fontSize: 13, fontWeight: '600', letterSpacing: 1.2,
+    color: 'rgba(255,255,255,0.3)',
+    marginTop: 32, textAlign: 'center', textTransform: 'uppercase',
+  },
   safe: { flex: 1, backgroundColor: '#F5F6F8' },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '40%', backgroundColor: '#1B3D2F' },
   sheet: { flex: 1, backgroundColor: '#F5F6F8', overflow: 'hidden' },
@@ -1019,6 +1166,7 @@ const styles = StyleSheet.create({
 
   // ── Empty ──
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 12 },
+  loadingMsg: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginTop: 14, lineHeight: 22 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#374151', textAlign: 'center' },
   emptyBody: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', lineHeight: 22 },
 
