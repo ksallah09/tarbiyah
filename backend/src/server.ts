@@ -639,6 +639,26 @@ async function checkUrlSafety(url: string): Promise<{ safe: boolean; threat?: st
   }
 }
 
+// ── Scrape og:image thumbnail from a URL ─────────────────────────────────────
+async function fetchThumbnail(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Tarbiyahbot/1.0)' },
+    });
+    clearTimeout(timeout);
+    const html = await res.text();
+    const match =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
 // ── 2. AI moderation via Gemini ───────────────────────────────────────────────
 async function moderateResource(
   url: string, title: string, description: string, category: string
@@ -729,8 +749,11 @@ app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Resp
       return res.status(429).json({ error: 'You can share up to 5 resources per day. Please try again tomorrow.' });
     }
 
-    // ── Mitigation 1: URL safety check ────────────────────────────────────────
-    const safety = await checkUrlSafety(url);
+    // ── Mitigation 1: URL safety check + thumbnail scrape (parallel) ─────────
+    const [safety, thumbnailUrl] = await Promise.all([
+      checkUrlSafety(url),
+      fetchThumbnail(url),
+    ]);
     if (!safety.safe) {
       return res.status(422).json({ error: 'This URL was flagged as unsafe and cannot be submitted.' });
     }
@@ -764,6 +787,7 @@ app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Resp
         why_helped: why_helped ?? null,
         submitted_by: req.userId!,
         submitter_name: submitterName,
+        thumbnail_url: thumbnailUrl,
         approved: moderation.pending ? false : true,
         pending_review: moderation.pending ?? false,
         rejected: false,
