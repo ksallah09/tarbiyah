@@ -437,12 +437,6 @@ export default function HomeScreen({ navigation }) {
                           <Ionicons name="bulb-outline" size={10} color="rgba(255,255,255,0.9)" />
                           <Text style={styles.insightTypeText}>Research Insight</Text>
                         </View>
-                        {sciReadToday && (
-                          <View style={styles.insightReadBadge}>
-                            <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
-                            <Text style={styles.insightReadBadgeText}>Read Today</Text>
-                          </View>
-                        )}
                       </View>
                       <View style={styles.insightCardBottom}>
                         <Text style={styles.insightCardTitle}>{scienceInsight.insightTitle}</Text>
