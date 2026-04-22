@@ -381,7 +381,7 @@ export default function HomeScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.insightCard}
                   activeOpacity={0.9}
-                  onPress={() => navigation.navigate('InsightDetail', { insight: spiritualInsight, imgIndex })}
+                  onPress={() => navigation.navigate('InsightDetail', { insight: spiritualInsight, headerImage: dailySpiritualImage })}
                 >
                   <ImageBackground
                     source={dailySpiritualImage}
@@ -419,7 +419,7 @@ export default function HomeScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.insightCard}
                   activeOpacity={0.9}
-                  onPress={() => navigation.navigate('InsightDetail', { insight: scienceInsight, imgIndex })}
+                  onPress={() => navigation.navigate('InsightDetail', { insight: scienceInsight, headerImage: dailyScienceImage })}
                 >
                   <ImageBackground
                     source={dailyScienceImage}

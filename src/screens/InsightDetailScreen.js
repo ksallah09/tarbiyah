@@ -40,7 +40,7 @@ const SCIENCE_IMAGES = [
 
 
 export default function InsightDetailScreen({ route, navigation }) {
-  const { insight, imgIndex = Math.floor(Date.now() / 86_400_000) } = route.params;
+  const { insight, headerImage: passedImage, imgIndex = Math.floor(Date.now() / 86_400_000) } = route.params;
   const [saved, setSaved]       = useState(false);
   const [read, setRead]         = useState(false);
   const [sharing, setSharing]   = useState(false);
@@ -87,9 +87,9 @@ export default function InsightDetailScreen({ route, navigation }) {
 
   const isSpiritual  = insight.type === 'spiritual';
   const accentColor  = isSpiritual ? '#2E7D62' : '#D4871A';
-  const headerImage  = isSpiritual
+  const headerImage = passedImage ?? (isSpiritual
     ? SPIRITUAL_IMAGES[imgIndex % SPIRITUAL_IMAGES.length]
-    : SCIENCE_IMAGES[(imgIndex + 1) % SCIENCE_IMAGES.length];
+    : SCIENCE_IMAGES[(imgIndex + 1) % SCIENCE_IMAGES.length]);
   const overlayColors = isSpiritual
     ? ['rgba(10,30,20,0.35)', 'rgba(10,30,20,0.82)']
     : ['rgba(30,15,5,0.35)', 'rgba(30,15,5,0.82)'];
