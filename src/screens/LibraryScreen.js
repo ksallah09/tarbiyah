@@ -205,6 +205,15 @@ export default function LibraryScreen({ navigation }) {
   const [myPostsLoading, setMyPostsLoading] = useState(false);
   const [myPostsRefreshing, setMyPostsRefreshing] = useState(false);
 
+  // ── User profile name ──
+  const [profileName, setProfileName] = useState('');
+
+  useEffect(() => {
+    AsyncStorage.getItem('tarbiyah_profile')
+      .then(raw => { if (raw) { const p = JSON.parse(raw); setProfileName(p.name ?? ''); } })
+      .catch(() => {});
+  }, []);
+
   // ── Du'a Board ──
   const [duas, setDuas]                 = useState([]);
   const [duasLoading, setDuasLoading]   = useState(false);
@@ -461,7 +470,7 @@ export default function LibraryScreen({ navigation }) {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: duaText.trim(), is_anonymous: duaAnon }),
+        body: JSON.stringify({ text: duaText.trim(), is_anonymous: duaAnon, display_name: duaAnon ? null : (profileName || null) }),
       });
       if (!res.ok) { const e = await res.json(); setDuaError(e.error ?? 'Could not submit.'); return; }
       const result = await res.json();
@@ -489,7 +498,7 @@ export default function LibraryScreen({ navigation }) {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: winText.trim(), is_anonymous: winAnon }),
+        body: JSON.stringify({ text: winText.trim(), is_anonymous: winAnon, display_name: winAnon ? null : (profileName || null) }),
       });
       if (!res.ok) { const e = await res.json(); setWinError(e.error ?? 'Could not submit.'); return; }
       const result = await res.json();
