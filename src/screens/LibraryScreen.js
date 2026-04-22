@@ -1296,7 +1296,7 @@ export default function LibraryScreen({ navigation }) {
                 </Text>
                 <Text style={styles.successBody}>
                   {submitSuccess === 'pending'
-                    ? 'Our AI review service is temporarily busy. Your resource has been saved and will be reviewed shortly. You can track it in My Posts.'
+                    ? 'Your resource has been saved and will be reviewed shortly to keep the community safe. You can track it in My Posts.'
                     : 'Your resource has been shared with the community.'}
                 </Text>
                 <TouchableOpacity style={styles.successBtn} onPress={closeSubmit}>
@@ -1436,8 +1436,8 @@ export default function LibraryScreen({ navigation }) {
                 {!editingResource && (
                   <Text style={styles.submitNote}>
                     {submitting
-                      ? 'Our AI is checking your submission to keep the community safe. This takes a few seconds.'
-                      : 'All submissions are reviewed by AI before going live.'}
+                      ? 'Your submission is being reviewed to keep the community safe. This takes a few seconds.'
+                      : 'All submissions are reviewed before going live to keep the community safe.'}
                   </Text>
                 )}
                 <View style={{ height: 32 }} />
@@ -1493,6 +1493,7 @@ export default function LibraryScreen({ navigation }) {
                     : <Text style={styles.submitBtnText}>{editingDua ? 'Save Changes' : "Share Du'a"}</Text>
                   }
                 </TouchableOpacity>
+                {!editingDua && <Text style={styles.submitNote}>All posts are reviewed before going live to keep the community safe.</Text>}
                 <View style={{ height: 32 }} />
               </ScrollView>
             )}
@@ -1546,7 +1547,7 @@ export default function LibraryScreen({ navigation }) {
                     : <Text style={styles.submitBtnText}>{editingWin ? 'Save Changes' : 'Share Win'}</Text>
                   }
                 </TouchableOpacity>
-                <Text style={styles.submitNote}>Wins are reviewed by AI before going live.</Text>
+                <Text style={styles.submitNote}>All posts are reviewed before going live to keep the community safe.</Text>
                 <View style={{ height: 32 }} />
               </ScrollView>
             )}
