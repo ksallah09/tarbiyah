@@ -1064,7 +1064,7 @@ app.patch('/community/wins/:id', requireAuth, async (req: AuthRequest, res: Resp
     if (existing.user_id !== req.userId!) return res.status(403).json({ error: 'Not authorised.' });
     const moderation = await moderateResource('', text.trim(), '', 'parenting_win');
     const { data, error } = await supabase
-      .from('parenting_wins').update({ text: text.trim(), is_approved: moderation.approved && !moderation.pending })
+      .from('parenting_wins').update({ title: req.body.title?.trim() || null, text: text.trim(), is_approved: moderation.approved && !moderation.pending })
       .eq('id', req.params.id).select().single();
     if (error) throw error;
     return res.json(data);
@@ -1202,7 +1202,7 @@ app.get('/community/wins', async (req: Request, res: Response) => {
 // POST /community/wins — submit with AI moderation
 app.post('/community/wins', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { text, is_anonymous, display_name } = req.body;
+    const { title, text, is_anonymous, display_name } = req.body;
     if (!text?.trim()) return res.status(400).json({ error: 'text is required.' });
     if (text.trim().length > 280) return res.status(400).json({ error: 'Win must be 280 characters or less.' });
 
@@ -1213,6 +1213,7 @@ app.post('/community/wins', requireAuth, async (req: AuthRequest, res: Response)
       .from('parenting_wins')
       .insert({
         user_id: req.userId!,
+        title: title?.trim() || null,
         text: text.trim(),
         is_anonymous: !!is_anonymous,
         display_name: display_name ?? null,

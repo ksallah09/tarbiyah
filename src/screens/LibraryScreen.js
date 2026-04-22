@@ -234,6 +234,7 @@ export default function LibraryScreen({ navigation }) {
   const [myWinReactions, setMyWinReactions] = useState(new Set());
   const [showWinSubmit, setShowWinSubmit]   = useState(false);
   const [editingWin, setEditingWin]         = useState(null);
+  const [winTitle, setWinTitle]             = useState('');
   const [winText, setWinText]               = useState('');
   const [winAnon, setWinAnon]               = useState(false);
   const [winSubmitting, setWinSubmitting]   = useState(false);
@@ -498,14 +499,14 @@ export default function LibraryScreen({ navigation }) {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: winText.trim(), is_anonymous: winAnon, display_name: winAnon ? null : (profileName || null) }),
+        body: JSON.stringify({ title: winTitle.trim() || null, text: winText.trim(), is_anonymous: winAnon, display_name: winAnon ? null : (profileName || null) }),
       });
       if (!res.ok) { const e = await res.json(); setWinError(e.error ?? 'Could not submit.'); return; }
       const result = await res.json();
       if (editingWin) {
         setWins(prev => prev.map(w => w.id === result.id ? { ...w, ...result } : w));
         setMyPosts(prev => prev.map(p => p.id === result.id ? { ...p, ...result } : p));
-        setShowWinSubmit(false); setEditingWin(null); setWinText('');
+        setShowWinSubmit(false); setEditingWin(null); setWinTitle(''); setWinText('');
       } else {
         setWinSuccess(result.pending ? 'pending' : true);
         setWinText(''); setWinAnon(false);
@@ -983,6 +984,7 @@ export default function LibraryScreen({ navigation }) {
                             </View>
                           </View>
                         </View>
+                        {item.title ? <Text style={styles.winTitle}>{item.title}</Text> : null}
                         <Text style={styles.duaText}>{item.text}</Text>
                         <View style={styles.duaActions}>
                           <TouchableOpacity
@@ -1045,6 +1047,7 @@ export default function LibraryScreen({ navigation }) {
                             <Text style={{ fontSize: 12, fontWeight: '700', color: isDua ? '#1B3D2F' : '#D4871A', textTransform: 'uppercase', letterSpacing: 0.5 }}>{isDua ? "Du'a" : 'Win'}</Text>
                             <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
                           </View>
+                          {!isDua && item.title ? <Text style={styles.winTitle}>{item.title}</Text> : null}
                           <Text style={styles.duaText}>{item.text}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
                             {!item.is_approved
@@ -1054,7 +1057,7 @@ export default function LibraryScreen({ navigation }) {
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                               <TouchableOpacity onPress={() => {
                                 if (isDua) { setEditingDua(item); setDuaText(item.text); setDuaAnon(item.is_anonymous); setShowDuaSubmit(true); }
-                                else { setEditingWin(item); setWinText(item.text); setWinAnon(item.is_anonymous); setShowWinSubmit(true); }
+                                else { setEditingWin(item); setWinTitle(item.title ?? ''); setWinText(item.text); setWinAnon(item.is_anonymous); setShowWinSubmit(true); }
                               }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                 <Text style={styles.ownerActionText}>Edit</Text>
                               </TouchableOpacity>
@@ -1522,7 +1525,7 @@ export default function LibraryScreen({ navigation }) {
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingWin ? 'Edit Win' : 'Share a Win'}</Text>
-              <TouchableOpacity onPress={() => { setShowWinSubmit(false); setWinSuccess(false); setWinText(''); setWinError(''); setEditingWin(null); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity onPress={() => { setShowWinSubmit(false); setWinSuccess(false); setWinTitle(''); setWinText(''); setWinError(''); setEditingWin(null); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={22} color="#374151" />
               </TouchableOpacity>
             </View>
@@ -1543,10 +1546,19 @@ export default function LibraryScreen({ navigation }) {
               </View>
             ) : (
               <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
-                <Text style={styles.fieldLabel}>Your Win</Text>
+                <Text style={styles.fieldLabel}>Title <Text style={styles.fieldLabelOptional}>(optional)</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g. First Fajr together"
+                  value={winTitle}
+                  onChangeText={setWinTitle}
+                  maxLength={60}
+                />
+
+                <Text style={styles.fieldLabel}>What happened?</Text>
                 <TextInput
                   style={[styles.textInput, styles.textArea, { minHeight: 120 }]}
-                  placeholder="Share a parenting win — big or small. What happened that made you proud?"
+                  placeholder="Share the moment — big or small. What made you proud?"
                   value={winText}
                   onChangeText={setWinText}
                   multiline
@@ -1675,6 +1687,7 @@ const styles = StyleSheet.create({
   duaAvatarText: { fontSize: 18 },
   duaAuthor: { fontSize: 13, fontWeight: '700', color: '#1C1C1E' },
   duaTime: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
+  winTitle: { fontSize: 16, fontWeight: '700', color: '#1C1C1E', marginBottom: 4 },
   duaText: { fontSize: 15, color: '#374151', lineHeight: 23, marginBottom: 12 },
   duaActions: { flexDirection: 'row', gap: 8 },
   duaReactBtn: {
