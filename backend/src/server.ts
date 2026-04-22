@@ -558,11 +558,36 @@ app.get('/trending/challenges', async (req: Request, res: Response) => {
 
 // ─── GET /community/metadata ──────────────────────────────────────────────────
 
+function isYouTubeUrl(url: string): boolean {
+  return /youtu\.be\/|youtube\.com\/(watch|shorts|embed)/.test(url);
+}
+
+async function fetchYouTubeMeta(url: string): Promise<{ title: string; description: string; thumbnail: string }> {
+  const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  const res = await fetch(oembedUrl, { signal: controller.signal });
+  clearTimeout(timeout);
+  const data = await res.json() as { title?: string; thumbnail_url?: string; author_name?: string };
+  const rawTitle = data.title ?? '';
+  // Strip trailing " - YouTube" suffix that oEmbed sometimes returns
+  const title = rawTitle.replace(/\s*-\s*YouTube\s*$/i, '').trim();
+  return {
+    title,
+    description: title ? `YouTube video by ${data.author_name ?? 'unknown channel'}` : '',
+    thumbnail: data.thumbnail_url ?? '',
+  };
+}
+
 app.get('/community/metadata', async (req: Request, res: Response) => {
   const { url } = req.query as { url?: string };
   if (!url) return res.status(400).json({ error: 'url is required.' });
 
   try {
+    if (isYouTubeUrl(url)) {
+      return res.json(await fetchYouTubeMeta(url));
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
 
@@ -595,7 +620,11 @@ app.get('/community/metadata', async (req: Request, res: Response) => {
     const title = decodeEntities(ogTitle ?? pageTitle ?? '');
     const description = decodeEntities(ogDesc ?? '');
 
-    return res.json({ title, description });
+    const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
+                 ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1]
+                 ?? null;
+
+    return res.json({ title, description, thumbnail: ogImage ?? '' });
   } catch {
     return res.json({ title: '', description: '' });
   }
@@ -642,6 +671,10 @@ async function checkUrlSafety(url: string): Promise<{ safe: boolean; threat?: st
 // ── Scrape og:image thumbnail from a URL ─────────────────────────────────────
 async function fetchThumbnail(url: string): Promise<string | null> {
   try {
+    if (isYouTubeUrl(url)) {
+      const meta = await fetchYouTubeMeta(url);
+      return meta.thumbnail || null;
+    }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(url, {
@@ -663,7 +696,7 @@ async function fetchThumbnail(url: string): Promise<string | null> {
 async function moderateResource(
   url: string, title: string, description: string, category: string
 ): Promise<{ approved: boolean; pending: boolean; reason: string }> {
-  const systemPrompt = 'You are a content moderator for Tarbiyah, an Islamic parenting app for Muslim families following Sunni Islamic principles.';
+  const systemPrompt = 'You are a content moderator for Tarbiyah, an Islamic parenting app for Muslim families following Islamic principles.';
   const prompt = `Review this community-submitted parenting resource:
 URL: ${url}
 Title: ${title}
@@ -672,7 +705,7 @@ Category: ${category}
 
 APPROVE if:
 - Relevant to parenting, child development, family life, or Islamic education
-- Islamically appropriate and consistent with Sunni values
+- Islamically appropriate and consistent with Islamic values
 - A legitimate resource (not spam, phishing, or a commercial sales page)
 - Author/channel may be non-Muslim as long as content is appropriate for Muslim families
 
@@ -683,7 +716,9 @@ REJECT only if clearly:
 - Spam, phishing, or purely commercial with no educational value
 
 When in doubt, APPROVE. Give the submitter the benefit of the doubt.
+If the URL is inaccessible or you cannot verify its content, APPROVE based on the title and description alone — do not reject solely because the URL could not be fetched.
 
+Never use the word "Sunni" in your response. Always say "Islamic" instead.
 Respond with JSON only — no markdown: { "approved": boolean, "reason": string }`;
 
   function parseResult(text: string): { approved: boolean; pending: boolean; reason: string } {
@@ -739,7 +774,7 @@ app.get('/community/resources', async (req: Request, res: Response) => {
 // POST /community/resources — submit + AI moderate
 app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { url, title, description, category, age_range, why_helped } = req.body;
+    const { url, title, description, category, age_range, why_helped, exclude_thumbnail } = req.body;
     if (!url || !title || !category) {
       return res.status(400).json({ error: 'url, title and category are required.' });
     }
@@ -758,7 +793,7 @@ app.post('/community/resources', requireAuth, async (req: AuthRequest, res: Resp
     // ── Mitigation 1: URL safety check + thumbnail scrape (parallel) ─────────
     const [safety, thumbnailUrl] = await Promise.all([
       checkUrlSafety(url),
-      fetchThumbnail(url),
+      exclude_thumbnail ? Promise.resolve(null) : fetchThumbnail(url),
     ]);
     if (!safety.safe) {
       return res.status(422).json({ error: 'This URL was flagged as unsafe and cannot be submitted.' });
