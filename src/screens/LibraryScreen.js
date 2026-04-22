@@ -470,7 +470,7 @@ export default function LibraryScreen({ navigation }) {
         setMyPosts(prev => prev.map(p => p.id === result.id ? { ...p, ...result } : p));
         setShowDuaSubmit(false); setEditingDua(null); setDuaText('');
       } else {
-        setDuaSuccess(true);
+        setDuaSuccess(result.pending ? 'pending' : true);
         setDuaText(''); setDuaAnon(false);
         fetchDuas(); fetchMyPosts();
       }
@@ -498,7 +498,7 @@ export default function LibraryScreen({ navigation }) {
         setMyPosts(prev => prev.map(p => p.id === result.id ? { ...p, ...result } : p));
         setShowWinSubmit(false); setEditingWin(null); setWinText('');
       } else {
-        setWinSuccess(true);
+        setWinSuccess(result.pending ? 'pending' : true);
         setWinText(''); setWinAnon(false);
         fetchWins(); fetchMyPosts();
       }
@@ -1459,9 +1459,15 @@ export default function LibraryScreen({ navigation }) {
             </View>
             {duaSuccess ? (
               <View style={styles.successState}>
-                <View style={styles.successIcon}><Ionicons name="sparkles" size={48} color="#2E7D62" /></View>
-                <Text style={styles.successTitle}>JazakAllah Khayran!</Text>
-                <Text style={styles.successBody}>Your du'a has been shared. May Allah answer all our du'as.</Text>
+                <View style={[styles.successIcon, duaSuccess === 'pending' && { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name={duaSuccess === 'pending' ? 'time-outline' : 'sparkles'} size={48} color={duaSuccess === 'pending' ? '#D97706' : '#2E7D62'} />
+                </View>
+                <Text style={styles.successTitle}>{duaSuccess === 'pending' ? 'Almost there!' : 'JazakAllah Khayran!'}</Text>
+                <Text style={styles.successBody}>
+                  {duaSuccess === 'pending'
+                    ? "Your du'a is being reviewed and will appear shortly. You can track it in My Posts."
+                    : "Your du'a has been shared with the community. May Allah answer all our du'as."}
+                </Text>
                 <TouchableOpacity style={styles.successBtn} onPress={() => { setShowDuaSubmit(false); setDuaSuccess(false); }}>
                   <Text style={styles.successBtnText}>Done</Text>
                 </TouchableOpacity>
@@ -1513,9 +1519,15 @@ export default function LibraryScreen({ navigation }) {
             </View>
             {winSuccess ? (
               <View style={styles.successState}>
-                <View style={[styles.successIcon, { backgroundColor: '#FEF9EE' }]}><Ionicons name="trophy-outline" size={48} color="#D4871A" /></View>
-                <Text style={styles.successTitle}>Masha'Allah!</Text>
-                <Text style={styles.successBody}>Your win is under review and will appear shortly. Keep going!</Text>
+                <View style={[styles.successIcon, winSuccess === 'pending' ? { backgroundColor: '#FEF3C7' } : { backgroundColor: '#FEF9EE' }]}>
+                  <Ionicons name={winSuccess === 'pending' ? 'time-outline' : 'trophy-outline'} size={48} color={winSuccess === 'pending' ? '#D97706' : '#D4871A'} />
+                </View>
+                <Text style={styles.successTitle}>{winSuccess === 'pending' ? 'Almost there!' : "Masha'Allah!"}</Text>
+                <Text style={styles.successBody}>
+                  {winSuccess === 'pending'
+                    ? 'Your win is being reviewed and will appear shortly. You can track it in My Posts.'
+                    : 'Your win has been shared with the community. Keep going!'}
+                </Text>
                 <TouchableOpacity style={styles.successBtn} onPress={() => { setShowWinSubmit(false); setWinSuccess(false); }}>
                   <Text style={styles.successBtnText}>Done</Text>
                 </TouchableOpacity>
