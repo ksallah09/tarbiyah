@@ -36,7 +36,7 @@ const CATEGORY_CONFIG = {
   'Lecture/Video':      { color: '#2E7D62', icon: 'play-circle-outline' },
   'Article/Book':       { color: '#D4871A', icon: 'book-outline' },
   'Activity/Printable': { color: '#7C3AED', icon: 'color-palette-outline' },
-  'Duas & Adhkar':      { color: '#0D9488', icon: 'moon-outline' },
+  'Duas & Adhkar':      { color: '#0D9488', icon: 'sparkles' },
   'Podcast':            { color: '#2563EB', icon: 'mic-outline' },
   'Other':              { color: '#6B7280', icon: 'grid-outline' },
 };
@@ -686,7 +686,7 @@ export default function LibraryScreen({ navigation }) {
       >
         {[
           { key: 'resources', label: 'Resources',    icon: 'compass-outline' },
-          { key: 'dua',       label: "Du'a Board",   icon: 'moon-outline' },
+          { key: 'dua',       label: "Du'a Board",   icon: 'sparkles' },
           { key: 'wins',      label: 'Wins',          icon: 'trophy-outline' },
           { key: 'library',   label: 'My Library',   icon: 'bookmark-outline' },
           { key: 'myposts',   label: 'My Posts',     icon: 'person-outline' },
@@ -854,7 +854,7 @@ export default function LibraryScreen({ navigation }) {
               <View style={styles.empty}><ActivityIndicator size="large" color="#1B3D2F" /></View>
             ) : duas.length === 0 ? (
               <View style={styles.empty}>
-                <Ionicons name="moon-outline" size={48} color="#D1D5DB" />
+                <Ionicons name="sparkles" size={48} color="#D1D5DB" />
                 <Text style={styles.emptyTitle}>Be the first to share a du'a</Text>
                 <Text style={styles.emptyBody}>Make du'a for other families and let them know they are not alone.</Text>
               </View>
@@ -874,7 +874,7 @@ export default function LibraryScreen({ navigation }) {
                       <View style={styles.duaBody}>
                         <View style={styles.duaTop}>
                           <View style={styles.duaAuthorRow}>
-                            <View style={styles.duaAvatar}><Ionicons name="moon-outline" size={18} color="#1B3D2F" /></View>
+                            <View style={styles.duaAvatar}><Ionicons name="sparkles" size={18} color="#1B3D2F" /></View>
                             <View>
                               <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
                               <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
@@ -888,7 +888,7 @@ export default function LibraryScreen({ navigation }) {
                             onPress={() => handleDuaReact(item, 'made_dua')}
                             activeOpacity={0.75}
                           >
-                            <Ionicons name="moon-outline" size={15} color={madeDua ? '#FFFFFF' : '#1B3D2F'} />
+                            <Ionicons name="sparkles" size={15} color={madeDua ? '#FFFFFF' : '#1B3D2F'} />
                             <Text style={[styles.duaReactText, madeDua && styles.duaReactTextActive]}>
                               {item.made_dua_count > 0 ? `${item.made_dua_count} Made Du'a` : "Made Du'a"}
                             </Text>
@@ -1006,7 +1006,7 @@ export default function LibraryScreen({ navigation }) {
                         <View style={isDua ? styles.duaCardAccent : styles.winCardAccent} />
                         <View style={[styles.duaBody, { paddingVertical: 12 }]}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                            <Ionicons name={isDua ? 'moon-outline' : 'trophy-outline'} size={16} color={isDua ? '#1B3D2F' : '#D4871A'} />
+                            <Ionicons name={isDua ? 'sparkles' : 'trophy-outline'} size={16} color={isDua ? '#1B3D2F' : '#D4871A'} />
                             <Text style={{ fontSize: 12, fontWeight: '700', color: isDua ? '#1B3D2F' : '#D4871A', textTransform: 'uppercase', letterSpacing: 0.5 }}>{isDua ? "Du'a" : 'Win'}</Text>
                             <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
                           </View>
@@ -1417,7 +1417,7 @@ export default function LibraryScreen({ navigation }) {
             </View>
             {duaSuccess ? (
               <View style={styles.successState}>
-                <View style={styles.successIcon}><Ionicons name="moon-outline" size={48} color="#2E7D62" /></View>
+                <View style={styles.successIcon}><Ionicons name="sparkles" size={48} color="#2E7D62" /></View>
                 <Text style={styles.successTitle}>JazakAllah Khayran!</Text>
                 <Text style={styles.successBody}>Your du'a has been shared. May Allah answer all our du'as.</Text>
                 <TouchableOpacity style={styles.successBtn} onPress={() => { setShowDuaSubmit(false); setDuaSuccess(false); }}>
