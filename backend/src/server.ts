@@ -1016,6 +1016,254 @@ app.delete('/community/resources/:id', requireAuth, async (req: AuthRequest, res
   }
 });
 
+// ─── Du'a Board ───────────────────────────────────────────────────────────────
+
+// GET /community/duas
+app.get('/community/duas', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('duas')
+      .select('*, dua_reactions(type, user_id)')
+      .eq('is_approved', true)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+
+    const duas = (data ?? []).map((d: any) => ({
+      ...d,
+      made_dua_count: d.dua_reactions.filter((r: any) => r.type === 'made_dua').length,
+      feel_you_count: d.dua_reactions.filter((r: any) => r.type === 'feel_you').length,
+      dua_reactions: undefined,
+    }));
+    return res.json(duas);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch duas.' });
+  }
+});
+
+// POST /community/duas
+app.post('/community/duas', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { text, is_anonymous, display_name } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: 'text is required.' });
+    if (text.trim().length > 280) return res.status(400).json({ error: 'Du\'a must be 280 characters or less.' });
+
+    const { data, error } = await supabase
+      .from('duas')
+      .insert({ user_id: req.userId!, text: text.trim(), is_anonymous: !!is_anonymous, display_name: display_name ?? null, is_approved: true })
+      .select()
+      .single();
+    if (error) throw error;
+    return res.status(201).json(data);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to submit du\'a.' });
+  }
+});
+
+// POST /community/duas/:id/react — toggle made_dua or feel_you
+app.post('/community/duas/:id/react', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.body as { type: 'made_dua' | 'feel_you' };
+    if (!['made_dua', 'feel_you'].includes(type)) return res.status(400).json({ error: 'Invalid reaction type.' });
+
+    const userId = req.userId!;
+    const { data: existing } = await supabase
+      .from('dua_reactions')
+      .select('id')
+      .eq('dua_id', id).eq('user_id', userId).eq('type', type)
+      .single();
+
+    if (existing) {
+      await supabase.from('dua_reactions').delete().eq('id', existing.id);
+      return res.json({ reacted: false, type });
+    } else {
+      await supabase.from('dua_reactions').insert({ dua_id: id, user_id: userId, type });
+      return res.json({ reacted: true, type });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to react.' });
+  }
+});
+
+// GET /community/duas/my-reactions
+app.get('/community/duas/my-reactions', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('dua_reactions')
+      .select('dua_id, type')
+      .eq('user_id', req.userId!);
+    if (error) throw error;
+    return res.json(data ?? []);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch reactions.' });
+  }
+});
+
+// ─── Parenting Wins ───────────────────────────────────────────────────────────
+
+// GET /community/wins
+app.get('/community/wins', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('parenting_wins')
+      .select('*, win_reactions(user_id)')
+      .eq('is_approved', true)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+
+    const wins = (data ?? []).map((w: any) => ({
+      ...w,
+      heart_count: w.win_reactions.length,
+      win_reactions: undefined,
+    }));
+    return res.json(wins);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch wins.' });
+  }
+});
+
+// POST /community/wins — submit with AI moderation
+app.post('/community/wins', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { text, is_anonymous, display_name } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: 'text is required.' });
+    if (text.trim().length > 280) return res.status(400).json({ error: 'Win must be 280 characters or less.' });
+
+    const moderation = await moderateResource('', text.trim(), '', 'parenting_win');
+    const is_approved = moderation.approved && !moderation.pending;
+
+    const { data, error } = await supabase
+      .from('parenting_wins')
+      .insert({
+        user_id: req.userId!,
+        text: text.trim(),
+        is_anonymous: !!is_anonymous,
+        display_name: display_name ?? null,
+        is_approved,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+
+    return res.status(201).json({ ...data, pending: moderation.pending });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to submit win.' });
+  }
+});
+
+// POST /community/wins/:id/react — toggle heart
+app.post('/community/wins/:id/react', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId!;
+
+    const { data: existing } = await supabase
+      .from('win_reactions')
+      .select('id')
+      .eq('win_id', id).eq('user_id', userId)
+      .single();
+
+    if (existing) {
+      await supabase.from('win_reactions').delete().eq('id', existing.id);
+      return res.json({ reacted: false });
+    } else {
+      await supabase.from('win_reactions').insert({ win_id: id, user_id: userId });
+      return res.json({ reacted: true });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to react.' });
+  }
+});
+
+// GET /community/wins/my-reactions
+app.get('/community/wins/my-reactions', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('win_reactions')
+      .select('win_id')
+      .eq('user_id', req.userId!);
+    if (error) throw error;
+    return res.json((data ?? []).map((r: any) => r.win_id));
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch reactions.' });
+  }
+});
+
+// ─── Saved Resources (My Library) ─────────────────────────────────────────────
+
+// GET /community/saved
+app.get('/community/saved', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('saved_resources')
+      .select('resource_id, community_resources(*)')
+      .eq('user_id', req.userId!)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return res.json((data ?? []).map((r: any) => r.community_resources));
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch saved resources.' });
+  }
+});
+
+// POST /community/saved/:id — toggle save
+app.post('/community/saved/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId!;
+
+    const { data: existing } = await supabase
+      .from('saved_resources')
+      .select('id')
+      .eq('user_id', userId).eq('resource_id', id)
+      .single();
+
+    if (existing) {
+      await supabase.from('saved_resources').delete().eq('id', existing.id);
+      return res.json({ saved: false });
+    } else {
+      await supabase.from('saved_resources').insert({ user_id: userId, resource_id: id });
+      return res.json({ saved: true });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to toggle save.' });
+  }
+});
+
+// GET /community/saved/ids — just the IDs the user has saved
+app.get('/community/saved/ids', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('saved_resources')
+      .select('resource_id')
+      .eq('user_id', req.userId!);
+    if (error) throw error;
+    return res.json((data ?? []).map((r: any) => r.resource_id));
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch saved IDs.' });
+  }
+});
+
+// GET /community/my-posts — all of user's resources, duas, wins
+app.get('/community/my-posts', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const [resources, duas, wins] = await Promise.all([
+      supabase.from('community_resources').select('*').eq('submitted_by', req.userId!).order('created_at', { ascending: false }),
+      supabase.from('duas').select('*').eq('user_id', req.userId!).order('created_at', { ascending: false }),
+      supabase.from('parenting_wins').select('*').eq('user_id', req.userId!).order('created_at', { ascending: false }),
+    ]);
+    return res.json({
+      resources: resources.data ?? [],
+      duas: duas.data ?? [],
+      wins: wins.data ?? [],
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch your posts.' });
+  }
+});
+
 // ─── GET /modules ─────────────────────────────────────────────────────────────
 
 app.get('/modules', requireAuth, async (req: AuthRequest, res: Response) => {

@@ -87,6 +87,21 @@ function AppSplashOverlay({ onDismiss }) {
 }
 
 const splashStyles = StyleSheet.create({
+  appName: {
+    fontSize: 36,
+    fontWeight: '300',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: 2,
+    marginBottom: 12,
+  },
+  titleDivider: {
+    width: 40,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#C9A84C',
+    marginBottom: 12,
+  },
   titleLine1: {
     fontSize: 30,
     fontWeight: '700',
@@ -125,7 +140,7 @@ const RootStack  = createNativeStackNavigator();
 
 const TAB_CONFIG = {
   Home:     { filled: 'home',        outline: 'home-outline' },
-  Resources: { filled: 'compass',      outline: 'compass-outline' },
+  Community: { filled: 'compass',      outline: 'compass-outline' },
   Progress: { filled: 'trending-up', outline: 'trending-up-outline' },
   Learn:    { filled: 'layers',      outline: 'layers-outline' },
   Profile:  { filled: 'person',      outline: 'person-outline' },
@@ -173,7 +188,7 @@ function Tabs() {
       <Tab.Screen name="Home"     component={HomeScreen} />
       <Tab.Screen name="Progress" component={ProgressScreen} />
       <Tab.Screen name="Learn"    component={LearnScreen} />
-      <Tab.Screen name="Resources" component={LibraryScreen} />
+      <Tab.Screen name="Community" component={LibraryScreen} />
       <Tab.Screen name="Profile"  component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -280,8 +295,8 @@ export default function App() {
       const screen = response.notification.request.content.data?.screen;
       if (screen === 'Progress') {
         navigationRef.current?.navigate('Tabs', { screen: 'Progress' });
-      } else if (screen === 'Resources') {
-        navigationRef.current?.navigate('Tabs', { screen: 'Resources' });
+      } else if (screen === 'Community') {
+        navigationRef.current?.navigate('Tabs', { screen: 'Community' });
       } else {
         navigationRef.current?.navigate('Tabs', { screen: 'Home' });
       }

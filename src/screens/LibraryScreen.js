@@ -72,6 +72,13 @@ const REFLECTION_TAGS = [
   'Watch together',
 ];
 
+const COMMUNITY_HADITHS = [
+  "The most beloved people to Allah are those who are most beneficial to people.",
+  "Do not belittle any act of kindness.",
+  "The believer to another believer is like a building; each part strengthens the other.",
+  "Allah is in the aid of His servant as long as the servant is in the aid of his brother.",
+];
+
 const LOADING_MESSAGES = [
   'Gathering wisdom from the community…',
   'Parents helping parents…',
@@ -130,7 +137,7 @@ function ResourceThumb({ uri, accentColor, cardStyle, accentStyle, onHide }) {
 
 export default function LibraryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState('community');
+  const [activeTab, setActiveTab] = useState('resources');
 
   // ── My Library ──
   const [insights, setInsights]           = useState([]);
@@ -153,10 +160,16 @@ export default function LibraryScreen({ navigation }) {
   const SCREEN_HEIGHT = Dimensions.get('window').height;
   const overlayTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [overlayVisible, setOverlayVisible] = useState(false);
+  const [overlayReady, setOverlayReady] = useState(false);
+  const overlayBtnOpacity = useRef(new Animated.Value(0)).current;
   const overlayActiveRef = useRef(false);
+  const [overlayHadith, setOverlayHadith] = useState(COMMUNITY_HADITHS[0]);
 
   function showLoadingOverlay() {
     overlayActiveRef.current = true;
+    setOverlayReady(false);
+    overlayBtnOpacity.setValue(0);
+    setOverlayHadith(COMMUNITY_HADITHS[Math.floor(Math.random() * COMMUNITY_HADITHS.length)]);
     setOverlayVisible(true);
     overlayTranslateY.setValue(SCREEN_HEIGHT);
     Animated.spring(overlayTranslateY, {
@@ -169,14 +182,18 @@ export default function LibraryScreen({ navigation }) {
 
   function hideLoadingOverlay() {
     if (!overlayActiveRef.current) return;
+    setOverlayReady(true);
+    Animated.timing(overlayBtnOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+  }
+
+  function dismissOverlay() {
     overlayActiveRef.current = false;
-    setTimeout(() => {
-      Animated.timing(overlayTranslateY, {
-        toValue: SCREEN_HEIGHT,
-        duration: 480,
-        useNativeDriver: true,
-      }).start(() => setOverlayVisible(false));
-    }, 2000);
+    setOverlayReady(false);
+    Animated.timing(overlayTranslateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 480,
+      useNativeDriver: true,
+    }).start(() => setOverlayVisible(false));
   }
 
   useEffect(() => {
@@ -187,6 +204,30 @@ export default function LibraryScreen({ navigation }) {
   const [myPosts, setMyPosts]               = useState([]);
   const [myPostsLoading, setMyPostsLoading] = useState(false);
   const [myPostsRefreshing, setMyPostsRefreshing] = useState(false);
+
+  // ── Du'a Board ──
+  const [duas, setDuas]                 = useState([]);
+  const [duasLoading, setDuasLoading]   = useState(false);
+  const [duasRefreshing, setDuasRefreshing] = useState(false);
+  const [myDuaReactions, setMyDuaReactions] = useState([]); // [{dua_id, type}]
+  const [showDuaSubmit, setShowDuaSubmit]   = useState(false);
+  const [duaText, setDuaText]               = useState('');
+  const [duaAnon, setDuaAnon]               = useState(false);
+  const [duaSubmitting, setDuaSubmitting]   = useState(false);
+  const [duaSuccess, setDuaSuccess]         = useState(false);
+  const [duaError, setDuaError]             = useState('');
+
+  // ── Parenting Wins ──
+  const [wins, setWins]                 = useState([]);
+  const [winsLoading, setWinsLoading]   = useState(false);
+  const [winsRefreshing, setWinsRefreshing] = useState(false);
+  const [myWinReactions, setMyWinReactions] = useState(new Set());
+  const [showWinSubmit, setShowWinSubmit]   = useState(false);
+  const [winText, setWinText]               = useState('');
+  const [winAnon, setWinAnon]               = useState(false);
+  const [winSubmitting, setWinSubmitting]   = useState(false);
+  const [winSuccess, setWinSuccess]         = useState(false);
+  const [winError, setWinError]             = useState('');
 
   // ── Edit mode ──
   const [editingResource, setEditingResource] = useState(null);
@@ -200,6 +241,8 @@ export default function LibraryScreen({ navigation }) {
   const [submitAge, setSubmitAge]       = useState('All Ages');
   const [submitWhy, setSubmitWhy]       = useState('');
   const [submitTags, setSubmitTags]     = useState([]);
+  const [submitThumbnail, setSubmitThumbnail]         = useState('');
+  const [submitIncludeThumbnail, setSubmitIncludeThumbnail] = useState(true);
   const [submitting, setSubmitting]       = useState(false);
   const [submitError, setSubmitError]     = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -219,6 +262,8 @@ export default function LibraryScreen({ navigation }) {
       });
       fetchResources();
       fetchMyPosts();
+      fetchDuas();
+      fetchWins();
     }, [])
   );
 
@@ -237,9 +282,10 @@ export default function LibraryScreen({ navigation }) {
       setFetchingMeta(true);
       try {
         const res = await fetch(`${API_URL}/community/metadata?url=${encodeURIComponent(url)}`);
-        const { title, description } = await res.json();
+        const { title, description, thumbnail } = await res.json();
         if (title) setSubmitTitle(prev => prev || title);
         if (description) setSubmitDesc(prev => prev || description);
+        if (thumbnail) { setSubmitThumbnail(thumbnail); setSubmitIncludeThumbnail(true); }
       } catch {}
       finally { setFetchingMeta(false); }
     }, 600);
@@ -301,17 +347,143 @@ export default function LibraryScreen({ navigation }) {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
       if (!token) { setMyPosts([]); return; }
-      const res = await fetch(`${API_URL}/community/resources/my-posts`, {
+      const res = await fetch(`${API_URL}/community/my-posts`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      setMyPosts(Array.isArray(data) ? data : []);
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        setMyPosts([
+          ...(data.resources ?? []).map(r => ({ ...r, _kind: 'resource' })),
+          ...(data.duas ?? []).map(d => ({ ...d, _kind: 'dua' })),
+          ...(data.wins ?? []).map(w => ({ ...w, _kind: 'win' })),
+        ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+      } else {
+        setMyPosts([]);
+      }
     } catch {
       setMyPosts([]);
     } finally {
       setMyPostsLoading(false);
       setMyPostsRefreshing(false);
     }
+  }
+
+  async function fetchDuas(isPullRefresh = false) {
+    isPullRefresh ? setDuasRefreshing(true) : setDuasLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/community/duas`);
+      const data = await res.json();
+      setDuas(Array.isArray(data) ? data : []);
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (token) {
+        const rRes = await fetch(`${API_URL}/community/duas/my-reactions`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const rData = await rRes.json();
+        setMyDuaReactions(Array.isArray(rData) ? rData : []);
+      }
+    } catch {} finally {
+      setDuasLoading(false);
+      setDuasRefreshing(false);
+    }
+  }
+
+  async function fetchWins(isPullRefresh = false) {
+    isPullRefresh ? setWinsRefreshing(true) : setWinsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/community/wins`);
+      const data = await res.json();
+      setWins(Array.isArray(data) ? data : []);
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (token) {
+        const rRes = await fetch(`${API_URL}/community/wins/my-reactions`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const rData = await rRes.json();
+        setMyWinReactions(new Set(Array.isArray(rData) ? rData : []));
+      }
+    } catch {} finally {
+      setWinsLoading(false);
+      setWinsRefreshing(false);
+    }
+  }
+
+  async function handleDuaReact(dua, type) {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) return;
+    const hadReaction = myDuaReactions.some(r => r.dua_id === dua.id && r.type === type);
+    setMyDuaReactions(prev => hadReaction
+      ? prev.filter(r => !(r.dua_id === dua.id && r.type === type))
+      : [...prev, { dua_id: dua.id, type }]
+    );
+    setDuas(prev => prev.map(d => d.id === dua.id ? {
+      ...d,
+      made_dua_count: type === 'made_dua' ? d.made_dua_count + (hadReaction ? -1 : 1) : d.made_dua_count,
+      feel_you_count: type === 'feel_you' ? d.feel_you_count + (hadReaction ? -1 : 1) : d.feel_you_count,
+    } : d));
+    try {
+      await fetch(`${API_URL}/community/duas/${dua.id}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type }),
+      });
+    } catch {}
+  }
+
+  async function handleWinReact(win) {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) return;
+    const hadReaction = myWinReactions.has(win.id);
+    setMyWinReactions(prev => { const next = new Set(prev); hadReaction ? next.delete(win.id) : next.add(win.id); return next; });
+    setWins(prev => prev.map(w => w.id === win.id ? { ...w, heart_count: w.heart_count + (hadReaction ? -1 : 1) } : w));
+    try {
+      await fetch(`${API_URL}/community/wins/${win.id}/react`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {}
+  }
+
+  async function handleSubmitDua() {
+    if (!duaText.trim()) { setDuaError('Please write your du\'a.'); return; }
+    setDuaSubmitting(true); setDuaError('');
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const res = await fetch(`${API_URL}/community/duas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: duaText.trim(), is_anonymous: duaAnon }),
+      });
+      if (!res.ok) { const e = await res.json(); setDuaError(e.error ?? 'Could not submit.'); return; }
+      setDuaSuccess(true);
+      setDuaText(''); setDuaAnon(false);
+      fetchDuas(); fetchMyPosts();
+    } catch { setDuaError('Something went wrong. Please try again.'); }
+    finally { setDuaSubmitting(false); }
+  }
+
+  async function handleSubmitWin() {
+    if (!winText.trim()) { setWinError('Please share your win.'); return; }
+    setWinSubmitting(true); setWinError('');
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const res = await fetch(`${API_URL}/community/wins`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: winText.trim(), is_anonymous: winAnon }),
+      });
+      if (!res.ok) { const e = await res.json(); setWinError(e.error ?? 'Could not submit.'); return; }
+      setWinSuccess(true);
+      setWinText(''); setWinAnon(false);
+      fetchWins(); fetchMyPosts();
+    } catch { setWinError('Something went wrong. Please try again.'); }
+    finally { setWinSubmitting(false); }
   }
 
   async function handleRecommend(resource) {
@@ -439,6 +611,7 @@ export default function LibraryScreen({ navigation }) {
             category: submitCategory,
             age_range: submitAge,
             why_helped: submitWhy.trim() || undefined,
+            exclude_thumbnail: !submitIncludeThumbnail || undefined,
           }),
         });
         if (!res.ok) {
@@ -452,7 +625,7 @@ export default function LibraryScreen({ navigation }) {
         setSubmitSuccess(result._pending ? 'pending' : true);
         resetSubmitForm();
         fetchMyPosts();
-        if (activeTab === 'community') fetchResources();
+        if (activeTab === 'resources') fetchResources();
       }
     } catch {
       setSubmitError('Something went wrong. Please try again.');
@@ -470,6 +643,8 @@ export default function LibraryScreen({ navigation }) {
     setSubmitWhy('');
     setSubmitTags([]);
     setSubmitError('');
+    setSubmitThumbnail('');
+    setSubmitIncludeThumbnail(true);
   }
 
   function closeSubmit() {
@@ -488,42 +663,45 @@ export default function LibraryScreen({ navigation }) {
   });
 
   const totalLibraryCount = insights.length + savedResources.length;
-  const subtitleText = activeTab === 'library'
-    ? (totalLibraryCount === 0 ? 'Nothing saved yet' : `${totalLibraryCount} saved item${totalLibraryCount !== 1 ? 's' : ''}`)
-    : activeTab === 'myposts'
-    ? (myPosts.length === 0 ? 'No posts yet' : `${myPosts.length} post${myPosts.length !== 1 ? 's' : ''}`)
-    : 'Parents helping parents';
+  const subtitleText =
+    activeTab === 'library'  ? (totalLibraryCount === 0 ? 'Nothing saved yet' : `${totalLibraryCount} saved item${totalLibraryCount !== 1 ? 's' : ''}`) :
+    activeTab === 'myposts'  ? (myPosts.length === 0 ? 'No posts yet' : `${myPosts.length} post${myPosts.length !== 1 ? 's' : ''}`) :
+    activeTab === 'dua'      ? 'Du\'a Board' :
+    activeTab === 'wins'     ? 'Parenting Wins' :
+    'Parents helping parents';
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.bgTop} />
       <StatusBar style="light" />
 
-      <DarkHeader title="Resources" subtitle={subtitleText} />
+      <DarkHeader title="Community" subtitle={subtitleText} />
 
-      {/* ── Tab toggle ── */}
-      <View style={styles.tabToggleWrap}>
-        <View style={styles.tabToggle}>
+      {/* ── Tab bar ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabBarScroll}
+        contentContainerStyle={styles.tabBarContent}
+      >
+        {[
+          { key: 'resources', label: 'Resources',    icon: 'compass-outline' },
+          { key: 'dua',       label: "Du'a Board",   icon: 'hand-right-outline' },
+          { key: 'wins',      label: 'Wins',          icon: 'trophy-outline' },
+          { key: 'library',   label: 'My Library',   icon: 'bookmark-outline' },
+          { key: 'myposts',   label: 'My Posts',     icon: 'person-outline' },
+        ].map(tab => (
           <TouchableOpacity
-            style={[styles.tabToggleBtn, activeTab === 'community' && styles.tabToggleBtnActive]}
-            onPress={() => setActiveTab('community')}
+            key={tab.key}
+            style={[styles.tabBarBtn, activeTab === tab.key && styles.tabBarBtnActive]}
+            onPress={() => setActiveTab(tab.key)}
+            activeOpacity={0.75}
           >
-            <Text style={[styles.tabToggleText, activeTab === 'community' && styles.tabToggleTextActive]}>Community</Text>
+            <Ionicons name={tab.icon} size={14} color={activeTab === tab.key ? '#FFFFFF' : 'rgba(255,255,255,0.55)'} />
+            <Text style={[styles.tabBarBtnText, activeTab === tab.key && styles.tabBarBtnTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabToggleBtn, activeTab === 'library' && styles.tabToggleBtnActive]}
-            onPress={() => setActiveTab('library')}
-          >
-            <Text style={[styles.tabToggleText, activeTab === 'library' && styles.tabToggleTextActive]}>My Library</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabToggleBtn, activeTab === 'myposts' && styles.tabToggleBtnActive]}
-            onPress={() => setActiveTab('myposts')}
-          >
-            <Text style={[styles.tabToggleText, activeTab === 'myposts' && styles.tabToggleTextActive]}>My Posts</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        ))}
+      </ScrollView>
 
       <View style={styles.sheet}>
         {activeTab === 'library' ? (
@@ -669,6 +847,131 @@ export default function LibraryScreen({ navigation }) {
               />
             )}
           </>
+        ) : activeTab === 'dua' ? (
+          // ─── DU'A BOARD ───────────────────────────────────────────────────
+          <>
+            {duasLoading ? (
+              <View style={styles.empty}><ActivityIndicator size="large" color="#1B3D2F" /></View>
+            ) : duas.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={{ fontSize: 36 }}>🤲</Text>
+                <Text style={styles.emptyTitle}>Be the first to share a du'a</Text>
+                <Text style={styles.emptyBody}>Make du'a for other families and let them know they are not alone.</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={duas}
+                keyExtractor={item => item.id}
+                contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 100 }]}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={duasRefreshing} onRefresh={() => fetchDuas(true)} tintColor="#1B3D2F" />}
+                renderItem={({ item }) => {
+                  const madeDua = myDuaReactions.some(r => r.dua_id === item.id && r.type === 'made_dua');
+                  const feelYou = myDuaReactions.some(r => r.dua_id === item.id && r.type === 'feel_you');
+                  return (
+                    <View style={styles.duaCard}>
+                      <View style={styles.duaCardAccent} />
+                      <View style={styles.duaBody}>
+                        <View style={styles.duaTop}>
+                          <View style={styles.duaAuthorRow}>
+                            <View style={styles.duaAvatar}><Text style={styles.duaAvatarText}>🤲</Text></View>
+                            <View>
+                              <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
+                              <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
+                            </View>
+                          </View>
+                        </View>
+                        <Text style={styles.duaText}>{item.text}</Text>
+                        <View style={styles.duaActions}>
+                          <TouchableOpacity
+                            style={[styles.duaReactBtn, madeDua && styles.duaReactBtnActive]}
+                            onPress={() => handleDuaReact(item, 'made_dua')}
+                            activeOpacity={0.75}
+                          >
+                            <Text style={styles.duaReactIcon}>🤲</Text>
+                            <Text style={[styles.duaReactText, madeDua && styles.duaReactTextActive]}>
+                              {item.made_dua_count > 0 ? `${item.made_dua_count} Made Du'a` : "Made Du'a"}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.duaReactBtn, feelYou && styles.duaFeelYouActive]}
+                            onPress={() => handleDuaReact(item, 'feel_you')}
+                            activeOpacity={0.75}
+                          >
+                            <Text style={styles.duaReactIcon}>💚</Text>
+                            <Text style={[styles.duaReactText, feelYou && styles.duaReactTextActive]}>
+                              {item.feel_you_count > 0 ? `${item.feel_you_count} I Feel You` : 'I Feel You'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                }}
+              />
+            )}
+            <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 20 }]} onPress={() => setShowDuaSubmit(true)} activeOpacity={0.85}>
+              <Ionicons name="add" size={22} color="#FFFFFF" />
+              <Text style={styles.fabText}>Share a Du'a</Text>
+            </TouchableOpacity>
+          </>
+        ) : activeTab === 'wins' ? (
+          // ─── PARENTING WINS ───────────────────────────────────────────────
+          <>
+            {winsLoading ? (
+              <View style={styles.empty}><ActivityIndicator size="large" color="#1B3D2F" /></View>
+            ) : wins.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={{ fontSize: 36 }}>🏆</Text>
+                <Text style={styles.emptyTitle}>Share your first win</Text>
+                <Text style={styles.emptyBody}>Celebrate the small and big moments of Islamic parenting with the community.</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={wins}
+                keyExtractor={item => item.id}
+                contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 100 }]}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={winsRefreshing} onRefresh={() => fetchWins(true)} tintColor="#1B3D2F" />}
+                renderItem={({ item }) => {
+                  const hearted = myWinReactions.has(item.id);
+                  return (
+                    <View style={styles.winCard}>
+                      <View style={styles.winCardAccent} />
+                      <View style={styles.duaBody}>
+                        <View style={styles.duaTop}>
+                          <View style={styles.duaAuthorRow}>
+                            <View style={[styles.duaAvatar, { backgroundColor: '#FEF9EE' }]}><Text style={styles.duaAvatarText}>🏆</Text></View>
+                            <View>
+                              <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
+                              <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
+                            </View>
+                          </View>
+                        </View>
+                        <Text style={styles.duaText}>{item.text}</Text>
+                        <View style={styles.duaActions}>
+                          <TouchableOpacity
+                            style={[styles.duaReactBtn, hearted && styles.winHeartActive]}
+                            onPress={() => handleWinReact(item)}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name={hearted ? 'heart' : 'heart-outline'} size={15} color={hearted ? '#FFFFFF' : '#1B3D2F'} />
+                            <Text style={[styles.duaReactText, hearted && styles.duaReactTextActive]}>
+                              {item.heart_count > 0 ? `${item.heart_count}` : ''}{item.heart_count > 0 ? ' ' : ''}Masha'Allah
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                }}
+              />
+            )}
+            <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 20 }]} onPress={() => setShowWinSubmit(true)} activeOpacity={0.85}>
+              <Ionicons name="add" size={22} color="#FFFFFF" />
+              <Text style={styles.fabText}>Share a Win</Text>
+            </TouchableOpacity>
+          </>
         ) : activeTab === 'myposts' ? (
           // ─── MY POSTS ─────────────────────────────────────────────────────
           <>
@@ -680,7 +983,7 @@ export default function LibraryScreen({ navigation }) {
               <View style={styles.empty}>
                 <Ionicons name="cloud-upload-outline" size={48} color="#D1D5DB" />
                 <Text style={styles.emptyTitle}>No posts yet</Text>
-                <Text style={styles.emptyBody}>Resources you share with the community will appear here.</Text>
+                <Text style={styles.emptyBody}>Your shared resources, du'as, and wins will appear here.</Text>
               </View>
             ) : (
               <FlatList
@@ -696,6 +999,23 @@ export default function LibraryScreen({ navigation }) {
                   />
                 }
                 renderItem={({ item }) => {
+                  if (item._kind === 'dua' || item._kind === 'win') {
+                    const isDua = item._kind === 'dua';
+                    return (
+                      <View style={isDua ? styles.duaCard : styles.winCard}>
+                        <View style={isDua ? styles.duaCardAccent : styles.winCardAccent} />
+                        <View style={[styles.duaBody, { paddingVertical: 12 }]}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                            <Text style={{ fontSize: 16 }}>{isDua ? '🤲' : '🏆'}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: isDua ? '#1B3D2F' : '#D4871A', textTransform: 'uppercase', letterSpacing: 0.5 }}>{isDua ? "Du'a" : 'Win'}</Text>
+                            <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
+                          </View>
+                          <Text style={styles.duaText}>{item.text}</Text>
+                          {!item.is_approved && <View style={[styles.statusPill, { alignSelf: 'flex-start', marginTop: 8 }]}><Ionicons name="time-outline" size={11} color="#D97706" /><Text style={[styles.statusPillText, { color: '#D97706' }]}>Under Review</Text></View>}
+                        </View>
+                      </View>
+                    );
+                  }
                   const cfg = catConfig(item.category);
                   const isPending = item.pending_review && !item.approved && !item.rejected;
                   const isRejected = item.rejected;
@@ -761,7 +1081,7 @@ export default function LibraryScreen({ navigation }) {
             )}
           </>
         ) : (
-          // ─── COMMUNITY ────────────────────────────────────────────────────
+          // ─── RESOURCES ────────────────────────────────────────────────────
           <>
             <View style={styles.controls}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -964,6 +1284,40 @@ export default function LibraryScreen({ navigation }) {
                   onChangeText={setSubmitTitle}
                 />
 
+                {submitThumbnail ? (
+                  <View style={styles.thumbPreviewWrap}>
+                    <Text style={styles.fieldLabel}>Image Preview</Text>
+                    <View style={styles.thumbPreviewCard}>
+                      {submitIncludeThumbnail ? (
+                        <Image
+                          source={{ uri: submitThumbnail }}
+                          style={styles.thumbPreviewImg}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.thumbPreviewRemoved}>
+                          <Ionicons name="image-outline" size={28} color="#D1D5DB" />
+                          <Text style={styles.thumbPreviewRemovedText}>No image</Text>
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={styles.thumbToggleBtn}
+                        onPress={() => setSubmitIncludeThumbnail(prev => !prev)}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons
+                          name={submitIncludeThumbnail ? 'close-circle-outline' : 'image-outline'}
+                          size={14}
+                          color={submitIncludeThumbnail ? '#6B7280' : '#1B3D2F'}
+                        />
+                        <Text style={[styles.thumbToggleText, !submitIncludeThumbnail && { color: '#1B3D2F' }]}>
+                          {submitIncludeThumbnail ? 'Remove image' : 'Include image'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
+
                 <Text style={styles.fieldLabel}>Category</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ marginBottom: 16 }}>
                   {CATEGORIES.filter(c => c !== 'All').map(cat => (
@@ -1051,23 +1405,127 @@ export default function LibraryScreen({ navigation }) {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ── Du'a Submit Modal ── */}
+      <Modal visible={showDuaSubmit} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <SafeAreaView style={styles.modalSafe} edges={['top']}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Share a Du'a</Text>
+              <TouchableOpacity onPress={() => { setShowDuaSubmit(false); setDuaSuccess(false); setDuaText(''); setDuaError(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={22} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            {duaSuccess ? (
+              <View style={styles.successState}>
+                <View style={styles.successIcon}><Text style={{ fontSize: 40 }}>🤲</Text></View>
+                <Text style={styles.successTitle}>JazakAllah Khayran!</Text>
+                <Text style={styles.successBody}>Your du'a has been shared. May Allah answer all our du'as.</Text>
+                <TouchableOpacity style={styles.successBtn} onPress={() => { setShowDuaSubmit(false); setDuaSuccess(false); }}>
+                  <Text style={styles.successBtnText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <Text style={styles.fieldLabel}>Your Du'a</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea, { minHeight: 120 }]}
+                  placeholder="Share a du'a you're making for your children or family..."
+                  value={duaText}
+                  onChangeText={setDuaText}
+                  multiline
+                  maxLength={280}
+                />
+                <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: -14, marginBottom: 16, textAlign: 'right' }}>{duaText.length}/280</Text>
+
+                <TouchableOpacity style={styles.anonRow} onPress={() => setDuaAnon(p => !p)} activeOpacity={0.75}>
+                  <View style={[styles.anonCheck, duaAnon && styles.anonCheckActive]}>
+                    {duaAnon && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+                  </View>
+                  <Text style={styles.anonLabel}>Post anonymously</Text>
+                </TouchableOpacity>
+
+                {duaError ? <Text style={styles.submitError}>{duaError}</Text> : null}
+                <TouchableOpacity style={[styles.submitBtn, duaSubmitting && { opacity: 0.7 }]} onPress={handleSubmitDua} disabled={duaSubmitting} activeOpacity={0.85}>
+                  {duaSubmitting
+                    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><ActivityIndicator color="#FFFFFF" size="small" /><Text style={styles.submitBtnText}>Sharing...</Text></View>
+                    : <Text style={styles.submitBtnText}>Share Du'a</Text>
+                  }
+                </TouchableOpacity>
+                <View style={{ height: 32 }} />
+              </ScrollView>
+            )}
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Win Submit Modal ── */}
+      <Modal visible={showWinSubmit} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <SafeAreaView style={styles.modalSafe} edges={['top']}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Share a Win</Text>
+              <TouchableOpacity onPress={() => { setShowWinSubmit(false); setWinSuccess(false); setWinText(''); setWinError(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={22} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            {winSuccess ? (
+              <View style={styles.successState}>
+                <View style={[styles.successIcon, { backgroundColor: '#FEF9EE' }]}><Text style={{ fontSize: 40 }}>🏆</Text></View>
+                <Text style={styles.successTitle}>Masha'Allah!</Text>
+                <Text style={styles.successBody}>Your win is under review and will appear shortly. Keep going!</Text>
+                <TouchableOpacity style={styles.successBtn} onPress={() => { setShowWinSubmit(false); setWinSuccess(false); }}>
+                  <Text style={styles.successBtnText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <Text style={styles.fieldLabel}>Your Win</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea, { minHeight: 120 }]}
+                  placeholder="Share a parenting win — big or small. What happened that made you proud?"
+                  value={winText}
+                  onChangeText={setWinText}
+                  multiline
+                  maxLength={280}
+                />
+                <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: -14, marginBottom: 16, textAlign: 'right' }}>{winText.length}/280</Text>
+
+                <TouchableOpacity style={styles.anonRow} onPress={() => setWinAnon(p => !p)} activeOpacity={0.75}>
+                  <View style={[styles.anonCheck, winAnon && styles.anonCheckActive]}>
+                    {winAnon && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+                  </View>
+                  <Text style={styles.anonLabel}>Post anonymously</Text>
+                </TouchableOpacity>
+
+                {winError ? <Text style={styles.submitError}>{winError}</Text> : null}
+                <TouchableOpacity style={[styles.submitBtn, winSubmitting && { opacity: 0.7 }]} onPress={handleSubmitWin} disabled={winSubmitting} activeOpacity={0.85}>
+                  {winSubmitting
+                    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><ActivityIndicator color="#FFFFFF" size="small" /><Text style={styles.submitBtnText}>Submitting...</Text></View>
+                    : <Text style={styles.submitBtnText}>Share Win</Text>
+                  }
+                </TouchableOpacity>
+                <Text style={styles.submitNote}>Wins are reviewed by AI before going live.</Text>
+                <View style={{ height: 32 }} />
+              </ScrollView>
+            )}
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* ── Resources loading overlay ── */}
       {overlayVisible && (
         <Animated.View
           style={[styles.loadingOverlay, { transform: [{ translateY: overlayTranslateY }] }]}
-          pointerEvents="none"
         >
-          <Text style={styles.loadingOverlayHadith}>
-            "The most beloved to Allah
-          </Text>
-          <Text style={styles.loadingOverlayHadith}>
-            are those most beneficial
-          </Text>
-          <Text style={styles.loadingOverlayHadith}>
-            to people"
-          </Text>
+          <Text style={styles.loadingOverlayTitle}>Community</Text>
+          <Text style={styles.loadingOverlayHadith}>{`"${overlayHadith}"`}</Text>
           <Text style={styles.loadingOverlayAttribution}>— Prophet Muhammad ﷺ</Text>
           <Text style={styles.loadingOverlayTagline}>Parents helping parents</Text>
+          <Animated.View style={{ opacity: overlayBtnOpacity, marginTop: 40 }}>
+            <TouchableOpacity style={styles.overlayBtn} onPress={dismissOverlay} activeOpacity={0.85} disabled={!overlayReady}>
+              <Text style={styles.overlayBtnText}>Continue</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </Animated.View>
       )}
     </SafeAreaView>
@@ -1082,15 +1540,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     zIndex: 100,
   },
+  loadingOverlayTitle: {
+    fontSize: 13, fontWeight: '700', letterSpacing: 2.5,
+    color: 'rgba(255,255,255,0.35)', textAlign: 'center',
+    textTransform: 'uppercase', marginBottom: 20,
+  },
   loadingOverlayHadith: {
-    fontSize: 26, fontWeight: '700', letterSpacing: 0.3,
-    color: '#D4A843', textAlign: 'center', lineHeight: 38,
+    fontSize: 24, fontWeight: '700', letterSpacing: 0.3,
+    color: '#D4A843', textAlign: 'center', lineHeight: 36,
     fontStyle: 'italic',
   },
   loadingOverlayAttribution: {
     fontSize: 13, fontWeight: '500',
     color: 'rgba(255,255,255,0.5)',
     marginTop: 16, textAlign: 'center', letterSpacing: 0.5,
+  },
+  overlayBtn: {
+    marginTop: 40,
+    backgroundColor: '#D4A843',
+    borderRadius: 100,
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+  },
+  overlayBtnText: {
+    fontSize: 15, fontWeight: '700', color: '#1B3D2F',
   },
   loadingOverlayTagline: {
     fontSize: 13, fontWeight: '600', letterSpacing: 1.2,
@@ -1101,35 +1574,65 @@ const styles = StyleSheet.create({
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '40%', backgroundColor: '#1B3D2F' },
   sheet: { flex: 1, backgroundColor: '#F5F6F8', overflow: 'hidden' },
 
-  // ── Tab toggle ──
-  tabToggleWrap: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+  // ── Tab bar ──
+  tabBarScroll: { backgroundColor: 'transparent', flexGrow: 0 },
+  tabBarContent: { paddingHorizontal: 16, paddingBottom: 12, gap: 8, alignItems: 'center' },
+  tabBarBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
-  tabToggle: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
-    padding: 3,
+  tabBarBtnActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  tabBarBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  tabBarBtnTextActive: { color: '#FFFFFF' },
+
+  // ── Du'a / Win cards ──
+  duaCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 12,
+    flexDirection: 'row', overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
-  tabToggleBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 10,
+  duaCardAccent: { width: 4, backgroundColor: '#1B3D2F' },
+  winCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 12,
+    flexDirection: 'row', overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
-  tabToggleBtnActive: {
-    backgroundColor: '#FFFFFF',
+  winCardAccent: { width: 4, backgroundColor: '#D4871A' },
+  duaBody: { flex: 1, padding: 14 },
+  duaTop: { marginBottom: 8 },
+  duaAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  duaAvatar: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#E8F5EF', alignItems: 'center', justifyContent: 'center',
   },
-  tabToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.65)',
+  duaAvatarText: { fontSize: 18 },
+  duaAuthor: { fontSize: 13, fontWeight: '700', color: '#1C1C1E' },
+  duaTime: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
+  duaText: { fontSize: 15, color: '#374151', lineHeight: 23, marginBottom: 12 },
+  duaActions: { flexDirection: 'row', gap: 8 },
+  duaReactBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 100,
+    backgroundColor: 'rgba(27,61,47,0.07)',
   },
-  tabToggleTextActive: {
-    color: '#1B3D2F',
+  duaReactBtnActive: { backgroundColor: '#1B3D2F' },
+  duaFeelYouActive: { backgroundColor: '#16A34A' },
+  winHeartActive: { backgroundColor: '#DC2626' },
+  duaReactIcon: { fontSize: 14 },
+  duaReactText: { fontSize: 12, fontWeight: '600', color: '#1B3D2F' },
+  duaReactTextActive: { color: '#FFFFFF' },
+
+  // ── Anonymous toggle ──
+  anonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  anonCheck: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
+    borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center',
   },
+  anonCheckActive: { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
+  anonLabel: { fontSize: 14, color: '#374151', fontWeight: '500' },
 
   // ── Controls ──
   controls: {
@@ -1280,6 +1783,23 @@ const styles = StyleSheet.create({
   reflectionTagActive: { borderColor: '#2E7D62', backgroundColor: '#E8F5EF' },
   reflectionTagText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
   reflectionTagTextActive: { color: '#2E7D62' },
+  thumbPreviewWrap: { marginBottom: 20 },
+  thumbPreviewCard: {
+    borderRadius: 12, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  thumbPreviewImg: { width: '100%', height: 160 },
+  thumbPreviewRemoved: {
+    width: '100%', height: 100,
+    backgroundColor: '#F5F6F8',
+    alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
+  thumbPreviewRemovedText: { fontSize: 12, color: '#9CA3AF' },
+  thumbToggleBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    padding: 10, borderTopWidth: 1, borderTopColor: '#F0F1F3',
+  },
+  thumbToggleText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
   submitError: { fontSize: 13, color: '#DC2626', marginBottom: 12, lineHeight: 19 },
   submitBtn: {
     backgroundColor: '#1B3D2F', borderRadius: 14,
