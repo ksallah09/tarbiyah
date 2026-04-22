@@ -1675,7 +1675,7 @@ const styles = StyleSheet.create({
   },
   duaReactBtnActive: { backgroundColor: '#1B3D2F' },
   duaFeelYouActive: { backgroundColor: '#16A34A' },
-  winHeartActive: { backgroundColor: '#DC2626' },
+  winHeartActive: { backgroundColor: '#D4871A' },
   duaReactIcon: { fontSize: 14 },
   duaReactText: { fontSize: 12, fontWeight: '600', color: '#1B3D2F' },
   duaReactTextActive: { color: '#FFFFFF' },
