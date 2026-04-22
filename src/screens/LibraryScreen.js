@@ -211,6 +211,7 @@ export default function LibraryScreen({ navigation }) {
   const [duasRefreshing, setDuasRefreshing] = useState(false);
   const [myDuaReactions, setMyDuaReactions] = useState([]); // [{dua_id, type}]
   const [showDuaSubmit, setShowDuaSubmit]   = useState(false);
+  const [editingDua, setEditingDua]         = useState(null);
   const [duaText, setDuaText]               = useState('');
   const [duaAnon, setDuaAnon]               = useState(false);
   const [duaSubmitting, setDuaSubmitting]   = useState(false);
@@ -223,6 +224,7 @@ export default function LibraryScreen({ navigation }) {
   const [winsRefreshing, setWinsRefreshing] = useState(false);
   const [myWinReactions, setMyWinReactions] = useState(new Set());
   const [showWinSubmit, setShowWinSubmit]   = useState(false);
+  const [editingWin, setEditingWin]         = useState(null);
   const [winText, setWinText]               = useState('');
   const [winAnon, setWinAnon]               = useState(false);
   const [winSubmitting, setWinSubmitting]   = useState(false);
@@ -454,15 +456,24 @@ export default function LibraryScreen({ navigation }) {
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
-      const res = await fetch(`${API_URL}/community/duas`, {
-        method: 'POST',
+      const url = editingDua ? `${API_URL}/community/duas/${editingDua.id}` : `${API_URL}/community/duas`;
+      const method = editingDua ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ text: duaText.trim(), is_anonymous: duaAnon }),
       });
       if (!res.ok) { const e = await res.json(); setDuaError(e.error ?? 'Could not submit.'); return; }
-      setDuaSuccess(true);
-      setDuaText(''); setDuaAnon(false);
-      fetchDuas(); fetchMyPosts();
+      const result = await res.json();
+      if (editingDua) {
+        setDuas(prev => prev.map(d => d.id === result.id ? { ...d, ...result } : d));
+        setMyPosts(prev => prev.map(p => p.id === result.id ? { ...p, ...result } : p));
+        setShowDuaSubmit(false); setEditingDua(null); setDuaText('');
+      } else {
+        setDuaSuccess(true);
+        setDuaText(''); setDuaAnon(false);
+        fetchDuas(); fetchMyPosts();
+      }
     } catch { setDuaError('Something went wrong. Please try again.'); }
     finally { setDuaSubmitting(false); }
   }
@@ -473,15 +484,24 @@ export default function LibraryScreen({ navigation }) {
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
-      const res = await fetch(`${API_URL}/community/wins`, {
-        method: 'POST',
+      const url = editingWin ? `${API_URL}/community/wins/${editingWin.id}` : `${API_URL}/community/wins`;
+      const method = editingWin ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ text: winText.trim(), is_anonymous: winAnon }),
       });
       if (!res.ok) { const e = await res.json(); setWinError(e.error ?? 'Could not submit.'); return; }
-      setWinSuccess(true);
-      setWinText(''); setWinAnon(false);
-      fetchWins(); fetchMyPosts();
+      const result = await res.json();
+      if (editingWin) {
+        setWins(prev => prev.map(w => w.id === result.id ? { ...w, ...result } : w));
+        setMyPosts(prev => prev.map(p => p.id === result.id ? { ...p, ...result } : p));
+        setShowWinSubmit(false); setEditingWin(null); setWinText('');
+      } else {
+        setWinSuccess(true);
+        setWinText(''); setWinAnon(false);
+        fetchWins(); fetchMyPosts();
+      }
     } catch { setWinError('Something went wrong. Please try again.'); }
     finally { setWinSubmitting(false); }
   }
@@ -1022,9 +1042,17 @@ export default function LibraryScreen({ navigation }) {
                               ? <View style={[styles.statusPill, { alignSelf: 'flex-start' }]}><Ionicons name="time-outline" size={11} color="#D97706" /><Text style={[styles.statusPillText, { color: '#D97706' }]}>Under Review</Text></View>
                               : <View />
                             }
-                            <TouchableOpacity onPress={() => handleDeletePost(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                              <Ionicons name="trash-outline" size={16} color="#DC2626" />
-                            </TouchableOpacity>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                              <TouchableOpacity onPress={() => {
+                                if (isDua) { setEditingDua(item); setDuaText(item.text); setDuaAnon(item.is_anonymous); setShowDuaSubmit(true); }
+                                else { setEditingWin(item); setWinText(item.text); setWinAnon(item.is_anonymous); setShowWinSubmit(true); }
+                              }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Text style={styles.ownerActionText}>Edit</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity onPress={() => handleDeletePost(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                              </TouchableOpacity>
+                            </View>
                           </View>
                         </View>
                       </View>
@@ -1424,8 +1452,8 @@ export default function LibraryScreen({ navigation }) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Share a Du'a</Text>
-              <TouchableOpacity onPress={() => { setShowDuaSubmit(false); setDuaSuccess(false); setDuaText(''); setDuaError(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.modalTitle}>{editingDua ? "Edit Du'a" : "Share a Du'a"}</Text>
+              <TouchableOpacity onPress={() => { setShowDuaSubmit(false); setDuaSuccess(false); setDuaText(''); setDuaError(''); setEditingDua(null); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={22} color="#374151" />
               </TouchableOpacity>
             </View>
@@ -1461,8 +1489,8 @@ export default function LibraryScreen({ navigation }) {
                 {duaError ? <Text style={styles.submitError}>{duaError}</Text> : null}
                 <TouchableOpacity style={[styles.submitBtn, duaSubmitting && { opacity: 0.7 }]} onPress={handleSubmitDua} disabled={duaSubmitting} activeOpacity={0.85}>
                   {duaSubmitting
-                    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><ActivityIndicator color="#FFFFFF" size="small" /><Text style={styles.submitBtnText}>Sharing...</Text></View>
-                    : <Text style={styles.submitBtnText}>Share Du'a</Text>
+                    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><ActivityIndicator color="#FFFFFF" size="small" /><Text style={styles.submitBtnText}>{editingDua ? 'Saving...' : 'Sharing...'}</Text></View>
+                    : <Text style={styles.submitBtnText}>{editingDua ? 'Save Changes' : "Share Du'a"}</Text>
                   }
                 </TouchableOpacity>
                 <View style={{ height: 32 }} />
@@ -1477,8 +1505,8 @@ export default function LibraryScreen({ navigation }) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Share a Win</Text>
-              <TouchableOpacity onPress={() => { setShowWinSubmit(false); setWinSuccess(false); setWinText(''); setWinError(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.modalTitle}>{editingWin ? 'Edit Win' : 'Share a Win'}</Text>
+              <TouchableOpacity onPress={() => { setShowWinSubmit(false); setWinSuccess(false); setWinText(''); setWinError(''); setEditingWin(null); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={22} color="#374151" />
               </TouchableOpacity>
             </View>
@@ -1514,8 +1542,8 @@ export default function LibraryScreen({ navigation }) {
                 {winError ? <Text style={styles.submitError}>{winError}</Text> : null}
                 <TouchableOpacity style={[styles.submitBtn, winSubmitting && { opacity: 0.7 }]} onPress={handleSubmitWin} disabled={winSubmitting} activeOpacity={0.85}>
                   {winSubmitting
-                    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><ActivityIndicator color="#FFFFFF" size="small" /><Text style={styles.submitBtnText}>Submitting...</Text></View>
-                    : <Text style={styles.submitBtnText}>Share Win</Text>
+                    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><ActivityIndicator color="#FFFFFF" size="small" /><Text style={styles.submitBtnText}>{editingWin ? 'Saving...' : 'Submitting...'}</Text></View>
+                    : <Text style={styles.submitBtnText}>{editingWin ? 'Save Changes' : 'Share Win'}</Text>
                   }
                 </TouchableOpacity>
                 <Text style={styles.submitNote}>Wins are reviewed by AI before going live.</Text>

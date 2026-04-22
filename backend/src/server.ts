@@ -1016,6 +1016,27 @@ app.delete('/community/resources/:id', requireAuth, async (req: AuthRequest, res
   }
 });
 
+// PATCH /community/duas/:id
+app.patch('/community/duas/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: 'text is required.' });
+    if (text.trim().length > 280) return res.status(400).json({ error: 'Du\'a must be 280 characters or less.' });
+    const { data: existing, error: fetchErr } = await supabase
+      .from('duas').select('user_id').eq('id', req.params.id).single();
+    if (fetchErr || !existing) return res.status(404).json({ error: 'Not found.' });
+    if (existing.user_id !== req.userId!) return res.status(403).json({ error: 'Not authorised.' });
+    const moderation = await moderateResource('', text.trim(), '', 'dua');
+    const { data, error } = await supabase
+      .from('duas').update({ text: text.trim(), is_approved: moderation.approved && !moderation.pending })
+      .eq('id', req.params.id).select().single();
+    if (error) throw error;
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update du\'a.' });
+  }
+});
+
 // DELETE /community/duas/:id
 app.delete('/community/duas/:id', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
@@ -1028,6 +1049,27 @@ app.delete('/community/duas/:id', requireAuth, async (req: AuthRequest, res: Res
     return res.json({ deleted: true });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to delete du\'a.' });
+  }
+});
+
+// PATCH /community/wins/:id
+app.patch('/community/wins/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: 'text is required.' });
+    if (text.trim().length > 280) return res.status(400).json({ error: 'Win must be 280 characters or less.' });
+    const { data: existing, error: fetchErr } = await supabase
+      .from('parenting_wins').select('user_id').eq('id', req.params.id).single();
+    if (fetchErr || !existing) return res.status(404).json({ error: 'Not found.' });
+    if (existing.user_id !== req.userId!) return res.status(403).json({ error: 'Not authorised.' });
+    const moderation = await moderateResource('', text.trim(), '', 'parenting_win');
+    const { data, error } = await supabase
+      .from('parenting_wins').update({ text: text.trim(), is_approved: moderation.approved && !moderation.pending })
+      .eq('id', req.params.id).select().single();
+    if (error) throw error;
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update win.' });
   }
 });
 
