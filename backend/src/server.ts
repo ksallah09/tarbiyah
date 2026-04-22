@@ -570,8 +570,12 @@ async function fetchYouTubeMeta(url: string): Promise<{ title: string; descripti
   clearTimeout(timeout);
   const data = await res.json() as { title?: string; thumbnail_url?: string; author_name?: string };
   const rawTitle = data.title ?? '';
-  // Strip trailing " - YouTube" suffix that oEmbed sometimes returns
-  const title = rawTitle.replace(/\s*-\s*YouTube\s*$/i, '').trim();
+  // Strip trailing " - YouTube" suffix and emoji/special Unicode characters
+  const title = rawTitle
+    .replace(/\s*-\s*YouTube\s*$/i, '')
+    .replace(/[\u{1F000}-\u{1FFFF}|\u{2600}-\u{27FF}|\u{FE00}-\u{FEFF}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   return {
     title,
     description: title ? `YouTube video by ${data.author_name ?? 'unknown channel'}` : '',
