@@ -1554,6 +1554,7 @@ export default function LibraryScreen({ navigation }) {
                   onChangeText={setWinTitle}
                   maxLength={60}
                 />
+                <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: -14, marginBottom: 16, textAlign: 'right' }}>{winTitle.length}/60</Text>
 
                 <Text style={styles.fieldLabel}>What happened?</Text>
                 <TextInput
