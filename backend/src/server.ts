@@ -1048,13 +1048,16 @@ app.post('/community/duas', requireAuth, async (req: AuthRequest, res: Response)
     if (!text?.trim()) return res.status(400).json({ error: 'text is required.' });
     if (text.trim().length > 280) return res.status(400).json({ error: 'Du\'a must be 280 characters or less.' });
 
+    const moderation = await moderateResource('', text.trim(), '', 'dua');
+    const is_approved = moderation.approved && !moderation.pending;
+
     const { data, error } = await supabase
       .from('duas')
-      .insert({ user_id: req.userId!, text: text.trim(), is_anonymous: !!is_anonymous, display_name: display_name ?? null, is_approved: true })
+      .insert({ user_id: req.userId!, text: text.trim(), is_anonymous: !!is_anonymous, display_name: display_name ?? null, is_approved })
       .select()
       .single();
     if (error) throw error;
-    return res.status(201).json(data);
+    return res.status(201).json({ ...data, pending: moderation.pending });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to submit du\'a.' });
   }
