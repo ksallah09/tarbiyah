@@ -1028,7 +1028,7 @@ app.patch('/community/duas/:id', requireAuth, async (req: AuthRequest, res: Resp
     if (existing.user_id !== req.userId!) return res.status(403).json({ error: 'Not authorised.' });
     const moderation = await moderateResource('', text.trim(), '', 'dua');
     const { data, error } = await supabase
-      .from('duas').update({ text: text.trim(), is_approved: moderation.approved && !moderation.pending })
+      .from('duas').update({ title: req.body.title?.trim() || null, text: text.trim(), is_approved: moderation.approved && !moderation.pending })
       .eq('id', req.params.id).select().single();
     if (error) throw error;
     return res.json(data);
@@ -1116,7 +1116,7 @@ app.get('/community/duas', async (req: Request, res: Response) => {
 // POST /community/duas
 app.post('/community/duas', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { text, is_anonymous, display_name } = req.body;
+    const { title, text, is_anonymous, display_name } = req.body;
     if (!text?.trim()) return res.status(400).json({ error: 'text is required.' });
     if (text.trim().length > 280) return res.status(400).json({ error: 'Du\'a must be 280 characters or less.' });
 
@@ -1125,7 +1125,7 @@ app.post('/community/duas', requireAuth, async (req: AuthRequest, res: Response)
 
     const { data, error } = await supabase
       .from('duas')
-      .insert({ user_id: req.userId!, text: text.trim(), is_anonymous: !!is_anonymous, display_name: display_name ?? null, is_approved })
+      .insert({ user_id: req.userId!, title: title?.trim() || null, text: text.trim(), is_anonymous: !!is_anonymous, display_name: display_name ?? null, is_approved })
       .select()
       .single();
     if (error) throw error;

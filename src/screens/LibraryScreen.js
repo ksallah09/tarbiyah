@@ -221,6 +221,7 @@ export default function LibraryScreen({ navigation }) {
   const [myDuaReactions, setMyDuaReactions] = useState([]); // [{dua_id, type}]
   const [showDuaSubmit, setShowDuaSubmit]   = useState(false);
   const [editingDua, setEditingDua]         = useState(null);
+  const [duaTitle, setDuaTitle]             = useState('');
   const [duaText, setDuaText]               = useState('');
   const [duaAnon, setDuaAnon]               = useState(false);
   const [duaSubmitting, setDuaSubmitting]   = useState(false);
@@ -471,14 +472,14 @@ export default function LibraryScreen({ navigation }) {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: duaText.trim(), is_anonymous: duaAnon, display_name: duaAnon ? null : (profileName || null) }),
+        body: JSON.stringify({ title: duaTitle.trim() || null, text: duaText.trim(), is_anonymous: duaAnon, display_name: duaAnon ? null : (profileName || null) }),
       });
       if (!res.ok) { const e = await res.json(); setDuaError(e.error ?? 'Could not submit.'); return; }
       const result = await res.json();
       if (editingDua) {
         setDuas(prev => prev.map(d => d.id === result.id ? { ...d, ...result } : d));
         setMyPosts(prev => prev.map(p => p.id === result.id ? { ...p, ...result } : p));
-        setShowDuaSubmit(false); setEditingDua(null); setDuaText('');
+        setShowDuaSubmit(false); setEditingDua(null); setDuaTitle(''); setDuaText('');
       } else {
         setDuaSuccess(result.pending ? 'pending' : true);
         setDuaText(''); setDuaAnon(false);
@@ -917,6 +918,7 @@ export default function LibraryScreen({ navigation }) {
                             </View>
                           </View>
                         </View>
+                        {item.title ? <Text style={styles.winTitle}>{item.title}</Text> : null}
                         <Text style={styles.duaText}>{item.text}</Text>
                         <View style={styles.duaActions}>
                           <TouchableOpacity
@@ -1047,7 +1049,7 @@ export default function LibraryScreen({ navigation }) {
                             <Text style={{ fontSize: 12, fontWeight: '700', color: isDua ? '#1B3D2F' : '#D4871A', textTransform: 'uppercase', letterSpacing: 0.5 }}>{isDua ? "Du'a" : 'Win'}</Text>
                             <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
                           </View>
-                          {!isDua && item.title ? <Text style={styles.winTitle}>{item.title}</Text> : null}
+                          {item.title ? <Text style={styles.winTitle}>{item.title}</Text> : null}
                           <Text style={styles.duaText}>{item.text}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
                             {!item.is_approved
@@ -1056,7 +1058,7 @@ export default function LibraryScreen({ navigation }) {
                             }
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                               <TouchableOpacity onPress={() => {
-                                if (isDua) { setEditingDua(item); setDuaText(item.text); setDuaAnon(item.is_anonymous); setShowDuaSubmit(true); }
+                                if (isDua) { setEditingDua(item); setDuaTitle(item.title ?? ''); setDuaText(item.text); setDuaAnon(item.is_anonymous); setShowDuaSubmit(true); }
                                 else { setEditingWin(item); setWinTitle(item.title ?? ''); setWinText(item.text); setWinAnon(item.is_anonymous); setShowWinSubmit(true); }
                               }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                 <Text style={styles.ownerActionText}>Edit</Text>
@@ -1465,7 +1467,7 @@ export default function LibraryScreen({ navigation }) {
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingDua ? "Edit Du'a" : "Share a Du'a"}</Text>
-              <TouchableOpacity onPress={() => { setShowDuaSubmit(false); setDuaSuccess(false); setDuaText(''); setDuaError(''); setEditingDua(null); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity onPress={() => { setShowDuaSubmit(false); setDuaSuccess(false); setDuaTitle(''); setDuaText(''); setDuaError(''); setEditingDua(null); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={22} color="#374151" />
               </TouchableOpacity>
             </View>
@@ -1486,6 +1488,16 @@ export default function LibraryScreen({ navigation }) {
               </View>
             ) : (
               <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <Text style={styles.fieldLabel}>Title <Text style={styles.fieldLabelOptional}>(optional)</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g. For my children's guidance"
+                  value={duaTitle}
+                  onChangeText={setDuaTitle}
+                  maxLength={60}
+                />
+                <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: -14, marginBottom: 16, textAlign: 'right' }}>{duaTitle.length}/60</Text>
+
                 <Text style={styles.fieldLabel}>Your Du'a</Text>
                 <TextInput
                   style={[styles.textInput, styles.textArea, { minHeight: 120 }]}
