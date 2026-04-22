@@ -532,8 +532,15 @@ export default function LibraryScreen({ navigation }) {
     setShowSubmit(true);
   }
 
-  async function handleDelete(resource) {
-    Alert.alert('Delete Resource', 'Are you sure you want to remove this resource?', [
+  async function handleDeletePost(item) {
+    const kindLabel = item._kind === 'dua' ? "Du'a" : item._kind === 'win' ? 'Win' : 'Resource';
+    const endpoint = item._kind === 'dua'
+      ? `${API_URL}/community/duas/${item.id}`
+      : item._kind === 'win'
+      ? `${API_URL}/community/wins/${item.id}`
+      : `${API_URL}/community/resources/${item.id}`;
+
+    Alert.alert(`Delete ${kindLabel}`, `Are you sure you want to delete this ${kindLabel.toLowerCase()}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
@@ -541,12 +548,11 @@ export default function LibraryScreen({ navigation }) {
           const { data: session } = await supabase.auth.getSession();
           const token = session?.session?.access_token;
           try {
-            await fetch(`${API_URL}/community/resources/${resource.id}`, {
-              method: 'DELETE',
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            setResources(prev => prev.filter(r => r.id !== resource.id));
-            setMyPosts(prev => prev.filter(r => r.id !== resource.id));
+            await fetch(endpoint, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+            setMyPosts(prev => prev.filter(p => p.id !== item.id));
+            if (!item._kind || item._kind === 'resource') setResources(prev => prev.filter(r => r.id !== item.id));
+            if (item._kind === 'dua') setDuas(prev => prev.filter(d => d.id !== item.id));
+            if (item._kind === 'win') setWins(prev => prev.filter(w => w.id !== item.id));
           } catch {
             Alert.alert('Error', 'Could not delete. Please try again.');
           }
@@ -1011,7 +1017,15 @@ export default function LibraryScreen({ navigation }) {
                             <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
                           </View>
                           <Text style={styles.duaText}>{item.text}</Text>
-                          {!item.is_approved && <View style={[styles.statusPill, { alignSelf: 'flex-start', marginTop: 8 }]}><Ionicons name="time-outline" size={11} color="#D97706" /><Text style={[styles.statusPillText, { color: '#D97706' }]}>Under Review</Text></View>}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                            {!item.is_approved
+                              ? <View style={[styles.statusPill, { alignSelf: 'flex-start' }]}><Ionicons name="time-outline" size={11} color="#D97706" /><Text style={[styles.statusPillText, { color: '#D97706' }]}>Under Review</Text></View>
+                              : <View />
+                            }
+                            <TouchableOpacity onPress={() => handleDeletePost(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       </View>
                     );
@@ -1166,7 +1180,7 @@ export default function LibraryScreen({ navigation }) {
                             <TouchableOpacity onPress={() => openEdit(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                               <Text style={styles.ownerActionText}>Edit</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <TouchableOpacity onPress={() => handleDeletePost(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                               <Ionicons name="trash-outline" size={16} color="#DC2626" />
                             </TouchableOpacity>
                           </View>

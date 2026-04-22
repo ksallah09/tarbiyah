@@ -1016,6 +1016,36 @@ app.delete('/community/resources/:id', requireAuth, async (req: AuthRequest, res
   }
 });
 
+// DELETE /community/duas/:id
+app.delete('/community/duas/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('duas').select('user_id').eq('id', req.params.id).single();
+    if (fetchErr || !existing) return res.status(404).json({ error: 'Not found.' });
+    if (existing.user_id !== req.userId!) return res.status(403).json({ error: 'Not authorised.' });
+    const { error } = await supabase.from('duas').delete().eq('id', req.params.id);
+    if (error) throw error;
+    return res.json({ deleted: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to delete du\'a.' });
+  }
+});
+
+// DELETE /community/wins/:id
+app.delete('/community/wins/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('parenting_wins').select('user_id').eq('id', req.params.id).single();
+    if (fetchErr || !existing) return res.status(404).json({ error: 'Not found.' });
+    if (existing.user_id !== req.userId!) return res.status(403).json({ error: 'Not authorised.' });
+    const { error } = await supabase.from('parenting_wins').delete().eq('id', req.params.id);
+    if (error) throw error;
+    return res.json({ deleted: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to delete win.' });
+  }
+});
+
 // ─── Du'a Board ───────────────────────────────────────────────────────────────
 
 // GET /community/duas
