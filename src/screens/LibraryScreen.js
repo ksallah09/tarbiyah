@@ -854,7 +854,7 @@ export default function LibraryScreen({ navigation }) {
               <View style={styles.empty}><ActivityIndicator size="large" color="#1B3D2F" /></View>
             ) : duas.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={{ fontSize: 36 }}>🤲</Text>
+                <Ionicons name="hand-right-outline" size={48} color="#D1D5DB" />
                 <Text style={styles.emptyTitle}>Be the first to share a du'a</Text>
                 <Text style={styles.emptyBody}>Make du'a for other families and let them know they are not alone.</Text>
               </View>
@@ -874,7 +874,7 @@ export default function LibraryScreen({ navigation }) {
                       <View style={styles.duaBody}>
                         <View style={styles.duaTop}>
                           <View style={styles.duaAuthorRow}>
-                            <View style={styles.duaAvatar}><Text style={styles.duaAvatarText}>🤲</Text></View>
+                            <View style={styles.duaAvatar}><Ionicons name="hand-right-outline" size={18} color="#1B3D2F" /></View>
                             <View>
                               <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
                               <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
@@ -888,7 +888,7 @@ export default function LibraryScreen({ navigation }) {
                             onPress={() => handleDuaReact(item, 'made_dua')}
                             activeOpacity={0.75}
                           >
-                            <Text style={styles.duaReactIcon}>🤲</Text>
+                            <Ionicons name="hand-right-outline" size={15} color={madeDua ? '#FFFFFF' : '#1B3D2F'} />
                             <Text style={[styles.duaReactText, madeDua && styles.duaReactTextActive]}>
                               {item.made_dua_count > 0 ? `${item.made_dua_count} Made Du'a` : "Made Du'a"}
                             </Text>
@@ -898,7 +898,7 @@ export default function LibraryScreen({ navigation }) {
                             onPress={() => handleDuaReact(item, 'feel_you')}
                             activeOpacity={0.75}
                           >
-                            <Text style={styles.duaReactIcon}>💚</Text>
+                            <Ionicons name="heart-circle-outline" size={15} color={feelYou ? '#FFFFFF' : '#16A34A'} />
                             <Text style={[styles.duaReactText, feelYou && styles.duaReactTextActive]}>
                               {item.feel_you_count > 0 ? `${item.feel_you_count} I Feel You` : 'I Feel You'}
                             </Text>
@@ -922,7 +922,7 @@ export default function LibraryScreen({ navigation }) {
               <View style={styles.empty}><ActivityIndicator size="large" color="#1B3D2F" /></View>
             ) : wins.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={{ fontSize: 36 }}>🏆</Text>
+                <Ionicons name="trophy-outline" size={48} color="#D1D5DB" />
                 <Text style={styles.emptyTitle}>Share your first win</Text>
                 <Text style={styles.emptyBody}>Celebrate the small and big moments of Islamic parenting with the community.</Text>
               </View>
@@ -941,7 +941,7 @@ export default function LibraryScreen({ navigation }) {
                       <View style={styles.duaBody}>
                         <View style={styles.duaTop}>
                           <View style={styles.duaAuthorRow}>
-                            <View style={[styles.duaAvatar, { backgroundColor: '#FEF9EE' }]}><Text style={styles.duaAvatarText}>🏆</Text></View>
+                            <View style={[styles.duaAvatar, { backgroundColor: '#FEF9EE' }]}><Ionicons name="trophy-outline" size={18} color="#D4871A" /></View>
                             <View>
                               <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
                               <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
@@ -1006,7 +1006,7 @@ export default function LibraryScreen({ navigation }) {
                         <View style={isDua ? styles.duaCardAccent : styles.winCardAccent} />
                         <View style={[styles.duaBody, { paddingVertical: 12 }]}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                            <Text style={{ fontSize: 16 }}>{isDua ? '🤲' : '🏆'}</Text>
+                            <Ionicons name={isDua ? 'hand-right-outline' : 'trophy-outline'} size={16} color={isDua ? '#1B3D2F' : '#D4871A'} />
                             <Text style={{ fontSize: 12, fontWeight: '700', color: isDua ? '#1B3D2F' : '#D4871A', textTransform: 'uppercase', letterSpacing: 0.5 }}>{isDua ? "Du'a" : 'Win'}</Text>
                             <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
                           </View>
@@ -1417,7 +1417,7 @@ export default function LibraryScreen({ navigation }) {
             </View>
             {duaSuccess ? (
               <View style={styles.successState}>
-                <View style={styles.successIcon}><Text style={{ fontSize: 40 }}>🤲</Text></View>
+                <View style={styles.successIcon}><Ionicons name="hand-right-outline" size={48} color="#2E7D62" /></View>
                 <Text style={styles.successTitle}>JazakAllah Khayran!</Text>
                 <Text style={styles.successBody}>Your du'a has been shared. May Allah answer all our du'as.</Text>
                 <TouchableOpacity style={styles.successBtn} onPress={() => { setShowDuaSubmit(false); setDuaSuccess(false); }}>
@@ -1470,7 +1470,7 @@ export default function LibraryScreen({ navigation }) {
             </View>
             {winSuccess ? (
               <View style={styles.successState}>
-                <View style={[styles.successIcon, { backgroundColor: '#FEF9EE' }]}><Text style={{ fontSize: 40 }}>🏆</Text></View>
+                <View style={[styles.successIcon, { backgroundColor: '#FEF9EE' }]}><Ionicons name="trophy-outline" size={48} color="#D4871A" /></View>
                 <Text style={styles.successTitle}>Masha'Allah!</Text>
                 <Text style={styles.successBody}>Your win is under review and will appear shortly. Keep going!</Text>
                 <TouchableOpacity style={styles.successBtn} onPress={() => { setShowWinSubmit(false); setWinSuccess(false); }}>
