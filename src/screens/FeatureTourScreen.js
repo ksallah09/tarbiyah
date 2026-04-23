@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   FlatList, Dimensions, Animated,
@@ -9,6 +9,19 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../App';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const TAB_WIDTH = SCREEN_WIDTH / 5;
+const MOCK_TAB_HEIGHT = 60;
+
+const MOCK_TABS = [
+  { name: 'Home',      icon: 'home-outline',        filled: 'home' },
+  { name: 'Progress',  icon: 'trending-up-outline',  filled: 'trending-up' },
+  { name: 'Learn',     icon: 'layers-outline',        filled: 'layers' },
+  { name: 'Community', icon: 'globe-outline',          filled: 'globe' },
+  { name: 'Profile',   icon: 'person-outline',        filled: 'person' },
+];
+
+// Which tab index each slide highlights (null = none)
+const SLIDE_TAB = [null, 0, 2, 3, 1];
 
 const SLIDES = [
   {
@@ -37,16 +50,20 @@ const SLIDES = [
     icon: 'people-outline',
     iconColor: '#D4A843',
     title: 'Parents Helping Parents',
-    body: "Discover resources shared by Muslim parents around the world. Save your favorites and share what's helped your family.",
+    body: "Share duas, celebrate parenting wins, and discover resources from Muslim parents around the world. A space to support and be supported.",
   },
   {
     key: 'goals',
     icon: 'trending-up-outline',
     iconColor: '#D4A843',
     title: 'Track Your Goals',
-    body: 'Set Islamic parenting goals, track your progress, and build consistent habits that strengthen your home.',
+    body: 'Set family goals, track your progress, and build consistent habits that strengthen your home.',
   },
 ];
+
+function tabCenter(tabIndex) {
+  return tabIndex * TAB_WIDTH + TAB_WIDTH / 2;
+}
 
 export default function FeatureTourScreen() {
   const insets = useSafeAreaInsets();
@@ -54,6 +71,41 @@ export default function FeatureTourScreen() {
   const flatListRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
+
+  // Animated arrow position (horizontal center)
+  const arrowCenter = useRef(new Animated.Value(tabCenter(0))).current;
+  const arrowOpacity = useRef(new Animated.Value(0)).current;
+  const bounceY = useRef(new Animated.Value(0)).current;
+  const bounceLoop = useRef(null);
+
+  useEffect(() => {
+    // Start bounce loop
+    bounceLoop.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceY, { toValue: -8, duration: 400, useNativeDriver: true }),
+        Animated.timing(bounceY, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ])
+    );
+    bounceLoop.current.start();
+    return () => bounceLoop.current?.stop();
+  }, []);
+
+  useEffect(() => {
+    const tabIdx = SLIDE_TAB[currentIndex];
+    if (tabIdx === null) {
+      Animated.timing(arrowOpacity, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+    } else {
+      Animated.parallel([
+        Animated.spring(arrowCenter, {
+          toValue: tabCenter(tabIdx),
+          tension: 80,
+          friction: 10,
+          useNativeDriver: false,
+        }),
+        Animated.timing(arrowOpacity, { toValue: 1, duration: 200, useNativeDriver: false }),
+      ]).start();
+    }
+  }, [currentIndex]);
 
   function goNext() {
     if (currentIndex < SLIDES.length - 1) {
@@ -64,9 +116,10 @@ export default function FeatureTourScreen() {
   }
 
   const isLast = currentIndex === SLIDES.length - 1;
+  const mockTabBarHeight = MOCK_TAB_HEIGHT + insets.bottom;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar style="light" />
 
       {/* Skip */}
@@ -85,6 +138,7 @@ export default function FeatureTourScreen() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
+        style={{ flex: 1 }}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
           { useNativeDriver: false }
@@ -94,12 +148,13 @@ export default function FeatureTourScreen() {
           setCurrentIndex(index);
         }}
         renderItem={({ item }) => (
-          <View style={styles.slide}>
-            {/* Glow rings */}
-            <View style={styles.glowOuter} />
-            <View style={styles.glowMid} />
-            <View style={styles.glowInner}>
-              <Ionicons name={item.icon} size={52} color={item.iconColor} />
+          <View style={[styles.slide, { paddingBottom: mockTabBarHeight + 120 }]}>
+            <View style={styles.glowStack}>
+              <View style={styles.glowOuter} />
+              <View style={styles.glowMid} />
+              <View style={styles.glowInner}>
+                <Ionicons name={item.icon} size={52} color={item.iconColor} />
+              </View>
             </View>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.body}>{item.body}</Text>
@@ -120,23 +175,60 @@ export default function FeatureTourScreen() {
             outputRange: [6, 20, 6],
             extrapolate: 'clamp',
           });
-          return (
-            <Animated.View key={i} style={[styles.dot, { opacity, width }]} />
-          );
+          return <Animated.View key={i} style={[styles.dot, { opacity, width }]} />;
         })}
       </View>
 
       {/* Next / Get Started */}
-      <TouchableOpacity
-        style={styles.nextBtn}
-        onPress={goNext}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.nextBtnText}>
-          {isLast ? 'Get Started' : 'Next'}
-        </Text>
+      <TouchableOpacity style={styles.nextBtn} onPress={goNext} activeOpacity={0.85}>
+        <Text style={styles.nextBtnText}>{isLast ? 'Get Started' : 'Next'}</Text>
         {!isLast && <Ionicons name="arrow-forward" size={16} color="#1B3D2F" style={{ marginLeft: 6 }} />}
       </TouchableOpacity>
+
+      {/* Animated arrow + mock tab bar */}
+      <View style={[styles.mockTabWrapper, { height: mockTabBarHeight }]}>
+        {/* Bouncing arrow */}
+        {/* Outer: horizontal slide (non-native) */}
+        <Animated.View
+          style={[
+            styles.arrowContainer,
+            {
+              opacity: arrowOpacity,
+              transform: [
+                { translateX: arrowCenter.interpolate({ inputRange: [0, SCREEN_WIDTH], outputRange: [-12, SCREEN_WIDTH - 12] }) },
+              ],
+            },
+          ]}
+        >
+          {/* Inner: vertical bounce (native) */}
+          <Animated.View style={{ transform: [{ translateY: bounceY }] }}>
+            <Ionicons name="chevron-down" size={20} color="#D4A843" />
+          </Animated.View>
+        </Animated.View>
+
+        {/* Separator */}
+        <View style={styles.tabSeparator} />
+
+        {/* Tabs */}
+        <View style={styles.mockTabBar}>
+          {MOCK_TABS.map((tab, i) => {
+            const highlighted = SLIDE_TAB[currentIndex] === i;
+            return (
+              <View key={tab.name} style={styles.mockTabItem}>
+                {highlighted && <View style={styles.tabPill} />}
+                <Ionicons
+                  name={highlighted ? tab.filled : tab.icon}
+                  size={22}
+                  color={highlighted ? '#FFFFFF' : 'rgba(255,255,255,0.3)'}
+                />
+                <Text style={[styles.tabLabel, { color: highlighted ? '#FFFFFF' : 'rgba(255,255,255,0.3)' }]}>
+                  {tab.name}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }
@@ -146,8 +238,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#1B3D2F',
     zIndex: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   skipBtn: {
     position: 'absolute',
@@ -166,21 +256,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 40,
   },
-  glowOuter: {
+  glowStack: {
     width: 200,
     height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  glowOuter: {
+    ...StyleSheet.absoluteFillObject,
     borderRadius: 100,
     backgroundColor: 'rgba(212,168,67,0.06)',
-    position: 'absolute',
-    alignSelf: 'center',
   },
   glowMid: {
+    position: 'absolute',
     width: 150,
     height: 150,
     borderRadius: 75,
     backgroundColor: 'rgba(212,168,67,0.1)',
-    position: 'absolute',
-    alignSelf: 'center',
   },
   glowInner: {
     width: 100,
@@ -189,7 +282,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(212,168,67,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 40,
   },
   title: {
     fontSize: 26,
@@ -209,8 +301,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 48,
-    marginBottom: 24,
+    marginTop: 24,
+    marginBottom: 20,
+    alignSelf: 'center',
   },
   dot: {
     height: 6,
@@ -224,11 +317,52 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     paddingVertical: 16,
     paddingHorizontal: 40,
-    marginBottom: 8,
+    marginBottom: 48,
+    alignSelf: 'center',
   },
   nextBtnText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#1B3D2F',
+  },
+  mockTabWrapper: {
+    width: SCREEN_WIDTH,
+    position: 'relative',
+  },
+  arrowContainer: {
+    position: 'absolute',
+    top: -28,
+    left: 0,
+    width: 24,
+    alignItems: 'center',
+  },
+  tabSeparator: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  mockTabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#1B3D2F',
+    paddingTop: 10,
+    flex: 1,
+  },
+  mockTabItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 3,
+    position: 'relative',
+    paddingTop: 4,
+  },
+  tabPill: {
+    position: 'absolute',
+    top: 0,
+    width: 36,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#6B7C45',
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
   },
 });

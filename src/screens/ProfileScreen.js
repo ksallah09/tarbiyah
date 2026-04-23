@@ -17,9 +17,11 @@ import { useNavigation } from '@react-navigation/native';
 import DarkHeader from '../components/DarkHeader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_FOCUS_AREAS, getFocusAreas, saveFocusAreas } from '../utils/focusAreas';
-import { getCurrentUser } from '../utils/auth';
+import { getCurrentUser, getSession } from '../utils/auth';
 import { saveProfileToSupabase, syncProfileFromSupabase } from '../utils/profile';
 import { useAuth } from '../../App';
+
+const API_URL = 'https://tarbiyah-production.up.railway.app';
 import * as Notifications from 'expo-notifications';
 import { scheduleDailyNotification, cancelDailyNotification, requestNotificationPermission, buildTestNotificationContent } from '../utils/notifications';
 import { loadFamilyGoals, getGoalNotificationContent } from '../utils/familyGoals';
@@ -295,6 +297,7 @@ export default function ProfileScreen() {
   const [notifications,    setNotifications]    = useState(true);
   const [focusAreas,       setFocusAreas]       = useState([]);
   const [profileName,      setProfileName]      = useState('');
+  const [userEmail,        setUserEmail]        = useState('');
   const [reminderTime,     setReminderTime]     = useState('8:00 AM');
   const [language,         setLanguage]         = useState('English');
   const [showTimePicker,     setShowTimePicker]     = useState(false);
@@ -309,6 +312,7 @@ export default function ProfileScreen() {
 
     getCurrentUser().then(user => {
       userIdRef.current = user?.id ?? null;
+      if (user?.email) setUserEmail(user.email);
     });
 
     getFocusAreas().then(setFocusAreas);
@@ -458,6 +462,36 @@ export default function ProfileScreen() {
     );
   }
 
+  // ── Delete account ────────────────────────────────────────
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your data. This cannot be undone.\n\nIf you have an active subscription, please cancel it in your App Store settings before proceeding.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete My Account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const session = await getSession();
+              const token = session?.access_token;
+              if (!token) throw new Error('No session');
+              const res = await fetch(`${API_URL}/auth/account`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (!res.ok) throw new Error('Server error');
+              await authSignOut();
+            } catch {
+              Alert.alert('Error', 'Could not delete your account. Please try again or contact support.');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   // ── Sign out ──────────────────────────────────────────────
   function handleSignOut() {
     Alert.alert(
@@ -492,6 +526,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{profileName}</Text>
+            {userEmail ? <Text style={styles.profileEmail}>{userEmail}</Text> : null}
           </View>
           <TouchableOpacity style={styles.profileEditBtn} onPress={handleEditProfile}>
             <Ionicons name="pencil-outline" size={15} color="#2E7D62" />
@@ -680,6 +715,11 @@ export default function ProfileScreen() {
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
 
+        {/* ── Delete Account ── */}
+        <TouchableOpacity style={styles.deleteAccountBtn} onPress={handleDeleteAccount}>
+          <Text style={styles.deleteAccountText}>Delete Account</Text>
+        </TouchableOpacity>
+
         <Text style={styles.versionLabel}>Tarbiyah v1.0.0</Text>
         </View>{/* end content */}
         </View>{/* end sheet */}
@@ -740,6 +780,7 @@ const styles = StyleSheet.create({
   profileAvatarText: { fontSize: 19, fontWeight: '700', color: '#FFF' },
   profileInfo: { flex: 1 },
   profileName: { fontSize: 17, fontWeight: '700', color: '#1C1C1E', marginBottom: 2 },
+  profileEmail: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
   profileSince: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
   profileEditBtn: {
     width: 34, height: 34, borderRadius: 17,
@@ -816,5 +857,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
   },
   signOutText: { fontSize: 14, fontWeight: '700', color: '#DC2626' },
+  deleteAccountBtn: {
+    paddingVertical: 14, alignItems: 'center', marginBottom: 24,
+  },
+  deleteAccountText: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
   versionLabel: { fontSize: 12, color: '#C4BDB4', textAlign: 'center', fontWeight: '500' },
 });

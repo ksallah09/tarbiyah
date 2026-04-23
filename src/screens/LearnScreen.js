@@ -148,7 +148,7 @@ export default function LearnScreen({ navigation, route }) {
               >
                 <LinearGradient
                   colors={['#2E5E45', '#1B3D2F']}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                   style={styles.generateBtnInner}
                 >
                   <View style={styles.generateBtnIcon}>

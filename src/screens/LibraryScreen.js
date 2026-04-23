@@ -138,6 +138,9 @@ function ResourceThumb({ uri, accentColor, cardStyle, accentStyle, onHide }) {
 export default function LibraryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('resources');
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
+  const swipeHintX = useRef(new Animated.Value(0)).current;
+  const swipeHintOpacity = useRef(new Animated.Value(0)).current;
 
   // ── My Library ──
   const [insights, setInsights]           = useState([]);
@@ -212,6 +215,25 @@ export default function LibraryScreen({ navigation }) {
     AsyncStorage.getItem('tarbiyah_profile')
       .then(raw => { if (raw) { const p = JSON.parse(raw); setProfileName(p.name ?? ''); } })
       .catch(() => {});
+
+    AsyncStorage.getItem('tarbiyah_community_hint_seen').then(seen => {
+      if (seen) return;
+      setShowSwipeHint(true);
+      AsyncStorage.setItem('tarbiyah_community_hint_seen', '1');
+      // Fade in, bounce left-right 3×, fade out
+      Animated.sequence([
+        Animated.timing(swipeHintOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(swipeHintX, { toValue: 10, duration: 300, useNativeDriver: true }),
+            Animated.timing(swipeHintX, { toValue: -10, duration: 300, useNativeDriver: true }),
+            Animated.timing(swipeHintX, { toValue: 0, duration: 300, useNativeDriver: true }),
+          ]),
+          { iterations: 3 }
+        ),
+        Animated.timing(swipeHintOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start(() => setShowSwipeHint(false));
+    });
   }, []);
 
   // ── Du'a Board ──
@@ -734,11 +756,30 @@ export default function LibraryScreen({ navigation }) {
             onPress={() => setActiveTab(tab.key)}
             activeOpacity={0.75}
           >
-            <Ionicons name={tab.icon} size={14} color={activeTab === tab.key ? '#FFFFFF' : 'rgba(255,255,255,0.55)'} />
+            <Ionicons name={tab.icon} size={14} color={activeTab === tab.key ? '#1B3D2F' : 'rgba(255,255,255,0.55)'} />
             <Text style={[styles.tabBarBtnText, activeTab === tab.key && styles.tabBarBtnTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* ── Tab dots ── */}
+      <View style={styles.tabDotsRow}>
+        {['resources', 'dua', 'wins', 'library', 'myposts'].map(key => (
+          <View
+            key={key}
+            style={[styles.tabDot, activeTab === key && styles.tabDotActive]}
+          />
+        ))}
+      </View>
+
+      {/* ── Swipe hint (first visit only) ── */}
+      {showSwipeHint && (
+        <Animated.View style={[styles.swipeHint, { opacity: swipeHintOpacity, transform: [{ translateX: swipeHintX }] }]}>
+          <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.7)" />
+          <Text style={styles.swipeHintText}>Swipe for more</Text>
+          <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.7)" />
+        </Animated.View>
+      )}
 
       <View style={styles.sheet}>
         {activeTab === 'library' ? (
@@ -837,7 +878,7 @@ export default function LibraryScreen({ navigation }) {
                             onPress={() => { if (item.url) Linking.openURL(item.url); }}
                             activeOpacity={0.75}
                           >
-                            <Ionicons name="open-outline" size={15} color="#1B3D2F" />
+                            <Ionicons name="open-outline" size={15} color="#FFFFFF" />
                             <Text style={styles.openBtnText}>Open</Text>
                           </TouchableOpacity>
                         </View>
@@ -1121,7 +1162,7 @@ export default function LibraryScreen({ navigation }) {
                         onPress={() => { if (item.url) Linking.openURL(item.url); }}
                         activeOpacity={0.75}
                       >
-                        <Ionicons name="open-outline" size={15} color="#1B3D2F" />
+                        <Ionicons name="open-outline" size={15} color="#FFFFFF" />
                         <Text style={styles.openBtnText}>Open</Text>
                       </TouchableOpacity>
                       <View style={styles.recommendCount}>
@@ -1261,7 +1302,7 @@ export default function LibraryScreen({ navigation }) {
                           onPress={() => { if (item.url) Linking.openURL(item.url); }}
                           activeOpacity={0.75}
                         >
-                          <Ionicons name="open-outline" size={15} color="#1B3D2F" />
+                          <Ionicons name="open-outline" size={15} color="#FFFFFF" />
                           <Text style={styles.openBtnText}>Open</Text>
                         </TouchableOpacity>
                       </View>
@@ -1671,9 +1712,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
-  tabBarBtnActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  tabBarBtnActive: { backgroundColor: '#D4A843' },
   tabBarBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
-  tabBarBtnTextActive: { color: '#FFFFFF' },
+  tabBarBtnTextActive: { color: '#1B3D2F' },
+  tabDotsRow: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 5, paddingBottom: 8,
+  },
+  tabDot: {
+    width: 5, height: 5, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  tabDotActive: {
+    width: 16, backgroundColor: '#D4A843',
+  },
+  swipeHint: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 4, paddingBottom: 8,
+  },
+  swipeHintText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.7)', letterSpacing: 0.5 },
 
   // ── Du'a / Win cards ──
   duaCard: {
@@ -1830,10 +1887,10 @@ const styles = StyleSheet.create({
   saveBtnText: { fontSize: 13, fontWeight: '600', color: '#1B3D2F' },
   openBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
-    borderWidth: 1, borderColor: 'rgba(27,61,47,0.2)',
+    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 100,
+    backgroundColor: '#1B3D2F',
   },
-  openBtnText: { fontSize: 13, fontWeight: '600', color: '#1B3D2F' },
+  openBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 
   // ── FAB ──
   fab: {

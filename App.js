@@ -140,7 +140,7 @@ const RootStack  = createNativeStackNavigator();
 
 const TAB_CONFIG = {
   Home:     { filled: 'home',        outline: 'home-outline' },
-  Community: { filled: 'compass',      outline: 'compass-outline' },
+  Community: { filled: 'globe',         outline: 'globe-outline' },
   Progress: { filled: 'trending-up', outline: 'trending-up-outline' },
   Learn:    { filled: 'layers',      outline: 'layers-outline' },
   Profile:  { filled: 'person',      outline: 'person-outline' },

@@ -39,6 +39,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { topic, isNew, module: savedModule, voice: preselectedVoice } = route.params;
 
+  const [showSources, setShowSources]     = useState(false);
   const [selectedDhikr, setSelectedDhikr] = useState(null);
   const [generating, setGenerating]       = useState(false);
   const [error, setError]                 = useState(null);
@@ -417,7 +418,82 @@ export default function ModuleDetailScreen({ route, navigation }) {
                     {completedCount}/{module.totalLessons} lessons complete
                   </Text>
                 </View>
+
+                {/* Sources button */}
+                <TouchableOpacity style={styles.sourcesBtn} onPress={() => setShowSources(true)} activeOpacity={0.75}>
+                  <Ionicons name="library-outline" size={13} color="rgba(255,255,255,0.6)" />
+                  <Text style={styles.sourcesBtnText}>Module Sources</Text>
+                  <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.4)" />
+                </TouchableOpacity>
               </LinearGradient>
+
+              {/* ── Sources modal ── */}
+              <Modal visible={showSources} transparent animationType="slide" onRequestClose={() => setShowSources(false)}>
+                <TouchableOpacity style={srcStyles.overlay} activeOpacity={1} onPress={() => setShowSources(false)} />
+                <View style={srcStyles.sheet}>
+                  <View style={srcStyles.handle} />
+                  <Text style={srcStyles.title}>Module Sources</Text>
+                  <ScrollView showsVerticalScrollIndicator={false} style={srcStyles.scroll}>
+                  <Text style={srcStyles.subtitle}>
+                    This personalized module draws from the teachings of the following trusted Islamic and research sources. We have carefully curated these sources so that only credible, vetted knowledge shapes the guidance you receive.
+                  </Text>
+                  <View style={srcStyles.scrollHint}>
+                    <Ionicons name="chevron-down" size={12} color="#9CA3AF" />
+                    <Text style={srcStyles.scrollHintText}>Scroll to see all sources</Text>
+                    <Ionicons name="chevron-down" size={12} color="#9CA3AF" />
+                  </View>
+
+                  <Text style={srcStyles.sectionLabel}>ISLAMIC GUIDANCE</Text>
+                  {[
+                    { name: 'Sh. Ibrahim Hindy',   role: 'Keys to Prophetic Parenting series' },
+                    { name: 'Dr. Yasir Qadhi',     role: 'Parenting lectures & khutbahs' },
+                    { name: 'Yasmin Mogahed',      role: 'Family & spiritual wellbeing' },
+                    { name: 'Dr. Haifaa Younis',   role: 'Raising confident Muslim children' },
+                    { name: 'Yaqeen Institute',    role: 'Research-based Islamic parenting articles' },
+                    { name: 'Dr. Rania Awaad',     role: 'Muslim mental health & family wellbeing' },
+                    { name: 'Mufti Menk',          role: 'Parenting responsibilities in Islam' },
+                    { name: 'Zaynab Ansari',       role: 'Muslim women, family & spiritual development' },
+                    { name: 'Muhsen',              role: 'Inclusive parenting & special needs guidance' },
+                  ].map(s => (
+                    <View key={s.name} style={srcStyles.sourceRow}>
+                      <View style={srcStyles.sourceIcon}>
+                        <Ionicons name="moon" size={13} color="#1B3D2F" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={srcStyles.sourceName}>{s.name}</Text>
+                        <Text style={srcStyles.sourceRole}>{s.role}</Text>
+                      </View>
+                    </View>
+                  ))}
+
+                  <Text style={[srcStyles.sectionLabel, { marginTop: 20 }]}>RESEARCH & DEVELOPMENT</Text>
+                  {[
+                    { name: 'Child Mind Institute', role: 'Child & teen mental health, behaviour & development' },
+                    { name: 'CDC',                  role: 'Centers for Disease Control — child development milestones' },
+                    { name: 'UC Davis Health',      role: 'Clinical parenting & child development guidance' },
+                    { name: 'NIH / NICHD',                       role: 'Research-based parenting across developmental stages' },
+                    { name: 'American Academy of Pediatrics',    role: 'Clinical guidance on child health & development' },
+                  ].map(s => (
+                    <View key={s.name} style={srcStyles.sourceRow}>
+                      <View style={[srcStyles.sourceIcon, { backgroundColor: '#FDF3E3' }]}>
+                        <Ionicons name="flask" size={13} color="#D4871A" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={srcStyles.sourceName}>{s.name}</Text>
+                        <Text style={srcStyles.sourceRole}>{s.role}</Text>
+                      </View>
+                    </View>
+                  ))}
+
+                  <View style={srcStyles.disclaimer}>
+                    <Ionicons name="information-circle" size={17} color="#065F46" />
+                    <Text style={srcStyles.disclaimerText}>
+                      Any benefit in this guidance is from Allah alone. Any error, limitation, or shortcoming is from the AI — not from the scholars and sources above, whose knowledge and intention far exceed what any technology can convey. The sources listed are research references only and do not constitute an endorsement or official affiliation with this app.
+                    </Text>
+                  </View>
+                  </ScrollView>
+                </View>
+              </Modal>
 
               {/* ── Content sheet ── */}
               <View style={styles.sheet}>
@@ -426,7 +502,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
                   {/* ── About This Module ── */}
                   {(!!module.issueSummary || !!module.parentReframe) && (
                     <View style={[styles.summarySection, { marginTop: 4 }]}>
-                      <Text style={styles.summarySectionTitle}>ABOUT THIS MODULE</Text>
+                      <Text style={styles.summarySectionTitle}>THE SITUATION</Text>
                       {!!module.issueSummary && (
                         <Text style={styles.summarySectionBody}>{module.issueSummary}</Text>
                       )}
@@ -488,12 +564,14 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
                           <View style={styles.lessonContent}>
                             <View style={styles.lessonMeta}>
-                              <View style={[styles.lessonTypeChip, { backgroundColor: lesson.completed ? '#F3F4F6' : `${cfg.bg[0]}18` }]}>
-                                <Ionicons name={cfg.icon} size={10} color={lesson.completed ? '#9CA3AF' : cfg.bg[0]} />
-                                <Text style={[styles.lessonTypeText, { color: lesson.completed ? '#9CA3AF' : cfg.bg[0] }]}>
-                                  {cfg.label}
-                                </Text>
-                              </View>
+                              {i === module.lessons.length - 1 && (
+                                <View style={[styles.lessonTypeChip, { backgroundColor: lesson.completed ? '#F3F4F6' : '#1A274418' }]}>
+                                  <Ionicons name="flash" size={10} color={lesson.completed ? '#9CA3AF' : '#2D4278'} />
+                                  <Text style={[styles.lessonTypeText, { color: lesson.completed ? '#9CA3AF' : '#2D4278' }]}>
+                                    Action Plan
+                                  </Text>
+                                </View>
+                              )}
                               <Text style={styles.lessonDuration}>
                                 <Ionicons name="time-outline" size={10} color="#9CA3AF" /> {lesson.duration}
                               </Text>
@@ -1005,6 +1083,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#D4871A',
     borderRadius: 3,
   },
+  sourcesBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 16, alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 100,
+  },
+  sourcesBtnText: {
+    fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)',
+  },
   progressLabel: {
     fontSize: 11,
     color: 'rgba(255,255,255,0.5)',
@@ -1441,5 +1528,50 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     textAlign: 'center',
     marginTop: 8,
+  },
+});
+
+const srcStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
+  sheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 24, paddingBottom: 40, paddingTop: 12,
+    maxHeight: '75%',
+  },
+  scroll: { flexGrow: 0 },
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: '#E0E0E0', alignSelf: 'center', marginBottom: 20,
+  },
+  title: {
+    fontSize: 17, fontWeight: '800', color: '#1B3D2F', marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 13, color: '#6B7280', lineHeight: 20, marginBottom: 20,
+  },
+  sectionLabel: {
+    fontSize: 11, fontWeight: '700', color: '#9CA3AF',
+    letterSpacing: 1.2, marginBottom: 12,
+  },
+  sourceRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12,
+  },
+  sourceIcon: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: '#E8F5EF', alignItems: 'center', justifyContent: 'center',
+  },
+  sourceName: { fontSize: 13, fontWeight: '700', color: '#1C1C1E', marginBottom: 2 },
+  sourceRole: { fontSize: 12, color: '#9CA3AF' },
+  alsoIncludes: { fontSize: 12, color: '#9CA3AF', fontStyle: 'italic', marginTop: 4, marginBottom: 4, lineHeight: 18 },
+  scrollHint: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center', marginBottom: 16 },
+  scrollHintText: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
+  disclaimer: {
+    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+    backgroundColor: '#ECFDF5', borderRadius: 12, padding: 14, marginTop: 20,
+    borderWidth: 1, borderColor: '#6EE7B7',
+  },
+  disclaimerText: {
+    flex: 1, fontSize: 12, color: '#065F46', lineHeight: 19,
   },
 });

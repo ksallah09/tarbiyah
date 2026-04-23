@@ -7,14 +7,15 @@ const CACHE_KEY = 'tarbiyah_goal_completions_v1';
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function weekStartStr() {
   const d = new Date();
   const day = d.getDay(); // 0=Sun, 1=Mon, …
   d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 // ─── Cache helpers ────────────────────────────────────────────────────────────
