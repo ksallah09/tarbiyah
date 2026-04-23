@@ -1389,6 +1389,19 @@ app.post('/modules', requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ─── DELETE /auth/account ─────────────────────────────────────────────────────
+
+app.delete('/auth/account', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { error } = await supabase.auth.admin.deleteUser(req.userId!);
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (err: any) {
+    console.error('Delete account error:', err);
+    return res.status(500).json({ error: 'Failed to delete account.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));
