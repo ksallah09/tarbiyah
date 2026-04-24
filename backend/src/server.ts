@@ -503,10 +503,16 @@ app.post('/guide/now', async (req: Request, res: Response) => {
     const { situation, childAge } = req.body as { situation: string; childAge?: string };
     if (!situation?.trim()) return res.status(400).json({ error: 'situation is required.' });
 
+    const sourceContext = await buildModuleSourceContext(situation.trim());
+
     const systemPrompt = `You are a warm, wise Islamic parenting coach inside the Tarbiyah app.
 You help Muslim parents navigate difficult parenting moments with wisdom from Islamic tradition and modern child development research.
 Always respond with compassionate, practical, actionable guidance grounded in Islamic values.
-Keep responses concise and immediately useful.`;
+Keep responses concise and immediately useful.
+
+You have access to the following curated knowledge base of Islamic and research sources. Ground your guidance in this material where relevant:
+
+${sourceContext}`;
 
     const userPrompt = `A Muslim parent needs immediate guidance for this situation:
 "${situation.trim()}"
@@ -517,6 +523,10 @@ Respond with JSON only (no markdown):
   "islamicGrounding": {
     "text": "A relevant hadith, ayah, or Islamic principle — 1-2 sentences, warm and applicable",
     "source": "e.g. Quran 3:159 or Sahih Bukhari or Ibn Al-Qayyim"
+  },
+  "researchGrounding": {
+    "text": "A relevant child development or psychology insight from the knowledge base — 1-2 sentences, practical",
+    "source": "e.g. Child Mind Institute or NIH/NICHD or CDC"
   },
   "whatToSay": [
     "First thing to say verbatim — calm, empathetic",

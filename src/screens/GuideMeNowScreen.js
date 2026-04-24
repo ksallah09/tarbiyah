@@ -73,34 +73,28 @@ export default function GuideMeNowScreen({ navigation }) {
       <View style={styles.bgTop} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
-        {/* ── Header ── */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => response ? handleReset() : navigation.goBack()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerLabel}>GUIDE ME · RIGHT NOW</Text>
-            <Text style={styles.headerTitle}>
-              {response ? 'Your Guidance' : "What's happening?"}
-            </Text>
-          </View>
-        </View>
-
         {response ? (
           // ── Response view ──
-          <ScrollView
-            contentContainerStyle={[styles.responsePad, { paddingBottom: insets.bottom + 32 }]}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Situation recap */}
-            <View style={styles.situationRecap}>
-              <Ionicons name="alert-circle" size={13} color="rgba(255,255,255,0.45)" />
-              <Text style={styles.situationRecapText}>{finalSituation}</Text>
+          <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+            {/* Green hero */}
+            <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={handleReset}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+              <Text style={styles.heroLabel}>GUIDE ME · RIGHT NOW</Text>
+              <Text style={styles.heroTitle}>Your Guidance</Text>
+              <View style={styles.situationRecap}>
+                <Ionicons name="alert-circle" size={13} color="rgba(255,255,255,0.45)" />
+                <Text style={styles.situationRecapText}>{finalSituation}</Text>
+              </View>
             </View>
+
+            {/* White sheet with cards */}
+            <View style={[styles.sheet, { padding: 20, paddingBottom: insets.bottom + 32 }]}>
 
             {/* ── Islamic Grounding ── */}
             <View style={styles.card}>
@@ -113,6 +107,20 @@ export default function GuideMeNowScreen({ navigation }) {
                 <Text style={styles.cardSource}>— {response.islamicGrounding.source}</Text>
               ) : null}
             </View>
+
+            {/* ── Research Grounding ── */}
+            {response.researchGrounding ? (
+              <View style={styles.card}>
+                <View style={styles.cardLabelRow}>
+                  <View style={[styles.cardDot, { backgroundColor: '#3B82F6' }]} />
+                  <Text style={[styles.cardLabel, { color: '#1D4ED8' }]}>RESEARCH INSIGHT</Text>
+                </View>
+                <Text style={styles.cardBody}>{response.researchGrounding.text}</Text>
+                {response.researchGrounding.source ? (
+                  <Text style={styles.cardSource}>— {response.researchGrounding.source}</Text>
+                ) : null}
+              </View>
+            ) : null}
 
             {/* ── What to Say ── */}
             <View style={[styles.card, styles.sayCard]}>
@@ -166,14 +174,33 @@ export default function GuideMeNowScreen({ navigation }) {
               <Ionicons name="refresh-outline" size={15} color="#6B7280" />
               <Text style={styles.resetBtnText}>Try a different situation</Text>
             </TouchableOpacity>
+
+            </View>{/* end white sheet */}
           </ScrollView>
         ) : (
           // ── Situation picker ──
           <ScrollView
-            contentContainerStyle={[styles.pickerPad, { paddingBottom: insets.bottom + 100 }]}
+            contentContainerStyle={{ flexGrow: 1 }}
             keyboardDismissMode="interactive"
             showsVerticalScrollIndicator={false}
           >
+            {/* Hero */}
+            <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => navigation.goBack()}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+              <Text style={styles.heroLabel}>GUIDE ME · RIGHT NOW</Text>
+              <Text style={styles.heroTitle}>What's happening?</Text>
+              <Text style={styles.heroSub}>Select a situation or describe it in your own words.</Text>
+            </View>
+
+            {/* White sheet */}
+            <View style={styles.sheet}>
+              <View style={[styles.pickerPad, { paddingBottom: insets.bottom + 100 }]}>
             <View style={styles.pickerGrid}>
               {SITUATIONS.map(sit => (
                 <TouchableOpacity
@@ -213,6 +240,8 @@ export default function GuideMeNowScreen({ navigation }) {
             />
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              </View>
+            </View>
           </ScrollView>
         )}
 
@@ -244,9 +273,30 @@ export default function GuideMeNowScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safe:  { flex: 1, backgroundColor: '#F5F6F8' },
-  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 260, backgroundColor: '#1B3D2F' },
+  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
 
-  // ── Header ──
+  // ── Hero (picker view) ──
+  hero: {
+    backgroundColor: '#1B3D2F',
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+  },
+  heroLabel: {
+    fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
+    color: 'rgba(255,255,255,0.4)', marginBottom: 8, marginTop: 12,
+  },
+  heroTitle: {
+    fontSize: 30, fontWeight: '800', color: '#FFFFFF',
+    letterSpacing: -0.5, lineHeight: 36, marginBottom: 10,
+  },
+  heroSub: {
+    fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 21,
+  },
+  sheet: {
+    flexGrow: 1, backgroundColor: '#F5F6F8',
+  },
+
+  // ── Header (response view) ──
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -269,15 +319,13 @@ const styles = StyleSheet.create({
     fontSize: 24, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.3,
   },
 
-  // ── Response ──
-  responsePad: { paddingHorizontal: 20, paddingTop: 20 },
   situationRecap: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: 'rgba(27,61,47,0.08)', borderRadius: 12,
-    padding: 12, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(27,61,47,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12,
+    padding: 12, marginTop: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
   situationRecapText: {
-    flex: 1, fontSize: 13, color: '#4B5563', lineHeight: 19, fontStyle: 'italic',
+    flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 19, fontStyle: 'italic',
   },
   card: {
     backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginBottom: 12,
@@ -313,7 +361,7 @@ const styles = StyleSheet.create({
   resetBtnText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
 
   // ── Picker ──
-  pickerPad: { paddingHorizontal: 20, paddingTop: 8 },
+  pickerPad: { paddingHorizontal: 20, paddingTop: 24 },
   pickerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   sitCard: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
