@@ -304,7 +304,7 @@ export default function GuideMeNowScreen({ navigation, route }) {
             <View style={[styles.card, styles.islamicCard]}>
               <View style={styles.cardLabelRow}>
                 <View style={[styles.cardDot, { backgroundColor: '#D4A843' }]} />
-                <Text style={[styles.cardLabel, { color: '#92610A' }]}>ISLAMIC GUIDANCE</Text>
+                <Text style={[styles.cardLabel, { color: '#92610A' }]}>ISLAMIC GROUNDING</Text>
               </View>
               <Text style={styles.cardBody}>{response.islamicGuidance.text}</Text>
             </View>
