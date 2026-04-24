@@ -159,12 +159,12 @@ export default function LearnScreen({ navigation, route }) {
                 onPress={() => navigation.navigate('GuideMeNow')}
               >
                 <LinearGradient
-                  colors={['#1a1a2e', '#16213e']}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  colors={['#2E5E45', '#1B3D2F']}
+                  start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                   style={styles.choiceCardInner}
                 >
-                  <View style={[styles.choiceIcon, { backgroundColor: 'rgba(248,113,113,0.15)' }]}>
-                    <Ionicons name="flash" size={22} color="#F87171" />
+                  <View style={[styles.choiceIcon, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                    <Ionicons name="flash" size={22} color="#FCD34D" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.choiceCardTitle}>Right Now</Text>
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
   },
   choiceCardInner: {
-    flexDirection: 'row', alignItems: 'center', padding: 18, gap: 14,
+    flexDirection: 'row', alignItems: 'center', padding: 18, gap: 14, minHeight: 84,
   },
   choiceIcon: {
     width: 46, height: 46, borderRadius: 14,
