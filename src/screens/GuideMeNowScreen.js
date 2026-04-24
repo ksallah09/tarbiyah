@@ -39,15 +39,15 @@ export default function GuideMeNowScreen({ navigation }) {
   const [step, setStep]             = useState(1); // 1=situation, 2=child details, 3=response
   const [selected, setSelected]     = useState(null);
   const [customText, setCustomText] = useState('');
-  const [childAge, setChildAge]     = useState(null);
-  const [childGender, setChildGender] = useState(null);
+  const [childAges, setChildAges]       = useState([]);
+  const [childGenders, setChildGenders] = useState([]);
   const [loading, setLoading]       = useState(false);
   const [response, setResponse]     = useState(null);
   const [error, setError]           = useState(null);
 
   const finalSituation = customText.trim() || selected?.label || '';
   const canProceed     = finalSituation.length > 0;
-  const canSubmit      = childAge !== null && childGender !== null;
+  const canSubmit      = childAges.length > 0 && childGenders.length > 0;
 
   async function handleGetGuidance() {
     if (!canSubmit) return;
@@ -59,8 +59,8 @@ export default function GuideMeNowScreen({ navigation }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           situation: finalSituation,
-          childAge,
-          childGender,
+          childAge: childAges.join(', '),
+          childGender: childGenders.join(' and '),
         }),
       });
       const data = await res.json();
@@ -78,10 +78,18 @@ export default function GuideMeNowScreen({ navigation }) {
     setStep(1);
     setSelected(null);
     setCustomText('');
-    setChildAge(null);
-    setChildGender(null);
+    setChildAges([]);
+    setChildGenders([]);
     setResponse(null);
     setError(null);
+  }
+
+  function toggleAge(age) {
+    setChildAges(prev => prev.includes(age) ? prev.filter(a => a !== age) : [...prev, age]);
+  }
+
+  function toggleGender(id) {
+    setChildGenders(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
   }
 
   function handleBack() {
@@ -187,35 +195,36 @@ export default function GuideMeNowScreen({ navigation }) {
           <View style={styles.sheet}>
             <View style={[styles.sheetPad, { paddingBottom: insets.bottom + 100 }]}>
 
-              <Text style={styles.detailSectionLabel}>HOW OLD ARE THEY?</Text>
+              <Text style={styles.detailSectionLabel}>SPECIFY THE AGE?</Text>
               <View style={styles.ageRow}>
                 {AGE_RANGES.map(age => (
                   <TouchableOpacity
                     key={age}
-                    style={[styles.agePill, childAge === age && styles.agePillActive]}
-                    onPress={() => setChildAge(age)}
+                    style={[styles.agePill, childAges.includes(age) && styles.agePillActive]}
+                    onPress={() => toggleAge(age)}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.agePillText, childAge === age && styles.agePillTextActive]}>{age}</Text>
+                    <Text style={[styles.agePillText, childAges.includes(age) && styles.agePillTextActive]}>{age}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               <Text style={[styles.detailSectionLabel, { marginTop: 28 }]}>SON OR DAUGHTER?</Text>
+              <Text style={styles.detailSectionHint}>Select both if it involves multiple children</Text>
               <View style={styles.genderRow}>
                 {GENDERS.map(g => (
                   <TouchableOpacity
                     key={g.id}
-                    style={[styles.genderCard, childGender === g.id && styles.genderCardActive]}
-                    onPress={() => setChildGender(g.id)}
+                    style={[styles.genderCard, childGenders.includes(g.id) && styles.genderCardActive]}
+                    onPress={() => toggleGender(g.id)}
                     activeOpacity={0.8}
                   >
                     <Ionicons
                       name={g.icon}
                       size={22}
-                      color={childGender === g.id ? '#1B3D2F' : '#6B7280'}
+                      color={childGenders.includes(g.id) ? '#1B3D2F' : '#6B7280'}
                     />
-                    <Text style={[styles.genderLabel, childGender === g.id && styles.genderLabelActive]}>{g.label}</Text>
+                    <Text style={[styles.genderLabel, childGenders.includes(g.id) && styles.genderLabelActive]}>{g.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -257,7 +266,7 @@ export default function GuideMeNowScreen({ navigation }) {
             <View style={styles.situationRecap}>
               <Ionicons name="alert-circle" size={13} color="rgba(255,255,255,0.45)" />
               <Text style={styles.situationRecapText}>
-                {finalSituation} · {childGender === 'son' ? 'Son' : 'Daughter'}, {childAge}
+                {finalSituation} · {childGenders.map(g => g === 'son' ? 'Son' : 'Daughter').join(' & ')}{childAges.length > 0 ? `, ${childAges.join(' & ')}` : ''}
               </Text>
             </View>
           }
@@ -455,7 +464,10 @@ const styles = StyleSheet.create({
 
   // ── Child details ──
   detailSectionLabel: {
-    fontSize: 11, fontWeight: '700', letterSpacing: 1.4, color: '#9CA3AF', marginBottom: 14,
+    fontSize: 11, fontWeight: '700', letterSpacing: 1.4, color: '#9CA3AF', marginBottom: 6,
+  },
+  detailSectionHint: {
+    fontSize: 12, color: '#9CA3AF', marginBottom: 14,
   },
   ageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   agePill: {
