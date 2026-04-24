@@ -218,6 +218,7 @@ export default function GuideMeNowScreen({ navigation, route }) {
           <Text style={styles.loadingSub}>
             Drawing from Islamic scholarship and{'\n'}child development research…
           </Text>
+          <Text style={styles.loadingTime}>Usually ready in 30–45 seconds</Text>
           <View style={styles.loadingPills}>
             {['Islamic Grounding', 'Research Insight', 'What To Say', 'Going Forward'].map((label, i) => (
               <View key={i} style={styles.loadingPill}>
@@ -407,7 +408,18 @@ export default function GuideMeNowScreen({ navigation, route }) {
             </View>
           ) : null}
 
-          {/* 7. Parent Reminder */}
+          {/* 7. When to Seek Help */}
+          {response.whenToSeekHelp ? (
+            <View style={styles.seekHelpCard}>
+              <View style={styles.cardLabelRow}>
+                <Ionicons name="information-circle-outline" size={14} color="#1A2744" />
+                <Text style={[styles.cardLabel, { color: '#1A2744' }]}>WHEN TO SEEK HELP</Text>
+              </View>
+              <Text style={styles.seekHelpText}>{response.whenToSeekHelp}</Text>
+            </View>
+          ) : null}
+
+          {/* 8. Parent Reminder */}
           {response.parentReminder ? (
             <View style={styles.reminderCard}>
               <Ionicons name="heart" size={16} color="#D4A843" />
@@ -571,6 +583,11 @@ const styles = StyleSheet.create({
   doStepText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 22 },
   habitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   habitText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 22 },
+  seekHelpCard: {
+    backgroundColor: '#EEF2FF', borderRadius: 16, padding: 16, marginBottom: 12,
+    borderWidth: 1, borderColor: '#C7D2FE',
+  },
+  seekHelpText: { fontSize: 14, color: '#1A2744', lineHeight: 22 },
   reminderCard: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#FFFBEB', borderRadius: 14, padding: 16,
@@ -651,6 +668,9 @@ const styles = StyleSheet.create({
   },
   loadingPillText: {
     fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.5)',
+  },
+  loadingTime: {
+    fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 24, textAlign: 'center',
   },
 
   // ── Footer ──

@@ -557,6 +557,7 @@ Respond with JSON only (no markdown). Keep total response 300–500 words:
     "source": "e.g. Child Mind Institute or NIH/NICHD or CDC"
   },
   "longTermFix": ["Specific habit or system with a clear mechanism — not generic advice", "Second habit — different angle, equally specific"],
+  "whenToSeekHelp": "1-2 sentences describing specific signs or circumstances when this situation warrants professional support — a therapist, counsellor, paediatrician, or Islamic scholar. Be honest and specific, not generic.",
   "parentReminder": "One short, sincere, powerful line. Should feel like it comes from a wise friend who truly understands the weight of raising children as a Muslim parent.",
   "moduleNudge": "One sentence suggesting a related module topic for deeper learning"
 }`;
