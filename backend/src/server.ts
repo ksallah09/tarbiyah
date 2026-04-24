@@ -500,7 +500,7 @@ app.post('/learn/audio/lesson', async (req: Request, res: Response) => {
 
 app.post('/guide/now', async (req: Request, res: Response) => {
   try {
-    const { situation, childAge } = req.body as { situation: string; childAge?: string };
+    const { situation, childAge, childGender } = req.body as { situation: string; childAge?: string; childGender?: string };
     if (!situation?.trim()) return res.status(400).json({ error: 'situation is required.' });
 
     const sourceContext = await buildModuleSourceContext(situation.trim());
@@ -516,7 +516,7 @@ ${sourceContext}`;
 
     const userPrompt = `A Muslim parent needs immediate guidance for this situation:
 "${situation.trim()}"
-${childAge ? `Child's age: ${childAge}` : ''}
+${childAge ? `Child's age: ${childAge}` : ''}${childGender ? `\nChild's gender: ${childGender}` : ''}
 
 Respond with JSON only (no markdown):
 {
