@@ -299,22 +299,29 @@ export default function GuideMeNowScreen({ navigation, route }) {
             </View>
           ) : null}
 
-          {/* 2. What To Say */}
-          <View style={[styles.card, styles.sayCard]}>
-            <View style={styles.cardLabelRow}>
-              <View style={[styles.cardDot, { backgroundColor: '#2E7D62' }]} />
-              <Text style={[styles.cardLabel, { color: '#1B5E3F' }]}>WHAT TO SAY</Text>
-            </View>
-            {(response.whatToSay ?? []).map((line, i) => (
-              <View key={i} style={styles.sayLine}>
-                <Text style={styles.sayQuoteMark}>"</Text>
-                <Text style={styles.sayText}>{line}</Text>
-                <Text style={styles.sayQuoteMark}>"</Text>
+          {/* 2. Islamic Guidance */}
+          {response.islamicGuidance ? (
+            <View style={[styles.card, styles.islamicCard]}>
+              <View style={styles.cardLabelRow}>
+                <View style={[styles.cardDot, { backgroundColor: '#D4A843' }]} />
+                <Text style={[styles.cardLabel, { color: '#92610A' }]}>ISLAMIC GUIDANCE</Text>
               </View>
-            ))}
-          </View>
+              <Text style={styles.cardBody}>{response.islamicGuidance.text}</Text>
+            </View>
+          ) : null}
 
-          {/* 3. What To Do */}
+          {/* 3. Research Insight */}
+          {response.researchInsight ? (
+            <View style={styles.card}>
+              <View style={styles.cardLabelRow}>
+                <View style={[styles.cardDot, { backgroundColor: '#3B82F6' }]} />
+                <Text style={[styles.cardLabel, { color: '#1D4ED8' }]}>RESEARCH INSIGHT</Text>
+              </View>
+              <Text style={styles.cardBody}>{response.researchInsight.text}</Text>
+            </View>
+          ) : null}
+
+          {/* 4. What To Do */}
           {(response.whatToDo ?? []).length > 0 ? (
             <View style={styles.card}>
               <View style={styles.cardLabelRow}>
@@ -332,34 +339,27 @@ export default function GuideMeNowScreen({ navigation, route }) {
             </View>
           ) : null}
 
-          {/* 4. Islamic Guidance */}
-          {response.islamicGuidance ? (
-            <View style={[styles.card, styles.islamicCard]}>
-              <View style={styles.cardLabelRow}>
-                <View style={[styles.cardDot, { backgroundColor: '#D4A843' }]} />
-                <Text style={[styles.cardLabel, { color: '#92610A' }]}>ISLAMIC GUIDANCE</Text>
-              </View>
-              <Text style={styles.cardBody}>{response.islamicGuidance.text}</Text>
+          {/* 5. What To Say */}
+          <View style={[styles.card, styles.sayCard]}>
+            <View style={styles.cardLabelRow}>
+              <View style={[styles.cardDot, { backgroundColor: '#2E7D62' }]} />
+              <Text style={[styles.cardLabel, { color: '#1B5E3F' }]}>WHAT TO SAY</Text>
             </View>
-          ) : null}
-
-          {/* 5. Research Insight */}
-          {response.researchInsight ? (
-            <View style={styles.card}>
-              <View style={styles.cardLabelRow}>
-                <View style={[styles.cardDot, { backgroundColor: '#3B82F6' }]} />
-                <Text style={[styles.cardLabel, { color: '#1D4ED8' }]}>RESEARCH INSIGHT</Text>
+            {(response.whatToSay ?? []).map((line, i) => (
+              <View key={i} style={styles.sayLine}>
+                <Text style={styles.sayQuoteMark}>"</Text>
+                <Text style={styles.sayText}>{line}</Text>
+                <Text style={styles.sayQuoteMark}>"</Text>
               </View>
-              <Text style={styles.cardBody}>{response.researchInsight.text}</Text>
-            </View>
-          ) : null}
+            ))}
+          </View>
 
-          {/* 6. Long-Term Fix */}
+          {/* 6. Going Forward */}
           {(response.longTermFix ?? []).length > 0 ? (
             <View style={styles.card}>
               <View style={styles.cardLabelRow}>
                 <View style={[styles.cardDot, { backgroundColor: '#10B981' }]} />
-                <Text style={[styles.cardLabel, { color: '#065F46' }]}>LONG-TERM FIX</Text>
+                <Text style={[styles.cardLabel, { color: '#065F46' }]}>GOING FORWARD</Text>
               </View>
               {(response.longTermFix ?? []).map((habit, i) => (
                 <View key={i} style={styles.habitRow}>
