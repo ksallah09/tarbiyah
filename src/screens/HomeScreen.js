@@ -404,17 +404,16 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.insightCardTitle}>{spiritualInsight.insightTitle}</Text>
                         <Text style={styles.insightCardBody} numberOfLines={3}>{spiritualInsight.body}</Text>
                         <View style={styles.insightCardFooter}>
-                          {spiritReadToday ? (
+                          {spiritReadToday && (
                             <View style={styles.insightReadTodayPill}>
                               <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
                               <Text style={styles.insightReadTodayText}>Read today</Text>
                             </View>
-                          ) : (
-                            <View style={styles.insightReadMore}>
-                              <Text style={styles.insightReadMoreText}>Read more</Text>
-                              <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
-                            </View>
                           )}
+                          <View style={styles.insightReadMore}>
+                            <Text style={styles.insightReadMoreText}>Read more</Text>
+                            <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
+                          </View>
                         </View>
                       </View>
                     </LinearGradient>
@@ -449,17 +448,16 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.insightCardTitle}>{scienceInsight.insightTitle}</Text>
                         <Text style={styles.insightCardBody} numberOfLines={3}>{scienceInsight.body}</Text>
                         <View style={styles.insightCardFooter}>
-                          {sciReadToday ? (
+                          {sciReadToday && (
                             <View style={styles.insightReadTodayPill}>
                               <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
                               <Text style={styles.insightReadTodayText}>Read today</Text>
                             </View>
-                          ) : (
-                            <View style={styles.insightReadMore}>
-                              <Text style={styles.insightReadMoreText}>Read more</Text>
-                              <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
-                            </View>
                           )}
+                          <View style={styles.insightReadMore}>
+                            <Text style={styles.insightReadMoreText}>Read more</Text>
+                            <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
+                          </View>
                         </View>
                       </View>
                     </LinearGradient>
@@ -742,7 +740,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#1B3D2F' },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
-  bgBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120, backgroundColor: '#F5F6F8' },
+  bgBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 300, backgroundColor: '#F5F6F8' },
 
   // ── Hero header ──
   hero: {
@@ -995,7 +993,7 @@ const styles = StyleSheet.create({
     fontSize: 13, color: 'rgba(255,255,255,0.78)', lineHeight: 20,
   },
   insightCardFooter: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginTop: 4,
   },
   insightCardSpeaker: {

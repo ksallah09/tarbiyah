@@ -48,33 +48,60 @@ const SPLASH_QUOTE = { text: 'There has certainly been for you in the Messenger 
 
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
+const TYPEWRITER_WORD = 'Tarbiyah';
+const TYPEWRITER_SPEED = 110; // ms per letter
+
 function AppSplashOverlay({ onDismiss }) {
-  const [visible, setVisible]   = useState(true);
-  const screenOpacity           = useRef(new Animated.Value(1)).current;
-  const titleOpacity            = useRef(new Animated.Value(0)).current;
-  const quoteOpacity            = useRef(new Animated.Value(0)).current;
+  const [visible, setVisible]       = useState(true);
+  const [typewriterText, setTypewriterText] = useState('');
+  const [typewriterDone, setTypewriterDone] = useState(false);
+  const screenOpacity   = useRef(new Animated.Value(1)).current;
+  const subtitleOpacity = useRef(new Animated.Value(0)).current;
+  const quoteOpacity    = useRef(new Animated.Value(0)).current;
   const quote = SPLASH_QUOTE;
 
   useEffect(() => {
+    let startTimer;
+    let interval;
+
+    startTimer = setTimeout(() => {
+      let i = 0;
+      interval = setInterval(() => {
+        i++;
+        setTypewriterText(TYPEWRITER_WORD.slice(0, i));
+        if (i >= TYPEWRITER_WORD.length) {
+          clearInterval(interval);
+          setTypewriterDone(true);
+        }
+      }, TYPEWRITER_SPEED);
+    }, 700);
+
+    return () => { clearTimeout(startTimer); clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    if (!typewriterDone) return;
+
     Animated.sequence([
-      // Wait for native splash to fully dismiss before starting
-      Animated.delay(700),
-      // Title fades in
-      Animated.timing(titleOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.delay(350),
+      Animated.timing(subtitleOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.delay(400),
-      // Quote fades in
       Animated.timing(quoteOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.delay(3800),
-      // Everything fades out
+      Animated.delay(3300),
       Animated.timing(screenOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start(() => { setVisible(false); onDismiss(); });
-  }, []);
+  }, [typewriterDone]);
 
   if (!visible) return null;
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: screenOpacity, zIndex: 999, backgroundColor: '#1B3D2F', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }]}>
-      <Animated.View style={{ opacity: titleOpacity, alignItems: 'center', marginBottom: 40 }}>
+      <View style={{ alignItems: 'center', marginBottom: 6 }}>
+        <Text style={splashStyles.appName}>{typewriterText}</Text>
+      </View>
+
+      <Animated.View style={{ opacity: subtitleOpacity, alignItems: 'center', marginBottom: 64 }}>
+        <View style={splashStyles.titleDivider} />
         <Text style={splashStyles.titleLine1}>Your Guide to</Text>
         <Text style={splashStyles.titleLine2}>Prophetic Parenting</Text>
       </Animated.View>
@@ -89,12 +116,11 @@ function AppSplashOverlay({ onDismiss }) {
 
 const splashStyles = StyleSheet.create({
   appName: {
-    fontSize: 36,
-    fontWeight: '300',
+    fontSize: 34,
+    fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
-    letterSpacing: 2,
-    marginBottom: 12,
+    lineHeight: 42,
   },
   titleDivider: {
     width: 40,
