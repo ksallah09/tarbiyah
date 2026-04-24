@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { loadModules, loadModulesCached, deleteModule } from '../utils/modules';
+import { getSavedAdvice, deleteSavedAdvice } from '../utils/savedAdvice';
 
 // Module-level cache so state initialises instantly on re-mount
 let _modulesCache = null;
@@ -39,6 +40,8 @@ export default function LearnScreen({ navigation, route }) {
   const [modules, setModules]       = useState(_modulesCache ?? []);
   const [showWizard, setShowWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
+  const [bottomTab, setBottomTab]   = useState('modules');
+  const [savedAdvice, setSavedAdvice] = useState([]);
   const hasMountedRef = useRef(false);
 
   useEffect(() => {
@@ -70,14 +73,23 @@ export default function LearnScreen({ navigation, route }) {
     loadModules().then(ms => { _modulesCache = ms; setModules(ms); });
   }, []);
 
-  // Re-sync on subsequent focuses (picks up newly saved modules from ModuleDetail)
-  // Skip the very first focus since useEffect already handles initial load
   useFocusEffect(
     useCallback(() => {
+      getSavedAdvice().then(setSavedAdvice);
       if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
       loadModules().then(ms => { _modulesCache = ms; setModules(ms); });
     }, [])
   );
+
+  function handleDeleteAdvice(item) {
+    Alert.alert('Delete Guidance', 'Remove this saved advice?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        const updated = await deleteSavedAdvice(item.id);
+        if (updated) setSavedAdvice(updated);
+      }},
+    ]);
+  }
 
   function handleDelete(mod) {
     Alert.alert(
@@ -132,7 +144,7 @@ export default function LearnScreen({ navigation, route }) {
             <Text style={styles.heroLabel}>GUIDE ME</Text>
             <Text style={styles.heroTitle}>How can we{'\n'}help today?</Text>
             <Text style={styles.heroSub}>
-              Get immediate guidance for a situation right now, or build a personalized module for lasting change.
+              Describe a parenting challenge, goal or situation — we'll provide guidance rooted in faith and research.
             </Text>
           </View>
 
@@ -156,7 +168,7 @@ export default function LearnScreen({ navigation, route }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.choiceCardTitle}>Right Now</Text>
-                    <Text style={styles.choiceCardSub}>I'm in a situation and need help immediately</Text>
+                    <Text style={styles.choiceCardSub}>I'm in a situation and need advice immediately</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.35)" />
                 </LinearGradient>
@@ -177,74 +189,151 @@ export default function LearnScreen({ navigation, route }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.choiceCardTitle}>Go Deeper</Text>
-                    <Text style={styles.choiceCardSub}>Build a personalized module that fixes the root issue</Text>
+                    <Text style={styles.choiceCardSub}>Build a personalized module that targets the root issue</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.35)" />
                 </LinearGradient>
               </TouchableOpacity>
 
 
-              {/* ── Saved modules ── */}
-              {hasModules && (
-                <>
-                  <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                    <Text style={styles.sectionTitle}>YOUR MODULES</Text>
-                    <Text style={styles.sectionCount}>{modules.length}</Text>
-                  </View>
-                  {modules.map((mod, i) => (
-                    <TouchableOpacity
-                      key={mod.id}
-                      style={styles.moduleCard}
-                      activeOpacity={0.85}
-                      onPress={() => navigation.navigate('ModuleDetail', { module: mod, isNew: false })}
-                    >
-                      <View style={styles.moduleCardTop}>
-                        <View style={[styles.moduleProgress, { width: `${(mod.completedLessons / mod.totalLessons) * 100}%` }]} />
-                      </View>
-                      <View style={styles.moduleCardBody}>
-                        <View style={styles.moduleCardLeft}>
-                          <Text style={styles.moduleCardTitle} numberOfLines={2}>{mod.title}</Text>
-                          <Text style={styles.moduleCardTopic} numberOfLines={1}>{mod.topic}</Text>
-                        </View>
-                        <View style={styles.moduleCardRight}>
-                          <View style={styles.moduleLessonsWrap}>
-                            <Text style={styles.moduleLessonsNum}>{mod.completedLessons}</Text>
-                            <Text style={styles.moduleLessonsOf}>/{mod.totalLessons}</Text>
-                          </View>
-                          <Text style={styles.moduleLessonsLabel}>lessons</Text>
-                        </View>
-                      </View>
-                      <View style={styles.moduleCardFooter}>
-                        <View style={styles.moduleStatusDot} />
-                        <Text style={styles.moduleStatusText}>
-                          {mod.completedLessons === mod.totalLessons ? 'Completed' : 'In progress'}
-                        </Text>
-                        <Text style={styles.moduleDate}>{mod.createdAt}</Text>
-                        <TouchableOpacity
-                          style={styles.moduleDeleteBtn}
-                          onPress={() => handleDelete(mod)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
-                        </TouchableOpacity>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
+              {/* ── Divider ── */}
+              <View style={styles.sectionDivider} />
 
-              {/* ── Empty saved state ── */}
-              {!hasModules && (
-                <View style={styles.emptyModules}>
-                  <View style={styles.emptyIcon}>
-                    <Ionicons name="layers-outline" size={28} color="#2E7D62" />
-                  </View>
-                  <Text style={styles.emptyTitle}>No modules yet</Text>
-                  <Text style={styles.emptyBody}>
-                    Generate your first personalized lesson plan above — it'll be saved here for you to revisit anytime.
+              {/* ── Bottom tab bar ── */}
+              <View style={styles.bottomTabRow}>
+                <TouchableOpacity
+                  style={[styles.bottomTabBtn, bottomTab === 'modules' && styles.bottomTabBtnActive]}
+                  onPress={() => setBottomTab('modules')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="layers-outline" size={15} color={bottomTab === 'modules' ? '#FFFFFF' : '#6B7280'} />
+                  <Text style={[styles.bottomTabText, bottomTab === 'modules' && styles.bottomTabTextActive]}>
+                    Your Modules
                   </Text>
-                </View>
-              )}
+                  {modules.length > 0 && (
+                    <View style={[styles.bottomTabBadge, bottomTab === 'modules' && styles.bottomTabBadgeActive]}>
+                      <Text style={[styles.bottomTabBadgeText, bottomTab === 'modules' && styles.bottomTabBadgeTextActive]}>
+                        {modules.length}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.bottomTabBtn, bottomTab === 'advice' && styles.bottomTabBtnActive]}
+                  onPress={() => setBottomTab('advice')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="flash-outline" size={15} color={bottomTab === 'advice' ? '#FFFFFF' : '#6B7280'} />
+                  <Text style={[styles.bottomTabText, bottomTab === 'advice' && styles.bottomTabTextActive]}>
+                    Saved Advice
+                  </Text>
+                  {savedAdvice.length > 0 && (
+                    <View style={[styles.bottomTabBadge, bottomTab === 'advice' && styles.bottomTabBadgeActive]}>
+                      <Text style={[styles.bottomTabBadgeText, bottomTab === 'advice' && styles.bottomTabBadgeTextActive]}>
+                        {savedAdvice.length}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* ── Your Modules tab ── */}
+              {bottomTab === 'modules' && (<>
+                {hasModules ? modules.map((mod) => (
+                  <TouchableOpacity
+                    key={mod.id}
+                    style={styles.moduleCard}
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate('ModuleDetail', { module: mod, isNew: false })}
+                  >
+                    <View style={styles.moduleCardTop}>
+                      <View style={[styles.moduleProgress, { width: `${(mod.completedLessons / mod.totalLessons) * 100}%` }]} />
+                    </View>
+                    <View style={styles.moduleCardBody}>
+                      <View style={styles.moduleCardLeft}>
+                        <Text style={styles.moduleCardTitle} numberOfLines={2}>{mod.title}</Text>
+                        <Text style={styles.moduleCardTopic} numberOfLines={1}>{mod.topic}</Text>
+                      </View>
+                      <View style={styles.moduleCardRight}>
+                        <View style={styles.moduleLessonsWrap}>
+                          <Text style={styles.moduleLessonsNum}>{mod.completedLessons}</Text>
+                          <Text style={styles.moduleLessonsOf}>/{mod.totalLessons}</Text>
+                        </View>
+                        <Text style={styles.moduleLessonsLabel}>lessons</Text>
+                      </View>
+                    </View>
+                    <View style={styles.moduleCardFooter}>
+                      <View style={styles.moduleStatusDot} />
+                      <Text style={styles.moduleStatusText}>
+                        {mod.completedLessons === mod.totalLessons ? 'Completed' : 'In progress'}
+                      </Text>
+                      <Text style={styles.moduleDate}>{mod.createdAt}</Text>
+                      <TouchableOpacity
+                        style={styles.moduleDeleteBtn}
+                        onPress={() => handleDelete(mod)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                )) : (
+                  <View style={styles.emptyModules}>
+                    <View style={styles.emptyIcon}>
+                      <Ionicons name="layers-outline" size={28} color="#2E7D62" />
+                    </View>
+                    <Text style={styles.emptyTitle}>No modules yet</Text>
+                    <Text style={styles.emptyBody}>
+                      Tap Go Deeper above to generate your first personalized lesson plan.
+                    </Text>
+                  </View>
+                )}
+              </>)}
+
+              {/* ── Saved Advice tab ── */}
+              {bottomTab === 'advice' && (<>
+                {savedAdvice.length > 0 ? savedAdvice.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.adviceCard}
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate('GuideMeNow', { savedItem: item })}
+                  >
+                    <View style={styles.adviceCardLeft}>
+                      <View style={styles.adviceFlashIcon}>
+                        <Ionicons name="flash" size={14} color="#F87171" />
+                      </View>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.adviceCardSituation} numberOfLines={2}>{item.situation}</Text>
+                      <Text style={styles.adviceCardMeta}>
+                        {item.childGenders?.map(g => g === 'son' ? 'Son' : 'Daughter').join(' & ')}
+                        {item.childAges?.length > 0 ? ` · ${item.childAges.join(' & ')}` : ''}
+                        {item.savedAt ? ` · ${new Date(item.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.adviceCardActions}>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteAdvice(item)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
+                      </TouchableOpacity>
+                      <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
+                    </View>
+                  </TouchableOpacity>
+                )) : (
+                  <View style={styles.emptyModules}>
+                    <View style={styles.emptyIcon}>
+                      <Ionicons name="flash-outline" size={28} color="#2E7D62" />
+                    </View>
+                    <Text style={styles.emptyTitle}>No saved advice yet</Text>
+                    <Text style={styles.emptyBody}>
+                      Tap Right Now above, get guidance for a situation, and save it to revisit later.
+                    </Text>
+                  </View>
+                )}
+              </>)}
 
               <View style={{ height: 32 }} />
             </View>
@@ -530,6 +619,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+
+  // ── Divider + bottom tabs ──
+  sectionDivider: {
+    height: 1, backgroundColor: '#E5E7EB', marginBottom: 20,
+  },
+  bottomTabRow: {
+    flexDirection: 'row', gap: 10, marginBottom: 20,
+  },
+  bottomTabBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 11, borderRadius: 12,
+    backgroundColor: '#EEEEEE',
+  },
+  bottomTabBtnActive: { backgroundColor: '#1B3D2F' },
+  bottomTabText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  bottomTabTextActive: { color: '#FFFFFF' },
+  bottomTabBadge: {
+    backgroundColor: '#D1D5DB', borderRadius: 10,
+    paddingHorizontal: 6, paddingVertical: 1,
+  },
+  bottomTabBadgeActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
+  bottomTabBadgeText: { fontSize: 10, fontWeight: '700', color: '#6B7280' },
+  bottomTabBadgeTextActive: { color: '#FFFFFF' },
+
+  // ── Saved advice cards ──
+  adviceCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  },
+  adviceCardLeft: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(248,113,113,0.1)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  adviceFlashIcon: { alignItems: 'center', justifyContent: 'center' },
+  adviceCardSituation: {
+    fontSize: 14, fontWeight: '600', color: '#1C1C1E', lineHeight: 20, marginBottom: 3,
+  },
+  adviceCardMeta: { fontSize: 11, color: '#9CA3AF' },
+  adviceCardActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 
   // ── Section titles ──
   sectionTitleWrap: {

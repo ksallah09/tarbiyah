@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { saveAdvice } from '../utils/savedAdvice';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -33,17 +34,19 @@ const GENDERS    = [
   { id: 'daughter', label: 'Daughter', icon: 'female-outline' },
 ];
 
-export default function GuideMeNowScreen({ navigation }) {
+export default function GuideMeNowScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const savedItem = route?.params?.savedItem;
 
-  const [step, setStep]             = useState(1); // 1=situation, 2=child details, 3=response
-  const [selected, setSelected]     = useState(null);
-  const [customText, setCustomText] = useState('');
-  const [childAges, setChildAges]       = useState([]);
-  const [childGenders, setChildGenders] = useState([]);
-  const [loading, setLoading]       = useState(false);
-  const [response, setResponse]     = useState(null);
-  const [error, setError]           = useState(null);
+  const [step, setStep]                 = useState(savedItem ? 3 : 1);
+  const [selected, setSelected]         = useState(null);
+  const [customText, setCustomText]     = useState(savedItem?.situation ?? '');
+  const [childAges, setChildAges]       = useState(savedItem?.childAges ?? []);
+  const [childGenders, setChildGenders] = useState(savedItem?.childGenders ?? []);
+  const [loading, setLoading]           = useState(false);
+  const [response, setResponse]         = useState(savedItem?.response ?? null);
+  const [error, setError]               = useState(null);
+  const [saved, setSaved]               = useState(!!savedItem);
 
   const finalSituation = customText.trim() || selected?.label || '';
   const canProceed     = finalSituation.length > 0;
@@ -74,6 +77,20 @@ export default function GuideMeNowScreen({ navigation }) {
     }
   }
 
+  async function handleSave() {
+    if (saved) return;
+    const item = {
+      id: `advice_${Date.now()}`,
+      situation: finalSituation,
+      childAges,
+      childGenders,
+      response,
+      savedAt: new Date().toISOString(),
+    };
+    await saveAdvice(item);
+    setSaved(true);
+  }
+
   function handleReset() {
     setStep(1);
     setSelected(null);
@@ -82,6 +99,7 @@ export default function GuideMeNowScreen({ navigation }) {
     setChildGenders([]);
     setResponse(null);
     setError(null);
+    setSaved(false);
   }
 
   function toggleAge(age) {
@@ -322,9 +340,6 @@ export default function GuideMeNowScreen({ navigation }) {
                 <Text style={[styles.cardLabel, { color: '#92610A' }]}>ISLAMIC GUIDANCE</Text>
               </View>
               <Text style={styles.cardBody}>{response.islamicGuidance.text}</Text>
-              {response.islamicGuidance.source ? (
-                <Text style={styles.cardSource}>— {response.islamicGuidance.source}</Text>
-              ) : null}
             </View>
           ) : null}
 
@@ -336,9 +351,6 @@ export default function GuideMeNowScreen({ navigation }) {
                 <Text style={[styles.cardLabel, { color: '#1D4ED8' }]}>RESEARCH INSIGHT</Text>
               </View>
               <Text style={styles.cardBody}>{response.researchInsight.text}</Text>
-              {response.researchInsight.source ? (
-                <Text style={styles.cardSource}>— {response.researchInsight.source}</Text>
-              ) : null}
             </View>
           ) : null}
 
@@ -386,6 +398,18 @@ export default function GuideMeNowScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
             </TouchableOpacity>
           ) : null}
+
+          {/* Save button */}
+          <TouchableOpacity
+            style={[styles.saveBtn, saved && styles.saveBtnSaved]}
+            activeOpacity={saved ? 1 : 0.88}
+            onPress={handleSave}
+          >
+            <Ionicons name={saved ? 'checkmark-circle' : 'bookmark-outline'} size={20} color={saved ? '#2E7D62' : '#FFFFFF'} />
+            <Text style={[styles.saveBtnText, saved && styles.saveBtnTextSaved]}>
+              {saved ? 'Saved to Saved Advice' : 'Save This Guidance'}
+            </Text>
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
             <Ionicons name="refresh-outline" size={15} color="#6B7280" />
@@ -541,6 +565,16 @@ const styles = StyleSheet.create({
   },
   nudgeTitle: { fontSize: 13, fontWeight: '700', color: '#1B3D2F', marginBottom: 2 },
   nudgeBody:  { fontSize: 12, color: '#4B5563', lineHeight: 18 },
+  saveBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: '#1B3D2F', borderRadius: 16, paddingVertical: 16,
+    marginBottom: 12,
+  },
+  saveBtnSaved: {
+    backgroundColor: '#F0FDF4', borderWidth: 1.5, borderColor: '#BBF7D0',
+  },
+  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  saveBtnTextSaved: { color: '#2E7D62' },
   resetBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'center', paddingVertical: 10,
