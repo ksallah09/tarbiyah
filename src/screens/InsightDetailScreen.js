@@ -94,7 +94,7 @@ export default function InsightDetailScreen({ route, navigation }) {
     ? ['rgba(10,30,20,0.35)', 'rgba(10,30,20,0.82)']
     : ['rgba(30,15,5,0.35)', 'rgba(30,15,5,0.82)'];
   const typeLabel   = isSpiritual ? 'Spiritual Insight' : 'Research Insight';
-  const goalLabel   = isSpiritual ? 'Spiritual Tip' : 'Practical Tip';
+  const goalLabel   = 'Put it into Action';
   const goalIcon    = isSpiritual ? 'moon' : 'bulb-outline';
 
   const sourceIcon =

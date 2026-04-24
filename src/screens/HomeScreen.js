@@ -404,10 +404,17 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.insightCardTitle}>{spiritualInsight.insightTitle}</Text>
                         <Text style={styles.insightCardBody} numberOfLines={3}>{spiritualInsight.body}</Text>
                         <View style={styles.insightCardFooter}>
-                          <View style={styles.insightReadMore}>
-                            <Text style={styles.insightReadMoreText}>Read more</Text>
-                            <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
-                          </View>
+                          {spiritReadToday ? (
+                            <View style={styles.insightReadTodayPill}>
+                              <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
+                              <Text style={styles.insightReadTodayText}>Read today</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.insightReadMore}>
+                              <Text style={styles.insightReadMoreText}>Read more</Text>
+                              <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
+                            </View>
+                          )}
                         </View>
                       </View>
                     </LinearGradient>
@@ -442,10 +449,17 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.insightCardTitle}>{scienceInsight.insightTitle}</Text>
                         <Text style={styles.insightCardBody} numberOfLines={3}>{scienceInsight.body}</Text>
                         <View style={styles.insightCardFooter}>
-                          <View style={styles.insightReadMore}>
-                            <Text style={styles.insightReadMoreText}>Read more</Text>
-                            <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
-                          </View>
+                          {sciReadToday ? (
+                            <View style={styles.insightReadTodayPill}>
+                              <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
+                              <Text style={styles.insightReadTodayText}>Read today</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.insightReadMore}>
+                              <Text style={styles.insightReadMoreText}>Read more</Text>
+                              <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
+                            </View>
+                          )}
                         </View>
                       </View>
                     </LinearGradient>
@@ -988,6 +1002,8 @@ const styles = StyleSheet.create({
     fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.6)',
     letterSpacing: 0.2,
   },
+  insightReadTodayPill: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  insightReadTodayText: { fontSize: 12, fontWeight: '600', color: '#4ADE80' },
   insightReadMore: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   insightReadMoreText: {
     fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)',
