@@ -129,10 +129,10 @@ export default function LearnScreen({ navigation, route }) {
         >
           {/* ── Dark hero header ── */}
           <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-            <Text style={styles.heroLabel}>PERSONALIZED LEARNING</Text>
-            <Text style={styles.heroTitle}>Your Learning{'\n'}Modules</Text>
+            <Text style={styles.heroLabel}>GUIDE ME</Text>
+            <Text style={styles.heroTitle}>How can we{'\n'}help today?</Text>
             <Text style={styles.heroSub}>
-              Describe a parenting challenge, goal, or struggle — we'll build a guided lesson plan just for you.
+              Get immediate guidance for a situation right now, or build a personalized module for lasting change.
             </Text>
           </View>
 
@@ -140,24 +140,46 @@ export default function LearnScreen({ navigation, route }) {
           <View style={styles.sheet}>
             <View style={styles.contentPad}>
 
-              {/* ── Generate CTA ── */}
+              {/* ── Choice cards ── */}
               <TouchableOpacity
-                style={styles.generateBtn}
+                style={styles.choiceCardDark}
+                activeOpacity={0.88}
+                onPress={() => navigation.navigate('GuideMeNow')}
+              >
+                <LinearGradient
+                  colors={['#1a1a2e', '#16213e']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={styles.choiceCardInner}
+                >
+                  <View style={[styles.choiceIcon, { backgroundColor: 'rgba(248,113,113,0.15)' }]}>
+                    <Ionicons name="flash" size={22} color="#F87171" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.choiceCardTitle}>Right Now</Text>
+                    <Text style={styles.choiceCardSub}>I'm in a situation and need help immediately</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.35)" />
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.choiceCardGreen}
                 activeOpacity={0.88}
                 onPress={openWizard}
               >
                 <LinearGradient
                   colors={['#2E5E45', '#1B3D2F']}
                   start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                  style={styles.generateBtnInner}
+                  style={styles.choiceCardInner}
                 >
-                  <View style={styles.generateBtnIcon}>
-                    <Ionicons name="sparkles" size={18} color="#D4871A" />
+                  <View style={[styles.choiceIcon, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                    <Ionicons name="layers" size={22} color="#4ADE80" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.generateBtnTitle}>Generate Personalized Lesson</Text>
+                    <Text style={styles.choiceCardTitle}>Go Deeper</Text>
+                    <Text style={styles.choiceCardSub}>Build a personalized module that fixes the root issue</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.35)" />
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -397,40 +419,50 @@ const styles = StyleSheet.create({
   },
   contentPad: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36 },
 
-  // ── Generate button ──
+  // ── Choice cards ──
+  choiceCardDark: {
+    borderRadius: 20, overflow: 'hidden', marginBottom: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
+  },
+  choiceCardGreen: {
+    borderRadius: 20, overflow: 'hidden', marginBottom: 24,
+    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
+  },
+  choiceCardInner: {
+    flexDirection: 'row', alignItems: 'center', padding: 18, gap: 14,
+  },
+  choiceIcon: {
+    width: 46, height: 46, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  choiceCardTitle: {
+    fontSize: 16, fontWeight: '800', color: '#FFFFFF', marginBottom: 3,
+  },
+  choiceCardSub: {
+    fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 17,
+  },
+
+  // ── Generate button (kept for wizard reference) ──
   generateBtn: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 24,
-    shadowColor: '#1B3D2F',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 14,
-    elevation: 6,
+    borderRadius: 20, overflow: 'hidden', marginBottom: 24,
+    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
   },
   generateBtnInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 18,
-    gap: 14,
+    flexDirection: 'row', alignItems: 'center', padding: 18, gap: 14,
   },
   generateBtnIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 42, height: 42, borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   generateBtnTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 2,
+    fontSize: 15, fontWeight: '700', color: '#FFFFFF', marginBottom: 2,
   },
   generateBtnSub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12, color: 'rgba(255,255,255,0.5)',
   },
 
   // ── Input card ──

@@ -19,6 +19,7 @@ import HomeScreen          from './src/screens/HomeScreen';
 import LibraryScreen       from './src/screens/LibraryScreen';
 import ProgressScreen      from './src/screens/ProgressScreen';
 import LearnScreen         from './src/screens/LearnScreen';
+import GuideMeNowScreen    from './src/screens/GuideMeNowScreen';
 import ModuleDetailScreen  from './src/screens/ModuleDetailScreen';
 import LessonReaderScreen  from './src/screens/LessonReaderScreen';
 import ProfileScreen       from './src/screens/ProfileScreen';
@@ -142,7 +143,7 @@ const TAB_CONFIG = {
   Home:     { filled: 'home',        outline: 'home-outline' },
   Community: { filled: 'globe',         outline: 'globe-outline' },
   Progress: { filled: 'trending-up', outline: 'trending-up-outline' },
-  Learn:    { filled: 'layers',      outline: 'layers-outline' },
+  'Guide Me': { filled: 'compass',    outline: 'compass-outline' },
   Profile:  { filled: 'person',      outline: 'person-outline' },
 };
 
@@ -187,7 +188,7 @@ function Tabs() {
     <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }} lazy={false}>
       <Tab.Screen name="Home"     component={HomeScreen} />
       <Tab.Screen name="Progress" component={ProgressScreen} />
-      <Tab.Screen name="Learn"    component={LearnScreen} />
+      <Tab.Screen name="Guide Me" component={LearnScreen} />
       <Tab.Screen name="Community" component={LibraryScreen} />
       <Tab.Screen name="Profile"  component={ProfileScreen} />
     </Tab.Navigator>
@@ -232,6 +233,11 @@ function MainApp() {
         name="About"
         component={AboutScreen}
         options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="GuideMeNow"
+        component={GuideMeNowScreen}
+        options={{ animation: 'slide_from_bottom' }}
       />
     </Stack.Navigator>
   );

@@ -15,7 +15,7 @@ const MOCK_TAB_HEIGHT = 60;
 const MOCK_TABS = [
   { name: 'Home',      icon: 'home-outline',        filled: 'home' },
   { name: 'Progress',  icon: 'trending-up-outline',  filled: 'trending-up' },
-  { name: 'Learn',     icon: 'layers-outline',        filled: 'layers' },
+  { name: 'Guide Me',  icon: 'compass-outline',       filled: 'compass' },
   { name: 'Community', icon: 'globe-outline',          filled: 'globe' },
   { name: 'Profile',   icon: 'person-outline',        filled: 'person' },
 ];
@@ -40,10 +40,10 @@ const SLIDES = [
   },
   {
     key: 'learn',
-    icon: 'layers-outline',
+    icon: 'compass-outline',
     iconColor: '#D4A843',
-    title: 'Learn Together',
-    body: "Generate personalized learning modules on any parenting topic - with audio narration for when you're too busy to read.",
+    title: 'Guide Me',
+    body: "Get immediate guidance for a situation happening right now, or build a personalized learning module for lasting change.",
   },
   {
     key: 'community',

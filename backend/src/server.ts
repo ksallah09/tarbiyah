@@ -496,6 +496,56 @@ app.post('/learn/audio/lesson', async (req: Request, res: Response) => {
   }
 });
 
+// ─── POST /guide/now ─────────────────────────────────────────────────────────
+
+app.post('/guide/now', async (req: Request, res: Response) => {
+  try {
+    const { situation, childAge } = req.body as { situation: string; childAge?: string };
+    if (!situation?.trim()) return res.status(400).json({ error: 'situation is required.' });
+
+    const systemPrompt = `You are a warm, wise Islamic parenting coach inside the Tarbiyah app.
+You help Muslim parents navigate difficult parenting moments with wisdom from Islamic tradition and modern child development research.
+Always respond with compassionate, practical, actionable guidance grounded in Islamic values.
+Keep responses concise and immediately useful.`;
+
+    const userPrompt = `A Muslim parent needs immediate guidance for this situation:
+"${situation.trim()}"
+${childAge ? `Child's age: ${childAge}` : ''}
+
+Respond with JSON only (no markdown):
+{
+  "islamicGrounding": {
+    "text": "A relevant hadith, ayah, or Islamic principle — 1-2 sentences, warm and applicable",
+    "source": "e.g. Quran 3:159 or Sahih Bukhari or Ibn Al-Qayyim"
+  },
+  "whatToSay": [
+    "First thing to say verbatim — calm, empathetic",
+    "Follow-up sentence if needed (optional, max 3 total)"
+  ],
+  "whatNotToSay": "One specific phrase or reactive approach to avoid, and briefly why",
+  "moduleNudge": "One sentence suggesting a related module topic for parents who want to understand this pattern more deeply"
+}`;
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_FAST, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    } catch (geminiErr) {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    let cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+    }
+    const parsed = JSON.parse(cleaned);
+    return res.json(parsed);
+  } catch (err) {
+    console.error('POST /guide/now error:', err);
+    return res.status(500).json({ error: 'Failed to generate guidance. Please try again.' });
+  }
+});
+
 // ─── GET /trending/challenges ─────────────────────────────────────────────────
 
 const CHALLENGE_CATEGORIES = [
