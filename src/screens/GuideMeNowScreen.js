@@ -265,33 +265,14 @@ export default function GuideMeNowScreen({ navigation }) {
 
         <View style={[styles.sheet, { padding: 20, paddingBottom: insets.bottom + 32 }]}>
 
-          {/* Islamic Grounding */}
-          <View style={styles.card}>
-            <View style={styles.cardLabelRow}>
-              <View style={[styles.cardDot, { backgroundColor: '#D4A843' }]} />
-              <Text style={[styles.cardLabel, { color: '#92610A' }]}>ISLAMIC GROUNDING</Text>
-            </View>
-            <Text style={styles.cardBody}>{response.islamicGrounding?.text}</Text>
-            {response.islamicGrounding?.source ? (
-              <Text style={styles.cardSource}>— {response.islamicGrounding.source}</Text>
-            ) : null}
-          </View>
-
-          {/* Research Grounding */}
-          {response.researchGrounding ? (
-            <View style={styles.card}>
-              <View style={styles.cardLabelRow}>
-                <View style={[styles.cardDot, { backgroundColor: '#3B82F6' }]} />
-                <Text style={[styles.cardLabel, { color: '#1D4ED8' }]}>RESEARCH INSIGHT</Text>
-              </View>
-              <Text style={styles.cardBody}>{response.researchGrounding.text}</Text>
-              {response.researchGrounding.source ? (
-                <Text style={styles.cardSource}>— {response.researchGrounding.source}</Text>
-              ) : null}
+          {/* 1. Immediate Reframe */}
+          {response.immediateReframe ? (
+            <View style={styles.reframeCard}>
+              <Text style={styles.reframeText}>{response.immediateReframe}</Text>
             </View>
           ) : null}
 
-          {/* What to Say */}
+          {/* 2. What To Say */}
           <View style={[styles.card, styles.sayCard]}>
             <View style={styles.cardLabelRow}>
               <View style={[styles.cardDot, { backgroundColor: '#2E7D62' }]} />
@@ -306,14 +287,73 @@ export default function GuideMeNowScreen({ navigation }) {
             ))}
           </View>
 
-          {/* Avoid Saying */}
-          {response.whatNotToSay ? (
-            <View style={[styles.card, styles.avoidCard]}>
+          {/* 3. What To Do */}
+          {(response.whatToDo ?? []).length > 0 ? (
+            <View style={styles.card}>
               <View style={styles.cardLabelRow}>
-                <View style={[styles.cardDot, { backgroundColor: '#F87171' }]} />
-                <Text style={[styles.cardLabel, { color: '#B91C1C' }]}>AVOID SAYING</Text>
+                <View style={[styles.cardDot, { backgroundColor: '#8B5CF6' }]} />
+                <Text style={[styles.cardLabel, { color: '#6D28D9' }]}>WHAT TO DO</Text>
               </View>
-              <Text style={styles.avoidText}>{response.whatNotToSay}</Text>
+              {(response.whatToDo ?? []).map((step, i) => (
+                <View key={i} style={styles.doStep}>
+                  <View style={styles.doStepNum}>
+                    <Text style={styles.doStepNumText}>{i + 1}</Text>
+                  </View>
+                  <Text style={styles.doStepText}>{step}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* 4. Islamic Guidance */}
+          {response.islamicGuidance ? (
+            <View style={[styles.card, styles.islamicCard]}>
+              <View style={styles.cardLabelRow}>
+                <View style={[styles.cardDot, { backgroundColor: '#D4A843' }]} />
+                <Text style={[styles.cardLabel, { color: '#92610A' }]}>ISLAMIC GUIDANCE</Text>
+              </View>
+              <Text style={styles.cardBody}>{response.islamicGuidance.text}</Text>
+              {response.islamicGuidance.source ? (
+                <Text style={styles.cardSource}>— {response.islamicGuidance.source}</Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* 5. Research Insight */}
+          {response.researchInsight ? (
+            <View style={styles.card}>
+              <View style={styles.cardLabelRow}>
+                <View style={[styles.cardDot, { backgroundColor: '#3B82F6' }]} />
+                <Text style={[styles.cardLabel, { color: '#1D4ED8' }]}>RESEARCH INSIGHT</Text>
+              </View>
+              <Text style={styles.cardBody}>{response.researchInsight.text}</Text>
+              {response.researchInsight.source ? (
+                <Text style={styles.cardSource}>— {response.researchInsight.source}</Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* 6. Long-Term Fix */}
+          {(response.longTermFix ?? []).length > 0 ? (
+            <View style={styles.card}>
+              <View style={styles.cardLabelRow}>
+                <View style={[styles.cardDot, { backgroundColor: '#10B981' }]} />
+                <Text style={[styles.cardLabel, { color: '#065F46' }]}>LONG-TERM FIX</Text>
+              </View>
+              {(response.longTermFix ?? []).map((habit, i) => (
+                <View key={i} style={styles.habitRow}>
+                  <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                  <Text style={styles.habitText}>{habit}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* 7. Parent Reminder */}
+          {response.parentReminder ? (
+            <View style={styles.reminderCard}>
+              <Ionicons name="heart" size={16} color="#D4A843" />
+              <Text style={styles.reminderText}>{response.parentReminder}</Text>
             </View>
           ) : null}
 
@@ -439,6 +479,28 @@ const styles = StyleSheet.create({
   genderLabelActive: { color: '#1B3D2F' },
 
   // ── Response cards ──
+  reframeCard: {
+    backgroundColor: '#1B3D2F', borderRadius: 16, padding: 18, marginBottom: 12,
+  },
+  reframeText: {
+    fontSize: 15, color: 'rgba(255,255,255,0.9)', lineHeight: 24, fontStyle: 'italic',
+  },
+  islamicCard: { borderLeftWidth: 3, borderLeftColor: '#D4A843' },
+  doStep: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 },
+  doStepNum: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  doStepNumText: { fontSize: 12, fontWeight: '700', color: '#6D28D9' },
+  doStepText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 22 },
+  habitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
+  habitText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 22 },
+  reminderCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#FFFBEB', borderRadius: 14, padding: 16,
+    marginBottom: 12, borderWidth: 1, borderColor: '#FDE68A',
+  },
+  reminderText: { flex: 1, fontSize: 14, color: '#92400E', lineHeight: 22, fontWeight: '500' },
   card: {
     backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginBottom: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
