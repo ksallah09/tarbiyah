@@ -549,12 +549,10 @@ Respond with JSON only (no markdown). Keep total response 300–500 words:
   "whatToSay": ["Specific, natural sentence the parent can say verbatim — warm, direct, not textbook. Tailored to the child's age and situation.", "Optional follow-up (max 3 total). Each line should feel distinct and build on the last."],
   "whatToDo": ["Step 1 — specific action + one sentence on why this works for this age/situation", "Step 2 — same format", "Step 3 — same format"],
   "islamicGuidance": {
-    "text": "A specific hadith, ayah, or tarbiyah principle with its meaning and direct application to this exact situation. Not generic. Should feel like wisdom from a knowledgeable sheikh who understands this parent's struggle.",
-    "source": "Precise source e.g. Sahih Muslim 2594 or Quran 3:159 or Ibn Al-Qayyim, Tuhfat al-Mawdud"
+    "text": "A specific hadith, ayah, or tarbiyah principle with its meaning and direct application to this exact situation. Not generic. Should feel like wisdom from a knowledgeable sheikh who understands this parent's struggle. Do NOT include any source references, hadith numbers, book names, or citations in this text — wisdom only."
   },
   "researchInsight": {
-    "text": "A specific child development or psychology insight that explains what is happening and why the recommended approach works — grounded in the knowledge base. Should give the parent an 'aha' moment.",
-    "source": "e.g. Child Mind Institute or NIH/NICHD or CDC"
+    "text": "A specific child development or psychology insight that explains what is happening and why the recommended approach works — grounded in the knowledge base. Should give the parent an 'aha' moment. Do NOT include source names, study citations, or references in this text — insight only."
   },
   "longTermFix": ["Specific habit or system with a clear mechanism — not generic advice", "Second habit — different angle, equally specific"],
   "whenToSeekHelp": "1-2 sentences describing specific signs or circumstances when this situation warrants professional support — a therapist, counsellor, paediatrician, or Islamic scholar. Be honest and specific, not generic.",
