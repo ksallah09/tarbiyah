@@ -301,7 +301,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
               <View style={styles.pickerContent}>
                 <Text style={styles.pickerTitle}>Dhikr While You Wait</Text>
                 <Text style={styles.pickerSubtitle}>
-                  Your personalized module will take a few minutes to prepare. Make dhikr while you wait.
+                  Your personalized module takes 1–3 minutes to prepare. Make dhikr while you wait.
                 </Text>
                 <Text style={styles.pickerChooseLabel}>Choose your dhikr</Text>
 

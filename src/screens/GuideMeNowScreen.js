@@ -117,16 +117,27 @@ export default function GuideMeNowScreen({ navigation, route }) {
   }
 
   // ── Shared hero ──────────────────────────────────────────────────────────────
-  function Hero({ title, sub, extra }) {
+  function Hero({ title, sub, extra, showClose }) {
     return (
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={handleBack}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.7)" />
-        </TouchableOpacity>
+        <View style={styles.heroTopRow}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={handleBack}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
+          {showClose && (
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={20} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.heroLabel}>GUIDE ME · RIGHT NOW</Text>
         <Text style={styles.heroTitle}>{title}</Text>
         {sub ? <Text style={styles.heroSub}>{sub}</Text> : null}
@@ -190,6 +201,31 @@ export default function GuideMeNowScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Loading screen ───────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={[]}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1B3D2F' }]} />
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingIconWrap}>
+            <ActivityIndicator size="large" color="#D4A843" />
+          </View>
+          <Text style={styles.loadingTitle}>Preparing your guidance</Text>
+          <Text style={styles.loadingSub}>
+            Drawing from Islamic scholarship and{'\n'}child development research…
+          </Text>
+          <View style={styles.loadingPills}>
+            {['Islamic Grounding', 'Research Insight', 'What To Say', 'Going Forward'].map((label, i) => (
+              <View key={i} style={styles.loadingPill}>
+                <Text style={styles.loadingPillText}>{label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
       </SafeAreaView>
     );
   }
@@ -280,6 +316,7 @@ export default function GuideMeNowScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         <Hero
           title="Your Guidance"
+          showClose
           extra={
             <View style={styles.situationRecap}>
               <Ionicons name="alert-circle" size={13} color="rgba(255,255,255,0.45)" />
@@ -411,10 +448,6 @@ export default function GuideMeNowScreen({ navigation, route }) {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
-            <Ionicons name="refresh-outline" size={15} color="#6B7280" />
-            <Text style={styles.resetBtnText}>Try a different situation</Text>
-          </TouchableOpacity>
 
         </View>
       </ScrollView>
@@ -432,11 +465,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 28,
   },
+  heroTopRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
+  },
   backBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: 12,
+  },
+  closeBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center', justifyContent: 'center',
   },
   heroLabel: {
     fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
@@ -582,6 +622,36 @@ const styles = StyleSheet.create({
   resetBtnText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
 
   errorText: { fontSize: 13, color: '#DC2626', marginTop: 12, textAlign: 'center' },
+
+  // ── Loading ──
+  loadingContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32,
+  },
+  loadingIconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 28,
+  },
+  loadingTitle: {
+    fontSize: 22, fontWeight: '800', color: '#FFFFFF',
+    letterSpacing: -0.3, marginBottom: 12, textAlign: 'center',
+  },
+  loadingSub: {
+    fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 22,
+    textAlign: 'center', marginBottom: 32,
+  },
+  loadingPills: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center',
+  },
+  loadingPill: {
+    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+  },
+  loadingPillText: {
+    fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.5)',
+  },
 
   // ── Footer ──
   footer: {
