@@ -59,11 +59,12 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
     async function load() {
       const p = plan || await getActiveChildPlan();
       setPlan(p);
-      const tl = await getTodayActionLog();
+      if (!p) return;
+      const tl = await getTodayActionLog(p.id);
       setTodayLog(tl);
-      const l = await getActionLogs();
+      const l = await getActionLogs(p.id);
       setLogs(l);
-      const ci = await getCheckIns();
+      const ci = await getCheckIns(p.id);
       setCheckIns(ci);
     }
     load();
@@ -74,8 +75,8 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
     const updated = [...todayLog];
     updated[index] = newVal;
     setTodayLog(updated);
-    await logAction(todayStr(), index, newVal);
-    const l = await getActionLogs();
+    await logAction(plan.id, todayStr(), index, newVal);
+    const l = await getActionLogs(plan.id);
     setLogs(l);
   }
 
@@ -107,7 +108,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
         createdAt: new Date().toISOString(),
       };
 
-      await saveCheckIn(ci);
+      await saveCheckIn(plan.id, ci);
 
       if (data.adjustedActions?.length === 5) {
         const updatedPlan = { ...plan, parentDailyActions: data.adjustedActions };
@@ -137,7 +138,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
       'Are you sure you want to end this plan? Your progress will be cleared.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'End Plan', style: 'destructive', onPress: async () => { await clearChildPlan(); cancelChildPlanReminder(); cancelChildPlanCheckIn(); navigation.goBack(); } },
+        { text: 'End Plan', style: 'destructive', onPress: async () => { await clearChildPlan(plan.id); cancelChildPlanReminder(); cancelChildPlanCheckIn(); navigation.goBack(); } },
       ]
     );
   }

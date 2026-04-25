@@ -29,7 +29,7 @@ import { saveGoalsForDate } from '../utils/goalHistory';
 import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { getActivePlan, getTodayLog, logHabit, todayStr } from '../utils/pip';
-import { getActiveChildPlan, getTodayActionLog, logAction } from '../utils/childPlan';
+import { getAllChildPlans, getTodayActionLog, logAction } from '../utils/childPlan';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification } from '../utils/notifications';
@@ -135,8 +135,9 @@ export default function HomeScreen({ navigation }) {
   const [completions,  setCompletions]  = useState([]);
   const [pipPlan,        setPipPlan]        = useState(null);
   const [pipTodayLog,    setPipTodayLog]    = useState([false, false, false, false, false]);
-  const [childPlan,      setChildPlan]      = useState(null);
-  const [childTodayLog,  setChildTodayLog]  = useState([false, false, false, false, false]);
+  const [childPlans,     setChildPlans]     = useState([]);
+  const [childTodayLogs, setChildTodayLogs] = useState({});
+  const [childCardIndex, setChildCardIndex] = useState(0);
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
@@ -273,9 +274,11 @@ export default function HomeScreen({ navigation }) {
         setPipPlan(p);
         if (p) getTodayLog().then(setPipTodayLog);
       });
-      getActiveChildPlan().then(p => {
-        setChildPlan(p);
-        if (p) getTodayActionLog().then(setChildTodayLog);
+      getAllChildPlans().then(async plans => {
+        setChildPlans(plans);
+        const logs = {};
+        for (const p of plans) { logs[p.id] = await getTodayActionLog(p.id); }
+        setChildTodayLogs(logs);
       });
     }, [])
   );
@@ -293,12 +296,13 @@ export default function HomeScreen({ navigation }) {
     await logHabit(todayStr(), index, newVal);
   }
 
-  async function handleChildActionToggle(index) {
-    const newVal = !childTodayLog[index];
-    const updated = [...childTodayLog];
+  async function handleChildActionToggle(planId, index) {
+    const todayLog = childTodayLogs[planId] || [false,false,false,false,false];
+    const newVal = !todayLog[index];
+    const updated = [...todayLog];
     updated[index] = newVal;
-    setChildTodayLog(updated);
-    await logAction(todayStr(), index, newVal);
+    setChildTodayLogs(prev => ({ ...prev, [planId]: updated }));
+    await logAction(planId, todayStr(), index, newVal);
   }
 
   const spiritualInsight = dailyData?.insights?.find(i => i.type === 'spiritual') ?? null;
@@ -561,7 +565,7 @@ export default function HomeScreen({ navigation }) {
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
                 <Text style={styles.sectionTitle}>HELP MY CHILD GROW</Text>
               </View>
-              {!childPlan && (
+              {childPlans.length === 0 && (
                 <View style={styles.childEmptyCard}>
                   <View style={styles.childEmptyTop}>
                     <View style={styles.childEmptyIconWrap}>
@@ -570,45 +574,66 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.childEmptyLabel}>No active plan</Text>
                     <Text style={styles.childEmptySub}>Nurture your child's confidence, responsibility, faith & more</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.childEmptyBtn}
-                    onPress={() => navigation.navigate('Growth')}
-                    activeOpacity={0.85}
-                  >
+                  <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('Growth')} activeOpacity={0.85}>
                     <Text style={styles.childEmptyBtnText}>Start a Child Growth Plan</Text>
                     <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
                   </TouchableOpacity>
                 </View>
               )}
-              {childPlan && (
-                <TouchableOpacity
-                  style={styles.pipWidget}
-                  onPress={() => navigation.navigate('ChildPlanDetail', { plan: childPlan })}
-                  activeOpacity={0.88}
-                >
-                  <View style={styles.pipWidgetHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                      <Ionicons name="leaf-outline" size={13} color="#4ADE80" style={{ marginTop: 1 }} />
-                      <Text style={[styles.pipWidgetLabel, { flexShrink: 1 }]} numberOfLines={2}>{childPlan.title}</Text>
+              {childPlans.length > 0 && (
+                <>
+                  <ScrollView
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onScroll={e => setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32)))}
+                    scrollEventThrottle={16}
+                    style={{ marginHorizontal: -16 }}
+                    contentContainerStyle={{ paddingHorizontal: 16 }}
+                  >
+                    {childPlans.map(plan => {
+                      const todayLog = childTodayLogs[plan.id] || [];
+                      return (
+                        <TouchableOpacity
+                          key={plan.id}
+                          style={[styles.pipWidget, { width: SCREEN_WIDTH - 32, marginRight: 16 }]}
+                          onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
+                          activeOpacity={0.88}
+                        >
+                          <View style={styles.pipWidgetHeader}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                              <Ionicons name="leaf-outline" size={13} color="#4ADE80" style={{ marginTop: 1 }} />
+                              <Text style={[styles.pipWidgetLabel, { flexShrink: 1 }]} numberOfLines={2}>{plan.title}</Text>
+                            </View>
+                            <Text style={styles.pipWidgetCount}>{todayLog.filter(Boolean).length}/5</Text>
+                          </View>
+                          <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
+                          <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
+                          {(plan.parentDailyActions || []).map((action, i) => (
+                            <TouchableOpacity
+                              key={i}
+                              style={styles.pipWidgetHabitRow}
+                              onPress={e => { e.stopPropagation?.(); handleChildActionToggle(plan.id, i); }}
+                              activeOpacity={0.7}
+                            >
+                              <View style={[styles.pipWidgetCheck, todayLog[i] && styles.pipWidgetCheckDone]}>
+                                {todayLog[i] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
+                              </View>
+                              <Text style={[styles.pipWidgetHabitText, todayLog[i] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{action}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                  {childPlans.length > 1 && (
+                    <View style={styles.homeDotsRow}>
+                      {childPlans.map((_, i) => (
+                        <View key={i} style={[styles.homeDot, i === childCardIndex && styles.homeDotActive]} />
+                      ))}
                     </View>
-                    <Text style={styles.pipWidgetCount}>{childTodayLog.filter(Boolean).length}/5</Text>
-                  </View>
-                  <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
-                  <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
-                  {(childPlan.parentDailyActions || []).map((action, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      style={styles.pipWidgetHabitRow}
-                      onPress={e => { e.stopPropagation?.(); handleChildActionToggle(i); }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.pipWidgetCheck, childTodayLog[i] && styles.pipWidgetCheckDone]}>
-                        {childTodayLog[i] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
-                      </View>
-                      <Text style={[styles.pipWidgetHabitText, childTodayLog[i] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{action}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </TouchableOpacity>
+                  )}
+                </>
               )}
 
               {/* FAMILY GOALS */}
@@ -1492,6 +1517,9 @@ const styles = StyleSheet.create({
   pipWidgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   pipWidgetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pipWidgetLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C' },
+  homeDotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 8, marginBottom: 8 },
+  homeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)' },
+  homeDotActive: { backgroundColor: '#4ADE80', width: 18 },
   pipWidgetTodoHeading: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', marginBottom: 2, marginTop: 4, letterSpacing: 0.1 },
   pipWidgetSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10 },
   pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },

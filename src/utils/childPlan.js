@@ -1,60 +1,91 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const PLAN_KEY      = 'tarbiyah_child_plan';
-const LOGS_KEY      = 'tarbiyah_child_logs';
-const CHECKINS_KEY  = 'tarbiyah_child_checkins';
+const PLANS_KEY = 'tarbiyah_child_plans';
 
-// ── Plan ─────────────────────────────────────────────────────────────────────
+const logsKey     = (id) => `tarbiyah_child_logs_${id}`;
+const checkinsKey = (id) => `tarbiyah_child_checkins_${id}`;
+
+// ── Plans ─────────────────────────────────────────────────────────────────────
+
+export async function getAllChildPlans() {
+  try {
+    const raw = await AsyncStorage.getItem(PLANS_KEY);
+    if (raw) return JSON.parse(raw);
+    // Migrate legacy single plan
+    const legacy = await AsyncStorage.getItem('tarbiyah_child_plan');
+    if (legacy) {
+      const plan = JSON.parse(legacy);
+      if (!plan.id) plan.id = 'legacy';
+      await AsyncStorage.setItem(PLANS_KEY, JSON.stringify([plan]));
+      return [plan];
+    }
+    return [];
+  } catch { return []; }
+}
 
 export async function saveChildPlan(plan) {
-  await AsyncStorage.setItem(PLAN_KEY, JSON.stringify(plan));
+  const plans = await getAllChildPlans();
+  const idx = plans.findIndex(p => p.id === plan.id);
+  if (idx >= 0) plans[idx] = plan;
+  else plans.push(plan);
+  await AsyncStorage.setItem(PLANS_KEY, JSON.stringify(plans));
 }
 
+export async function removeChildPlan(id) {
+  const plans = await getAllChildPlans();
+  await AsyncStorage.setItem(PLANS_KEY, JSON.stringify(plans.filter(p => p.id !== id)));
+  await AsyncStorage.multiRemove([logsKey(id), checkinsKey(id)]);
+}
+
+export async function clearChildPlan(id) {
+  await removeChildPlan(id);
+}
+
+// Legacy compat — returns first plan
 export async function getActiveChildPlan() {
-  try {
-    const raw = await AsyncStorage.getItem(PLAN_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  const plans = await getAllChildPlans();
+  return plans[0] || null;
 }
 
-export async function clearChildPlan() {
-  await AsyncStorage.multiRemove([PLAN_KEY, LOGS_KEY, CHECKINS_KEY]);
+// ── Action logs ───────────────────────────────────────────────────────────────
+
+export async function getActionLogs(planId) {
+  try {
+    const raw = await AsyncStorage.getItem(logsKey(planId));
+    if (raw) return JSON.parse(raw);
+    // Legacy migration for first plan
+    if (planId === 'legacy') {
+      const legacy = await AsyncStorage.getItem('tarbiyah_child_logs');
+      return legacy ? JSON.parse(legacy) : {};
+    }
+    return {};
+  } catch { return {}; }
+}
+
+export async function logAction(planId, dateStr, actionIndex, completed) {
+  const logs = await getActionLogs(planId);
+  if (!logs[dateStr]) logs[dateStr] = [false, false, false, false, false];
+  logs[dateStr][actionIndex] = completed;
+  await AsyncStorage.setItem(logsKey(planId), JSON.stringify(logs));
+}
+
+export async function getTodayActionLog(planId) {
+  const logs = await getActionLogs(planId);
+  return logs[todayStr()] || [false, false, false, false, false];
 }
 
 // ── Check-ins ─────────────────────────────────────────────────────────────────
 
-export async function getCheckIns() {
+export async function getCheckIns(planId) {
   try {
-    const raw = await AsyncStorage.getItem(CHECKINS_KEY);
+    const raw = await AsyncStorage.getItem(checkinsKey(planId));
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
 }
 
-export async function saveCheckIn(ci) {
-  const existing = await getCheckIns();
-  await AsyncStorage.setItem(CHECKINS_KEY, JSON.stringify([ci, ...existing]));
-}
-
-// ── Action logs ───────────────────────────────────────────────────────────────
-// Stored as { 'YYYY-MM-DD': [bool x5] }
-
-export async function getActionLogs() {
-  try {
-    const raw = await AsyncStorage.getItem(LOGS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-}
-
-export async function logAction(dateStr, actionIndex, completed) {
-  const logs = await getActionLogs();
-  if (!logs[dateStr]) logs[dateStr] = [false, false, false, false, false];
-  logs[dateStr][actionIndex] = completed;
-  await AsyncStorage.setItem(LOGS_KEY, JSON.stringify(logs));
-}
-
-export async function getTodayActionLog() {
-  const logs = await getActionLogs();
-  return logs[todayStr()] || [false, false, false, false, false];
+export async function saveCheckIn(planId, ci) {
+  const existing = await getCheckIns(planId);
+  await AsyncStorage.setItem(checkinsKey(planId), JSON.stringify([ci, ...existing]));
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

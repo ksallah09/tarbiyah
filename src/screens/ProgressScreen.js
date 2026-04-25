@@ -19,7 +19,8 @@ import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { rs, hp } from '../utils/responsive';
 import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr } from '../utils/pip';
-import { getActiveChildPlan, getTodayActionLog, getActionLogs, streakCount as childStreakCount } from '../utils/childPlan';
+import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount } from '../utils/childPlan';
+import { Dimensions } from 'react-native';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -97,10 +98,11 @@ export default function ProgressScreen({ navigation }) {
   const [pipTodayLog, setPipTodayLog] = useState([false, false, false, false, false]);
   const [pipLogs,     setPipLogs]     = useState({});
 
-  // ── Child Plan ──
-  const [activeChildPlan,    setActiveChildPlan]    = useState(null);
-  const [childTodayLog,      setChildTodayLog]      = useState([false, false, false, false, false]);
+  // ── Child Plans ──
+  const [childPlans,         setChildPlans]         = useState([]);
+  const [childTodayLogs,     setChildTodayLogs]     = useState({});
   const [childLogs,          setChildLogs]          = useState({});
+  const [childCardIndex,     setChildCardIndex]     = useState(0);
 
   useFocusEffect(useCallback(() => {
     getActivePlan().then(p => {
@@ -110,12 +112,16 @@ export default function ProgressScreen({ navigation }) {
         getHabitLogs().then(setPipLogs);
       }
     });
-    getActiveChildPlan().then(p => {
-      setActiveChildPlan(p);
-      if (p) {
-        getTodayActionLog().then(setChildTodayLog);
-        getActionLogs().then(setChildLogs);
+    getAllChildPlans().then(async plans => {
+      setChildPlans(plans);
+      const todayLogs = {};
+      const allLogs = {};
+      for (const p of plans) {
+        todayLogs[p.id] = await getTodayActionLog(p.id);
+        allLogs[p.id]   = await getActionLogs(p.id);
       }
+      setChildTodayLogs(todayLogs);
+      setChildLogs(allLogs);
     });
   }, []));
 
@@ -275,45 +281,67 @@ export default function ProgressScreen({ navigation }) {
         {/* ── Help My Child Grow ── */}
         <View style={styles.sectionTitleRow}>
           <Text style={styles.sectionTitle}>HELP MY CHILD GROW</Text>
-          {!activeChildPlan && (
-            <TouchableOpacity style={styles.addGoalBtn} onPress={() => navigation.navigate('ChildPlanWizard')} activeOpacity={0.8}>
-              <Ionicons name="add" size={14} color="#FFFFFF" />
-              <Text style={styles.addGoalBtnText}>New Plan</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        {activeChildPlan ? (
-          <TouchableOpacity
-            style={styles.pipCard}
-            onPress={() => navigation.navigate('ChildPlanDetail', { plan: activeChildPlan })}
-            activeOpacity={0.88}
-          >
-            <View style={styles.pipCardTop}>
-              <View style={styles.pipJourneyBadge}>
-                <Ionicons name="leaf-outline" size={12} color="#4ADE80" />
-                <Text style={styles.pipJourneyText}>Age {activeChildPlan.childAge} · {activeChildPlan.journeyType} · {activeChildPlan.durationDays} days</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
-            </View>
-            <View style={[styles.focusBadgeActive, { backgroundColor: 'rgba(74,222,128,0.15)' }]}><Text style={[styles.focusBadgeActiveText, { color: '#4ADE80' }]}>Child growth</Text></View>
-            <Text style={styles.pipTitle} numberOfLines={2}>{activeChildPlan.title}</Text>
-            <View style={styles.pipHabits}>
-              {(activeChildPlan.parentDailyActions || []).slice(0, 3).map((a, i) => (
-                <View key={i} style={styles.pipHabitRow}>
-                  <View style={[styles.pipHabitCheck, childTodayLog[i] && styles.pipHabitCheckDone]}>
-                    {childTodayLog[i] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
-                  </View>
-                  <Text style={[styles.pipHabitText, childTodayLog[i] && styles.pipHabitTextDone]} numberOfLines={1}>{a}</Text>
-                </View>
-              ))}
-              {(activeChildPlan.parentDailyActions || []).length > 3 && (
-                <Text style={styles.pipMoreHabits}>+{activeChildPlan.parentDailyActions.length - 3} more actions</Text>
-              )}
-            </View>
-            <View style={styles.pipProgressRow}>
-              <Text style={styles.pipProgressLabel}>{childTodayLog.filter(Boolean).length}/5 today · {childStreakCount(childLogs)} day streak</Text>
-            </View>
+          <TouchableOpacity style={styles.addGoalBtn} onPress={() => navigation.navigate('ChildPlanWizard')} activeOpacity={0.8}>
+            <Ionicons name="add" size={14} color="#FFFFFF" />
+            <Text style={styles.addGoalBtnText}>New Plan</Text>
           </TouchableOpacity>
+        </View>
+        {childPlans.length > 0 ? (
+          <>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={e => setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / (Dimensions.get('window').width - 32)))}
+              scrollEventThrottle={16}
+              style={{ marginBottom: childPlans.length > 1 ? 8 : 16 }}
+            >
+              {childPlans.map(plan => {
+                const todayLog = childTodayLogs[plan.id] || [];
+                return (
+                  <TouchableOpacity
+                    key={plan.id}
+                    style={[styles.pipCard, { width: Dimensions.get('window').width - 32, marginBottom: 0, marginRight: 0 }]}
+                    onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.pipCardTop}>
+                      <View style={styles.pipJourneyBadge}>
+                        <Ionicons name="leaf-outline" size={12} color="#4ADE80" />
+                        <Text style={styles.pipJourneyText}>Age {plan.childAge} · {plan.journeyType} · {plan.durationDays} days</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+                    </View>
+                    <View style={[styles.focusBadgeActive, { backgroundColor: 'rgba(74,222,128,0.15)' }]}><Text style={[styles.focusBadgeActiveText, { color: '#4ADE80' }]}>Child growth</Text></View>
+                    <Text style={styles.pipTitle} numberOfLines={2}>{plan.title}</Text>
+                    <View style={styles.pipHabits}>
+                      {(plan.parentDailyActions || []).slice(0, 3).map((a, i) => (
+                        <View key={i} style={styles.pipHabitRow}>
+                          <View style={[styles.pipHabitCheck, todayLog[i] && styles.pipHabitCheckDone]}>
+                            {todayLog[i] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+                          </View>
+                          <Text style={[styles.pipHabitText, todayLog[i] && styles.pipHabitTextDone]} numberOfLines={1}>{a}</Text>
+                        </View>
+                      ))}
+                      {(plan.parentDailyActions || []).length > 3 && (
+                        <Text style={styles.pipMoreHabits}>+{plan.parentDailyActions.length - 3} more actions</Text>
+                      )}
+                    </View>
+                    <View style={styles.pipProgressRow}>
+                      <Text style={styles.pipProgressLabel}>{todayLog.filter(Boolean).length}/5 today · {childStreakCount(childLogs[plan.id] || {})} day streak</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            {childPlans.length > 1 && (
+              <View style={styles.dotsRow}>
+                {childPlans.map((_, i) => (
+                  <View key={i} style={[styles.dot, i === childCardIndex && styles.dotActive]} />
+                ))}
+              </View>
+            )}
+          </>
         ) : (
           <TouchableOpacity style={styles.pipEmptyCard} onPress={() => navigation.navigate('ChildPlanWizard')} activeOpacity={0.85}>
             <View style={styles.pipEmptyIcon}>
@@ -877,6 +905,9 @@ const styles = StyleSheet.create({
   pipMoreHabits: { fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '600', paddingLeft: 30 },
   pipProgressRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 12 },
   pipProgressLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 16 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D1D5DB' },
+  dotActive: { backgroundColor: '#1B3D2F', width: 18 },
   pipEmptyCard: {
     backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginBottom: 16,
     flexDirection: 'row', alignItems: 'center', gap: 14,
