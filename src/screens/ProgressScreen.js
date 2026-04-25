@@ -103,6 +103,7 @@ export default function ProgressScreen({ navigation }) {
   const [childTodayLogs,     setChildTodayLogs]     = useState({});
   const [childLogs,          setChildLogs]          = useState({});
   const [childCardIndex,     setChildCardIndex]     = useState(0);
+  const [childCardWidth,     setChildCardWidth]     = useState(0);
 
   useFocusEffect(useCallback(() => {
     getActivePlan().then(p => {
@@ -288,11 +289,12 @@ export default function ProgressScreen({ navigation }) {
         </View>
         {childPlans.length > 0 ? (
           <>
+            <View onLayout={e => setChildCardWidth(e.nativeEvent.layout.width)}>
             <ScrollView
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
-              onScroll={e => setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / (Dimensions.get('window').width - 32)))}
+              onScroll={e => childCardWidth && setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / childCardWidth))}
               scrollEventThrottle={16}
               style={{ marginBottom: childPlans.length > 1 ? 8 : 16 }}
             >
@@ -301,7 +303,7 @@ export default function ProgressScreen({ navigation }) {
                 return (
                   <TouchableOpacity
                     key={plan.id}
-                    style={[styles.pipCard, { width: Dimensions.get('window').width - 32, marginBottom: 0, marginRight: 0 }]}
+                    style={[styles.pipCard, { width: childCardWidth || '100%', marginBottom: 0, marginRight: 0 }]}
                     onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
                     activeOpacity={0.88}
                   >
@@ -334,6 +336,7 @@ export default function ProgressScreen({ navigation }) {
                 );
               })}
             </ScrollView>
+            </View>
             {childPlans.length > 1 && (
               <View style={styles.dotsRow}>
                 {childPlans.map((_, i) => (

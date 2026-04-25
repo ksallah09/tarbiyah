@@ -138,6 +138,7 @@ export default function HomeScreen({ navigation }) {
   const [childPlans,     setChildPlans]     = useState([]);
   const [childTodayLogs, setChildTodayLogs] = useState({});
   const [childCardIndex, setChildCardIndex] = useState(0);
+  const [childCardWidth, setChildCardWidth] = useState(0);
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
@@ -582,21 +583,20 @@ export default function HomeScreen({ navigation }) {
               )}
               {childPlans.length > 0 && (
                 <>
+                  <View onLayout={e => setChildCardWidth(e.nativeEvent.layout.width)}>
                   <ScrollView
                     horizontal
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}
-                    onScroll={e => setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32)))}
+                    onScroll={e => childCardWidth && setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / childCardWidth))}
                     scrollEventThrottle={16}
-                    style={{ marginHorizontal: -16 }}
-                    contentContainerStyle={{ paddingHorizontal: 16 }}
                   >
                     {childPlans.map(plan => {
                       const todayLog = childTodayLogs[plan.id] || [];
                       return (
                         <TouchableOpacity
                           key={plan.id}
-                          style={[styles.pipWidget, { width: SCREEN_WIDTH - 32, marginRight: 16 }]}
+                          style={[styles.pipWidget, { width: childCardWidth || '100%', marginRight: 0 }]}
                           onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
                           activeOpacity={0.88}
                         >
@@ -626,6 +626,7 @@ export default function HomeScreen({ navigation }) {
                       );
                     })}
                   </ScrollView>
+                  </View>
                   {childPlans.length > 1 && (
                     <View style={styles.homeDotsRow}>
                       {childPlans.map((_, i) => (
