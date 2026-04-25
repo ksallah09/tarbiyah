@@ -13,15 +13,15 @@ const TAB_WIDTH = SCREEN_WIDTH / 5;
 const MOCK_TAB_HEIGHT = 60;
 
 const MOCK_TABS = [
-  { name: 'Home',      icon: 'home-outline',        filled: 'home' },
-  { name: 'Progress',  icon: 'trending-up-outline',  filled: 'trending-up' },
-  { name: 'Guide Me',  icon: 'compass-outline',       filled: 'compass' },
-  { name: 'Community', icon: 'globe-outline',          filled: 'globe' },
-  { name: 'Profile',   icon: 'person-outline',        filled: 'person' },
+  { name: 'Home',       icon: 'home-outline',         filled: 'home' },
+  { name: 'Growth',     icon: 'trending-up-outline',   filled: 'trending-up' },
+  { name: 'Learn',      icon: 'layers-outline',         filled: 'layers' },
+  { name: 'Community',  icon: 'globe-outline',          filled: 'globe' },
+  { name: 'My Library', icon: 'bookmark-outline',       filled: 'bookmark' },
 ];
 
 // Which tab index each slide highlights (null = none)
-const SLIDE_TAB = [null, 0, 2, 3, 1];
+const SLIDE_TAB = [null, 0, 1, 1, 2, 3];
 
 const SLIDES = [
   {
@@ -36,28 +36,35 @@ const SLIDES = [
     icon: 'sunny-outline',
     iconColor: '#D4A843',
     title: 'Daily Wisdom',
-    body: "Every day brings a new spiritual and research-backed parenting insight, personalized to your family's ages and focus areas.",
+    body: "Every day brings a new spiritual insight and research-backed parenting tip, personalized to your family's ages and focus areas.",
+  },
+  {
+    key: 'pip',
+    icon: 'ribbon-outline',
+    iconColor: '#D4A843',
+    title: 'Parenting Improvement Plan',
+    body: 'Build a personalized 30-day plan targeting your specific parenting habits. Complete 5 focused daily actions and build a streak that drives real change.',
+  },
+  {
+    key: 'child',
+    icon: 'leaf-outline',
+    iconColor: '#4ADE80',
+    title: 'Help My Child Grow',
+    body: 'Create a dedicated growth plan for each child — with tailored daily parent actions designed around their specific challenge and age.',
   },
   {
     key: 'learn',
-    icon: 'compass-outline',
+    icon: 'layers-outline',
     iconColor: '#D4A843',
-    title: 'Guide Me',
-    body: "Get immediate guidance for a situation happening right now, or build a personalized learning module for lasting change.",
+    title: 'Learn Your Way',
+    body: 'Need guidance right now? Get Real-Time advice for any situation. Or Go Deeper with a full personalized learning module for lasting transformation.',
   },
   {
     key: 'community',
     icon: 'people-outline',
     iconColor: '#D4A843',
     title: 'Parents Helping Parents',
-    body: "Share duas, celebrate parenting wins, and discover resources from Muslim parents around the world. A space to support and be supported.",
-  },
-  {
-    key: 'goals',
-    icon: 'trending-up-outline',
-    iconColor: '#D4A843',
-    title: 'Track Your Goals',
-    body: 'Set family goals, track your progress, and build consistent habits that strengthen your home.',
+    body: "Share resources, duas, and parenting wins — and connect with Muslim parents around the world.",
   },
 ];
 
@@ -147,19 +154,22 @@ export default function FeatureTourScreen() {
           const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
           setCurrentIndex(index);
         }}
-        renderItem={({ item }) => (
-          <View style={[styles.slide, { paddingBottom: mockTabBarHeight + 120 }]}>
-            <View style={styles.glowStack}>
-              <View style={styles.glowOuter} />
-              <View style={styles.glowMid} />
-              <View style={styles.glowInner}>
-                <Ionicons name={item.icon} size={52} color={item.iconColor} />
+        renderItem={({ item }) => {
+          const glowRgb = item.iconColor === '#4ADE80' ? '74,222,128' : '212,168,67';
+          return (
+            <View style={[styles.slide, { paddingBottom: mockTabBarHeight + 120 }]}>
+              <View style={styles.glowStack}>
+                <View style={[styles.glowOuter, { backgroundColor: `rgba(${glowRgb},0.06)` }]} />
+                <View style={[styles.glowMid, { backgroundColor: `rgba(${glowRgb},0.1)` }]} />
+                <View style={[styles.glowInner, { backgroundColor: `rgba(${glowRgb},0.15)` }]}>
+                  <Ionicons name={item.icon} size={52} color={item.iconColor} />
+                </View>
               </View>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.body}>{item.body}</Text>
             </View>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.body}>{item.body}</Text>
-          </View>
-        )}
+          );
+        }}
       />
 
       {/* Dots */}
