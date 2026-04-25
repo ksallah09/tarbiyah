@@ -600,12 +600,10 @@ export default function HomeScreen({ navigation }) {
                           onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
                           activeOpacity={0.88}
                         >
-                          <View style={styles.pipWidgetHeader}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                              <Ionicons name="leaf-outline" size={13} color="#4ADE80" style={{ marginTop: 1 }} />
-                              <Text style={[styles.pipWidgetLabel, { flexShrink: 1 }]} numberOfLines={2}>{plan.title}</Text>
-                            </View>
-                            <Text style={styles.pipWidgetCount}>{todayLog.filter(Boolean).length}/5</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                            <Ionicons name="leaf-outline" size={13} color="#4ADE80" style={{ marginTop: 1, flexShrink: 0 }} />
+                            <Text style={styles.childWidgetTitle} numberOfLines={2}>{plan.title}</Text>
+                            <Text style={[styles.pipWidgetCount, { marginLeft: 'auto', flexShrink: 0 }]}>{todayLog.filter(Boolean).length}/5</Text>
                           </View>
                           <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
                           <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
@@ -1521,6 +1519,7 @@ const styles = StyleSheet.create({
   homeDotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 8, marginBottom: 8 },
   homeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)' },
   homeDotActive: { backgroundColor: '#4ADE80', width: 18 },
+  childWidgetTitle: { flex: 1, fontSize: 12, fontWeight: '600', color: '#C9A84C', lineHeight: 17 },
   pipWidgetTodoHeading: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', marginBottom: 2, marginTop: 4, letterSpacing: 0.1 },
   pipWidgetSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10 },
   pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
