@@ -230,12 +230,12 @@ const GOAL_MESSAGES = {
 export function getGoalNotificationContent(goal) {
   const key = goal.title?.toLowerCase().trim();
   const match = GOAL_MESSAGES[key];
-  if (match) return { ...match, sound: true, data: { goalId: goal.id, screen: 'Progress' } };
+  if (match) return { ...match, sound: true, data: { goalId: goal.id, screen: 'Growth' } };
   return {
     title: goal.title,
     body: 'Time for your family goal. Every consistent step strengthens your home.',
     sound: true,
-    data: { goalId: goal.id, screen: 'Progress' },
+    data: { goalId: goal.id, screen: 'Growth' },
   };
 }
 

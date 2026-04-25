@@ -574,10 +574,11 @@ export default function LibraryScreen({ navigation }) {
     ));
 
     try {
-      await fetch(`${API_URL}/community/resources/${resource.id}/recommend`, {
+      const res = await fetch(`${API_URL}/community/resources/${resource.id}/recommend`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) throw new Error('Server error');
     } catch {
       // Revert on failure
       setMyRecommendations(prev => {
@@ -585,6 +586,11 @@ export default function LibraryScreen({ navigation }) {
         isRec ? next.add(resource.id) : next.delete(resource.id);
         return next;
       });
+      setResources(prev => prev.map(r =>
+        r.id === resource.id
+          ? { ...r, recommend_count: r.recommend_count + (isRec ? 1 : -1) }
+          : r
+      ));
     }
   }
 

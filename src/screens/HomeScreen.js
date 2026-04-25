@@ -29,6 +29,7 @@ import { saveGoalsForDate } from '../utils/goalHistory';
 import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { getActivePlan, getTodayLog, logHabit, todayStr } from '../utils/pip';
+import { getActiveChildPlan, getTodayActionLog, logAction } from '../utils/childPlan';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification } from '../utils/notifications';
@@ -132,8 +133,10 @@ export default function HomeScreen({ navigation }) {
   const [quranStreak, setQuranStreak] = useState(0);
   const [familyGoals,  setFamilyGoals]  = useState([]);
   const [completions,  setCompletions]  = useState([]);
-  const [pipPlan,      setPipPlan]      = useState(null);
-  const [pipTodayLog,  setPipTodayLog]  = useState([false, false, false, false, false]);
+  const [pipPlan,        setPipPlan]        = useState(null);
+  const [pipTodayLog,    setPipTodayLog]    = useState([false, false, false, false, false]);
+  const [childPlan,      setChildPlan]      = useState(null);
+  const [childTodayLog,  setChildTodayLog]  = useState([false, false, false, false, false]);
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
@@ -270,6 +273,10 @@ export default function HomeScreen({ navigation }) {
         setPipPlan(p);
         if (p) getTodayLog().then(setPipTodayLog);
       });
+      getActiveChildPlan().then(p => {
+        setChildPlan(p);
+        if (p) getTodayActionLog().then(setChildTodayLog);
+      });
     }, [])
   );
 
@@ -284,6 +291,14 @@ export default function HomeScreen({ navigation }) {
     updated[index] = newVal;
     setPipTodayLog(updated);
     await logHabit(todayStr(), index, newVal);
+  }
+
+  async function handleChildActionToggle(index) {
+    const newVal = !childTodayLog[index];
+    const updated = [...childTodayLog];
+    updated[index] = newVal;
+    setChildTodayLog(updated);
+    await logAction(todayStr(), index, newVal);
   }
 
   const spiritualInsight = dailyData?.insights?.find(i => i.type === 'spiritual') ?? null;
@@ -492,15 +507,23 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.sectionTitle}>PARENTING IMPROVEMENT PLAN</Text>
               </View>
               {!pipPlan && (
-                <TouchableOpacity
-                  style={styles.homeGoalEmptyCard}
-                  onPress={() => navigation.navigate('PIPWizard')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="rocket-outline" size={18} color="#2E7D62" />
-                  <Text style={styles.homeGoalEmptyText}>No active plan yet</Text>
-                  <Text style={styles.homeGoalEmptyLink}>Start a plan →</Text>
-                </TouchableOpacity>
+                <View style={styles.childEmptyCard}>
+                  <View style={styles.childEmptyTop}>
+                    <View style={styles.childEmptyIconWrap}>
+                      <Ionicons name="rocket-outline" size={22} color="#2E7D62" />
+                    </View>
+                    <Text style={styles.childEmptyLabel}>No active plan</Text>
+                    <Text style={styles.childEmptySub}>Build the skills, habits and capacity to show up as the parent you want to be</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.childEmptyBtn}
+                    onPress={() => navigation.navigate('Growth')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.childEmptyBtnText}>Start an Improvement Plan</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
+                  </TouchableOpacity>
+                </View>
               )}
               {pipPlan && (
                 <TouchableOpacity
@@ -531,28 +554,88 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
               )}
 
+              {/* HELP MY CHILD GROW */}
+              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+                <Text style={styles.sectionTitle}>HELP MY CHILD GROW</Text>
+              </View>
+              {!childPlan && (
+                <View style={styles.childEmptyCard}>
+                  <View style={styles.childEmptyTop}>
+                    <View style={styles.childEmptyIconWrap}>
+                      <Ionicons name="leaf-outline" size={22} color="#2E7D62" />
+                    </View>
+                    <Text style={styles.childEmptyLabel}>No active plan</Text>
+                    <Text style={styles.childEmptySub}>Nurture your child's confidence, responsibility, faith & more</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.childEmptyBtn}
+                    onPress={() => navigation.navigate('Growth')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.childEmptyBtnText}>Start a Child Growth Plan</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {childPlan && (
+                <TouchableOpacity
+                  style={styles.pipWidget}
+                  onPress={() => navigation.navigate('ChildPlanDetail', { plan: childPlan })}
+                  activeOpacity={0.88}
+                >
+                  <View style={styles.pipWidgetHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <Ionicons name="leaf-outline" size={13} color="#4ADE80" />
+                      <Text style={styles.pipWidgetLabel} numberOfLines={1}>{childPlan.title}</Text>
+                    </View>
+                    <Text style={styles.pipWidgetCount}>{childTodayLog.filter(Boolean).length}/5</Text>
+                  </View>
+                  {(childPlan.parentDailyActions || []).map((action, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.pipWidgetHabitRow}
+                      onPress={e => { e.stopPropagation?.(); handleChildActionToggle(i); }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.pipWidgetCheck, childTodayLog[i] && styles.pipWidgetCheckDone]}>
+                        {childTodayLog[i] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
+                      </View>
+                      <Text style={[styles.pipWidgetHabitText, childTodayLog[i] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{action}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </TouchableOpacity>
+              )}
+
               {/* FAMILY GOALS */}
               {familyGoals.length === 0 && (
                 <>
                   <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
                     <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.homeGoalEmptyCard}
-                    onPress={() => navigation.navigate('Progress')}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="people-outline" size={18} color="#2E7D62" />
-                    <Text style={styles.homeGoalEmptyText}>No family goals yet</Text>
-                    <Text style={styles.homeGoalEmptyLink}>Set goals on the Progress tab →</Text>
-                  </TouchableOpacity>
+                  <View style={styles.childEmptyCard}>
+                    <View style={styles.childEmptyTop}>
+                      <View style={styles.childEmptyIconWrap}>
+                        <Ionicons name="people-outline" size={22} color="#2E7D62" />
+                      </View>
+                      <Text style={styles.childEmptyLabel}>No family goals yet</Text>
+                      <Text style={styles.childEmptySub}>Pray together, eat together, read Quran — build habits that matter</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.childEmptyBtn}
+                      onPress={() => navigation.navigate('Growth')}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.childEmptyBtnText}>Set a Family Goal</Text>
+                      <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
+                    </TouchableOpacity>
+                  </View>
                 </>
               )}
               {familyGoals.length > 0 && (
                 <>
                   <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
                     <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Progress')}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Growth')}>
                       <Text style={styles.sectionSeeAll}>See all</Text>
                     </TouchableOpacity>
                   </View>
@@ -931,7 +1014,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     marginBottom: 8,
-    flexDirection: 'row',
+    flexDirection: 'row', // kept for potential reuse
     alignItems: 'center',
     gap: 10,
     shadowColor: '#1B3D2F',
@@ -1405,4 +1488,25 @@ const styles = StyleSheet.create({
   pipWidgetCheckDone: { backgroundColor: '#4ADE80', borderColor: '#4ADE80' },
   pipWidgetHabitText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 19 },
   pipWidgetHabitTextDone: { color: 'rgba(255,255,255,0.3)', textDecorationLine: 'line-through' },
+  pipEmptyWidget: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: '#E5E7EB',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+  },
+  pipEmptyWidgetTitle: { fontSize: 14, fontWeight: '700', color: '#1C1C1E' },
+  pipEmptyWidgetSub: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+  childEmptyCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 18, overflow: 'hidden', marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+  },
+  childEmptyTop: { alignItems: 'center', paddingTop: 24, paddingBottom: 16, paddingHorizontal: 20, gap: 8 },
+  childEmptyIconWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#E8F5EF', alignItems: 'center', justifyContent: 'center' },
+  childEmptyLabel: { fontSize: 15, fontWeight: '700', color: '#1C1C1E' },
+  childEmptySub: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19 },
+  childEmptyBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingVertical: 14,
+  },
+  childEmptyBtnText: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
 });

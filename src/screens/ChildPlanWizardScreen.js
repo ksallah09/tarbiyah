@@ -8,24 +8,17 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { savePlan } from '../utils/pip';
-import { schedulePIPReminder, schedulePIPCheckIn } from '../utils/notifications';
+import { saveChildPlan } from '../utils/childPlan';
+import { schedulePIPReminder } from '../utils/notifications';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
-
-const PLAN_TYPES = [
-  { key: 'Parenting', label: 'Parenting', icon: 'people-outline' },
-  { key: 'Personal Growth', label: 'Personal Growth', icon: 'leaf-outline' },
-  { key: 'Spiritual', label: 'Spiritual', icon: 'moon-outline' },
-  { key: 'Relationship', label: 'Relationship', icon: 'heart-outline' },
-];
 
 const JOURNEYS = [
   {
     key: 'Reset',
     label: 'Reset',
     days: '14 Days',
-    desc: 'Quick relief and momentum. For stressful weeks, specific issues, or getting unstuck.',
+    desc: 'Immediate support around one growth area. Quick wins and momentum.',
     icon: 'flash-outline',
     color: '#2563EB',
   },
@@ -33,7 +26,7 @@ const JOURNEYS = [
     key: 'Growth',
     label: 'Growth',
     days: '30 Days',
-    desc: 'Lasting habit change and steady progress. Recommended for most parents.',
+    desc: 'Steady development and habit-building. Recommended for most goals.',
     icon: 'trending-up-outline',
     color: '#2E7D62',
     recommended: true,
@@ -42,30 +35,33 @@ const JOURNEYS = [
     key: 'Transformation',
     label: 'Transformation',
     days: '90 Days',
-    desc: 'Deep family culture change and long-term breakthroughs.',
+    desc: 'Deep long-term developmental progress and family culture change.',
     icon: 'sparkles-outline',
     color: '#7C3AED',
   },
 ];
 
-const STRESS_LEVELS = ['Low', 'Moderate', 'High', 'Very High'];
+const TEMPERAMENTS = ['Sensitive', 'Strong-willed', 'Shy', 'Energetic', 'Easily distracted', 'Withdrawn'];
 
-export default function PIPWizardScreen({ navigation }) {
+export default function ChildPlanWizardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
 
-  const planType = 'Parenting';
   // Step 1
-  const [userGoal, setUserGoal] = useState('');
+  const [growthGoal, setGrowthGoal] = useState('');
+  const [childAge, setChildAge] = useState('');
   // Step 2
   const [journeyType, setJourneyType] = useState('Growth');
   // Step 3
-  const [childAges, setChildAges] = useState('');
-  const [familyContext, setFamilyContext] = useState('');
-  const [stressLevel, setStressLevel] = useState('Moderate');
-  const [checkInDays, setCheckInDays] = useState(3);
-  const [reminderTime, setReminderTime] = useState('12:00');
+  const [temperament, setTemperament] = useState('');
+  const [parentChallenge, setParentChallenge] = useState('');
+  const [reminderTime, setReminderTime] = useState('08:00');
   const [showTimePicker, setShowTimePicker] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const totalSteps = 3;
 
   function reminderTimeAsDate() {
     const [h, m] = reminderTime.split(':').map(Number);
@@ -81,20 +77,16 @@ export default function PIPWizardScreen({ navigation }) {
     return `${hour}:${String(m).padStart(2, '0')} ${period}`;
   }
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const totalSteps = 3;
-
   async function handleGenerate() {
-    if (!userGoal.trim()) { setError('Please describe your goal or struggle.'); return; }
+    if (!growthGoal.trim()) { setError('Please describe the growth goal.'); return; }
+    if (!childAge.trim()) { setError("Please enter your child's age."); return; }
     setError('');
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/pip/generate`, {
+      const res = await fetch(`${API_URL}/child-plan/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planType, userGoal, journeyType, childAges, familyContext, stressLevel }),
+        body: JSON.stringify({ growthGoal, childAge, temperament, parentChallenge, journeyType }),
       });
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
@@ -102,25 +94,22 @@ export default function PIPWizardScreen({ navigation }) {
       const plan = {
         ...data,
         id: Date.now().toString(),
-        planType,
-        userGoal,
+        growthGoal,
+        childAge,
+        temperament,
+        parentChallenge,
         journeyType,
-        childAges,
-        familyContext,
-        stressLevel,
-        checkInDays,
         reminderTime,
         startDate: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       };
 
-      await savePlan(plan);
+      await saveChildPlan(plan);
       schedulePIPReminder(reminderTime).catch(() => {});
-      schedulePIPCheckIn(checkInDays, plan.startDate).catch(() => {});
 
-      navigation.replace('PIPDetail', { plan, initialTab: 'plan' });
+      navigation.replace('ChildPlanDetail', { plan, initialTab: 'plan' });
     } catch (err) {
-      console.error('PIP generate error:', err);
+      console.error('Child plan generate error:', err);
       setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
@@ -135,7 +124,7 @@ export default function PIPWizardScreen({ navigation }) {
         <Text style={styles.loadingTitle}>Building your plan...</Text>
         <Text style={styles.loadingSubtitle}>Usually ready in 20–35 seconds</Text>
         <View style={styles.loadingPills}>
-          {['Islamic Foundation', 'Daily Habits', 'Roadmap', 'Action Steps'].map(l => (
+          {['Islamic Foundation', 'Growth Roadmap', 'Parent Actions', 'Growth Opportunities'].map(l => (
             <View key={l} style={styles.loadingPill}><Text style={styles.loadingPillText}>{l}</Text></View>
           ))}
         </View>
@@ -154,7 +143,7 @@ export default function PIPWizardScreen({ navigation }) {
           <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.8)" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Improvement Plan</Text>
+          <Text style={styles.headerTitle}>Help My Child Grow</Text>
           <View style={styles.progressBar}>
             {Array.from({ length: totalSteps }).map((_, i) => (
               <View key={i} style={[styles.progressSegment, i < step && styles.progressSegmentActive]} />
@@ -167,21 +156,30 @@ export default function PIPWizardScreen({ navigation }) {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-          {/* ── Step 1: Goal ── */}
+          {/* ── Step 1: Goal + Age ── */}
           {step === 1 && (
             <View style={styles.stepWrap}>
               <Text style={styles.stepLabel}>STEP 1 OF {totalSteps}</Text>
-              <Text style={styles.stepTitle}>What's your main struggle or goal?</Text>
-              <Text style={styles.stepSubtitle}>Be specific — the more detail you give, the more personalised your plan.</Text>
+              <Text style={styles.stepTitle}>What do you want to help your child grow in?</Text>
+              <Text style={styles.stepSubtitle}>e.g. confidence, responsibility, salah, emotional regulation, kindness</Text>
               <TextInput
                 style={styles.textArea}
-                placeholder={`e.g. "I lose patience with my kids too quickly and raise my voice. I want to respond calmly even when things are chaotic."`}
+                placeholder={`e.g. "My 8-year-old struggles with responsibility. He forgets his tasks and needs constant reminders."`}
                 placeholderTextColor="#9CA3AF"
                 multiline
-                numberOfLines={5}
-                value={userGoal}
-                onChangeText={setUserGoal}
+                numberOfLines={4}
+                value={growthGoal}
+                onChangeText={setGrowthGoal}
                 textAlignVertical="top"
+              />
+              <Text style={styles.fieldLabel}>Child's age</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. 5, 10, 14"
+                placeholderTextColor="#9CA3AF"
+                value={childAge}
+                onChangeText={setChildAge}
+                keyboardType="default"
               />
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
             </View>
@@ -221,45 +219,36 @@ export default function PIPWizardScreen({ navigation }) {
             <View style={styles.stepWrap}>
               <Text style={styles.stepLabel}>STEP 3 OF {totalSteps}</Text>
               <Text style={styles.stepTitle}>A little more context</Text>
-              <Text style={styles.stepSubtitle}>Optional — helps personalise your plan further.</Text>
+              <Text style={styles.stepSubtitle}>Optional — helps personalise the plan further.</Text>
 
-              <Text style={styles.fieldLabel}>Child ages (optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. 4, 8, 13"
-                placeholderTextColor="#9CA3AF"
-                value={childAges}
-                onChangeText={setChildAges}
-              />
-
-              <Text style={styles.fieldLabel}>Family context (optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. single parent, working full time, blended family"
-                placeholderTextColor="#9CA3AF"
-                value={familyContext}
-                onChangeText={setFamilyContext}
-              />
-
-              <Text style={styles.fieldLabel}>Current stress level</Text>
+              <Text style={styles.fieldLabel}>Child's temperament (optional)</Text>
               <View style={styles.pillRow}>
-                {STRESS_LEVELS.map(s => (
+                {TEMPERAMENTS.map(t => (
                   <TouchableOpacity
-                    key={s}
-                    style={[styles.pill, stressLevel === s && styles.pillActive]}
-                    onPress={() => setStressLevel(s)}
+                    key={t}
+                    style={[styles.pill, temperament === t && styles.pillActive]}
+                    onPress={() => setTemperament(prev => prev === t ? '' : t)}
                   >
-                    <Text style={[styles.pillText, stressLevel === s && styles.pillTextActive]}>{s}</Text>
+                    <Text style={[styles.pillText, temperament === t && styles.pillTextActive]}>{t}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
+              <Text style={styles.fieldLabel}>Your main challenge with this (optional)</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. I get frustrated and raise my voice"
+                placeholderTextColor="#9CA3AF"
+                value={parentChallenge}
+                onChangeText={setParentChallenge}
+              />
+
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
               <View style={styles.divider} />
-              <Text style={styles.settingsTitle}>Reminders & Check-ins</Text>
+              <Text style={styles.settingsTitle}>Daily Reminder</Text>
 
-              <Text style={styles.fieldLabel}>Daily habit reminder time</Text>
+              <Text style={styles.fieldLabel}>Reminder time</Text>
               <TouchableOpacity style={styles.timePickerBtn} onPress={() => setShowTimePicker(true)} activeOpacity={0.75}>
                 <Ionicons name="alarm-outline" size={18} color="#1B3D2F" />
                 <Text style={styles.timePickerBtnText}>{formatDisplayTime(reminderTime)}</Text>
@@ -307,19 +296,6 @@ export default function PIPWizardScreen({ navigation }) {
                   </View>
                 </Modal>
               )}
-
-              <Text style={styles.fieldLabel}>Check-in every</Text>
-              <View style={styles.pillRow}>
-                {[3, 5, 7, 14].map(d => (
-                  <TouchableOpacity
-                    key={d}
-                    style={[styles.pill, checkInDays === d && styles.pillActive]}
-                    onPress={() => setCheckInDays(d)}
-                  >
-                    <Text style={[styles.pillText, checkInDays === d && styles.pillTextActive]}>{d} days</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
           )}
 
@@ -329,9 +305,10 @@ export default function PIPWizardScreen({ navigation }) {
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           {step < totalSteps ? (
             <TouchableOpacity
-              style={[styles.ctaBtn, step === 1 && !userGoal.trim() && styles.ctaBtnDisabled]}
+              style={[styles.ctaBtn, step === 1 && (!growthGoal.trim() || !childAge.trim()) && styles.ctaBtnDisabled]}
               onPress={() => {
-                if (step === 1 && !userGoal.trim()) { setError('Please describe your goal or struggle.'); return; }
+                if (step === 1 && !growthGoal.trim()) { setError('Please describe the growth goal.'); return; }
+                if (step === 1 && !childAge.trim()) { setError("Please enter your child's age."); return; }
                 setError('');
                 setStep(s => s + 1);
               }}
@@ -373,19 +350,9 @@ const styles = StyleSheet.create({
   stepLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C' },
   stepTitle: { fontSize: 22, fontWeight: '700', color: '#1C1C1E', lineHeight: 30 },
   stepSubtitle: { fontSize: 14, color: '#6B7280', lineHeight: 22, marginTop: -8 },
-  optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  optionCard: {
-    flex: 1, minWidth: '44%', backgroundColor: '#FFFFFF', borderRadius: 16,
-    padding: 18, alignItems: 'center', gap: 10,
-    borderWidth: 2, borderColor: 'transparent',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
-  },
-  optionCardActive: { borderColor: '#2E7D62', backgroundColor: '#F0FBF5' },
-  optionCardText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
-  optionCardTextActive: { color: '#1B3D2F' },
   textArea: {
     backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16,
-    fontSize: 15, color: '#1C1C1E', lineHeight: 24, minHeight: 140,
+    fontSize: 15, color: '#1C1C1E', lineHeight: 24, minHeight: 120,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
   },
   textInput: {
@@ -393,6 +360,7 @@ const styles = StyleSheet.create({
     fontSize: 15, color: '#1C1C1E',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
   },
+  fieldLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.8, color: '#6B7280', marginBottom: -8 },
   journeyCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16,
     padding: 16, gap: 14, borderWidth: 2, borderColor: 'transparent',
@@ -407,10 +375,13 @@ const styles = StyleSheet.create({
   journeyDesc: { fontSize: 13, color: '#6B7280', lineHeight: 19 },
   recommendedPill: { backgroundColor: '#E8F5EF', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
   recommendedText: { fontSize: 10, fontWeight: '700', color: '#2E7D62' },
-  fieldLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.8, color: '#6B7280', marginBottom: -8 },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 100, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E5E7EB' },
+  pill: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 100, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E5E7EB' },
   pillActive: { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
+  pillText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  pillTextActive: { color: '#FFFFFF' },
+  divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 4 },
+  settingsTitle: { fontSize: 16, fontWeight: '700', color: '#1C1C1E' },
   timePickerBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
@@ -421,10 +392,6 @@ const styles = StyleSheet.create({
   pickerSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 },
   pickerSheetHeader: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   pickerDoneBtn: { fontSize: 16, fontWeight: '700', color: '#1B3D2F' },
-  pillText: { fontSize: 13, fontWeight: '600', color: '#374151' },
-  pillTextActive: { color: '#FFFFFF' },
-  divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 4 },
-  settingsTitle: { fontSize: 16, fontWeight: '700', color: '#1C1C1E' },
   errorText: { fontSize: 13, color: '#DC2626', fontWeight: '500' },
   footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#F5F6F8' },
   ctaBtn: { borderRadius: 16, overflow: 'hidden' },

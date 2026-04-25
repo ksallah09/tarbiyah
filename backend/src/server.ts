@@ -1637,6 +1637,110 @@ Respond with valid JSON only:
   }
 });
 
+// ─── POST /child-plan/generate ───────────────────────────────────────────────
+
+app.post('/child-plan/generate', async (req: Request, res: Response) => {
+  try {
+    const { growthGoal, childAge, temperament, parentChallenge, journeyType } = req.body as {
+      growthGoal: string; childAge: string; journeyType: string;
+      temperament?: string; parentChallenge?: string;
+    };
+    if (!growthGoal?.trim()) return res.status(400).json({ error: 'growthGoal is required.' });
+
+    const sourceContext = await buildModuleSourceContext();
+
+    const systemPrompt = `You are Tarbiyah AI, a trusted Muslim parenting and child development coach.
+
+Your role is to help Muslim parents wisely support their child's growth using:
+1. Islamic tarbiyah principles
+2. Research-based child development and parenting insights
+3. ONLY the approved internal knowledge base: source_knowledge
+
+CORE MISSION:
+Help parents nurture their child's growth through wise parenting, healthy environments, consistent routines, emotional support, and age-appropriate guidance.
+
+IMPORTANT PHILOSOPHY:
+The child is not a problem to fix.
+The goal is not control, punishment, or forcing habits.
+The goal is to help the parent create conditions where the child can grow with dignity, confidence, responsibility, and faith.
+
+SOURCE RULES:
+- Use source_knowledge as the main authority.
+- Use both Islamic and research-based insights found within source_knowledge.
+- If a topic is not directly covered, give practical best-practice guidance aligned with Islamic values.
+- Never invent studies, scholars, statistics, or citations.
+- Never contradict Islamic ethics.
+
+TONE: Warm, Wise, Encouraging, Practical, Respectful, Hopeful, Non-judgmental.
+
+JOURNEY DEFINITIONS:
+1. Reset (14 Days) — Immediate support around one growth area. Fast wins, lighter tasks.
+2. Growth (30 Days) — Steady development and habit-building. Balanced challenge, sustainable systems.
+3. Transformation (90 Days) — Deep long-term developmental progress and family culture change.
+
+IMPORTANT RULES:
+- Parent accountability should be emphasized more than child compliance.
+- Use encouragement over pressure.
+- Use routines over lectures.
+- Use repetition over intensity.
+- Adapt to developmental age.
+- For young children: play, modeling, structure.
+- For older children: ownership, dialogue, responsibility.
+- For teens: dignity, trust, collaboration, autonomy.
+- Keep practical for busy parents.
+- Do NOT frame the child as broken or defective.
+- Do NOT focus on punishment or compliance.
+- Do NOT include hadith numbers, book names, or study citations.
+
+=== KNOWLEDGE BASE ===
+${sourceContext}`;
+
+    const durationDays = journeyType === 'Reset' ? 14 : journeyType === 'Transformation' ? 90 : 30;
+
+    const userPrompt = `Growth Goal: ${growthGoal.trim()}
+Child Age: ${childAge || 'Not specified'}
+Selected Journey: ${journeyType || 'Growth'} (${durationDays} Days)
+${temperament ? `Child Temperament: ${temperament}` : ''}
+${parentChallenge ? `Parent Challenge: ${parentChallenge}` : ''}
+
+Respond with valid JSON only (no markdown). Structure:
+{
+  "title": "Warm motivating plan title",
+  "growthGoal": "2-3 sentences on what healthy progress looks like for this child",
+  "whatAffecting": ["Likely contributing factor 1", "Likely contributing factor 2", "Likely contributing factor 3"],
+  "islamicFoundation": "One concise Islamic reminder, tarbiyah lesson, ayah, or hadith relevant to nurturing children. No citations or hadith numbers.",
+  "researchInsight": "One concise child development insight relevant to this goal. No source names or citations.",
+  "roadmap": [{"phase": "Phase label", "title": "Short title", "description": "2-3 sentences"}],
+  "parentDailyActions": ["Recurring parent action 1 (specific, trackable, under 10 words)", "Action 2", "Action 3", "Action 4", "Action 5"],
+  "childGrowthOpportunities": ["Age-appropriate opportunity 1", "Opportunity 2", "Opportunity 3", "Opportunity 4", "Opportunity 5"],
+  "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
+  "whatToSayScripts": ["Warm realistic script 1", "Script 2", "Script 3"],
+  "ifResistance": "2-3 sentences on how to respond wisely without power struggles",
+  "signsOfProgress": ["Encouraging indicator 1 (not perfection-based)", "Sign 2", "Sign 3", "Sign 4", "Sign 5"],
+  "nextBestJourney": "One sentence recommending what comes after this plan",
+  "parentReminder": "One uplifting closing sentence"
+}`;
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_FAST, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    } catch (geminiErr) {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    let cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+    }
+    const parsed = JSON.parse(cleaned);
+    return res.json({ ...parsed, durationDays });
+  } catch (err) {
+    console.error('POST /child-plan/generate error:', err);
+    return res.status(500).json({ error: 'Failed to generate plan. Please try again.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));

@@ -141,10 +141,10 @@ export default function LearnScreen({ navigation, route }) {
         >
           {/* ── Dark hero header ── */}
           <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-            <Text style={styles.heroLabel}>GUIDE ME</Text>
-            <Text style={styles.heroTitle}>How can we{'\n'}help today?</Text>
+            <Text style={styles.heroLabel}>LEARN</Text>
+            <Text style={styles.heroTitle}>Learn</Text>
             <Text style={styles.heroSub}>
-              Describe a parenting challenge, goal or situation — we'll provide guidance rooted in faith and research.
+              Deep learning and real-time guidance for every parenting moment.
             </Text>
           </View>
 
@@ -167,8 +167,8 @@ export default function LearnScreen({ navigation, route }) {
                     <Ionicons name="flash" size={22} color="#FCD34D" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.choiceCardTitle}>Right Now</Text>
-                    <Text style={styles.choiceCardSub}>I'm in a situation and need advice immediately</Text>
+                    <Text style={styles.choiceCardTitle}>Real-Time</Text>
+                    <Text style={styles.choiceCardSub}>I'm in a situation and need quick advice immediately</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.35)" />
                 </LinearGradient>

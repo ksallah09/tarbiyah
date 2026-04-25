@@ -49,7 +49,7 @@ export default function PIPDetailScreen({ navigation, route }) {
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [checkInText, setCheckInText] = useState('');
   const [checkInLoading, setCheckInLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState('habits');
+  const [activeSection, setActiveSection] = useState(route.params?.initialTab || 'habits');
 
   useFocusEffect(useCallback(() => {
     async function load() {
@@ -266,7 +266,7 @@ export default function PIPDetailScreen({ navigation, route }) {
               {['day1', 'day2', 'day3'].map((d, i) => (
                 <View key={d} style={styles.actionRow}>
                   <View style={styles.actionDayBadge}><Text style={styles.actionDayText}>Day {i + 1}</Text></View>
-                  <Text style={styles.bodyText}>{plan.firstActionSteps[d]}</Text>
+                  <Text style={styles.actionStepText}>{plan.firstActionSteps[d]}</Text>
                 </View>
               ))}
             </Section>
@@ -416,6 +416,7 @@ const styles = StyleSheet.create({
   phaseTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E' },
   phaseDesc: { fontSize: 13, color: '#6B7280', lineHeight: 19 },
   actionRow: { gap: 6, marginBottom: 12 },
+  actionStepText: { fontSize: 14, color: '#374151', lineHeight: 22 },
   actionDayBadge: { backgroundColor: '#7C3AED18', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
   actionDayText: { fontSize: 11, fontWeight: '700', color: '#7C3AED' },
   scriptCard: { backgroundColor: '#F9FAFB', borderRadius: 12, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#1B3D2F' },

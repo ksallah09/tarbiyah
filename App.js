@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, createContext, useContext } from 'react';
 import {
-  View, ActivityIndicator, StyleSheet, Text,
+  View, StyleSheet, Text,
   Animated, TouchableOpacity,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -9,7 +9,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Amiri_400Regular, Amiri_700Bold } from '@expo-google-fonts/amiri';
 
@@ -21,8 +20,10 @@ import ProgressScreen      from './src/screens/ProgressScreen';
 import LearnScreen         from './src/screens/LearnScreen';
 import GuideMeNowScreen    from './src/screens/GuideMeNowScreen';
 import MyLibraryScreen     from './src/screens/MyLibraryScreen';
-import PIPWizardScreen     from './src/screens/PIPWizardScreen';
-import PIPDetailScreen     from './src/screens/PIPDetailScreen';
+import PIPWizardScreen        from './src/screens/PIPWizardScreen';
+import PIPDetailScreen        from './src/screens/PIPDetailScreen';
+import ChildPlanWizardScreen  from './src/screens/ChildPlanWizardScreen';
+import ChildPlanDetailScreen  from './src/screens/ChildPlanDetailScreen';
 import ModuleDetailScreen  from './src/screens/ModuleDetailScreen';
 import LessonReaderScreen  from './src/screens/LessonReaderScreen';
 import ProfileScreen       from './src/screens/ProfileScreen';
@@ -47,8 +48,6 @@ import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission } from './src/utils/notifications';
 
-const SPLASH_QUOTE = { text: 'There has certainly been for you in the Messenger of Allah an excellent example.', source: 'Quran 33:21' };
-
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
 const TYPEWRITER_WORD = 'Tarbiyah';
@@ -61,7 +60,6 @@ function AppSplashOverlay({ onDismiss }) {
   const screenOpacity   = useRef(new Animated.Value(1)).current;
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
   const quoteOpacity    = useRef(new Animated.Value(0)).current;
-  const quote = SPLASH_QUOTE;
 
   useEffect(() => {
     let startTimer;
@@ -90,7 +88,7 @@ function AppSplashOverlay({ onDismiss }) {
       Animated.timing(subtitleOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.delay(400),
       Animated.timing(quoteOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.delay(3300),
+      Animated.delay(2800),
       Animated.timing(screenOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start(() => { setVisible(false); onDismiss(); });
   }, [typewriterDone]);
@@ -99,19 +97,16 @@ function AppSplashOverlay({ onDismiss }) {
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: screenOpacity, zIndex: 999, backgroundColor: '#1B3D2F', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }]}>
-      <View style={{ alignItems: 'center', marginBottom: 6 }}>
-        <Text style={splashStyles.appName}>{typewriterText}</Text>
-      </View>
+      <Text style={splashStyles.appName}>{typewriterText}</Text>
 
-      <Animated.View style={{ opacity: subtitleOpacity, alignItems: 'center', marginBottom: 64 }}>
-        <View style={splashStyles.titleDivider} />
-        <Text style={splashStyles.titleLine1}>Your Guide to</Text>
-        <Text style={splashStyles.titleLine2}>Prophetic Parenting</Text>
+      <Animated.View style={{ opacity: subtitleOpacity, marginTop: 8, flexDirection: 'row' }}>
+        <Text style={splashStyles.subtitle}>Your Guide to </Text>
+        <Text style={[splashStyles.subtitle, { color: '#C9A84C' }]}>Prophetic Parenting</Text>
       </Animated.View>
 
-      <Animated.View style={{ opacity: quoteOpacity, alignItems: 'center' }}>
-        <Text style={splashStyles.quoteText}>{'\u201C'}{quote.text}{'\u201D'}</Text>
-        <Text style={splashStyles.quoteSource}>{quote.source.toUpperCase()}</Text>
+      <Animated.View style={[splashStyles.quoteWrap, { opacity: quoteOpacity }]}>
+        <Text style={splashStyles.quoteText}>{'\u201C'}There has certainly been for you in the Messenger of Allah an excellent example.{'\u201D'}</Text>
+        <Text style={splashStyles.quoteSource}>QURAN 33:21</Text>
       </Animated.View>
     </Animated.View>
   );
@@ -119,44 +114,39 @@ function AppSplashOverlay({ onDismiss }) {
 
 const splashStyles = StyleSheet.create({
   appName: {
-    fontSize: 34,
+    fontSize: 44,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
-    lineHeight: 42,
+    lineHeight: 52,
   },
-  titleDivider: {
-    width: 40,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: '#C9A84C',
-    marginBottom: 12,
-  },
-  titleLine1: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
+    letterSpacing: 0.3,
   },
-  titleLine2: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#C9A84C',
-    textAlign: 'center',
+  quoteWrap: {
+    position: 'absolute',
+    bottom: 64,
+    left: 32,
+    right: 32,
+    alignItems: 'center',
+    gap: 10,
   },
   quoteText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '400',
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 26,
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: 22,
     textAlign: 'center',
-    marginBottom: 16,
     fontStyle: 'italic',
   },
   quoteSource: {
     fontSize: 11,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     letterSpacing: 1.5,
     textAlign: 'center',
   },
@@ -170,13 +160,13 @@ const RootStack  = createNativeStackNavigator();
 
 const TAB_CONFIG = {
   Home:        { filled: 'home',        outline: 'home-outline' },
-  Progress:    { filled: 'trending-up', outline: 'trending-up-outline' },
-  'Guide Me':  { filled: 'compass',     outline: 'compass-outline' },
+  Growth:      { filled: 'trending-up', outline: 'trending-up-outline' },
+  Learn:       { filled: 'layers',      outline: 'layers-outline' },
   Community:   { filled: 'globe',       outline: 'globe-outline' },
   'My Library': { filled: 'bookmark',   outline: 'bookmark-outline' },
 };
 
-function CustomTabBar({ state, descriptors, navigation }) {
+function CustomTabBar({ state, navigation }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.tabBar, { paddingBottom: insets.bottom || 14 }]}>
@@ -216,8 +206,8 @@ function Tabs() {
   return (
     <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }} lazy={false}>
       <Tab.Screen name="Home"       component={HomeScreen} />
-      <Tab.Screen name="Progress"   component={ProgressScreen} />
-      <Tab.Screen name="Guide Me"   component={LearnScreen} />
+      <Tab.Screen name="Growth"     component={ProgressScreen} />
+      <Tab.Screen name="Learn"      component={LearnScreen} />
       <Tab.Screen name="Community"  component={LibraryScreen} />
       <Tab.Screen name="My Library" component={MyLibraryScreen} />
     </Tab.Navigator>
@@ -274,6 +264,16 @@ function MainApp() {
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
+        name="ChildPlanWizard"
+        component={ChildPlanWizardScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="ChildPlanDetail"
+        component={ChildPlanDetailScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
         name="About"
         component={AboutScreen}
         options={{ animation: 'slide_from_right' }}
@@ -316,7 +316,7 @@ export default function App() {
   const [showAppSplash, setShowAppSplash] = useState(false);
   const navigationRef                 = useRef(null);
   const notifResponseListener         = useRef(null);
-  const [fontsLoaded]                 = useFonts({ Amiri_400Regular, Amiri_700Bold });
+  useFonts({ Amiri_400Regular, Amiri_700Bold });
 
   useEffect(() => {
     Promise.all([isOnboardingComplete(), getSession()])
@@ -343,8 +343,8 @@ export default function App() {
     // Navigate to correct screen when user taps a notification
     notifResponseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       const screen = response.notification.request.content.data?.screen;
-      if (screen === 'Progress') {
-        navigationRef.current?.navigate('Tabs', { screen: 'Progress' });
+      if (screen === 'Growth') {
+        navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
       } else if (screen === 'Community') {
         navigationRef.current?.navigate('Tabs', { screen: 'Community' });
       } else {

@@ -19,6 +19,7 @@ import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { rs, hp } from '../utils/responsive';
 import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr } from '../utils/pip';
+import { getActiveChildPlan, getTodayActionLog, getActionLogs, streakCount as childStreakCount } from '../utils/childPlan';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -96,12 +97,24 @@ export default function ProgressScreen({ navigation }) {
   const [pipTodayLog, setPipTodayLog] = useState([false, false, false, false, false]);
   const [pipLogs,     setPipLogs]     = useState({});
 
+  // ── Child Plan ──
+  const [activeChildPlan,    setActiveChildPlan]    = useState(null);
+  const [childTodayLog,      setChildTodayLog]      = useState([false, false, false, false, false]);
+  const [childLogs,          setChildLogs]          = useState({});
+
   useFocusEffect(useCallback(() => {
     getActivePlan().then(p => {
       setActivePlan(p);
       if (p) {
         getTodayLog().then(setPipTodayLog);
         getHabitLogs().then(setPipLogs);
+      }
+    });
+    getActiveChildPlan().then(p => {
+      setActiveChildPlan(p);
+      if (p) {
+        getTodayActionLog().then(setChildTodayLog);
+        getActionLogs().then(setChildLogs);
       }
     });
   }, []));
@@ -198,7 +211,7 @@ export default function ProgressScreen({ navigation }) {
           />
         }
       >
-        <DarkHeader title="Progress" subtitle="Track your daily reading consistency" />
+        <DarkHeader title="Growth" subtitle="Actionable plans for lasting change" />
         <View style={styles.sheet}>
         <View style={styles.content}>
 
@@ -226,6 +239,7 @@ export default function ProgressScreen({ navigation }) {
               </View>
               <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
             </View>
+            <View style={styles.focusBadgeActive}><Text style={styles.focusBadgeActiveText}>Parent growth</Text></View>
             <Text style={styles.pipTitle} numberOfLines={2}>{activePlan.title}</Text>
             <View style={styles.pipHabits}>
               {activePlan.dailyHabits.slice(0, 3).map((h, i) => (
@@ -250,8 +264,65 @@ export default function ProgressScreen({ navigation }) {
               <Ionicons name="rocket-outline" size={26} color="#2E7D62" />
             </View>
             <View style={styles.pipEmptyText}>
+              <View style={styles.focusBadge}><Text style={styles.focusBadgeText}>Parent growth</Text></View>
               <Text style={styles.pipEmptyTitle}>Start an Improvement Plan</Text>
-              <Text style={styles.pipEmptyBody}>Get a personalised 14, 30, or 90-day plan with daily habits, Islamic grounding, and coaching check-ins.</Text>
+              <Text style={styles.pipEmptyBody}>Get a personalized plan to build the skills, habits, and capacity to become the prophetic parent you aspire to be.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
+
+        {/* ── Help My Child Grow ── */}
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>HELP MY CHILD GROW</Text>
+          {!activeChildPlan && (
+            <TouchableOpacity style={styles.addGoalBtn} onPress={() => navigation.navigate('ChildPlanWizard')} activeOpacity={0.8}>
+              <Ionicons name="add" size={14} color="#FFFFFF" />
+              <Text style={styles.addGoalBtnText}>New Plan</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {activeChildPlan ? (
+          <TouchableOpacity
+            style={styles.pipCard}
+            onPress={() => navigation.navigate('ChildPlanDetail', { plan: activeChildPlan })}
+            activeOpacity={0.88}
+          >
+            <View style={styles.pipCardTop}>
+              <View style={styles.pipJourneyBadge}>
+                <Ionicons name="leaf-outline" size={12} color="#4ADE80" />
+                <Text style={styles.pipJourneyText}>Age {activeChildPlan.childAge} · {activeChildPlan.journeyType} · {activeChildPlan.durationDays} days</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+            </View>
+            <View style={[styles.focusBadgeActive, { backgroundColor: 'rgba(74,222,128,0.15)' }]}><Text style={[styles.focusBadgeActiveText, { color: '#4ADE80' }]}>Child growth</Text></View>
+            <Text style={styles.pipTitle} numberOfLines={2}>{activeChildPlan.title}</Text>
+            <View style={styles.pipHabits}>
+              {(activeChildPlan.parentDailyActions || []).slice(0, 3).map((a, i) => (
+                <View key={i} style={styles.pipHabitRow}>
+                  <View style={[styles.pipHabitCheck, childTodayLog[i] && styles.pipHabitCheckDone]}>
+                    {childTodayLog[i] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+                  </View>
+                  <Text style={[styles.pipHabitText, childTodayLog[i] && styles.pipHabitTextDone]} numberOfLines={1}>{a}</Text>
+                </View>
+              ))}
+              {(activeChildPlan.parentDailyActions || []).length > 3 && (
+                <Text style={styles.pipMoreHabits}>+{activeChildPlan.parentDailyActions.length - 3} more actions</Text>
+              )}
+            </View>
+            <View style={styles.pipProgressRow}>
+              <Text style={styles.pipProgressLabel}>{childTodayLog.filter(Boolean).length}/5 today · {childStreakCount(childLogs)} day streak</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.pipEmptyCard} onPress={() => navigation.navigate('ChildPlanWizard')} activeOpacity={0.85}>
+            <View style={styles.pipEmptyIcon}>
+              <Ionicons name="leaf-outline" size={26} color="#2E7D62" />
+            </View>
+            <View style={styles.pipEmptyText}>
+              <View style={[styles.focusBadge, { backgroundColor: '#E8F5EF' }]}><Text style={[styles.focusBadgeText, { color: '#2E7D62' }]}>Child growth</Text></View>
+              <Text style={styles.pipEmptyTitle}>Help My Child Grow</Text>
+              <Text style={styles.pipEmptyBody}>Get a personalised plan to help nurture your child's confidence, responsibility, faith, or any growth area.</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
           </TouchableOpacity>
@@ -517,6 +588,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginBottom: 14,
   },
+  focusBadge: {
+    backgroundColor: '#FEF3C7', borderRadius: 100,
+    paddingHorizontal: 9, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 6,
+  },
+  focusBadgeText: { fontSize: 10, fontWeight: '700', color: '#B45309' },
+  focusBadgeActive: {
+    backgroundColor: 'rgba(201,168,76,0.15)', borderRadius: 100,
+    paddingHorizontal: 9, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 6,
+  },
+  focusBadgeActiveText: { fontSize: 10, fontWeight: '700', color: '#C9A84C' },
   streakRow: {
     flexDirection: 'row',
     gap: 10,
