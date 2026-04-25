@@ -1703,6 +1703,13 @@ Selected Journey: ${journeyType || 'Growth'} (${durationDays} Days)
 ${temperament ? `Child Temperament: ${temperament}` : ''}
 ${parentChallenge ? `Parent Challenge: ${parentChallenge}` : ''}
 
+PARENT DAILY ACTIONS RULES:
+- Each action must be specific, practical, and directly tied to the growth issue.
+- Include a quantity or time goal where possible (e.g. "Spend 10 minutes...", "Give 2 specific praise statements...", "Practice one role-play scenario...").
+- Actions should describe what the parent DOES, not vague intentions.
+- Good: "Spend 10 minutes doing a calm one-on-one activity", "Point out 2 kind words your child uses and praise them specifically".
+- Bad: "Be supportive", "Encourage good behavior", "Model kindness".
+
 Respond with valid JSON only (no markdown). Structure:
 {
   "title": "Warm motivating plan title",
@@ -1711,7 +1718,7 @@ Respond with valid JSON only (no markdown). Structure:
   "islamicFoundation": "One concise Islamic reminder, tarbiyah lesson, ayah, or hadith relevant to nurturing children. No citations or hadith numbers.",
   "researchInsight": "One concise child development insight relevant to this goal. No source names or citations.",
   "roadmap": [{"phase": "Phase label", "title": "Short title", "description": "2-3 sentences"}],
-  "parentDailyActions": ["Recurring parent action 1 (specific, trackable, under 10 words)", "Action 2", "Action 3", "Action 4", "Action 5"],
+  "parentDailyActions": ["Concrete daily parent action 1", "Action 2", "Action 3", "Action 4", "Action 5"],
   "childGrowthOpportunities": ["Age-appropriate opportunity 1", "Opportunity 2", "Opportunity 3", "Opportunity 4", "Opportunity 5"],
   "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
   "whatToSayScripts": ["Warm realistic script 1", "Script 2", "Script 3"],
