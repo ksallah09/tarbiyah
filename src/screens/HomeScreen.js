@@ -535,10 +535,11 @@ export default function HomeScreen({ navigation }) {
                   <View style={styles.pipWidgetHeader}>
                     <View style={styles.pipWidgetTitleRow}>
                       <Ionicons name="trending-up-outline" size={14} color="#C9A84C" />
-                      <Text style={styles.pipWidgetLabel}>YOUR PLAN · TODAY</Text>
+                      <Text style={styles.pipWidgetLabel}>TODAY'S TO-DO'S</Text>
                     </View>
                     <Text style={styles.pipWidgetCount}>{pipTodayLog.filter(Boolean).length}/5</Text>
                   </View>
+                  <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
                   {pipPlan.dailyHabits.map((habit, i) => (
                     <TouchableOpacity
                       key={i}
@@ -591,6 +592,7 @@ export default function HomeScreen({ navigation }) {
                     </View>
                     <Text style={styles.pipWidgetCount}>{childTodayLog.filter(Boolean).length}/5</Text>
                   </View>
+                  <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
                   {(childPlan.parentDailyActions || []).map((action, i) => (
                     <TouchableOpacity
                       key={i}
@@ -1488,6 +1490,7 @@ const styles = StyleSheet.create({
   pipWidgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   pipWidgetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pipWidgetLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C' },
+  pipWidgetSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10, marginTop: -4 },
   pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   pipWidgetHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
   pipWidgetCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
