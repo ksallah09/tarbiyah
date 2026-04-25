@@ -1703,6 +1703,14 @@ Selected Journey: ${journeyType || 'Growth'} (${durationDays} Days)
 ${temperament ? `Child Temperament: ${temperament}` : ''}
 ${parentChallenge ? `Parent Challenge: ${parentChallenge}` : ''}
 
+SPECIFICITY RULES — APPLY TO THE ENTIRE PLAN:
+- Every section must directly address the exact growth issue described. Do not give generic parenting advice.
+- The title, roadmap, actions, scripts, and opportunities must all be visibly connected to the specific issue (e.g. if the issue is "says hurtful things", every action should target that — not general kindness or emotional regulation in the abstract).
+- "growthGoal" should describe what specific improvement looks like for THIS child and THIS issue, not a general positive outcome.
+- "whatAffecting" should list causes specific to the described behaviour, not generic child development factors.
+- "roadmap" phases should describe a clear progression tied to the issue (e.g. awareness → practice → habit).
+- "whatToSayScripts" must be scripts a parent would actually say in a moment related to THIS issue.
+
 PARENT DAILY ACTIONS RULES:
 - Each action must be specific, practical, and directly tied to the growth issue.
 - Include a quantity or time goal where possible (e.g. "Spend 10 minutes...", "Give 2 specific praise statements...", "Practice one role-play scenario...").
