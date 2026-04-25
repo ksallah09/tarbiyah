@@ -55,6 +55,7 @@ export default function ChildPlanWizardScreen({ navigation }) {
   // Step 3
   const [temperament, setTemperament] = useState('');
   const [parentChallenge, setParentChallenge] = useState('');
+  const [checkInDays, setCheckInDays] = useState(3);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -78,7 +79,7 @@ export default function ChildPlanWizardScreen({ navigation }) {
   }
 
   async function handleGenerate() {
-    if (!growthGoal.trim()) { setError('Please describe the growth goal.'); return; }
+    if (!growthGoal.trim()) { setError('Please describe the growth issue.'); return; }
     if (!childAge.trim()) { setError("Please enter your child's age."); return; }
     setError('');
     setLoading(true);
@@ -99,6 +100,7 @@ export default function ChildPlanWizardScreen({ navigation }) {
         temperament,
         parentChallenge,
         journeyType,
+        checkInDays,
         reminderTime,
         startDate: new Date().toISOString(),
         createdAt: new Date().toISOString(),
@@ -160,7 +162,7 @@ export default function ChildPlanWizardScreen({ navigation }) {
           {step === 1 && (
             <View style={styles.stepWrap}>
               <Text style={styles.stepLabel}>STEP 1 OF {totalSteps}</Text>
-              <Text style={styles.stepTitle}>What do you want to help your child grow in?</Text>
+              <Text style={styles.stepTitle}>What growth issue would you like to address?</Text>
               <Text style={styles.stepSubtitle}>e.g. confidence, responsibility, salah, emotional regulation, kindness</Text>
               <TextInput
                 style={styles.textArea}
@@ -297,6 +299,20 @@ export default function ChildPlanWizardScreen({ navigation }) {
                   </View>
                 </Modal>
               )}
+
+              <Text style={styles.fieldLabel}>Check-in every</Text>
+              <Text style={styles.settingSubtitle}>You'll receive a prompt to reflect on your child's progress and get personalised coaching to adjust your plan.</Text>
+              <View style={styles.pillRow}>
+                {[3, 5, 7, 14].map(d => (
+                  <TouchableOpacity
+                    key={d}
+                    style={[styles.pill, checkInDays === d && styles.pillActive]}
+                    onPress={() => setCheckInDays(d)}
+                  >
+                    <Text style={[styles.pillText, checkInDays === d && styles.pillTextActive]}>{d} days</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
 
@@ -308,7 +324,7 @@ export default function ChildPlanWizardScreen({ navigation }) {
             <TouchableOpacity
               style={[styles.ctaBtn, step === 1 && (!growthGoal.trim() || !childAge.trim()) && styles.ctaBtnDisabled]}
               onPress={() => {
-                if (step === 1 && !growthGoal.trim()) { setError('Please describe the growth goal.'); return; }
+                if (step === 1 && !growthGoal.trim()) { setError('Please describe the growth issue.'); return; }
                 if (step === 1 && !childAge.trim()) { setError("Please enter your child's age."); return; }
                 setError('');
                 setStep(s => s + 1);
@@ -383,6 +399,7 @@ const styles = StyleSheet.create({
   pillTextActive: { color: '#FFFFFF' },
   divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 4 },
   settingsTitle: { fontSize: 16, fontWeight: '700', color: '#1C1C1E' },
+  settingSubtitle: { fontSize: 13, color: '#6B7280', lineHeight: 19, marginTop: -4, marginBottom: 4 },
   timePickerBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
