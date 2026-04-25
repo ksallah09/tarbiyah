@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
+  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,9 +9,12 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  getActiveChildPlan, getTodayActionLog, logAction,
-  getActionLogs, clearChildPlan, daysSinceStart, streakCount, todayStr,
+  getActiveChildPlan, saveChildPlan, getTodayActionLog, logAction,
+  getActionLogs, clearChildPlan, getCheckIns, saveCheckIn,
+  daysSinceStart, streakCount, todayStr,
 } from '../utils/childPlan';
+
+const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 const JOURNEY_COLORS = { Reset: '#2563EB', Growth: '#2E7D62', Transformation: '#7C3AED' };
 
@@ -41,6 +45,11 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
   const [todayLog, setTodayLog] = useState([false, false, false, false, false]);
   const [logs, setLogs] = useState({});
   const [activeSection, setActiveSection] = useState(route.params?.initialTab || 'actions');
+  const [checkIns, setCheckIns] = useState([]);
+  const [showCheckIn, setShowCheckIn] = useState(false);
+  const [checkInText, setCheckInText] = useState('');
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const scrollRef = useRef(null);
 
   useFocusEffect(useCallback(() => {
     async function load() {
@@ -50,6 +59,8 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
       setTodayLog(tl);
       const l = await getActionLogs();
       setLogs(l);
+      const ci = await getCheckIns();
+      setCheckIns(ci);
     }
     load();
   }, []));
@@ -62,6 +73,52 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
     await logAction(todayStr(), index, newVal);
     const l = await getActionLogs();
     setLogs(l);
+  }
+
+  async function handleCheckInSubmit() {
+    if (!checkInText.trim()) return;
+    setCheckInLoading(true);
+    try {
+      const dayNumber = daysSinceStart(plan.startDate);
+      const res = await fetch(`${API_URL}/child-plan/checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedback: checkInText,
+          currentActions: plan.parentDailyActions,
+          journeyType: plan.journeyType,
+          dayNumber,
+          growthGoal: plan.growthGoal,
+        }),
+      });
+      if (!res.ok) throw new Error('Server error');
+      const data = await res.json();
+
+      const ci = {
+        id: Date.now().toString(),
+        dayNumber,
+        feedback: checkInText,
+        coachingResponse: data.coachingResponse,
+        adjustedActions: data.adjustedActions,
+        createdAt: new Date().toISOString(),
+      };
+
+      await saveCheckIn(ci);
+
+      if (data.adjustedActions?.length === 5) {
+        const updatedPlan = { ...plan, parentDailyActions: data.adjustedActions };
+        await saveChildPlan(updatedPlan);
+        setPlan(updatedPlan);
+      }
+
+      setCheckIns(prev => [ci, ...prev]);
+      setCheckInText('');
+      setShowCheckIn(false);
+    } catch {
+      Alert.alert('Error', 'Could not submit check-in. Please try again.');
+    } finally {
+      setCheckInLoading(false);
+    }
   }
 
   function handleClearPlan() {
@@ -87,6 +144,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
     { key: 'actions', label: 'Actions' },
     { key: 'plan', label: 'Plan' },
     { key: 'growth', label: 'Growth Tips' },
+    { key: 'checkins', label: `Check-ins${checkIns.length > 0 ? ` (${checkIns.length})` : ''}` },
   ];
 
   return (
@@ -142,13 +200,13 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
       {/* Tabs */}
       <View style={styles.tabs}>
         {TABS.map(tab => (
-          <TouchableOpacity key={tab.key} style={[styles.tab, activeSection === tab.key && styles.tabActive]} onPress={() => setActiveSection(tab.key)}>
+          <TouchableOpacity key={tab.key} style={[styles.tab, activeSection === tab.key && styles.tabActive]} onPress={() => { setActiveSection(tab.key); scrollRef.current?.scrollTo({ y: 0, animated: false }); }}>
             <Text style={[styles.tabText, activeSection === tab.key && styles.tabTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* ── Actions Tab ── */}
         {activeSection === 'actions' && (
@@ -176,13 +234,25 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
                 </View>
               ))}
             </Section>
+
+            <TouchableOpacity style={styles.checkInBtn} onPress={() => setShowCheckIn(true)} activeOpacity={0.85}>
+              <Ionicons name="chatbubble-ellipses-outline" size={18} color="#1B3D2F" />
+              <Text style={styles.checkInBtnText}>Submit a Check-in</Text>
+            </TouchableOpacity>
+
+            {checkIns.length > 0 && (
+              <Section icon="sparkles-outline" title="Latest Coaching" color="#C9A84C">
+                <Text style={styles.coachingText}>{checkIns[0].coachingResponse}</Text>
+                <Text style={styles.coachingDay}>Day {checkIns[0].dayNumber} check-in</Text>
+              </Section>
+            )}
           </>
         )}
 
         {/* ── Plan Tab ── */}
         {activeSection === 'plan' && (
           <>
-            <Section icon="flag-outline" title="Growth Goal">
+            <Section icon="flag-outline" title="Growth Issue">
               <Text style={styles.bodyText}>{plan.growthGoal}</Text>
             </Section>
 
@@ -255,15 +325,88 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
           </>
         )}
 
+        {/* ── Check-ins Tab ── */}
+        {activeSection === 'checkins' && (
+          <>
+            <TouchableOpacity style={styles.checkInBtn} onPress={() => setShowCheckIn(true)} activeOpacity={0.85}>
+              <Ionicons name="add-circle-outline" size={18} color="#1B3D2F" />
+              <Text style={styles.checkInBtnText}>New Check-in</Text>
+            </TouchableOpacity>
+
+            {checkIns.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="chatbubble-ellipses-outline" size={44} color="#D1D5DB" />
+                <Text style={styles.emptyTitle}>No check-ins yet</Text>
+                <Text style={styles.emptyBody}>Tap above to reflect on your child's progress and get personalised coaching.</Text>
+              </View>
+            ) : checkIns.map(ci => (
+              <View key={ci.id} style={styles.checkInCard}>
+                <View style={styles.checkInCardHeader}>
+                  <Text style={styles.checkInCardDay}>Day {ci.dayNumber} check-in</Text>
+                  <Text style={styles.checkInCardDate}>{new Date(ci.createdAt).toLocaleDateString()}</Text>
+                </View>
+                <Text style={styles.checkInFeedback}>"{ci.feedback}"</Text>
+                <View style={styles.checkInDivider} />
+                <View style={styles.checkInCoachRow}>
+                  <Ionicons name="sparkles" size={14} color="#C9A84C" />
+                  <Text style={styles.coachingText}>{ci.coachingResponse}</Text>
+                </View>
+                {ci.adjustedActions && (
+                  <View style={styles.adjustedWrap}>
+                    <Text style={styles.adjustedLabel}>UPDATED ACTIONS</Text>
+                    {ci.adjustedActions.map((a, i) => (
+                      <Text key={i} style={styles.adjustedHabit}>{i + 1}. {a}</Text>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+          </>
+        )}
+
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Check-in modal */}
+      {showCheckIn && (
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.checkInOverlay}>
+          <TouchableOpacity style={styles.checkInBackdrop} activeOpacity={1} onPress={() => setShowCheckIn(false)} />
+          <View style={[styles.checkInSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.checkInHandle} />
+            <Text style={styles.checkInSheetTitle}>How's it going?</Text>
+            <Text style={styles.checkInSheetSubtitle}>Share how your child is responding — your coach will adapt the plan if needed.</Text>
+            <TextInput
+              style={styles.checkInInput}
+              placeholder="e.g. My child is slowly becoming more aware of their words but still slips up. The daily activity is helping..."
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={5}
+              value={checkInText}
+              onChangeText={setCheckInText}
+              textAlignVertical="top"
+              autoFocus
+            />
+            <TouchableOpacity
+              style={[styles.checkInSubmit, (!checkInText.trim() || checkInLoading) && { opacity: 0.5 }]}
+              onPress={handleCheckInSubmit}
+              disabled={!checkInText.trim() || checkInLoading}
+              activeOpacity={0.85}
+            >
+              {checkInLoading
+                ? <ActivityIndicator color="#FFFFFF" />
+                : <Text style={styles.checkInSubmitText}>Submit Check-in</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F6F8' },
-  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 240, backgroundColor: '#1B3D2F' },
+  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 290, backgroundColor: '#1B3D2F' },
   hero: { paddingHorizontal: 20, paddingBottom: 20, gap: 10 },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   journeyBadge: { borderRadius: 100, paddingHorizontal: 12, paddingVertical: 5 },
@@ -307,4 +450,47 @@ const styles = StyleSheet.create({
   reminderText: { fontSize: 15, color: '#FFFFFF', lineHeight: 24, fontStyle: 'italic', textAlign: 'center' },
   endPlanBtn: { alignItems: 'center', paddingVertical: 14, marginBottom: 10 },
   endPlanText: { fontSize: 14, fontWeight: '600', color: '#9CA3AF' },
+  checkInBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 14, marginBottom: 14,
+    borderWidth: 1.5, borderColor: '#E5E7EB',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+  },
+  checkInBtnText: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
+  coachingText: { fontSize: 14, color: '#374151', lineHeight: 22, flex: 1 },
+  coachingDay: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', marginTop: 8 },
+  emptyState: { alignItems: 'center', paddingVertical: 48, gap: 10 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: '#374151' },
+  emptyBody: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', lineHeight: 22 },
+  checkInCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginBottom: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+  },
+  checkInCardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  checkInCardDay: { fontSize: 12, fontWeight: '700', color: '#1B3D2F' },
+  checkInCardDate: { fontSize: 12, color: '#9CA3AF' },
+  checkInFeedback: { fontSize: 13, color: '#6B7280', lineHeight: 20, fontStyle: 'italic', marginBottom: 10 },
+  checkInDivider: { height: 1, backgroundColor: '#F3F4F6', marginBottom: 10 },
+  checkInCoachRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  adjustedWrap: { marginTop: 12, backgroundColor: '#F9FAFB', borderRadius: 10, padding: 12, gap: 4 },
+  adjustedLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.8, marginBottom: 4 },
+  adjustedHabit: { fontSize: 13, color: '#374151', lineHeight: 20 },
+  checkInOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end' },
+  checkInBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  checkInSheet: {
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 20, paddingTop: 16, gap: 14,
+  },
+  checkInHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 4 },
+  checkInSheetTitle: { fontSize: 20, fontWeight: '700', color: '#1C1C1E' },
+  checkInSheetSubtitle: { fontSize: 14, color: '#6B7280', lineHeight: 22, marginTop: -6 },
+  checkInInput: {
+    backgroundColor: '#F9FAFB', borderRadius: 14, padding: 14,
+    fontSize: 15, color: '#1C1C1E', lineHeight: 23, minHeight: 120,
+  },
+  checkInSubmit: {
+    backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  checkInSubmitText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 });

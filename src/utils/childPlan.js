@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const PLAN_KEY = 'tarbiyah_child_plan';
-const LOGS_KEY = 'tarbiyah_child_logs';
+const PLAN_KEY      = 'tarbiyah_child_plan';
+const LOGS_KEY      = 'tarbiyah_child_logs';
+const CHECKINS_KEY  = 'tarbiyah_child_checkins';
 
 // ── Plan ─────────────────────────────────────────────────────────────────────
 
@@ -17,7 +18,21 @@ export async function getActiveChildPlan() {
 }
 
 export async function clearChildPlan() {
-  await AsyncStorage.multiRemove([PLAN_KEY, LOGS_KEY]);
+  await AsyncStorage.multiRemove([PLAN_KEY, LOGS_KEY, CHECKINS_KEY]);
+}
+
+// ── Check-ins ─────────────────────────────────────────────────────────────────
+
+export async function getCheckIns() {
+  try {
+    const raw = await AsyncStorage.getItem(CHECKINS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export async function saveCheckIn(ci) {
+  const existing = await getCheckIns();
+  await AsyncStorage.setItem(CHECKINS_KEY, JSON.stringify([ci, ...existing]));
 }
 
 // ── Action logs ───────────────────────────────────────────────────────────────

@@ -1637,6 +1637,61 @@ Respond with valid JSON only:
   }
 });
 
+// ─── POST /child-plan/checkin ────────────────────────────────────────────────
+
+app.post('/child-plan/checkin', async (req: Request, res: Response) => {
+  try {
+    const { feedback, currentActions, journeyType, dayNumber, growthGoal } = req.body as {
+      feedback: string; currentActions: string[]; journeyType: string; dayNumber: number; growthGoal?: string;
+    };
+    if (!feedback?.trim()) return res.status(400).json({ error: 'feedback is required.' });
+
+    const systemPrompt = `You are Tarbiyah AI, a warm Muslim parenting coach reviewing a parent's progress check-in for their child's growth plan.
+
+Your role: listen to their feedback about how their child is progressing and how the parent actions are going, acknowledge their effort, provide short coaching insight specific to the child's growth issue, and if needed adjust their 5 daily parent actions to better fit the current reality.
+
+TONE: Warm, honest, encouraging, non-judgmental. Speak like a trusted coach who knows them.
+RULES:
+- Keep coaching response to 3-5 sentences max.
+- The coaching must be specific to the child's growth issue and what the parent shared — not generic.
+- Only adjust actions if the parent's feedback clearly indicates they need to be modified (too hard, not relevant, child is responding differently than expected).
+- If actions are working, return them unchanged.
+- Never invent citations or studies.`;
+
+    const userPrompt = `Growth Issue: ${growthGoal || 'Not specified'}
+Journey: ${journeyType}, Day ${dayNumber} check-in.
+
+Current daily parent actions:
+${(currentActions || []).map((a: string, i: number) => `${i + 1}. ${a}`).join('\n')}
+
+Parent feedback: "${feedback.trim()}"
+
+Respond with valid JSON only:
+{
+  "coachingResponse": "3-5 sentence warm coaching response acknowledging their feedback and giving one key insight or encouragement specific to the child's growth issue",
+  "adjustedActions": ["Action 1", "Action 2", "Action 3", "Action 4", "Action 5"]
+}`;
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_FAST, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    } catch (geminiErr) {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    let cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+    }
+    const parsed = JSON.parse(cleaned);
+    return res.json(parsed);
+  } catch (err) {
+    console.error('POST /child-plan/checkin error:', err);
+    return res.status(500).json({ error: 'Failed to process check-in. Please try again.' });
+  }
+});
+
 // ─── POST /child-plan/generate ───────────────────────────────────────────────
 
 app.post('/child-plan/generate', async (req: Request, res: Response) => {
