@@ -386,9 +386,7 @@ export default function HomeScreen({ navigation }) {
                     {name ? name.charAt(0).toUpperCase() : '?'}
                   </Text>
                 </View>
-                <Text style={styles.heroProfileDate}>
-                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </Text>
+                <Text style={styles.heroProfileDate}>Profile</Text>
               </TouchableOpacity>
             </View>
           </View>
