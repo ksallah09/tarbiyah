@@ -18,82 +18,25 @@ const PROFILE_KEY          = 'tarbiyah_profile';
 
 // ─── Rotating message pool ────────────────────────────────────────────────────
 const FALLBACK_MESSAGES = [
-  {
-    title: "Today's reminder might be exactly what you need.",
-    body: 'Build your parenting knowledge with today\'s Tarbiyah insights.',
-  },
-  {
-    title: 'Guidance for a better parenting day.',
-    body: 'Build your parenting knowledge with today\'s Tarbiyah insights.',
-  },
-  {
-    title: "Today's reminder is ready to strengthen your home.",
-    body: 'Build your parenting knowledge with today\'s Tarbiyah insights.',
-  },
-  {
-    title: "Open today's parenting wisdom for a fresh perspective.",
-    body: 'Build your parenting knowledge with today\'s Tarbiyah insights.',
-  },
-  {
-    title: "Today's lesson may change how you approach the day.",
-    body: 'Build your parenting knowledge with today\'s Tarbiyah insights.',
-  },
-  {
-    title: 'Parenting is hard. Let today\'s reminder help.',
-    body: 'Build your parenting knowledge with today\'s Tarbiyah insights.',
-  },
-  {
-    title: 'A little guidance for a big responsibility.',
-    body: 'Build your parenting knowledge with today\'s Tarbiyah insights.',
-  },
-  {
-    title: 'Your family deserves intentional moments of learning.',
-    body: 'Build your knowledge, Parent with Wisdom. Read the new insights.',
-  },
-  {
-    title: 'A stronger home starts with small but consistent improvements.',
-    body: 'Check out the new parenting insights.',
-  },
-  {
-    title: "Today's insight can help recenter your parenting.",
-    body: 'Read the new parenting insights.',
-  },
-  {
-    title: "Take a moment for today's parenting reminder.",
-    body: "Read today's parenting guidance.",
-  },
-  {
-    title: "Today's parenting insight is powerful.",
-    body: "Read today's parenting insights.",
-  },
-  {
-    title: 'A small reminder for your parenting journey.',
-    body: 'Build your knowledge, Parent with Wisdom. Open today\'s insights.',
-  },
-  {
-    title: 'Your daily dose of parenting wisdom is here.',
-    body: 'Build your knowledge, Parent with Wisdom. Open today\'s insights.',
-  },
-  {
-    title: 'Build your knowledge, Parent with Wisdom.',
-    body: "Open today's parenting insights.",
-  },
-  {
-    title: 'Are you winning the moment but losing the child?',
-    body: 'Build your parenting knowledge with the Tarbiyah insights.',
-  },
-  {
-    title: 'Your children are a trust from Allah — be the best parent you can be.',
-    body: "Open today's insights.",
-  },
-  {
-    title: 'A parenting reminder worth pausing for is here.',
-    body: 'Build your parenting knowledge with today\'s Tarbiyah insights.',
-  },
-  {
-    title: "Today's wisdom may help you see things differently.",
-    body: 'Build your parenting knowledge with today\'s Tarbiyah insights.',
-  },
+  { subtitle: "📖 Today's reminder might be exactly what you need.", body: "Open your daily parenting insights." },
+  { subtitle: "🌿 Guidance for a better parenting day.", body: "Your daily insights are ready." },
+  { subtitle: "🏡 Today's reminder is ready to strengthen your home.", body: "Open your daily parenting insights." },
+  { subtitle: "✨ A fresh perspective for your parenting journey.", body: "Open today's wisdom." },
+  { subtitle: "📖 Today's lesson may change how you approach the day.", body: "Your daily insights are ready." },
+  { subtitle: "🤲 Parenting is hard. Let today's reminder help.", body: "Open your daily parenting insights." },
+  { subtitle: "🌱 A little guidance for a big responsibility.", body: "Your daily insights are ready." },
+  { subtitle: "💛 Your family deserves intentional moments of learning.", body: "Read today's new insights." },
+  { subtitle: "🏡 A stronger home starts with small, consistent steps.", body: "Open today's parenting insights." },
+  { subtitle: "✨ Today's insight can help recenter your parenting.", body: "Read your daily parenting insights." },
+  { subtitle: "🌿 Take a moment for today's parenting reminder.", body: "Your daily wisdom is ready." },
+  { subtitle: "💡 Today's parenting insight is powerful.", body: "Open your daily insights." },
+  { subtitle: "🌱 A small reminder for a big journey.", body: "Your daily insights are ready." },
+  { subtitle: "📖 Your daily dose of parenting wisdom is here.", body: "Open today's insights." },
+  { subtitle: "🤲 Parent with wisdom — build your knowledge.", body: "Open today's parenting insights." },
+  { subtitle: "💭 Are you winning the moment but losing the child?", body: "Open today's insights." },
+  { subtitle: "🌿 Your children are a trust from Allah.", body: "Be the best parent you can be — open today's insights." },
+  { subtitle: "📖 A parenting reminder worth pausing for.", body: "Open your daily insights." },
+  { subtitle: "✨ Today's wisdom may help you see things differently.", body: "Your daily insights are ready." },
 ];
 
 // Picks a message based on the day of the year so it rotates daily and is consistent
@@ -151,7 +94,8 @@ export async function scheduleDailyNotification(reminderTimeStr) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: content.title,
+      title: 'Tarbiyah',
+      subtitle: content.subtitle,
       body: content.body,
       sound: true,
       data: { screen: 'Home' },
@@ -176,7 +120,8 @@ export async function scheduleWeeklyShareNotification() {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: '📚 Help a fellow parent today',
+      title: 'Tarbiyah',
+      subtitle: '📚 Help a fellow parent today',
       body: 'Share a resource that\'s helped your family — a video, article, or activity. It only takes a minute.',
       sound: true,
       data: { screen: 'Resources' },
@@ -233,8 +178,9 @@ export async function schedulePIPReminder(timeStr = '12:00') {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: "Time for your daily habits",
-      body: "Check off today's 5 improvement habits in Tarbiyah.",
+      title: 'Tarbiyah',
+      subtitle: '🎯 Time for your daily habits',
+      body: "Check off today's 5 improvement habits.",
       sound: true,
       data: { screen: 'PIPDetail' },
     },
@@ -272,8 +218,9 @@ export async function schedulePIPCheckIn(afterDays, fromDateIso) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: `${afterDays}-day check-in — how's it going?`,
-      body: "Share your progress with Tarbiyah AI and get personalised coaching feedback.",
+      title: 'Tarbiyah',
+      subtitle: `💬 ${afterDays}-day check-in — how's it going?`,
+      body: 'Share your progress and get personalised coaching to adjust your plan.',
       sound: true,
       data: { screen: 'PIPDetail' },
     },
@@ -312,7 +259,8 @@ export async function scheduleChildPlanReminder(timeStr = '08:00') {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: "Time for your child's daily actions",
+      title: 'Tarbiyah',
+      subtitle: "🌱 Time for your child's daily actions",
       body: "Complete today's 5 parent actions to support your child's growth.",
       sound: true,
       data: { screen: 'ChildPlanDetail' },
@@ -351,8 +299,9 @@ export async function scheduleChildPlanCheckIn(afterDays, fromDateIso) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: `${afterDays}-day check-in — how is your child doing?`,
-      body: "Share your child's progress with Tarbiyah AI and get personalised coaching feedback.",
+      title: 'Tarbiyah',
+      subtitle: `💬 ${afterDays}-day check-in — how is your child doing?`,
+      body: "Share your child's progress and get personalised coaching to adjust the plan.",
       sound: true,
       data: { screen: 'ChildPlanDetail' },
     },
