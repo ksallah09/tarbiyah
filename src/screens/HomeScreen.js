@@ -386,6 +386,9 @@ export default function HomeScreen({ navigation }) {
                     {name ? name.charAt(0).toUpperCase() : '?'}
                   </Text>
                 </View>
+                <Text style={styles.heroProfileDate}>
+                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -585,8 +588,8 @@ export default function HomeScreen({ navigation }) {
                 >
                   <View style={styles.pipWidgetHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                      <Ionicons name="leaf-outline" size={13} color="#4ADE80" />
-                      <Text style={styles.pipWidgetLabel} numberOfLines={1}>{childPlan.title}</Text>
+                      <Ionicons name="leaf-outline" size={13} color="#4ADE80" style={{ marginTop: 1 }} />
+                      <Text style={[styles.pipWidgetLabel, { flexShrink: 1 }]} numberOfLines={2}>{childPlan.title}</Text>
                     </View>
                     <Text style={styles.pipWidgetCount}>{childTodayLog.filter(Boolean).length}/5</Text>
                   </View>
@@ -895,6 +898,8 @@ const styles = StyleSheet.create({
   heroProfileBtn: {
     padding: 4,
     marginTop: 2,
+    alignItems: 'center',
+    gap: 5,
   },
   heroProfileAvatar: {
     width: 44, height: 44, borderRadius: 22,
@@ -904,6 +909,9 @@ const styles = StyleSheet.create({
   },
   heroProfileInitial: {
     fontSize: 19, fontWeight: '700', color: '#FFFFFF',
+  },
+  heroProfileDate: {
+    fontSize: 10, fontWeight: '500', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.3,
   },
   heroProgress: {
     gap: 6,
@@ -1479,7 +1487,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1B3D2F', borderRadius: 18, padding: 16, marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3,
   },
-  pipWidgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  pipWidgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   pipWidgetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pipWidgetLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C' },
   pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
