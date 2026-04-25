@@ -20,7 +20,7 @@ const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 const JOURNEY_COLORS = { Reset: '#2563EB', Growth: '#2E7D62', Transformation: '#7C3AED' };
 
-function Section({ icon, title, color = '#1B3D2F', children }) {
+function Section({ icon, title, subtitle, color = '#1B3D2F', children }) {
   return (
     <View style={secStyles.wrap}>
       <View style={secStyles.titleRow}>
@@ -29,6 +29,7 @@ function Section({ icon, title, color = '#1B3D2F', children }) {
         </View>
         <Text style={secStyles.title}>{title}</Text>
       </View>
+      {subtitle ? <Text style={secStyles.subtitle}>{subtitle}</Text> : null}
       {children}
     </View>
   );
@@ -39,6 +40,7 @@ const secStyles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   iconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 14, fontWeight: '700', color: '#1C1C1E', letterSpacing: 0.2 },
+  subtitle: { fontSize: 12, color: '#9CA3AF', lineHeight: 18, marginTop: -8, marginBottom: 10 },
 });
 
 export default function ChildPlanDetailScreen({ navigation, route }) {
@@ -219,7 +221,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
         {/* ── Actions Tab ── */}
         {activeSection === 'actions' && (
           <>
-            <Section icon="today-outline" title="Today's Parent Actions">
+            <Section icon="today-outline" title="Today's To-do's" subtitle="Check off each one as you complete it. Resets at midnight.">
               {(plan.parentDailyActions || []).map((action, i) => (
                 <TouchableOpacity key={i} style={styles.habitRow} onPress={() => handleActionToggle(i)} activeOpacity={0.75}>
                   <View style={[styles.habitCheck, todayLog[i] && styles.habitCheckDone]}>
