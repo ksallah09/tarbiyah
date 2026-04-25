@@ -139,6 +139,7 @@ export default function PIPWizardScreen({ navigation }) {
             <View key={l} style={styles.loadingPill}><Text style={styles.loadingPillText}>{l}</Text></View>
           ))}
         </View>
+        <Text style={styles.loadingKeepOpen}>Please keep the app open until your plan is ready</Text>
       </View>
     );
   }
@@ -441,4 +442,5 @@ const styles = StyleSheet.create({
   loadingPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 },
   loadingPill: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 100, paddingHorizontal: 14, paddingVertical: 7 },
   loadingPillText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
+  loadingKeepOpen: { fontSize: 12, color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 32 },
 });

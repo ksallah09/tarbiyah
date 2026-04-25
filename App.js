@@ -129,7 +129,7 @@ const splashStyles = StyleSheet.create({
   },
   quoteWrap: {
     position: 'absolute',
-    bottom: 64,
+    bottom: 100,
     left: 32,
     right: 32,
     alignItems: 'center',

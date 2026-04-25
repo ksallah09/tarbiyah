@@ -303,6 +303,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
                 <Text style={styles.pickerSubtitle}>
                   Your personalized module takes 1–3 minutes to prepare. Make dhikr while you wait.
                 </Text>
+                <Text style={styles.pickerKeepOpen}>Please keep the app open until your module is ready</Text>
                 <Text style={styles.pickerChooseLabel}>Choose your dhikr</Text>
 
                 <View style={styles.pickerOptions}>
@@ -849,6 +850,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.55)',
     lineHeight: 22,
+    marginBottom: 12,
+  },
+  pickerKeepOpen: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.3)',
+    textAlign: 'center',
     marginBottom: 24,
   },
   pickerChooseLabel: {

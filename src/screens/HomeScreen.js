@@ -599,7 +599,7 @@ export default function HomeScreen({ navigation }) {
                       return (
                         <TouchableOpacity
                           key={plan.id}
-                          style={[styles.pipWidget, { width: CHILD_CARD_W, marginRight: 12 }]}
+                          style={[styles.pipWidget, { width: CHILD_CARD_W, marginRight: 12, backgroundColor: '#1B3D2F' }]}
                           onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
                           activeOpacity={0.88}
                         >
@@ -1516,7 +1516,7 @@ const styles = StyleSheet.create({
 
   // ── PIP habit widget ──
   pipWidget: {
-    backgroundColor: '#1B3D2F', borderRadius: 18, padding: 16, marginBottom: 16,
+    backgroundColor: '#1A2E4A', borderRadius: 18, padding: 16, marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3,
   },
   pipWidgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },

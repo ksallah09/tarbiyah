@@ -148,10 +148,10 @@ export default function PIPDetailScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
       <StatusBar style="light" />
-      <View style={styles.bgTop} />
+      <View style={[styles.bgTop, { backgroundColor: '#1A2E4A' }]} />
 
       {/* Hero */}
-      <LinearGradient colors={['#1B3D2F', '#0D2419']} style={[styles.hero, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={['#1A2E4A', '#0D1E33']} style={[styles.hero, { paddingTop: insets.top + 12 }]}>
         <View style={styles.heroTopRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.8)" />
