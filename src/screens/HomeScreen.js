@@ -28,6 +28,7 @@ import { getWeekReadDays, isReadToday, getStreak } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
+import { getActivePlan, getTodayLog, logHabit, todayStr } from '../utils/pip';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification } from '../utils/notifications';
@@ -131,6 +132,8 @@ export default function HomeScreen({ navigation }) {
   const [quranStreak, setQuranStreak] = useState(0);
   const [familyGoals,  setFamilyGoals]  = useState([]);
   const [completions,  setCompletions]  = useState([]);
+  const [pipPlan,      setPipPlan]      = useState(null);
+  const [pipTodayLog,  setPipTodayLog]  = useState([false, false, false, false, false]);
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
@@ -263,12 +266,24 @@ export default function HomeScreen({ navigation }) {
       loadFamilyGoalsCached().then(setFamilyGoals);
       loadFamilyGoals().then(setFamilyGoals);
       loadCompletions().then(setCompletions);
+      getActivePlan().then(p => {
+        setPipPlan(p);
+        if (p) getTodayLog().then(setPipTodayLog);
+      });
     }, [])
   );
 
   async function handleLogCompletion(goalId) {
     const updated = await logCompletion(goalId);
     setCompletions(updated);
+  }
+
+  async function handlePipHabitToggle(index) {
+    const newVal = !pipTodayLog[index];
+    const updated = [...pipTodayLog];
+    updated[index] = newVal;
+    setPipTodayLog(updated);
+    await logHabit(todayStr(), index, newVal);
   }
 
   const spiritualInsight = dailyData?.insights?.find(i => i.type === 'spiritual') ?? null;
@@ -345,26 +360,18 @@ export default function HomeScreen({ navigation }) {
                 )}
               </View>
 
-              {/* Today's progress */}
-              <View style={styles.heroProgress}>
-                <Text style={styles.heroProgressLabel}>TODAY'S LEARNING</Text>
-                <View style={styles.heroProgressDots}>
-                  <View style={styles.heroProgressItem}>
-                    {spiritReadToday
-                      ? <Ionicons name="checkmark-circle" size={14} color="#4ADE80" />
-                      : <View style={styles.heroProgressDot} />
-                    }
-                    <Text style={styles.heroProgressItemLabel}>Spiritual</Text>
-                  </View>
-                  <View style={styles.heroProgressItem}>
-                    {sciReadToday
-                      ? <Ionicons name="checkmark-circle" size={14} color="#4ADE80" />
-                      : <View style={styles.heroProgressDot} />
-                    }
-                    <Text style={styles.heroProgressItemLabel}>Research</Text>
-                  </View>
+              {/* Profile icon */}
+              <TouchableOpacity
+                style={styles.heroProfileBtn}
+                onPress={() => navigation.navigate('Profile')}
+                activeOpacity={0.75}
+              >
+                <View style={styles.heroProfileAvatar}>
+                  <Text style={styles.heroProfileInitial}>
+                    {name ? name.charAt(0).toUpperCase() : '?'}
+                  </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -477,6 +484,50 @@ export default function HomeScreen({ navigation }) {
                 >
                   <Ionicons name="refresh-outline" size={13} color="#6B7280" />
                   <Text style={styles.devRefreshText}>Refresh Insights (dev only)</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* PARENTING IMPROVEMENT PLAN */}
+              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+                <Text style={styles.sectionTitle}>PARENTING IMPROVEMENT PLAN</Text>
+              </View>
+              {!pipPlan && (
+                <TouchableOpacity
+                  style={styles.homeGoalEmptyCard}
+                  onPress={() => navigation.navigate('PIPWizard')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="rocket-outline" size={18} color="#2E7D62" />
+                  <Text style={styles.homeGoalEmptyText}>No active plan yet</Text>
+                  <Text style={styles.homeGoalEmptyLink}>Start a plan →</Text>
+                </TouchableOpacity>
+              )}
+              {pipPlan && (
+                <TouchableOpacity
+                  style={styles.pipWidget}
+                  onPress={() => navigation.navigate('PIPDetail', { plan: pipPlan })}
+                  activeOpacity={0.88}
+                >
+                  <View style={styles.pipWidgetHeader}>
+                    <View style={styles.pipWidgetTitleRow}>
+                      <Ionicons name="trending-up-outline" size={14} color="#C9A84C" />
+                      <Text style={styles.pipWidgetLabel}>YOUR PLAN · TODAY</Text>
+                    </View>
+                    <Text style={styles.pipWidgetCount}>{pipTodayLog.filter(Boolean).length}/5</Text>
+                  </View>
+                  {pipPlan.dailyHabits.map((habit, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.pipWidgetHabitRow}
+                      onPress={e => { e.stopPropagation?.(); handlePipHabitToggle(i); }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.pipWidgetCheck, pipTodayLog[i] && styles.pipWidgetCheckDone]}>
+                        {pipTodayLog[i] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
+                      </View>
+                      <Text style={[styles.pipWidgetHabitText, pipTodayLog[i] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{habit}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </TouchableOpacity>
               )}
 
@@ -758,6 +809,19 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   heroText: { flex: 1 },
+  heroProfileBtn: {
+    padding: 4,
+    marginTop: 2,
+  },
+  heroProfileAvatar: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  heroProfileInitial: {
+    fontSize: 19, fontWeight: '700', color: '#FFFFFF',
+  },
   heroProgress: {
     gap: 6,
     justifyContent: 'flex-start',
@@ -1002,7 +1066,7 @@ const styles = StyleSheet.create({
   },
   insightReadTodayPill: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   insightReadTodayText: { fontSize: 12, fontWeight: '600', color: '#4ADE80' },
-  insightReadMore: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  insightReadMore: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
   insightReadMoreText: {
     fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)',
   },
@@ -1326,4 +1390,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   duaShareCardPillStoreText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
+
+  // ── PIP habit widget ──
+  pipWidget: {
+    backgroundColor: '#1B3D2F', borderRadius: 18, padding: 16, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3,
+  },
+  pipWidgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  pipWidgetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pipWidgetLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C' },
+  pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
+  pipWidgetHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
+  pipWidgetCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  pipWidgetCheckDone: { backgroundColor: '#4ADE80', borderColor: '#4ADE80' },
+  pipWidgetHabitText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 19 },
+  pipWidgetHabitTextDone: { color: 'rgba(255,255,255,0.3)', textDecorationLine: 'line-through' },
 });

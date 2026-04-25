@@ -18,6 +18,7 @@ import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal } from '../uti
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { rs, hp } from '../utils/responsive';
+import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr } from '../utils/pip';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -89,6 +90,21 @@ export default function ProgressScreen({ navigation }) {
   const [syncStatus,   setSyncStatus]   = useState(_syncStatusCache);
   const [refreshing,  setRefreshing]       = useState(false);
   const hasMountedRef = useRef(false);
+
+  // ── PIP ──
+  const [activePlan,  setActivePlan]  = useState(null);
+  const [pipTodayLog, setPipTodayLog] = useState([false, false, false, false, false]);
+  const [pipLogs,     setPipLogs]     = useState({});
+
+  useFocusEffect(useCallback(() => {
+    getActivePlan().then(p => {
+      setActivePlan(p);
+      if (p) {
+        getTodayLog().then(setPipTodayLog);
+        getHabitLogs().then(setPipLogs);
+      }
+    });
+  }, []));
 
   const now = new Date();
   const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
@@ -185,6 +201,61 @@ export default function ProgressScreen({ navigation }) {
         <DarkHeader title="Progress" subtitle="Track your daily reading consistency" />
         <View style={styles.sheet}>
         <View style={styles.content}>
+
+        {/* ── Parenting Improvement Plan ── */}
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>PARENTING IMPROVEMENT PLAN</Text>
+          {!activePlan && (
+            <TouchableOpacity style={styles.addGoalBtn} onPress={() => navigation.navigate('PIPWizard')} activeOpacity={0.8}>
+              <Ionicons name="add" size={14} color="#FFFFFF" />
+              <Text style={styles.addGoalBtnText}>New Plan</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {activePlan ? (
+          <TouchableOpacity
+            style={styles.pipCard}
+            onPress={() => navigation.navigate('PIPDetail', { plan: activePlan })}
+            activeOpacity={0.88}
+          >
+            <View style={styles.pipCardTop}>
+              <View style={styles.pipJourneyBadge}>
+                <Ionicons name={activePlan.journeyType === 'Reset' ? 'flash-outline' : activePlan.journeyType === 'Transformation' ? 'sparkles-outline' : 'trending-up-outline'} size={12} color="#C9A84C" />
+                <Text style={styles.pipJourneyText}>{activePlan.journeyType} · {activePlan.durationDays} days</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+            </View>
+            <Text style={styles.pipTitle} numberOfLines={2}>{activePlan.title}</Text>
+            <View style={styles.pipHabits}>
+              {activePlan.dailyHabits.slice(0, 3).map((h, i) => (
+                <View key={i} style={styles.pipHabitRow}>
+                  <View style={[styles.pipHabitCheck, pipTodayLog[i] && styles.pipHabitCheckDone]}>
+                    {pipTodayLog[i] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+                  </View>
+                  <Text style={[styles.pipHabitText, pipTodayLog[i] && styles.pipHabitTextDone]} numberOfLines={1}>{h}</Text>
+                </View>
+              ))}
+              {activePlan.dailyHabits.length > 3 && (
+                <Text style={styles.pipMoreHabits}>+{activePlan.dailyHabits.length - 3} more habits</Text>
+              )}
+            </View>
+            <View style={styles.pipProgressRow}>
+              <Text style={styles.pipProgressLabel}>{pipTodayLog.filter(Boolean).length}/5 today · {streakCount(pipLogs)} day streak</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.pipEmptyCard} onPress={() => navigation.navigate('PIPWizard')} activeOpacity={0.85}>
+            <View style={styles.pipEmptyIcon}>
+              <Ionicons name="rocket-outline" size={26} color="#2E7D62" />
+            </View>
+            <View style={styles.pipEmptyText}>
+              <Text style={styles.pipEmptyTitle}>Start an Improvement Plan</Text>
+              <Text style={styles.pipEmptyBody}>Get a personalised 14, 30, or 90-day plan with daily habits, Islamic grounding, and coaching check-ins.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
 
         {/* ── Family Goals ── */}
         <View style={styles.sectionTitleRow}>
@@ -440,6 +511,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#1B3D2F',
+    flex: 1,
+    flexShrink: 1,
+    marginRight: 8,
     letterSpacing: 0.3,
     marginBottom: 14,
   },
@@ -703,5 +777,33 @@ const styles = StyleSheet.create({
   cardLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
   monthLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
   subLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginBottom: 14 },
+
+  // ── PIP ──
+  pipCard: {
+    backgroundColor: '#1B3D2F', borderRadius: 18, padding: 18, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 4,
+  },
+  pipCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  pipJourneyBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(201,168,76,0.15)', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
+  pipJourneyText: { fontSize: 11, fontWeight: '700', color: '#C9A84C' },
+  pipTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', lineHeight: 22, marginBottom: 14 },
+  pipHabits: { gap: 10, marginBottom: 14 },
+  pipHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pipHabitCheck: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
+  pipHabitCheckDone: { backgroundColor: '#4ADE80', borderColor: '#4ADE80' },
+  pipHabitText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 19 },
+  pipHabitTextDone: { color: 'rgba(255,255,255,0.35)', textDecorationLine: 'line-through' },
+  pipMoreHabits: { fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '600', paddingLeft: 30 },
+  pipProgressRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 12 },
+  pipProgressLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
+  pipEmptyCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginBottom: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+  },
+  pipEmptyIcon: { width: 50, height: 50, borderRadius: 14, backgroundColor: '#E8F5EF', alignItems: 'center', justifyContent: 'center' },
+  pipEmptyText: { flex: 1, gap: 4 },
+  pipEmptyTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E' },
+  pipEmptyBody: { fontSize: 13, color: '#6B7280', lineHeight: 19 },
 
 });

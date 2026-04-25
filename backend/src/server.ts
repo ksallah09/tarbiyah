@@ -1486,6 +1486,157 @@ app.delete('/auth/account', requireAuth, async (req: AuthRequest, res: Response)
   }
 });
 
+// ─── POST /pip/generate ───────────────────────────────────────────────────────
+
+app.post('/pip/generate', async (req: Request, res: Response) => {
+  try {
+    const { planType, userGoal, journeyType, childAges, familyContext, stressLevel } = req.body as {
+      planType: string; userGoal: string; journeyType: string;
+      childAges?: string; familyContext?: string; stressLevel?: string;
+    };
+    if (!userGoal?.trim()) return res.status(400).json({ error: 'userGoal is required.' });
+
+    const sourceContext = await buildModuleSourceContext(userGoal.trim());
+
+    const systemPrompt = `You are Tarbiyah AI, a trusted Muslim parenting and personal development coach.
+
+Your purpose is to generate transformational improvement plans for Muslim parents using:
+1. Islamic guidance and tarbiyah principles
+2. Research-based parenting, psychology, habit-building, and behavior change insights
+3. ONLY the approved internal knowledge base: source_knowledge
+
+CORE MISSION:
+Help parents grow personally and improve their family life through structured, realistic plans that create lasting change.
+
+IMPORTANT SOURCE RULES:
+- Use source_knowledge as the main authority.
+- Use both Islamic and research-backed insights found within source_knowledge.
+- If a topic is not directly covered, provide practical best-practice guidance aligned with Islamic values.
+- Never invent studies, scholars, statistics, or citations.
+- Never contradict Islamic ethics.
+
+TONE: Wise, Supportive, Practical, Motivating, Calm, Respectful, Non-judgmental, Hopeful.
+
+JOURNEY DEFINITIONS:
+1. Reset (14 Days) — Fast wins, lighter tasks, immediate support, quick progress.
+2. Growth (30 Days) — Balanced challenge, sustainable systems, habit repetition, measurable progress.
+3. Transformation (90 Days) — Deeper identity work, layered systems, monthly milestones, durable lifestyle change.
+
+IMPORTANT RULES:
+- Keep practical for busy parents.
+- Focus on systems over motivation alone.
+- Avoid guilt-heavy language.
+- Encourage mercy, repentance, patience, consistency.
+- Keep concise but premium-feeling.
+- Adapt to child age when relevant.
+- Prioritize emotional regulation if anger/stress issue.
+- Prioritize connection if relationship issue.
+- Prioritize routine if chaos issue.
+- Prioritize worship culture if deen issue.
+- Do NOT include hadith numbers, book names, or study citations in any text fields.
+
+=== KNOWLEDGE BASE ===
+${sourceContext}`;
+
+    const durationDays = journeyType === 'Reset' ? 14 : journeyType === 'Transformation' ? 90 : 30;
+
+    const userPrompt = `Plan Type: ${planType || 'General'}
+Main Struggle or Goal: ${userGoal.trim()}
+Selected Journey: ${journeyType || 'Growth'} (${durationDays} Days)
+${childAges ? `Child Ages: ${childAges}` : ''}
+${familyContext ? `Family Context: ${familyContext}` : ''}
+${stressLevel ? `Stress Level: ${stressLevel}` : ''}
+
+Respond with valid JSON only (no markdown). Structure:
+{
+  "title": "Warm motivating plan title",
+  "bigPictureGoal": "2-3 sentences on what success looks like",
+  "whyHappening": ["Likely cause 1", "Likely cause 2", "Likely cause 3"],
+  "islamicFoundation": "One concise Islamic reminder — ayah, hadith, or tarbiyah principle with direct application. No citations or hadith numbers.",
+  "researchInsight": "One concise evidence-based insight. No source names or citations.",
+  "roadmap": [{"phase": "Phase label e.g. Week 1", "title": "Short title", "description": "2-3 sentences"}],
+  "dailyHabits": ["Habit 1 (specific, trackable, under 10 words)", "Habit 2", "Habit 3", "Habit 4", "Habit 5"],
+  "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
+  "whatToSayScripts": ["Script 1 — realistic parent voice", "Script 2", "Script 3"],
+  "whenYouSlipUp": "Reset strategy for difficult days — 2-3 sentences",
+  "progressMetrics": ["Sign 1", "Sign 2", "Sign 3", "Sign 4", "Sign 5"],
+  "nextBestJourney": "One sentence recommending what comes after this plan",
+  "parentReminder": "One uplifting closing line"
+}`;
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_FAST, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    } catch (geminiErr) {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    let cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+    }
+    const parsed = JSON.parse(cleaned);
+    return res.json({ ...parsed, durationDays });
+  } catch (err) {
+    console.error('POST /pip/generate error:', err);
+    return res.status(500).json({ error: 'Failed to generate plan. Please try again.' });
+  }
+});
+
+// ─── POST /pip/checkin ────────────────────────────────────────────────────────
+
+app.post('/pip/checkin', async (req: Request, res: Response) => {
+  try {
+    const { feedback, currentHabits, journeyType, dayNumber } = req.body as {
+      feedback: string; currentHabits: string[]; journeyType: string; dayNumber: number;
+    };
+    if (!feedback?.trim()) return res.status(400).json({ error: 'feedback is required.' });
+
+    const systemPrompt = `You are Tarbiyah AI, a warm Muslim parenting coach reviewing a parent's progress check-in.
+
+Your role: listen to their feedback, acknowledge their effort, provide short coaching insight, and if needed adjust their 5 daily habits to better fit their current reality.
+
+TONE: Warm, honest, encouraging, non-judgmental. Speak like a trusted coach who knows them.
+RULES:
+- Keep coaching response to 3-5 sentences max.
+- Only adjust habits if the parent's feedback clearly indicates they need to be modified (too hard, not relevant, need to change focus).
+- If habits are working, return them unchanged.
+- Never invent citations or studies.`;
+
+    const userPrompt = `Journey: ${journeyType}, Day ${dayNumber} check-in.
+
+Current daily habits:
+${currentHabits.map((h, i) => `${i + 1}. ${h}`).join('\n')}
+
+Parent feedback: "${feedback.trim()}"
+
+Respond with valid JSON only:
+{
+  "coachingResponse": "3-5 sentence warm coaching response acknowledging their feedback and giving one key insight or encouragement",
+  "adjustedHabits": ["Habit 1", "Habit 2", "Habit 3", "Habit 4", "Habit 5"]
+}`;
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_FAST, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    } catch (geminiErr) {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    let cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+    }
+    const parsed = JSON.parse(cleaned);
+    return res.json(parsed);
+  } catch (err) {
+    console.error('POST /pip/checkin error:', err);
+    return res.status(500).json({ error: 'Failed to process check-in. Please try again.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));

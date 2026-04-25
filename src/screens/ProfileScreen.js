@@ -516,7 +516,15 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <DarkHeader title="Profile" subtitle="Manage your account and preferences" />
+        <DarkHeader
+          title="Profile"
+          subtitle="Manage your account and preferences"
+          right={
+            <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={24} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+          }
+        />
         <View style={styles.sheet}>
         <View style={styles.content}>
         {/* ── Profile Card ── */}

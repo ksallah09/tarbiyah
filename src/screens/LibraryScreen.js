@@ -159,6 +159,10 @@ export default function LibraryScreen({ navigation }) {
   const [currentUserId, setCurrentUserId]     = useState(null);
   const [hiddenThumbs, setHiddenThumbs]       = useState(new Set());
 
+  // ── New activity dots ──
+  const [showDuaDot,  setShowDuaDot]  = useState(false);
+  const [showWinsDot, setShowWinsDot] = useState(false);
+
   // ── Loading overlay ──
   const SCREEN_HEIGHT = Dimensions.get('window').height;
   const overlayTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -408,7 +412,13 @@ export default function LibraryScreen({ navigation }) {
     try {
       const res = await fetch(`${API_URL}/community/duas`);
       const data = await res.json();
-      setDuas(Array.isArray(data) ? data : []);
+      const duas = Array.isArray(data) ? data : [];
+      setDuas(duas);
+      if (duas.length > 0) {
+        const newest = duas[0].created_at;
+        const lastVisited = await AsyncStorage.getItem('tarbiyah_last_visited_dua');
+        setShowDuaDot(!lastVisited || newest > lastVisited);
+      }
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
       if (token) {
@@ -429,7 +439,13 @@ export default function LibraryScreen({ navigation }) {
     try {
       const res = await fetch(`${API_URL}/community/wins`);
       const data = await res.json();
-      setWins(Array.isArray(data) ? data : []);
+      const wins = Array.isArray(data) ? data : [];
+      setWins(wins);
+      if (wins.length > 0) {
+        const newest = wins[0].created_at;
+        const lastVisited = await AsyncStorage.getItem('tarbiyah_last_visited_wins');
+        setShowWinsDot(!lastVisited || newest > lastVisited);
+      }
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
       if (token) {
@@ -744,27 +760,36 @@ export default function LibraryScreen({ navigation }) {
         contentContainerStyle={styles.tabBarContent}
       >
         {[
-          { key: 'resources', label: 'Resources',    icon: 'compass-outline' },
-          { key: 'dua',       label: "Du'a Board",   icon: 'sparkles' },
-          { key: 'wins',      label: 'Wins',          icon: 'trophy-outline' },
-          { key: 'library',   label: 'My Library',   icon: 'bookmark-outline' },
-          { key: 'myposts',   label: 'My Posts',     icon: 'person-outline' },
+          { key: 'resources', label: 'Resources',  icon: 'compass-outline', dot: false },
+          { key: 'dua',       label: "Du'a Board", icon: 'sparkles',         dot: showDuaDot },
+          { key: 'wins',      label: 'Wins',        icon: 'trophy-outline',   dot: showWinsDot },
+          { key: 'myposts',   label: 'My Posts',   icon: 'person-outline',   dot: false },
         ].map(tab => (
           <TouchableOpacity
             key={tab.key}
             style={[styles.tabBarBtn, activeTab === tab.key && styles.tabBarBtnActive]}
-            onPress={() => setActiveTab(tab.key)}
+            onPress={() => {
+              setActiveTab(tab.key);
+              if (tab.key === 'dua') {
+                setShowDuaDot(false);
+                AsyncStorage.setItem('tarbiyah_last_visited_dua', new Date().toISOString());
+              } else if (tab.key === 'wins') {
+                setShowWinsDot(false);
+                AsyncStorage.setItem('tarbiyah_last_visited_wins', new Date().toISOString());
+              }
+            }}
             activeOpacity={0.75}
           >
             <Ionicons name={tab.icon} size={14} color={activeTab === tab.key ? '#1B3D2F' : 'rgba(255,255,255,0.55)'} />
             <Text style={[styles.tabBarBtnText, activeTab === tab.key && styles.tabBarBtnTextActive]}>{tab.label}</Text>
+            {tab.dot && <View style={styles.tabNewDot} />}
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* ── Tab dots ── */}
       <View style={styles.tabDotsRow}>
-        {['resources', 'dua', 'wins', 'library', 'myposts'].map(key => (
+        {['resources', 'dua', 'wins', 'myposts'].map(key => (
           <View
             key={key}
             style={[styles.tabDot, activeTab === key && styles.tabDotActive]}
@@ -1711,10 +1736,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
     backgroundColor: 'rgba(255,255,255,0.12)',
+    position: 'relative',
   },
   tabBarBtnActive: { backgroundColor: '#D4A843' },
   tabBarBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
   tabBarBtnTextActive: { color: '#1B3D2F' },
+  tabNewDot: {
+    position: 'absolute', top: -3, right: -3,
+    width: 9, height: 9, borderRadius: 5,
+    backgroundColor: '#C9A84C',
+    borderWidth: 1.5, borderColor: '#1B3D2F',
+  },
   tabDotsRow: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
     gap: 5, paddingBottom: 8,

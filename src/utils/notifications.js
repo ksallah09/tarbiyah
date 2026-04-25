@@ -214,6 +214,85 @@ export async function cancelDailyNotification() {
   } catch {}
 }
 
+// ─── PIP: habit reminder (daily, repeating) ───────────────────────────────────
+const PIP_REMINDER_ID_KEY  = 'tarbiyah_pip_reminder_id';
+const PIP_CHECKIN_ID_KEY   = 'tarbiyah_pip_checkin_id';
+
+export async function schedulePIPReminder(timeStr = '12:00') {
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
+
+  try {
+    const existing = await AsyncStorage.getItem(PIP_REMINDER_ID_KEY);
+    if (existing) await Notifications.cancelScheduledNotificationAsync(existing).catch(() => {});
+  } catch {}
+
+  const [hourStr, minuteStr] = timeStr.split(':');
+  const hour = parseInt(hourStr, 10);
+  const minute = parseInt(minuteStr || '0', 10);
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Time for your daily habits",
+      body: "Check off today's 5 improvement habits in Tarbiyah.",
+      sound: true,
+      data: { screen: 'PIPDetail' },
+    },
+    trigger: { type: 'calendar', repeats: true, hour, minute },
+  });
+
+  await AsyncStorage.setItem(PIP_REMINDER_ID_KEY, id);
+}
+
+export async function cancelPIPReminder() {
+  try {
+    const id = await AsyncStorage.getItem(PIP_REMINDER_ID_KEY);
+    if (id) {
+      await Notifications.cancelScheduledNotificationAsync(id);
+      await AsyncStorage.removeItem(PIP_REMINDER_ID_KEY);
+    }
+  } catch {}
+}
+
+// ─── PIP: check-in notification (one-time, fires after N days) ────────────────
+export async function schedulePIPCheckIn(afterDays, fromDateIso) {
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
+
+  try {
+    const existing = await AsyncStorage.getItem(PIP_CHECKIN_ID_KEY);
+    if (existing) await Notifications.cancelScheduledNotificationAsync(existing).catch(() => {});
+  } catch {}
+
+  const fireDate = new Date(fromDateIso);
+  fireDate.setDate(fireDate.getDate() + afterDays);
+  fireDate.setHours(12, 0, 0, 0);
+
+  if (fireDate <= new Date()) return;
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `${afterDays}-day check-in — how's it going?`,
+      body: "Share your progress with Tarbiyah AI and get personalised coaching feedback.",
+      sound: true,
+      data: { screen: 'PIPDetail' },
+    },
+    trigger: { type: 'date', date: fireDate },
+  });
+
+  await AsyncStorage.setItem(PIP_CHECKIN_ID_KEY, id);
+}
+
+export async function cancelPIPCheckIn() {
+  try {
+    const id = await AsyncStorage.getItem(PIP_CHECKIN_ID_KEY);
+    if (id) {
+      await Notifications.cancelScheduledNotificationAsync(id);
+      await AsyncStorage.removeItem(PIP_CHECKIN_ID_KEY);
+    }
+  } catch {}
+}
+
 // ─── Called on app open — reschedules with latest insight titles ──────────────
 export async function refreshDailyNotification() {
   try {

@@ -20,6 +20,9 @@ import LibraryScreen       from './src/screens/LibraryScreen';
 import ProgressScreen      from './src/screens/ProgressScreen';
 import LearnScreen         from './src/screens/LearnScreen';
 import GuideMeNowScreen    from './src/screens/GuideMeNowScreen';
+import MyLibraryScreen     from './src/screens/MyLibraryScreen';
+import PIPWizardScreen     from './src/screens/PIPWizardScreen';
+import PIPDetailScreen     from './src/screens/PIPDetailScreen';
 import ModuleDetailScreen  from './src/screens/ModuleDetailScreen';
 import LessonReaderScreen  from './src/screens/LessonReaderScreen';
 import ProfileScreen       from './src/screens/ProfileScreen';
@@ -166,11 +169,11 @@ const RootStack  = createNativeStackNavigator();
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
 const TAB_CONFIG = {
-  Home:     { filled: 'home',        outline: 'home-outline' },
-  Community: { filled: 'globe',         outline: 'globe-outline' },
-  Progress: { filled: 'trending-up', outline: 'trending-up-outline' },
-  'Guide Me': { filled: 'compass',    outline: 'compass-outline' },
-  Profile:  { filled: 'person',      outline: 'person-outline' },
+  Home:        { filled: 'home',        outline: 'home-outline' },
+  Progress:    { filled: 'trending-up', outline: 'trending-up-outline' },
+  'Guide Me':  { filled: 'compass',     outline: 'compass-outline' },
+  Community:   { filled: 'globe',       outline: 'globe-outline' },
+  'My Library': { filled: 'bookmark',   outline: 'bookmark-outline' },
 };
 
 function CustomTabBar({ state, descriptors, navigation }) {
@@ -212,11 +215,11 @@ function CustomTabBar({ state, descriptors, navigation }) {
 function Tabs() {
   return (
     <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }} lazy={false}>
-      <Tab.Screen name="Home"     component={HomeScreen} />
-      <Tab.Screen name="Progress" component={ProgressScreen} />
-      <Tab.Screen name="Guide Me" component={LearnScreen} />
-      <Tab.Screen name="Community" component={LibraryScreen} />
-      <Tab.Screen name="Profile"  component={ProfileScreen} />
+      <Tab.Screen name="Home"       component={HomeScreen} />
+      <Tab.Screen name="Progress"   component={ProgressScreen} />
+      <Tab.Screen name="Guide Me"   component={LearnScreen} />
+      <Tab.Screen name="Community"  component={LibraryScreen} />
+      <Tab.Screen name="My Library" component={MyLibraryScreen} />
     </Tab.Navigator>
   );
 }
@@ -225,6 +228,11 @@ function MainApp() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs"         component={Tabs} />
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
       <Stack.Screen
         name="InsightDetail"
         component={InsightDetailScreen}
@@ -254,6 +262,16 @@ function MainApp() {
         name="FamilySync"
         component={FamilySyncScreen}
         options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="PIPWizard"
+        component={PIPWizardScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="PIPDetail"
+        component={PIPDetailScreen}
+        options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
         name="About"
