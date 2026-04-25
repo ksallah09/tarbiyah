@@ -247,6 +247,7 @@ export default function ChildPlanWizardScreen({ navigation }) {
 
               <View style={styles.divider} />
               <Text style={styles.settingsTitle}>Daily Reminder</Text>
+              <Text style={styles.stepSubtitle}>Set a daily reminder to complete your parent actions for the day.</Text>
 
               <Text style={styles.fieldLabel}>Reminder time</Text>
               <TouchableOpacity style={styles.timePickerBtn} onPress={() => setShowTimePicker(true)} activeOpacity={0.75}>

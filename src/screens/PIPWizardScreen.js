@@ -309,6 +309,7 @@ export default function PIPWizardScreen({ navigation }) {
               )}
 
               <Text style={styles.fieldLabel}>Check-in every</Text>
+              <Text style={styles.settingSubtitle}>You'll receive a prompt to reflect on your progress and receive personalised coaching to adjust your plan.</Text>
               <View style={styles.pillRow}>
                 {[3, 5, 7, 14].map(d => (
                   <TouchableOpacity
@@ -425,6 +426,7 @@ const styles = StyleSheet.create({
   pillTextActive: { color: '#FFFFFF' },
   divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 4 },
   settingsTitle: { fontSize: 16, fontWeight: '700', color: '#1C1C1E' },
+  settingSubtitle: { fontSize: 13, color: '#6B7280', lineHeight: 19, marginTop: -4, marginBottom: 4 },
   errorText: { fontSize: 13, color: '#DC2626', fontWeight: '500' },
   footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#F5F6F8' },
   ctaBtn: { borderRadius: 16, overflow: 'hidden' },

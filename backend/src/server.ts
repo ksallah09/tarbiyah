@@ -1647,7 +1647,7 @@ app.post('/child-plan/generate', async (req: Request, res: Response) => {
     };
     if (!growthGoal?.trim()) return res.status(400).json({ error: 'growthGoal is required.' });
 
-    const sourceContext = await buildModuleSourceContext();
+    const sourceContext = await buildModuleSourceContext(growthGoal.trim());
 
     const systemPrompt = `You are Tarbiyah AI, a trusted Muslim parenting and child development coach.
 
