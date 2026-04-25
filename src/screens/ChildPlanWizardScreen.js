@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { saveChildPlan } from '../utils/childPlan';
-import { schedulePIPReminder } from '../utils/notifications';
+import { scheduleChildPlanReminder, scheduleChildPlanCheckIn } from '../utils/notifications';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -107,7 +107,8 @@ export default function ChildPlanWizardScreen({ navigation }) {
       };
 
       await saveChildPlan(plan);
-      schedulePIPReminder(reminderTime).catch(() => {});
+      scheduleChildPlanReminder(reminderTime).catch(() => {});
+      scheduleChildPlanCheckIn(checkInDays, plan.startDate).catch(() => {});
 
       navigation.replace('ChildPlanDetail', { plan, initialTab: 'plan' });
     } catch (err) {

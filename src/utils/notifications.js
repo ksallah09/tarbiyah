@@ -293,6 +293,85 @@ export async function cancelPIPCheckIn() {
   } catch {}
 }
 
+// ─── Child Plan: daily action reminder ───────────────────────────────────────
+const CHILD_REMINDER_ID_KEY = 'tarbiyah_child_reminder_id';
+const CHILD_CHECKIN_ID_KEY  = 'tarbiyah_child_checkin_id';
+
+export async function scheduleChildPlanReminder(timeStr = '08:00') {
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
+
+  try {
+    const existing = await AsyncStorage.getItem(CHILD_REMINDER_ID_KEY);
+    if (existing) await Notifications.cancelScheduledNotificationAsync(existing).catch(() => {});
+  } catch {}
+
+  const [hourStr, minuteStr] = timeStr.split(':');
+  const hour = parseInt(hourStr, 10);
+  const minute = parseInt(minuteStr || '0', 10);
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Time for your child's daily actions",
+      body: "Complete today's 5 parent actions to support your child's growth.",
+      sound: true,
+      data: { screen: 'ChildPlanDetail' },
+    },
+    trigger: { type: 'calendar', repeats: true, hour, minute },
+  });
+
+  await AsyncStorage.setItem(CHILD_REMINDER_ID_KEY, id);
+}
+
+export async function cancelChildPlanReminder() {
+  try {
+    const id = await AsyncStorage.getItem(CHILD_REMINDER_ID_KEY);
+    if (id) {
+      await Notifications.cancelScheduledNotificationAsync(id);
+      await AsyncStorage.removeItem(CHILD_REMINDER_ID_KEY);
+    }
+  } catch {}
+}
+
+// ─── Child Plan: check-in notification (one-time, fires after N days) ─────────
+export async function scheduleChildPlanCheckIn(afterDays, fromDateIso) {
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
+
+  try {
+    const existing = await AsyncStorage.getItem(CHILD_CHECKIN_ID_KEY);
+    if (existing) await Notifications.cancelScheduledNotificationAsync(existing).catch(() => {});
+  } catch {}
+
+  const fireDate = new Date(fromDateIso);
+  fireDate.setDate(fireDate.getDate() + afterDays);
+  fireDate.setHours(12, 0, 0, 0);
+
+  if (fireDate <= new Date()) return;
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `${afterDays}-day check-in — how is your child doing?`,
+      body: "Share your child's progress with Tarbiyah AI and get personalised coaching feedback.",
+      sound: true,
+      data: { screen: 'ChildPlanDetail' },
+    },
+    trigger: { type: 'date', date: fireDate },
+  });
+
+  await AsyncStorage.setItem(CHILD_CHECKIN_ID_KEY, id);
+}
+
+export async function cancelChildPlanCheckIn() {
+  try {
+    const id = await AsyncStorage.getItem(CHILD_CHECKIN_ID_KEY);
+    if (id) {
+      await Notifications.cancelScheduledNotificationAsync(id);
+      await AsyncStorage.removeItem(CHILD_CHECKIN_ID_KEY);
+    }
+  } catch {}
+}
+
 // ─── Called on app open — reschedules with latest insight titles ──────────────
 export async function refreshDailyNotification() {
   try {

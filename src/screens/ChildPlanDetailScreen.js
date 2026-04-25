@@ -14,6 +14,8 @@ import {
   daysSinceStart, streakCount, todayStr,
 } from '../utils/childPlan';
 
+import { scheduleChildPlanCheckIn, cancelChildPlanReminder, cancelChildPlanCheckIn } from '../utils/notifications';
+
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 const JOURNEY_COLORS = { Reset: '#2563EB', Growth: '#2E7D62', Transformation: '#7C3AED' };
@@ -111,6 +113,12 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
         setPlan(updatedPlan);
       }
 
+      if (plan.checkInDays) {
+        const nextCheckIn = new Date();
+        nextCheckIn.setDate(nextCheckIn.getDate() + plan.checkInDays);
+        scheduleChildPlanCheckIn(plan.checkInDays, nextCheckIn.toISOString()).catch(() => {});
+      }
+
       setCheckIns(prev => [ci, ...prev]);
       setCheckInText('');
       setShowCheckIn(false);
@@ -127,7 +135,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
       'Are you sure you want to end this plan? Your progress will be cleared.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'End Plan', style: 'destructive', onPress: async () => { await clearChildPlan(); navigation.goBack(); } },
+        { text: 'End Plan', style: 'destructive', onPress: async () => { await clearChildPlan(); cancelChildPlanReminder(); cancelChildPlanCheckIn(); navigation.goBack(); } },
       ]
     );
   }
