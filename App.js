@@ -101,7 +101,7 @@ function AppSplashOverlay({ onDismiss }) {
 
       <Animated.View style={{ opacity: subtitleOpacity, marginTop: 8, flexDirection: 'row' }}>
         <Text style={splashStyles.subtitle}>Your Guide to </Text>
-        <Text style={[splashStyles.subtitle, { color: '#C9A84C' }]}>Prophetic Parenting</Text>
+        <Text style={[splashStyles.subtitle, { color: '#C9A84C', marginLeft: 4 }]}>Prophetic Parenting</Text>
       </Animated.View>
 
       <Animated.View style={[splashStyles.quoteWrap, { opacity: quoteOpacity }]}>

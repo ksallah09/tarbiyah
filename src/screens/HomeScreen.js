@@ -17,6 +17,7 @@ import * as Sharing from 'expo-sharing';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const TIP_CARD_WIDTH = SCREEN_WIDTH - 80; // 20 left inset + 12 gap + 48 peek
+const CHILD_CARD_W = SCREEN_WIDTH - hp - 40;
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -138,7 +139,6 @@ export default function HomeScreen({ navigation }) {
   const [childPlans,     setChildPlans]     = useState([]);
   const [childTodayLogs, setChildTodayLogs] = useState({});
   const [childCardIndex, setChildCardIndex] = useState(0);
-  const [childCardWidth, setChildCardWidth] = useState(0);
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
@@ -583,27 +583,32 @@ export default function HomeScreen({ navigation }) {
               )}
               {childPlans.length > 0 && (
                 <>
-                  <View onLayout={e => setChildCardWidth(e.nativeEvent.layout.width)}>
+                  <View style={{ marginHorizontal: -hp }}>
                   <ScrollView
                     horizontal
-                    pagingEnabled
                     showsHorizontalScrollIndicator={false}
-                    onScroll={e => childCardWidth && setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / childCardWidth))}
+                    snapToInterval={CHILD_CARD_W + 12}
+                    decelerationRate="fast"
+                    disableIntervalMomentum
+                    contentContainerStyle={{ paddingLeft: hp }}
+                    onScroll={e => setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / (CHILD_CARD_W + 12)))}
                     scrollEventThrottle={16}
                   >
-                    {childPlans.map(plan => {
+                    {childPlans.map((plan) => {
                       const todayLog = childTodayLogs[plan.id] || [];
                       return (
                         <TouchableOpacity
                           key={plan.id}
-                          style={[styles.pipWidget, { width: childCardWidth || '100%', marginRight: 0 }]}
+                          style={[styles.pipWidget, { width: CHILD_CARD_W, marginRight: 12 }]}
                           onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
                           activeOpacity={0.88}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                            <Ionicons name="leaf-outline" size={13} color="#4ADE80" style={{ marginTop: 1, flexShrink: 0 }} />
-                            <Text style={styles.childWidgetTitle} numberOfLines={2}>{plan.title}</Text>
-                            <Text style={[styles.pipWidgetCount, { marginLeft: 'auto', flexShrink: 0 }]}>{todayLog.filter(Boolean).length}/5</Text>
+                          <View style={styles.pipWidgetHeader}>
+                            <View style={styles.pipWidgetTitleRow}>
+                              <Ionicons name="leaf-outline" size={13} color="#4ADE80" />
+                              <Text style={styles.pipWidgetLabel} numberOfLines={1}>{`${plan.title ? plan.title.split(':')[0].toUpperCase() : 'CHILD PLAN'}${plan.childAge ? ` · AGE ${plan.childAge}` : ''}`}</Text>
+                            </View>
+                            <Text style={styles.pipWidgetCount}>{todayLog.filter(Boolean).length}/5</Text>
                           </View>
                           <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
                           <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
@@ -630,6 +635,7 @@ export default function HomeScreen({ navigation }) {
                       {childPlans.map((_, i) => (
                         <View key={i} style={[styles.homeDot, i === childCardIndex && styles.homeDotActive]} />
                       ))}
+                      <Text style={styles.homeDotsSwipeHint}>Swipe to see more</Text>
                     </View>
                   )}
                 </>
@@ -1514,19 +1520,20 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3,
   },
   pipWidgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  pipWidgetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  pipWidgetLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C' },
-  homeDotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 8, marginBottom: 8 },
-  homeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)' },
-  homeDotActive: { backgroundColor: '#4ADE80', width: 18 },
+  pipWidgetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 },
+  pipWidgetLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C', flex: 1 },
+  homeDotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 8, marginBottom: 8 },
+  homeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D1D5DB' },
+  homeDotActive: { backgroundColor: '#1B3D2F', width: 18 },
+  homeDotsSwipeHint: { fontSize: 11, color: '#9CA3AF', marginLeft: 6 },
   childWidgetTitle: { flex: 1, fontSize: 12, fontWeight: '600', color: '#C9A84C', lineHeight: 17 },
   pipWidgetTodoHeading: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', marginBottom: 2, marginTop: 4, letterSpacing: 0.1 },
   pipWidgetSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10 },
   pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
-  pipWidgetHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
+  pipWidgetHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
   pipWidgetCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
   pipWidgetCheckDone: { backgroundColor: '#4ADE80', borderColor: '#4ADE80' },
-  pipWidgetHabitText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 19 },
+  pipWidgetHabitText: { flex: 1, flexShrink: 1, fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 19 },
   pipWidgetHabitTextDone: { color: 'rgba(255,255,255,0.3)', textDecorationLine: 'line-through' },
   pipEmptyWidget: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

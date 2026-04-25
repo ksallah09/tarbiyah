@@ -141,7 +141,6 @@ export default function LearnScreen({ navigation, route }) {
         >
           {/* ── Dark hero header ── */}
           <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-            <Text style={styles.heroLabel}>LEARN</Text>
             <Text style={styles.heroTitle}>Learn</Text>
             <Text style={styles.heroSub}>
               Deep learning and real-time guidance for every parenting moment.
@@ -153,6 +152,7 @@ export default function LearnScreen({ navigation, route }) {
             <View style={styles.contentPad}>
 
               {/* ── Choice cards ── */}
+              <Text style={styles.sectionHeading}>BUILD YOUR PARENTING KNOWLEDGE</Text>
               <TouchableOpacity
                 style={styles.choiceCardDark}
                 activeOpacity={0.88}
@@ -189,7 +189,7 @@ export default function LearnScreen({ navigation, route }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.choiceCardTitle}>Go Deeper</Text>
-                    <Text style={styles.choiceCardSub}>Build a personalized module that targets the root issue</Text>
+                    <Text style={styles.choiceCardSub}>Build a personalized module that provides more comprehensive guidance and sustainable solutions</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.35)" />
                 </LinearGradient>
@@ -507,6 +507,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   contentPad: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36 },
+  sectionHeadingWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  sectionHeading: { fontSize: 15, fontWeight: '700', color: '#1B3D2F', letterSpacing: 0.3, marginBottom: 16 },
 
   // ── Choice cards ──
   choiceCardDark: {
@@ -520,7 +522,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
   },
   choiceCardInner: {
-    flexDirection: 'row', alignItems: 'center', padding: 18, gap: 14, minHeight: 84,
+    flexDirection: 'row', alignItems: 'center', padding: 18, gap: 14, height: 100,
   },
   choiceIcon: {
     width: 46, height: 46, borderRadius: 14,

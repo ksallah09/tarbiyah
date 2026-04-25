@@ -7,6 +7,7 @@ import {
   StyleSheet,
   AppState,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DarkHeader from '../components/DarkHeader';
@@ -20,7 +21,8 @@ import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from 
 import { rs, hp } from '../utils/responsive';
 import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr } from '../utils/pip';
 import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount } from '../utils/childPlan';
-import { Dimensions } from 'react-native';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CHILD_CARD_W = SCREEN_WIDTH - hp - 40;
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -103,7 +105,6 @@ export default function ProgressScreen({ navigation }) {
   const [childTodayLogs,     setChildTodayLogs]     = useState({});
   const [childLogs,          setChildLogs]          = useState({});
   const [childCardIndex,     setChildCardIndex]     = useState(0);
-  const [childCardWidth,     setChildCardWidth]     = useState(0);
 
   useFocusEffect(useCallback(() => {
     getActivePlan().then(p => {
@@ -289,21 +290,24 @@ export default function ProgressScreen({ navigation }) {
         </View>
         {childPlans.length > 0 ? (
           <>
-            <View onLayout={e => setChildCardWidth(e.nativeEvent.layout.width)}>
+            <View style={{ marginHorizontal: -hp }}>
             <ScrollView
               horizontal
-              pagingEnabled
               showsHorizontalScrollIndicator={false}
-              onScroll={e => childCardWidth && setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / childCardWidth))}
+              snapToInterval={CHILD_CARD_W + 12}
+              decelerationRate="fast"
+              disableIntervalMomentum
+              contentContainerStyle={{ paddingLeft: hp }}
+              onScroll={e => setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / (CHILD_CARD_W + 12)))}
               scrollEventThrottle={16}
               style={{ marginBottom: childPlans.length > 1 ? 8 : 16 }}
             >
-              {childPlans.map(plan => {
+              {childPlans.map((plan) => {
                 const todayLog = childTodayLogs[plan.id] || [];
                 return (
                   <TouchableOpacity
                     key={plan.id}
-                    style={[styles.pipCard, { width: childCardWidth || '100%', marginBottom: 0, marginRight: 0 }]}
+                    style={[styles.pipCard, { width: CHILD_CARD_W, marginBottom: 0, marginRight: 12 }]}
                     onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
                     activeOpacity={0.88}
                   >
@@ -342,6 +346,7 @@ export default function ProgressScreen({ navigation }) {
                 {childPlans.map((_, i) => (
                   <View key={i} style={[styles.dot, i === childCardIndex && styles.dotActive]} />
                 ))}
+                <Text style={styles.dotsSwipeHint}>Swipe to see more</Text>
               </View>
             )}
           </>
@@ -900,15 +905,16 @@ const styles = StyleSheet.create({
   pipJourneyText: { fontSize: 11, fontWeight: '700', color: '#C9A84C' },
   pipTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', lineHeight: 22, marginBottom: 14 },
   pipHabits: { gap: 10, marginBottom: 14 },
-  pipHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pipHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, overflow: 'hidden' },
   pipHabitCheck: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
   pipHabitCheckDone: { backgroundColor: '#4ADE80', borderColor: '#4ADE80' },
-  pipHabitText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 19 },
+  pipHabitText: { flex: 1, flexShrink: 1, fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 19 },
   pipHabitTextDone: { color: 'rgba(255,255,255,0.35)', textDecorationLine: 'line-through' },
   pipMoreHabits: { fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '600', paddingLeft: 30 },
   pipProgressRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 12 },
   pipProgressLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 16 },
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginBottom: 16 },
+  dotsSwipeHint: { fontSize: 11, color: '#9CA3AF', marginLeft: 6 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D1D5DB' },
   dotActive: { backgroundColor: '#1B3D2F', width: 18 },
   pipEmptyCard: {
