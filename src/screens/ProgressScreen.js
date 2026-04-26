@@ -19,8 +19,8 @@ import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal } from '../uti
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { rs, hp } from '../utils/responsive';
-import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr } from '../utils/pip';
-import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount } from '../utils/childPlan';
+import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr, daysSinceStart, getCurrentHabits } from '../utils/pip';
+import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount, daysSinceStart as childDaysSinceStart, getCurrentActions } from '../utils/childPlan';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHILD_CARD_W = SCREEN_WIDTH - hp - 40;
 
@@ -250,7 +250,7 @@ export default function ProgressScreen({ navigation }) {
             <View style={styles.focusBadgeActive}><Text style={styles.focusBadgeActiveText}>Parent growth</Text></View>
             <Text style={styles.pipTitle} numberOfLines={2}>{activePlan.title}</Text>
             <View style={styles.pipHabits}>
-              {activePlan.dailyHabits.slice(0, 3).map((h, i) => (
+              {getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate)).slice(0, 3).map((h, i) => (
                 <View key={i} style={styles.pipHabitRow}>
                   <View style={[styles.pipHabitCheck, pipTodayLog[i] && styles.pipHabitCheckDone]}>
                     {pipTodayLog[i] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
@@ -258,8 +258,8 @@ export default function ProgressScreen({ navigation }) {
                   <Text style={[styles.pipHabitText, pipTodayLog[i] && styles.pipHabitTextDone]} numberOfLines={1}>{h}</Text>
                 </View>
               ))}
-              {activePlan.dailyHabits.length > 3 && (
-                <Text style={styles.pipMoreHabits}>+{activePlan.dailyHabits.length - 3} more habits</Text>
+              {getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate)).length > 3 && (
+                <Text style={styles.pipMoreHabits}>+{getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate)).length - 3} more habits</Text>
               )}
             </View>
             <View style={styles.pipProgressRow}>
@@ -321,7 +321,7 @@ export default function ProgressScreen({ navigation }) {
                     <View style={[styles.focusBadgeActive, { backgroundColor: 'rgba(74,222,128,0.15)' }]}><Text style={[styles.focusBadgeActiveText, { color: '#4ADE80' }]}>Child growth</Text></View>
                     <Text style={styles.pipTitle} numberOfLines={2}>{plan.title}</Text>
                     <View style={styles.pipHabits}>
-                      {(plan.parentDailyActions || []).slice(0, 3).map((a, i) => (
+                      {getCurrentActions(plan, childDaysSinceStart(plan.startDate)).slice(0, 3).map((a, i) => (
                         <View key={i} style={styles.pipHabitRow}>
                           <View style={[styles.pipHabitCheck, todayLog[i] && styles.pipHabitCheckDone]}>
                             {todayLog[i] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
@@ -329,8 +329,8 @@ export default function ProgressScreen({ navigation }) {
                           <Text style={[styles.pipHabitText, todayLog[i] && styles.pipHabitTextDone]} numberOfLines={1}>{a}</Text>
                         </View>
                       ))}
-                      {(plan.parentDailyActions || []).length > 3 && (
-                        <Text style={styles.pipMoreHabits}>+{plan.parentDailyActions.length - 3} more actions</Text>
+                      {getCurrentActions(plan, childDaysSinceStart(plan.startDate)).length > 3 && (
+                        <Text style={styles.pipMoreHabits}>+{getCurrentActions(plan, childDaysSinceStart(plan.startDate)).length - 3} more actions</Text>
                       )}
                     </View>
                     <View style={styles.pipProgressRow}>

@@ -1540,6 +1540,7 @@ IMPORTANT RULES:
 - Prioritize routine if chaos issue.
 - Prioritize worship culture if deen issue.
 - Do NOT include hadith numbers, book names, or study citations in any text fields.
+- Each roadmap phase MUST have its own "dailyHabits" array of exactly 5 habits. Habits should evolve across phases — early phases build awareness and simple actions, later phases deepen practice and increase challenge. The durationDays for all phases must add up exactly to the total plan duration.
 
 === KNOWLEDGE BASE ===
 ${sourceContext}`;
@@ -1565,8 +1566,7 @@ Respond with valid JSON only (no markdown). Structure:
   "whyHappening": ["Likely cause 1", "Likely cause 2", "Likely cause 3"],
   "islamicFoundation": "One concise Islamic reminder — ayah, hadith, or tarbiyah principle with direct application. No citations or hadith numbers.",
   "researchInsight": "One concise evidence-based insight. No source names or citations.",
-  "roadmap": [{"phase": "Phase label e.g. Week 1", "title": "Short title", "description": "2-3 sentences"}],
-  "dailyHabits": ["Habit 1 (specific, trackable, under 10 words)", "Habit 2", "Habit 3", "Habit 4", "Habit 5"],
+  "roadmap": [{"phase": "Phase label e.g. Week 1", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "dailyHabits": ["Habit 1 (specific, trackable, under 10 words)", "Habit 2", "Habit 3", "Habit 4", "Habit 5"]}],
   "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
   "whatToSayScripts": ["Script 1 — realistic parent voice", "Script 2", "Script 3"],
   "whenYouSlipUp": "Reset strategy for difficult days — 2-3 sentences",
@@ -1757,6 +1757,7 @@ IMPORTANT RULES:
 - Do NOT frame the child as broken or defective.
 - Do NOT focus on punishment or compliance.
 - Do NOT include hadith numbers, book names, or study citations.
+- Each roadmap phase MUST have its own "parentDailyActions" array of exactly 5 actions. Actions should progress across phases — early phases focus on observation and gentle intervention, later phases build consistency and deeper connection. The durationDays for all phases must add up exactly to the total plan duration.
 
 === KNOWLEDGE BASE ===
 ${sourceContext}`;
@@ -1796,8 +1797,7 @@ Respond with valid JSON only (no markdown). Structure:
   "whatAffecting": ["Likely contributing factor 1", "Likely contributing factor 2", "Likely contributing factor 3"],
   "islamicFoundation": "One concise Islamic reminder, tarbiyah lesson, ayah, or hadith relevant to nurturing children. No citations or hadith numbers.",
   "researchInsight": "One concise child development insight relevant to this goal. No source names or citations.",
-  "roadmap": [{"phase": "Phase label", "title": "Short title", "description": "2-3 sentences"}],
-  "parentDailyActions": ["Concrete daily parent action 1", "Action 2", "Action 3", "Action 4", "Action 5"],
+  "roadmap": [{"phase": "Phase label", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "parentDailyActions": ["Concrete daily parent action 1", "Action 2", "Action 3", "Action 4", "Action 5"]}],
   "childGrowthOpportunities": ["Age-appropriate opportunity 1", "Opportunity 2", "Opportunity 3", "Opportunity 4", "Opportunity 5"],
   "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
   "whatToSayScripts": ["Warm realistic script 1", "Script 2", "Script 3"],

@@ -73,6 +73,21 @@ export function daysSinceStart(startDate) {
   return Math.floor((now - start) / 86400000) + 1;
 }
 
+// Returns the habits for the current phase of the plan.
+// Falls back to top-level dailyHabits for plans generated before phase support.
+export function getCurrentHabits(plan, dayNumber) {
+  const phases = plan?.roadmap;
+  if (!phases?.length || !phases[0]?.dailyHabits) {
+    return plan?.dailyHabits ?? [];
+  }
+  let elapsed = 0;
+  for (const phase of phases) {
+    elapsed += phase.durationDays ?? 0;
+    if (dayNumber <= elapsed) return phase.dailyHabits;
+  }
+  return phases[phases.length - 1].dailyHabits;
+}
+
 export function streakCount(logs) {
   let streak = 0;
   const today = new Date();

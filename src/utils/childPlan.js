@@ -102,6 +102,21 @@ export function daysSinceStart(startDate) {
   return Math.floor((now - start) / 86400000) + 1;
 }
 
+// Returns the parentDailyActions for the current phase of the plan.
+// Falls back to top-level parentDailyActions for plans generated before phase support.
+export function getCurrentActions(plan, dayNumber) {
+  const phases = plan?.roadmap;
+  if (!phases?.length || !phases[0]?.parentDailyActions) {
+    return plan?.parentDailyActions ?? [];
+  }
+  let elapsed = 0;
+  for (const phase of phases) {
+    elapsed += phase.durationDays ?? 0;
+    if (dayNumber <= elapsed) return phase.parentDailyActions;
+  }
+  return phases[phases.length - 1].parentDailyActions;
+}
+
 export function streakCount(logs) {
   let streak = 0;
   const today = new Date();

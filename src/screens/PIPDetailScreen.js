@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   getActivePlan, savePlan, getTodayLog, logHabit,
   getHabitLogs, getCheckIns, saveCheckIn, clearPlan,
-  daysSinceStart, streakCount, todayStr,
+  daysSinceStart, streakCount, todayStr, getCurrentHabits,
 } from '../utils/pip';
 import { schedulePIPCheckIn } from '../utils/notifications';
 
@@ -82,7 +82,7 @@ export default function PIPDetailScreen({ navigation, route }) {
     setCheckInLoading(true);
     try {
       const dayNumber = daysSinceStart(plan.startDate);
-      const currentHabits = plan.dailyHabits;
+      const currentHabits = getCurrentHabits(plan, dayNumber);
       const res = await fetch(`${API_URL}/pip/checkin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,6 +138,7 @@ export default function PIPDetailScreen({ navigation, route }) {
   const streak       = streakCount(logs);
   const journeyColor = JOURNEY_COLORS[plan.journeyType] || '#2E7D62';
   const todayDone    = todayLog.filter(Boolean).length;
+  const habits       = getCurrentHabits(plan, dayNumber);
 
   const TABS = [
     { key: 'habits', label: 'Habits' },
@@ -206,7 +207,7 @@ export default function PIPDetailScreen({ navigation, route }) {
         {activeSection === 'habits' && (
           <>
             <Section icon="today-outline" title="Today's To-do's" subtitle="Check off each one as you complete it. Resets at midnight.">
-              {plan.dailyHabits.map((habit, i) => (
+              {habits.map((habit, i) => (
                 <TouchableOpacity key={i} style={styles.habitRow} onPress={() => handleHabitToggle(i)} activeOpacity={0.75}>
                   <View style={[styles.habitCheck, todayLog[i] && styles.habitCheckDone]}>
                     {todayLog[i] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}

@@ -29,8 +29,8 @@ import { getWeekReadDays, isReadToday, getStreak } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
-import { getActivePlan, getTodayLog, logHabit, todayStr } from '../utils/pip';
-import { getAllChildPlans, getTodayActionLog, logAction } from '../utils/childPlan';
+import { getActivePlan, getTodayLog, logHabit, todayStr, daysSinceStart, getCurrentHabits } from '../utils/pip';
+import { getAllChildPlans, getTodayActionLog, logAction, daysSinceStart as childDaysSinceStart, getCurrentActions } from '../utils/childPlan';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification } from '../utils/notifications';
@@ -546,7 +546,7 @@ export default function HomeScreen({ navigation }) {
                   </View>
                   <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
                   <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
-                  {pipPlan.dailyHabits.map((habit, i) => (
+                  {getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate)).map((habit, i) => (
                     <TouchableOpacity
                       key={i}
                       style={styles.pipWidgetHabitRow}
@@ -612,7 +612,7 @@ export default function HomeScreen({ navigation }) {
                           </View>
                           <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
                           <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
-                          {(plan.parentDailyActions || []).map((action, i) => (
+                          {getCurrentActions(plan, childDaysSinceStart(plan.startDate)).map((action, i) => (
                             <TouchableOpacity
                               key={i}
                               style={styles.pipWidgetHabitRow}
