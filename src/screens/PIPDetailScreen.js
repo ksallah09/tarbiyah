@@ -298,9 +298,6 @@ export default function PIPDetailScreen({ navigation, route }) {
               <Text style={styles.reminderText}>{plan.parentReminder}</Text>
             </View>
 
-            <TouchableOpacity style={styles.endPlanBtn} onPress={handleClearPlan} activeOpacity={0.8}>
-              <Text style={styles.endPlanText}>End This Plan</Text>
-            </TouchableOpacity>
           </>
         )}
 

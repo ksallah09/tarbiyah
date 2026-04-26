@@ -303,9 +303,6 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
               ))}
             </Section>
 
-            <TouchableOpacity style={styles.endPlanBtn} onPress={handleClearPlan} activeOpacity={0.8}>
-              <Text style={styles.endPlanText}>End This Plan</Text>
-            </TouchableOpacity>
           </>
         )}
 
