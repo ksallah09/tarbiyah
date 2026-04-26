@@ -461,7 +461,7 @@ export default function ProfileScreen() {
 
   function handleSupport() {
     Linking.openURL('mailto:support@thetarbiyahapp.com?subject=Tarbiyah Support').catch(() =>
-      Alert.alert('Help & Support', 'Email us at admin@thetarbiyahapp.com')
+      Alert.alert('Help & Support', 'Email us at support@thetarbiyahapp.com')
     );
   }
 
