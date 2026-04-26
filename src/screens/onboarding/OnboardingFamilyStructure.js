@@ -20,12 +20,6 @@ const OPTIONS = [
     sub: 'Parenting on your own',
     icon: 'person-outline',
   },
-  {
-    value: 'prefer_not_to_say',
-    label: 'Prefer not to say',
-    sub: 'We\'ll keep guidance general',
-    icon: 'ellipsis-horizontal-outline',
-  },
 ];
 
 export default function OnboardingFamilyStructure({ navigation, route }) {
@@ -41,8 +35,7 @@ export default function OnboardingFamilyStructure({ navigation, route }) {
   }
 
   function handleNext() {
-    const value = selected ?? 'prefer_not_to_say';
-    navigation.navigate('OnboardingFocusAreas', { ...data, familyStructure: value });
+    navigation.navigate('OnboardingFocusAreas', { ...data, familyStructure: selected ?? null });
   }
 
   return (

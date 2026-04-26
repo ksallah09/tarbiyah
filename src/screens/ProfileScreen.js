@@ -614,7 +614,7 @@ export default function ProfileScreen() {
               iconBg="#E8F5EF"
               iconColor="#2E7D62"
               title="Family Situation"
-              value={familyStructure === 'married' ? 'Married' : familyStructure === 'single_parent' ? 'Single Parent' : 'Not specified'}
+              value={familyStructure === 'married' ? 'Married' : familyStructure === 'single_parent' ? 'Single Parent' : 'Not set'}
               onPress={() => {
                 Alert.alert(
                   'Family Situation',
@@ -622,7 +622,6 @@ export default function ProfileScreen() {
                   [
                     { text: 'Married', onPress: () => saveProfile({ familyStructure: 'married' }) },
                     { text: 'Single Parent', onPress: () => saveProfile({ familyStructure: 'single_parent' }) },
-                    { text: 'Prefer not to say', onPress: () => saveProfile({ familyStructure: 'prefer_not_to_say' }) },
                     { text: 'Cancel', style: 'cancel' },
                   ]
                 );
