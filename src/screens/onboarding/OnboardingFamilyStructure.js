@@ -8,18 +8,8 @@ import TypewriterText from '../../components/TypewriterText';
 import ProgressDots from './ProgressDots';
 
 const OPTIONS = [
-  {
-    value: 'married',
-    label: 'Married',
-    sub: 'Parenting with a partner',
-    icon: 'people-outline',
-  },
-  {
-    value: 'single_parent',
-    label: 'Single Parent',
-    sub: 'Parenting on your own',
-    icon: 'person-outline',
-  },
+  { value: 'married',      label: 'Married',       icon: 'people-outline' },
+  { value: 'single_parent', label: 'Single Parent', icon: 'person-outline' },
 ];
 
 export default function OnboardingFamilyStructure({ navigation, route }) {
@@ -72,10 +62,7 @@ export default function OnboardingFamilyStructure({ navigation, route }) {
                   <View style={[styles.optionIcon, active && styles.optionIconActive]}>
                     <Ionicons name={opt.icon} size={20} color={active ? '#1B3D2F' : 'rgba(255,255,255,0.6)'} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.optionLabel, active && styles.optionLabelActive]}>{opt.label}</Text>
-                    <Text style={[styles.optionSub, active && styles.optionSubActive]}>{opt.sub}</Text>
-                  </View>
+                  <Text style={[styles.optionLabel, active && styles.optionLabelActive]}>{opt.label}</Text>
                   {active && <Ionicons name="checkmark-circle" size={22} color="#6B7C45" />}
                 </TouchableOpacity>
               );
