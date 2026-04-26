@@ -508,60 +508,6 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
               )}
 
-              {/* PARENTING IMPROVEMENT PLAN */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>PARENTING IMPROVEMENT PLAN</Text>
-              </View>
-              {!pipPlan && (
-                <View style={styles.childEmptyCard}>
-                  <View style={styles.childEmptyTop}>
-                    <View style={styles.childEmptyIconWrap}>
-                      <Ionicons name="rocket-outline" size={22} color="#2E7D62" />
-                    </View>
-                    <Text style={styles.childEmptyLabel}>No active plan</Text>
-                    <Text style={styles.childEmptySub}>Build the skills, habits and capacity to show up as the parent you want to be</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.childEmptyBtn}
-                    onPress={() => navigation.navigate('Growth')}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.childEmptyBtnText}>Start an Improvement Plan</Text>
-                    <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
-                  </TouchableOpacity>
-                </View>
-              )}
-              {pipPlan && (
-                <TouchableOpacity
-                  style={styles.pipWidget}
-                  onPress={() => navigation.navigate('PIPDetail', { plan: pipPlan })}
-                  activeOpacity={0.88}
-                >
-                  <View style={styles.pipWidgetHeader}>
-                    <View style={styles.pipWidgetTitleRow}>
-                      <Ionicons name="trending-up-outline" size={14} color="#C9A84C" />
-                      <Text style={styles.pipWidgetLabel}>YOUR PLAN · TODAY</Text>
-                    </View>
-                    <Text style={styles.pipWidgetCount}>{pipTodayLog.filter(Boolean).length}/5</Text>
-                  </View>
-                  <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
-                  <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
-                  {getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate)).map((habit, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      style={styles.pipWidgetHabitRow}
-                      onPress={e => { e.stopPropagation?.(); handlePipHabitToggle(i); }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.pipWidgetCheck, pipTodayLog[i] && styles.pipWidgetCheckDone]}>
-                        {pipTodayLog[i] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
-                      </View>
-                      <Text style={[styles.pipWidgetHabitText, pipTodayLog[i] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{habit}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </TouchableOpacity>
-              )}
-
               {/* HELP MY CHILD GROW */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
                 <Text style={styles.sectionTitle}>HELP MY CHILD GROW</Text>
@@ -639,6 +585,60 @@ export default function HomeScreen({ navigation }) {
                     </View>
                   )}
                 </>
+              )}
+
+              {/* PARENTING IMPROVEMENT PLAN */}
+              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+                <Text style={styles.sectionTitle}>PARENTING IMPROVEMENT PLAN</Text>
+              </View>
+              {!pipPlan && (
+                <View style={styles.childEmptyCard}>
+                  <View style={styles.childEmptyTop}>
+                    <View style={styles.childEmptyIconWrap}>
+                      <Ionicons name="rocket-outline" size={22} color="#2E7D62" />
+                    </View>
+                    <Text style={styles.childEmptyLabel}>No active plan</Text>
+                    <Text style={styles.childEmptySub}>Build the skills, habits and capacity to show up as the parent you want to be</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.childEmptyBtn}
+                    onPress={() => navigation.navigate('Growth')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.childEmptyBtnText}>Start an Improvement Plan</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {pipPlan && (
+                <TouchableOpacity
+                  style={styles.pipWidget}
+                  onPress={() => navigation.navigate('PIPDetail', { plan: pipPlan })}
+                  activeOpacity={0.88}
+                >
+                  <View style={styles.pipWidgetHeader}>
+                    <View style={styles.pipWidgetTitleRow}>
+                      <Ionicons name="trending-up-outline" size={14} color="#C9A84C" />
+                      <Text style={styles.pipWidgetLabel}>YOUR PLAN · TODAY</Text>
+                    </View>
+                    <Text style={styles.pipWidgetCount}>{pipTodayLog.filter(Boolean).length}/5</Text>
+                  </View>
+                  <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
+                  <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
+                  {getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate)).map((habit, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.pipWidgetHabitRow}
+                      onPress={e => { e.stopPropagation?.(); handlePipHabitToggle(i); }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.pipWidgetCheck, pipTodayLog[i] && styles.pipWidgetCheckDone]}>
+                        {pipTodayLog[i] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
+                      </View>
+                      <Text style={[styles.pipWidgetHabitText, pipTodayLog[i] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{habit}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </TouchableOpacity>
               )}
 
               {/* FAMILY GOALS */}
