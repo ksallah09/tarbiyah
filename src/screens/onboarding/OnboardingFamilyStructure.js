@@ -69,11 +69,16 @@ export default function OnboardingFamilyStructure({ navigation, route }) {
             })}
 
             <TouchableOpacity
-              style={[styles.btn, !selected && styles.btnMuted]}
+              style={[styles.btn, !selected && styles.btnDisabled]}
               onPress={handleNext}
               activeOpacity={0.85}
+              disabled={!selected}
             >
-              <Text style={styles.btnText}>{selected ? 'Continue' : 'Skip for now'}</Text>
+              <Text style={styles.btnText}>Continue</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.skipBtn} onPress={handleNext} activeOpacity={0.7}>
+              <Text style={styles.skipText}>Skip for now</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
@@ -108,8 +113,10 @@ const styles = StyleSheet.create({
   optionSub: { fontSize: 12, color: 'rgba(255,255,255,0.35)' },
   optionSubActive: { color: 'rgba(255,255,255,0.6)' },
   btn: { backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 12 },
-  btnMuted: { backgroundColor: 'rgba(255,255,255,0.15)' },
+  btnDisabled: { opacity: 0.3 },
   btnText: { fontSize: 16, fontWeight: '700', color: '#1B3D2F' },
-  backBtn: { alignItems: 'center', paddingVertical: 12 },
-  backText: { fontSize: 13, color: 'rgba(255,255,255,0.35)', fontWeight: '500' },
+  skipBtn: { alignItems: 'center', paddingVertical: 12 },
+  skipText: { fontSize: 13, color: 'rgba(255,255,255,0.45)', fontWeight: '500' },
+  backBtn: { alignItems: 'center', paddingVertical: 8 },
+  backText: { fontSize: 13, color: 'rgba(255,255,255,0.25)', fontWeight: '500' },
 });
