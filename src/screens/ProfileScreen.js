@@ -23,8 +23,7 @@ import { useAuth } from '../../App';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 import * as Notifications from 'expo-notifications';
-import { scheduleDailyNotification, cancelDailyNotification, requestNotificationPermission, buildTestNotificationContent } from '../utils/notifications';
-import { loadFamilyGoals, getGoalNotificationContent } from '../utils/familyGoals';
+import { scheduleDailyNotification, cancelDailyNotification, requestNotificationPermission } from '../utils/notifications';
 
 const ITEM_HEIGHT = 48;
 const HOURS   = ['1','2','3','4','5','6','7','8','9','10','11','12'];
@@ -691,50 +690,6 @@ export default function ProfileScreen() {
               iconColor="#4F46E5"
               title="About Tarbiyah"
               onPress={() => navigation.navigate('About')}
-              last
-            />
-          </SettingsCard>
-        </View>
-
-        {/* ── DEV: Notification Tests ── */}
-        <Text style={styles.sectionTitle}>NOTIFICATION TESTS</Text>
-        <View style={styles.sectionBlock}>
-          <SettingsCard>
-            <SettingRow
-              icon="alarm-outline"
-              iconBg="#E8F5EF"
-              iconColor="#2E7D62"
-              title="Test Daily Insight Reminder"
-              subtitle="Fires in 5 seconds"
-              onPress={async () => {
-                const content = await buildTestNotificationContent();
-                await Notifications.scheduleNotificationAsync({
-                  content: { ...content, sound: true },
-                  trigger: { type: 'timeInterval', seconds: 5, repeats: false },
-                });
-                Alert.alert('Test Scheduled', 'Lock your screen — notification fires in 5 seconds.');
-              }}
-            />
-            <SettingRow
-              icon="flag-outline"
-              iconBg="#FDF3E3"
-              iconColor="#D4871A"
-              title="Test Family Goal Reminder"
-              subtitle="Uses your first active goal"
-              onPress={async () => {
-                const goals = await loadFamilyGoals();
-                if (!goals?.length) {
-                  Alert.alert('No Goals Set', 'Add a family goal on the Progress tab first.');
-                  return;
-                }
-                const goal = goals[0];
-                const content = getGoalNotificationContent(goal);
-                await Notifications.scheduleNotificationAsync({
-                  content,
-                  trigger: { type: 'timeInterval', seconds: 5, repeats: false },
-                });
-                Alert.alert('Test Scheduled', `Testing "${goal.title}" — lock your screen, fires in 5 seconds.`);
-              }}
               last
             />
           </SettingsCard>
