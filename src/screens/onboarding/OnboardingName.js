@@ -41,7 +41,7 @@ export default function OnboardingName({ navigation, route }) {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={[styles.container, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 }]}>
-            <ProgressDots current={0} total={5} />
+            <ProgressDots current={0} total={6} />
 
             <View style={styles.textWrap}>
               <TypewriterText

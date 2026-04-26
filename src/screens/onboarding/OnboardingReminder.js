@@ -44,7 +44,7 @@ export default function OnboardingReminder({ navigation, route }) {
       <StatusBar style="light" />
       <LinearGradient colors={['#1B3D2F', '#0D2419']} style={{ flex: 1 }}>
         <View style={[styles.container, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 }]}>
-          <ProgressDots current={3} total={5} />
+          <ProgressDots current={4} total={6} />
 
           <View style={styles.textWrap}>
             <TypewriterText

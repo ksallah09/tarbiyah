@@ -119,6 +119,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
           topic,
           childrenAges: profile.childrenAges ?? null,
           focusAreas,
+          familyStructure: profile.familyStructure ?? 'prefer_not_to_say',
         }),
         signal: abortRef.current.signal,
       });

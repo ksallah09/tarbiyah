@@ -300,6 +300,7 @@ export default function ProfileScreen() {
   const [userEmail,        setUserEmail]        = useState('');
   const [reminderTime,     setReminderTime]     = useState('8:00 AM');
   const [language,         setLanguage]         = useState('English');
+  const [familyStructure,  setFamilyStructure]  = useState('prefer_not_to_say');
   const [showTimePicker,     setShowTimePicker]     = useState(false);
   const [showChildrenEditor, setShowChildrenEditor] = useState(false);
   const [childrenCount,      setChildrenCount]      = useState(null);
@@ -326,6 +327,7 @@ export default function ProfileScreen() {
         if (localProfile.name)                        setProfileName(localProfile.name);
         if (localProfile.reminderTime)                setReminderTime(localProfile.reminderTime);
         if (localProfile.language)                    setLanguage(localProfile.language);
+        if (localProfile.familyStructure)             setFamilyStructure(localProfile.familyStructure);
         if (localProfile.notifications !== undefined) setNotifications(localProfile.notifications);
       }
       if (onboardingRaw) {
@@ -355,18 +357,20 @@ export default function ProfileScreen() {
   }, []);
 
   async function saveProfile(patch) {
-    const current = { name: profileName, reminderTime, language, notifications };
+    const current = { name: profileName, reminderTime, language, notifications, familyStructure };
     const updated = { ...current, ...patch };
     await AsyncStorage.setItem('tarbiyah_profile', JSON.stringify(updated));
+    if (updated.familyStructure !== familyStructure) setFamilyStructure(updated.familyStructure);
     if (userIdRef.current) {
       saveProfileToSupabase({
-        userId:        userIdRef.current,
-        name:          updated.name,
-        childrenCount: childrenCount,
-        childrenAges:  childrenAges,
-        reminderTime:  updated.reminderTime,
-        focusAreas:    focusAreas,
-        language:      updated.language ?? 'English',
+        userId:          userIdRef.current,
+        name:            updated.name,
+        childrenCount:   childrenCount,
+        childrenAges:    childrenAges,
+        reminderTime:    updated.reminderTime,
+        focusAreas:      focusAreas,
+        familyStructure: updated.familyStructure ?? 'prefer_not_to_say',
+        language:        updated.language ?? 'English',
       });
     }
   }
@@ -604,6 +608,25 @@ export default function ProfileScreen() {
               title="Daily Reminder Time"
               value={reminderTime}
               onPress={handleReminderTime}
+            />
+            <SettingRow
+              icon="people-outline"
+              iconBg="#E8F5EF"
+              iconColor="#2E7D62"
+              title="Family Situation"
+              value={familyStructure === 'married' ? 'Married' : familyStructure === 'single_parent' ? 'Single Parent' : 'Not specified'}
+              onPress={() => {
+                Alert.alert(
+                  'Family Situation',
+                  'Update your family situation so we can tailor advice to your reality.',
+                  [
+                    { text: 'Married', onPress: () => saveProfile({ familyStructure: 'married' }) },
+                    { text: 'Single Parent', onPress: () => saveProfile({ familyStructure: 'single_parent' }) },
+                    { text: 'Prefer not to say', onPress: () => saveProfile({ familyStructure: 'prefer_not_to_say' }) },
+                    { text: 'Cancel', style: 'cancel' },
+                  ]
+                );
+              }}
             />
             <SettingRow
               icon="language-outline"

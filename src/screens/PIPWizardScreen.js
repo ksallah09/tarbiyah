@@ -8,6 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { savePlan } from '../utils/pip';
 import { schedulePIPReminder, schedulePIPCheckIn } from '../utils/notifications';
 
@@ -91,10 +92,12 @@ export default function PIPWizardScreen({ navigation }) {
     setError('');
     setLoading(true);
     try {
+      const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
+      const profile = profileRaw ? JSON.parse(profileRaw) : {};
       const res = await fetch(`${API_URL}/pip/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planType, userGoal, journeyType, childAges, familyContext, stressLevel }),
+        body: JSON.stringify({ planType, userGoal, journeyType, childAges, familyContext, stressLevel, familyStructure: profile.familyStructure ?? 'prefer_not_to_say' }),
       });
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();

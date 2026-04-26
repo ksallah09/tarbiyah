@@ -4,17 +4,18 @@ import { saveOnboardingData } from './onboarding';
 import { saveFocusAreas } from './focusAreas';
 
 /** Save profile data to Supabase after onboarding. */
-export async function saveProfileToSupabase({ userId, name, childrenCount, childrenAges, reminderTime, focusAreas, language }) {
+export async function saveProfileToSupabase({ userId, name, childrenCount, childrenAges, reminderTime, focusAreas, familyStructure, language }) {
   const { error } = await supabase
     .from('profiles')
     .upsert({
-      user_id:       userId,
+      user_id:          userId,
       name,
-      children_count: childrenCount ?? null,
-      children_ages:  childrenAges  ?? [],
-      reminder_time:  reminderTime  ?? null,
-      focus_areas:    focusAreas    ?? [],
-      language:       language      ?? 'English',
+      children_count:   childrenCount    ?? null,
+      children_ages:    childrenAges     ?? [],
+      reminder_time:    reminderTime     ?? null,
+      focus_areas:      focusAreas       ?? [],
+      family_structure: familyStructure  ?? 'prefer_not_to_say',
+      language:         language         ?? 'English',
     }, { onConflict: 'user_id' });
   return error;
 }
@@ -37,11 +38,12 @@ export async function syncProfileFromSupabase(userId) {
 
   await Promise.all([
     AsyncStorage.setItem('tarbiyah_profile', JSON.stringify({
-      name:          data.name,
-      children:      data.children_count,
-      childrenAges:  data.children_ages,
-      reminderTime:  data.reminder_time,
-      language:      data.language ?? 'English',
+      name:            data.name,
+      children:        data.children_count,
+      childrenAges:    data.children_ages,
+      reminderTime:    data.reminder_time,
+      familyStructure: data.family_structure ?? 'prefer_not_to_say',
+      language:        data.language ?? 'English',
     })),
     saveOnboardingData({
       name:          data.name,

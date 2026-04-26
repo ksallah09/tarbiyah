@@ -33,14 +33,15 @@ import FamilyGoalWizardScreen    from './src/screens/FamilyGoalWizardScreen';
 import FamilySyncScreen          from './src/screens/FamilySyncScreen';
 import AboutScreen               from './src/screens/AboutScreen';
 
-import OnboardingWelcome    from './src/screens/onboarding/OnboardingWelcome';
-import OnboardingAbout      from './src/screens/onboarding/OnboardingAbout';
-import OnboardingName       from './src/screens/onboarding/OnboardingName';
-import OnboardingChildren   from './src/screens/onboarding/OnboardingChildren';
-import OnboardingFocusAreas from './src/screens/onboarding/OnboardingFocusAreas';
-import OnboardingReminder   from './src/screens/onboarding/OnboardingReminder';
-import OnboardingAccount    from './src/screens/onboarding/OnboardingAccount';
-import OnboardingAllSet     from './src/screens/onboarding/OnboardingAllSet';
+import OnboardingWelcome         from './src/screens/onboarding/OnboardingWelcome';
+import OnboardingAbout           from './src/screens/onboarding/OnboardingAbout';
+import OnboardingName            from './src/screens/onboarding/OnboardingName';
+import OnboardingChildren        from './src/screens/onboarding/OnboardingChildren';
+import OnboardingFamilyStructure from './src/screens/onboarding/OnboardingFamilyStructure';
+import OnboardingFocusAreas      from './src/screens/onboarding/OnboardingFocusAreas';
+import OnboardingReminder        from './src/screens/onboarding/OnboardingReminder';
+import OnboardingAccount         from './src/screens/onboarding/OnboardingAccount';
+import OnboardingAllSet          from './src/screens/onboarding/OnboardingAllSet';
 
 import FeatureTourScreen from './src/screens/FeatureTourScreen';
 import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
@@ -295,8 +296,9 @@ function OnboardingStack() {
       <Stack.Screen name="OnboardingWelcome"    component={OnboardingWelcome} />
       <Stack.Screen name="OnboardingAbout"      component={OnboardingAbout} />
       <Stack.Screen name="OnboardingName"       component={OnboardingName} />
-      <Stack.Screen name="OnboardingChildren"   component={OnboardingChildren} />
-      <Stack.Screen name="OnboardingFocusAreas" component={OnboardingFocusAreas} />
+      <Stack.Screen name="OnboardingChildren"        component={OnboardingChildren} />
+      <Stack.Screen name="OnboardingFamilyStructure" component={OnboardingFamilyStructure} />
+      <Stack.Screen name="OnboardingFocusAreas"      component={OnboardingFocusAreas} />
       <Stack.Screen name="OnboardingReminder"   component={OnboardingReminder} />
       <Stack.Screen name="OnboardingAccount"    component={OnboardingAccount} />
       <Stack.Screen name="OnboardingAllSet"     component={OnboardingAllSet} />

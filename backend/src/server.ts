@@ -378,10 +378,11 @@ async function buildModuleSourceContext(topic: string): Promise<string> {
 
 app.post('/learn/generate', async (req: Request, res: Response) => {
   try {
-    const { topic, childrenAges, focusAreas } = req.body as {
+    const { topic, childrenAges, focusAreas, familyStructure } = req.body as {
       topic: string;
       childrenAges?: string;
       focusAreas?: string[];
+      familyStructure?: string;
     };
 
     if (!topic?.trim()) {
@@ -391,10 +392,15 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
     const sourceContext = await buildModuleSourceContext(topic);
     const systemPrompt  = buildModuleSystemPrompt(sourceContext);
 
+    const familyNote = familyStructure === 'single_parent'
+      ? 'This parent is a single parent — do not assume a co-parent or spouse is present. Avoid advice like "discuss with your partner" or "take turns".'
+      : null;
+
     const userPrompt = [
       `Parent's topic: ${topic.trim()}`,
       childrenAges  ? `Children's ages: ${childrenAges}` : null,
       focusAreas?.length ? `Parent's focus areas: ${focusAreas.join(', ')}` : null,
+      familyNote,
     ].filter(Boolean).join('\n');
 
     // Try Gemini first (pro → flash fallback handled inside generateWithRetry)
@@ -1490,9 +1496,9 @@ app.delete('/auth/account', requireAuth, async (req: AuthRequest, res: Response)
 
 app.post('/pip/generate', async (req: Request, res: Response) => {
   try {
-    const { planType, userGoal, journeyType, childAges, familyContext, stressLevel } = req.body as {
+    const { planType, userGoal, journeyType, childAges, familyContext, stressLevel, familyStructure } = req.body as {
       planType: string; userGoal: string; journeyType: string;
-      childAges?: string; familyContext?: string; stressLevel?: string;
+      childAges?: string; familyContext?: string; stressLevel?: string; familyStructure?: string;
     };
     if (!userGoal?.trim()) return res.status(400).json({ error: 'userGoal is required.' });
 
@@ -1540,12 +1546,17 @@ ${sourceContext}`;
 
     const durationDays = journeyType === 'Reset' ? 14 : journeyType === 'Transformation' ? 90 : 30;
 
+    const pipFamilyNote = familyStructure === 'single_parent'
+      ? 'This parent is a single parent — do not assume a co-parent or spouse is present. Avoid advice like "discuss with your partner" or "take turns".'
+      : '';
+
     const userPrompt = `Plan Type: ${planType || 'General'}
 Main Struggle or Goal: ${userGoal.trim()}
 Selected Journey: ${journeyType || 'Growth'} (${durationDays} Days)
 ${childAges ? `Child Ages: ${childAges}` : ''}
 ${familyContext ? `Family Context: ${familyContext}` : ''}
 ${stressLevel ? `Stress Level: ${stressLevel}` : ''}
+${pipFamilyNote}
 
 Respond with valid JSON only (no markdown). Structure:
 {
@@ -1696,9 +1707,9 @@ Respond with valid JSON only:
 
 app.post('/child-plan/generate', async (req: Request, res: Response) => {
   try {
-    const { growthGoal, childAge, temperament, parentChallenge, journeyType } = req.body as {
+    const { growthGoal, childAge, temperament, parentChallenge, journeyType, familyStructure } = req.body as {
       growthGoal: string; childAge: string; journeyType: string;
-      temperament?: string; parentChallenge?: string;
+      temperament?: string; parentChallenge?: string; familyStructure?: string;
     };
     if (!growthGoal?.trim()) return res.status(400).json({ error: 'growthGoal is required.' });
 
@@ -1752,11 +1763,16 @@ ${sourceContext}`;
 
     const durationDays = journeyType === 'Reset' ? 14 : journeyType === 'Transformation' ? 90 : 30;
 
+    const childPlanFamilyNote = familyStructure === 'single_parent'
+      ? 'This parent is a single parent — do not assume a co-parent or spouse is present. All parent actions must be achievable by one parent alone.'
+      : '';
+
     const userPrompt = `Growth Goal: ${growthGoal.trim()}
 Child Age: ${childAge || 'Not specified'}
 Selected Journey: ${journeyType || 'Growth'} (${durationDays} Days)
 ${temperament ? `Child Temperament: ${temperament}` : ''}
 ${parentChallenge ? `Parent Challenge: ${parentChallenge}` : ''}
+${childPlanFamilyNote}
 
 SPECIFICITY RULES — APPLY TO THE ENTIRE PLAN:
 - Every section must directly address the exact growth issue described. Do not give generic parenting advice.

@@ -41,7 +41,7 @@ export default function OnboardingChildren({ navigation, route }) {
 
   function handleNext() {
     if (!canContinue) return;
-    navigation.navigate('OnboardingFocusAreas', {
+    navigation.navigate('OnboardingFamilyStructure', {
       ...data,
       childrenCount: count,
       childrenAges: ages,
@@ -60,7 +60,7 @@ export default function OnboardingChildren({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <ProgressDots current={1} total={5} />
+          <ProgressDots current={1} total={6} />
 
           <View style={styles.textWrap}>
             <TypewriterText
