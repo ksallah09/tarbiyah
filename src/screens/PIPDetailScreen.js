@@ -13,7 +13,7 @@ import {
   getHabitLogs, getCheckIns, saveCheckIn, clearPlan,
   daysSinceStart, streakCount, todayStr, getCurrentHabits,
 } from '../utils/pip';
-import { schedulePIPCheckIn } from '../utils/notifications';
+import { schedulePIPCheckIn, cancelPIPReminder, cancelPIPCheckIn } from '../utils/notifications';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -126,7 +126,7 @@ export default function PIPDetailScreen({ navigation, route }) {
       'Are you sure you want to end your current plan? Your progress will be cleared.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'End Plan', style: 'destructive', onPress: async () => { await clearPlan(); navigation.goBack(); } },
+        { text: 'End Plan', style: 'destructive', onPress: async () => { await clearPlan(); cancelPIPReminder(); cancelPIPCheckIn(); navigation.goBack(); } },
       ]
     );
   }
