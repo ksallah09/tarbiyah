@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tarbiyah",
     "slug": "tarbiyah",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.tarbiyah.parenting",
       "usesAppleSignIn": true,
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
       },
