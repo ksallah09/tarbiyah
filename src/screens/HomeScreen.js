@@ -508,9 +508,9 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
               )}
 
-              {/* HELP MY CHILD GROW */}
+              {/* CHILD GROWTH PLAN */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>HELP MY CHILD GROW</Text>
+                <Text style={styles.sectionTitle}>CHILD GROWTH PLAN</Text>
               </View>
               {childPlans.length === 0 && (
                 <View style={styles.childEmptyCard}>

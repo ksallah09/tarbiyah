@@ -183,7 +183,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
 
         <View style={styles.childBadge}>
           <Ionicons name="leaf-outline" size={12} color="#4ADE80" />
-          <Text style={styles.childBadgeText}>Help My Child Grow · Age {plan.childAge}</Text>
+          <Text style={styles.childBadgeText}>Child Growth Plan · Age {plan.childAge}</Text>
         </View>
 
         <Text style={styles.heroTitle}>{plan.title}</Text>

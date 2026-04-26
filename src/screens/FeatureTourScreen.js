@@ -49,7 +49,7 @@ const SLIDES = [
     key: 'child',
     icon: 'leaf-outline',
     iconColor: '#4ADE80',
-    title: 'Help My Child Grow',
+    title: 'Child Growth Plan',
     body: 'Create a dedicated growth plan for each child — with tailored daily parent actions designed around their specific challenge and age.',
   },
   {
