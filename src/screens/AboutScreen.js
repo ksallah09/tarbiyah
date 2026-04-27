@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +32,96 @@ function BulletItem({ children }) {
     </View>
   );
 }
+
+const ISLAMIC_SOURCES = [
+  { name: 'Sh. Ibrahim Hindy',  role: 'Keys to Prophetic Parenting series' },
+  { name: 'Dr. Yasir Qadhi',   role: 'Parenting lectures & khutbahs' },
+  { name: 'Yasmin Mogahed',     role: 'Family & spiritual wellbeing' },
+  { name: 'Dr. Haifaa Younis',  role: 'Raising confident Muslim children' },
+  { name: 'Yaqeen Institute',   role: 'Research-based Islamic parenting articles' },
+  { name: 'Dr. Rania Awaad',    role: 'Muslim mental health & family wellbeing' },
+  { name: 'Mufti Menk',         role: 'Parenting responsibilities in Islam' },
+  { name: 'Zaynab Ansari',      role: 'Muslim women, family & spiritual development' },
+  { name: 'Muhsen',             role: 'Inclusive parenting & special needs guidance' },
+];
+
+const RESEARCH_SOURCES = [
+  { name: 'Child Mind Institute',             role: 'Child & teen mental health, behaviour & development' },
+  { name: 'CDC',                              role: 'Centers for Disease Control — child development milestones' },
+  { name: 'UC Davis Health',                  role: 'Clinical parenting & child development guidance' },
+  { name: 'NIH / NICHD',                      role: 'Research-based parenting across developmental stages' },
+  { name: 'American Academy of Pediatrics',   role: 'Clinical guidance on child health & development' },
+];
+
+function SourcesCard() {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={[styles.sectionIconWrap, { backgroundColor: '#F5F3FF' }]}>
+          <Ionicons name="library-outline" size={16} color="#7C3AED" />
+        </View>
+        <Text style={styles.sectionTitle}>Our Sources</Text>
+      </View>
+      <View style={styles.sectionCard}>
+        <Text style={styles.paragraph}>
+          Tarbiyah draws from the teachings of the following trusted Islamic and research sources. We have carefully curated these so that only credible, vetted knowledge shapes the guidance you receive.
+        </Text>
+        <TouchableOpacity style={srcStyles.toggleBtn} onPress={() => setOpen(o => !o)} activeOpacity={0.75}>
+          <Text style={srcStyles.toggleText}>{open ? 'Hide sources' : 'View all sources'}</Text>
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color="#7C3AED" />
+        </TouchableOpacity>
+        {open && (
+          <View style={srcStyles.listWrap}>
+            <Text style={srcStyles.sectionLabel}>ISLAMIC GUIDANCE</Text>
+            {ISLAMIC_SOURCES.map(s => (
+              <View key={s.name} style={srcStyles.sourceRow}>
+                <View style={[srcStyles.sourceIcon, { backgroundColor: '#E8F5EF' }]}>
+                  <Ionicons name="moon" size={13} color="#1B3D2F" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={srcStyles.sourceName}>{s.name}</Text>
+                  <Text style={srcStyles.sourceRole}>{s.role}</Text>
+                </View>
+              </View>
+            ))}
+            <Text style={[srcStyles.sectionLabel, { marginTop: 16 }]}>RESEARCH & DEVELOPMENT</Text>
+            {RESEARCH_SOURCES.map(s => (
+              <View key={s.name} style={srcStyles.sourceRow}>
+                <View style={[srcStyles.sourceIcon, { backgroundColor: '#FDF3E3' }]}>
+                  <Ionicons name="flask" size={13} color="#D4871A" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={srcStyles.sourceName}>{s.name}</Text>
+                  <Text style={srcStyles.sourceRole}>{s.role}</Text>
+                </View>
+              </View>
+            ))}
+            <View style={srcStyles.disclaimer}>
+              <Ionicons name="information-circle" size={17} color="#065F46" />
+              <Text style={srcStyles.disclaimerText}>
+                Any benefit in this guidance is from Allah alone. Any error or limitation is from the AI — not from the scholars and sources above. The sources listed are research references only and do not constitute an endorsement or official affiliation with this app.
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const srcStyles = StyleSheet.create({
+  toggleBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, alignSelf: 'flex-start' },
+  toggleText: { fontSize: 13, fontWeight: '600', color: '#7C3AED' },
+  listWrap: { marginTop: 16 },
+  sectionLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1.2, marginBottom: 10 },
+  sourceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  sourceIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  sourceName: { fontSize: 13, fontWeight: '700', color: '#1C1C1E' },
+  sourceRole: { fontSize: 12, color: '#6B7280', lineHeight: 18, marginTop: 1 },
+  disclaimer: { flexDirection: 'row', gap: 8, backgroundColor: '#F0FDF4', borderRadius: 10, padding: 12, marginTop: 16, alignItems: 'flex-start' },
+  disclaimerText: { flex: 1, fontSize: 12, color: '#065F46', lineHeight: 18 },
+});
 
 export default function AboutScreen() {
   const navigation = useNavigation();
@@ -92,6 +182,9 @@ export default function AboutScreen() {
               We have carefully curated these sources so that only credible, vetted knowledge shapes the guidance you receive.
             </Paragraph>
           </Section>
+
+          {/* Sources */}
+          <SourcesCard />
 
           {/* Transparency */}
           <Section
