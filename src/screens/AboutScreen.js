@@ -64,9 +64,9 @@ function SourcesCard() {
         <Text style={styles.sectionTitle}>Our Sources</Text>
       </View>
       <View style={styles.sectionCard}>
-        <Text style={styles.paragraph}>
+        <Paragraph>
           Tarbiyah draws from the teachings of the following trusted Islamic and research sources. We have carefully curated these so that only credible, vetted knowledge shapes the guidance you receive.
-        </Text>
+        </Paragraph>
         <TouchableOpacity style={srcStyles.toggleBtn} onPress={() => setOpen(o => !o)} activeOpacity={0.75}>
           <Text style={srcStyles.toggleText}>{open ? 'Hide sources' : 'View all sources'}</Text>
           <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color="#7C3AED" />
@@ -112,15 +112,15 @@ function SourcesCard() {
 
 const srcStyles = StyleSheet.create({
   toggleBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, alignSelf: 'flex-start' },
-  toggleText: { fontSize: 13, fontWeight: '600', color: '#7C3AED' },
+  toggleText: { fontSize: 14, fontWeight: '600', color: '#7C3AED' },
   listWrap: { marginTop: 16 },
-  sectionLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1.2, marginBottom: 10 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1.2, marginBottom: 10 },
   sourceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   sourceIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  sourceName: { fontSize: 13, fontWeight: '700', color: '#1C1C1E' },
-  sourceRole: { fontSize: 12, color: '#6B7280', lineHeight: 18, marginTop: 1 },
+  sourceName: { fontSize: 14, fontWeight: '700', color: '#374151' },
+  sourceRole: { fontSize: 14, color: '#374151', lineHeight: 22, marginTop: 1 },
   disclaimer: { flexDirection: 'row', gap: 8, backgroundColor: '#F0FDF4', borderRadius: 10, padding: 12, marginTop: 16, alignItems: 'flex-start' },
-  disclaimerText: { flex: 1, fontSize: 12, color: '#065F46', lineHeight: 18 },
+  disclaimerText: { flex: 1, fontSize: 14, color: '#065F46', lineHeight: 22 },
 });
 
 export default function AboutScreen() {
