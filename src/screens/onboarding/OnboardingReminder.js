@@ -25,6 +25,7 @@ export default function OnboardingReminder({ navigation, route }) {
   const [time, setTime]                   = useState(DEFAULT_TIME);
   const [subtitleReady, setSubtitleReady] = useState(false);
   const [pickerReady, setPickerReady]     = useState(false);
+  const [showAndroidPicker, setShowAndroidPicker] = useState(false);
   const contentOpacity                    = useRef(new Animated.Value(0)).current;
 
   function handleSubtitleComplete() {
@@ -64,14 +65,32 @@ export default function OnboardingReminder({ navigation, route }) {
           </View>
 
           <Animated.View style={[styles.pickerWrap, { opacity: contentOpacity }]}>
-            <DateTimePicker
-              value={time}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_, selected) => { if (selected) setTime(selected); }}
-              themeVariant="dark"
-              style={styles.picker}
-            />
+            {Platform.OS === 'ios' ? (
+              <DateTimePicker
+                value={time}
+                mode="time"
+                display="spinner"
+                onChange={(_, selected) => { if (selected) setTime(selected); }}
+                themeVariant="dark"
+                style={styles.picker}
+              />
+            ) : (
+              <TouchableOpacity style={styles.androidTimeBtn} onPress={() => setShowAndroidPicker(true)} activeOpacity={0.75}>
+                <Text style={styles.androidTimeText}>{formatTime(time)}</Text>
+                <Text style={styles.androidTimeTap}>Tap to change</Text>
+              </TouchableOpacity>
+            )}
+            {Platform.OS === 'android' && showAndroidPicker && (
+              <DateTimePicker
+                value={time}
+                mode="time"
+                display="default"
+                onChange={(_, selected) => {
+                  setShowAndroidPicker(false);
+                  if (selected) setTime(selected);
+                }}
+              />
+            )}
           </Animated.View>
 
           <Animated.View style={{ opacity: contentOpacity, marginTop: 32 }}>
@@ -121,6 +140,26 @@ const styles = StyleSheet.create({
   picker: {
     width: '100%',
     height: 180,
+  },
+  androidTimeBtn: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+  },
+  androidTimeText: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  androidTimeTap: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 6,
   },
   btn: {
     backgroundColor: '#FFFFFF',
