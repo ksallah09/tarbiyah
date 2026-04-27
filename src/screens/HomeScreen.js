@@ -493,20 +493,6 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
               )}
 
-              {/* ── DEV: Refresh insights ── */}
-              {__DEV__ && (
-                <TouchableOpacity
-                  style={styles.devRefreshBtn}
-                  onPress={async () => {
-                    await AsyncStorage.removeItem(CACHE_KEY);
-                    setImgIndex(i => i + 1);
-                    loadDaily();
-                  }}
-                >
-                  <Ionicons name="refresh-outline" size={13} color="#6B7280" />
-                  <Text style={styles.devRefreshText}>Refresh Insights (dev only)</Text>
-                </TouchableOpacity>
-              )}
 
               {/* CHILD DEVELOPMENT PLAN */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
