@@ -508,9 +508,9 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
               )}
 
-              {/* CHILD GROWTH PLAN */}
+              {/* CHILD DEVELOPMENT PLAN */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>CHILD GROWTH PLAN</Text>
+                <Text style={styles.sectionTitle}>CHILD DEVELOPMENT PLAN</Text>
               </View>
               {childPlans.length === 0 && (
                 <View style={styles.childEmptyCard}>
@@ -522,7 +522,7 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.childEmptySub}>Nurture your child's confidence, responsibility, faith & more</Text>
                   </View>
                   <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('Growth')} activeOpacity={0.85}>
-                    <Text style={styles.childEmptyBtnText}>Start a Child Growth Plan</Text>
+                    <Text style={styles.childEmptyBtnText}>Start a Child Development Plan</Text>
                     <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
                   </TouchableOpacity>
                 </View>
@@ -587,9 +587,9 @@ export default function HomeScreen({ navigation }) {
                 </>
               )}
 
-              {/* PARENTING IMPROVEMENT PLAN */}
+              {/* PARENT DEVELOPMENT PLAN */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>PARENTING IMPROVEMENT PLAN</Text>
+                <Text style={styles.sectionTitle}>PARENT DEVELOPMENT PLAN</Text>
               </View>
               {!pipPlan && (
                 <View style={styles.childEmptyCard}>
@@ -605,7 +605,7 @@ export default function HomeScreen({ navigation }) {
                     onPress={() => navigation.navigate('Growth')}
                     activeOpacity={0.85}
                   >
-                    <Text style={styles.childEmptyBtnText}>Start an Improvement Plan</Text>
+                    <Text style={styles.childEmptyBtnText}>Start a Parent Development Plan</Text>
                     <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
                   </TouchableOpacity>
                 </View>

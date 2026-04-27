@@ -223,9 +223,9 @@ export default function ProgressScreen({ navigation }) {
         <View style={styles.sheet}>
         <View style={styles.content}>
 
-        {/* ── Child Growth Plan ── */}
+        {/* ── Child Development Plan ── */}
         <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>CHILD GROWTH PLAN</Text>
+          <Text style={styles.sectionTitle}>CHILD DEVELOPMENT PLAN</Text>
           <TouchableOpacity style={styles.addGoalBtn} onPress={() => navigation.navigate('ChildPlanWizard')} activeOpacity={0.8}>
             <Ionicons name="add" size={14} color="#FFFFFF" />
             <Text style={styles.addGoalBtnText}>New Plan</Text>
@@ -300,16 +300,16 @@ export default function ProgressScreen({ navigation }) {
             </View>
             <View style={styles.pipEmptyText}>
               <View style={[styles.focusBadge, { backgroundColor: '#E8F5EF' }]}><Text style={[styles.focusBadgeText, { color: '#2E7D62' }]}>Child growth</Text></View>
-              <Text style={styles.pipEmptyTitle}>Child Growth Plan</Text>
+              <Text style={styles.pipEmptyTitle}>Child Development Plan</Text>
               <Text style={styles.pipEmptyBody}>Get a personalised plan to help nurture your child's confidence, responsibility, faith, or any growth area.</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
           </TouchableOpacity>
         )}
 
-        {/* ── Parenting Improvement Plan ── */}
+        {/* ── Parent Development Plan ── */}
         <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>PARENTING IMPROVEMENT PLAN</Text>
+          <Text style={styles.sectionTitle}>PARENT DEVELOPMENT PLAN</Text>
           {!activePlan && (
             <TouchableOpacity style={styles.addGoalBtn} onPress={() => navigation.navigate('PIPWizard')} activeOpacity={0.8}>
               <Ionicons name="add" size={14} color="#FFFFFF" />
@@ -357,7 +357,7 @@ export default function ProgressScreen({ navigation }) {
             </View>
             <View style={styles.pipEmptyText}>
               <View style={styles.focusBadge}><Text style={styles.focusBadgeText}>Parent growth</Text></View>
-              <Text style={styles.pipEmptyTitle}>Start an Improvement Plan</Text>
+              <Text style={styles.pipEmptyTitle}>Start a Parent Development Plan</Text>
               <Text style={styles.pipEmptyBody}>Get a personalized plan to build the skills, habits, and capacity to become the prophetic parent you aspire to be.</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />

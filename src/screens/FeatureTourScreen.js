@@ -42,14 +42,14 @@ const SLIDES = [
     key: 'pip',
     icon: 'ribbon-outline',
     iconColor: '#D4A843',
-    title: 'Parenting Improvement Plan',
+    title: 'Parent Development Plan',
     body: 'Build a personalized 30-day plan targeting your specific parenting habits. Complete 5 focused daily actions and build a streak that drives real change.',
   },
   {
     key: 'child',
     icon: 'leaf-outline',
     iconColor: '#4ADE80',
-    title: 'Child Growth Plan',
+    title: 'Child Development Plan',
     body: 'Create a dedicated growth plan for each child — with tailored daily parent actions designed around their specific challenge and age.',
   },
   {

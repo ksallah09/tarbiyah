@@ -158,7 +158,7 @@ export default function PIPWizardScreen({ navigation }) {
           <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.8)" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Improvement Plan</Text>
+          <Text style={styles.headerTitle}>Parent Development Plan</Text>
           <View style={styles.progressBar}>
             {Array.from({ length: totalSteps }).map((_, i) => (
               <View key={i} style={[styles.progressSegment, i < step && styles.progressSegmentActive]} />
