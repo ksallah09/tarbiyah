@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveChildPlan } from '../utils/childPlan';
-import { scheduleChildPlanReminder, scheduleChildPlanCheckIn } from '../utils/notifications';
+import { scheduleChildPlanReminder, scheduleChildPlanCheckIn, scheduleChildPlanCompletion } from '../utils/notifications';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -112,6 +112,7 @@ export default function ChildPlanWizardScreen({ navigation }) {
       await saveChildPlan(plan);
       scheduleChildPlanReminder(reminderTime, plan).catch(() => {});
       scheduleChildPlanCheckIn(checkInDays, plan.startDate).catch(() => {});
+      scheduleChildPlanCompletion(plan).catch(() => {});
 
       navigation.replace('ChildPlanDetail', { plan, initialTab: 'plan' });
     } catch (err) {

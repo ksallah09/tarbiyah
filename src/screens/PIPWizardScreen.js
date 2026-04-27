@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { savePlan } from '../utils/pip';
-import { schedulePIPReminder, schedulePIPCheckIn } from '../utils/notifications';
+import { schedulePIPReminder, schedulePIPCheckIn, schedulePIPCompletion } from '../utils/notifications';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -120,6 +120,7 @@ export default function PIPWizardScreen({ navigation }) {
       await savePlan(plan);
       schedulePIPReminder(reminderTime, plan).catch(() => {});
       schedulePIPCheckIn(checkInDays, plan.startDate).catch(() => {});
+      schedulePIPCompletion(plan).catch(() => {});
 
       navigation.replace('PIPDetail', { plan, initialTab: 'plan' });
     } catch (err) {

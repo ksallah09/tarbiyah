@@ -395,6 +395,66 @@ export async function cancelChildPlanCheckIn() {
   await cancelNotificationIds(CHILD_CHECKIN_ID_KEY);
 }
 
+// ─── Plan completion notifications ────────────────────────────────────────────
+const PIP_COMPLETION_ID_KEY   = 'tarbiyah_pip_completion_id';
+const CHILD_COMPLETION_ID_KEY = (planId) => `tarbiyah_child_completion_${planId}`;
+
+export async function schedulePIPCompletion(plan) {
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
+
+  await cancelNotificationIds(PIP_COMPLETION_ID_KEY);
+
+  const fireDate = new Date(plan.startDate);
+  fireDate.setDate(fireDate.getDate() + plan.durationDays);
+  fireDate.setHours(10, 0, 0, 0);
+  if (fireDate <= new Date()) return;
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Tarbiyah',
+      subtitle: '🏆 You completed your journey!',
+      body: 'Open the app to reflect on your progress and see what\'s next.',
+      sound: true,
+      data: { screen: 'PIPDetail' },
+    },
+    trigger: { type: 'date', date: fireDate },
+  });
+  await AsyncStorage.setItem(PIP_COMPLETION_ID_KEY, id);
+}
+
+export async function cancelPIPCompletion() {
+  await cancelNotificationIds(PIP_COMPLETION_ID_KEY);
+}
+
+export async function scheduleChildPlanCompletion(plan) {
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
+
+  await cancelNotificationIds(CHILD_COMPLETION_ID_KEY(plan.id));
+
+  const fireDate = new Date(plan.startDate);
+  fireDate.setDate(fireDate.getDate() + plan.durationDays);
+  fireDate.setHours(10, 0, 0, 0);
+  if (fireDate <= new Date()) return;
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Tarbiyah',
+      subtitle: '🌱 Your child\'s journey is complete!',
+      body: 'Open the app to reflect on their progress and see what\'s next.',
+      sound: true,
+      data: { screen: 'ChildPlanDetail', planId: plan.id },
+    },
+    trigger: { type: 'date', date: fireDate },
+  });
+  await AsyncStorage.setItem(CHILD_COMPLETION_ID_KEY(plan.id), id);
+}
+
+export async function cancelChildPlanCompletion(planId) {
+  if (planId) await cancelNotificationIds(CHILD_COMPLETION_ID_KEY(planId));
+}
+
 // ─── Top-up: reschedule plan notifications when app foregrounds ───────────────
 // Call this from App.js on AppState change to 'active' to keep notifications
 // fresh and cycling through the correct phase habits as days progress.

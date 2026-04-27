@@ -152,6 +152,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
   const journeyColor = JOURNEY_COLORS[plan.journeyType] || '#2E7D62';
   const todayDone    = todayLog.filter(Boolean).length;
   const actions      = getCurrentActions(plan, dayNumber);
+  const isComplete   = dayNumber > plan.durationDays;
 
   const TABS = [
     { key: 'actions', label: 'Actions' },
@@ -220,6 +221,31 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
       </View>
 
       <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+        {/* ── Completion Banner ── */}
+        {isComplete && (
+          <View style={styles.completionBanner}>
+            <Text style={styles.completionEmoji}>🌱</Text>
+            <Text style={styles.completionTitle}>Journey Complete!</Text>
+            <Text style={styles.completionDays}>You completed the {plan.durationDays}-day {plan.journeyType} journey for your child.</Text>
+            {plan.parentReminder ? (
+              <Text style={styles.completionReminder}>{plan.parentReminder}</Text>
+            ) : null}
+            {plan.nextBestJourney ? (
+              <View style={styles.completionNextWrap}>
+                <Text style={styles.completionNextLabel}>WHAT'S NEXT</Text>
+                <Text style={styles.completionNext}>{plan.nextBestJourney}</Text>
+              </View>
+            ) : null}
+            <TouchableOpacity
+              style={styles.completionBtn}
+              onPress={() => navigation.replace('ChildPlanWizard')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.completionBtnText}>Start a New Plan</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Actions Tab ── */}
         {activeSection === 'actions' && (
@@ -460,6 +486,21 @@ const styles = StyleSheet.create({
   reminderText: { fontSize: 15, color: '#FFFFFF', lineHeight: 24, fontStyle: 'italic', textAlign: 'center' },
   endPlanBtn: { alignItems: 'center', paddingVertical: 14, marginBottom: 10 },
   endPlanText: { fontSize: 14, fontWeight: '600', color: '#9CA3AF' },
+  completionBanner: {
+    backgroundColor: '#1B3D2F', borderRadius: 20, padding: 24,
+    alignItems: 'center', marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12, shadowRadius: 16, elevation: 5,
+  },
+  completionEmoji: { fontSize: 48, marginBottom: 12 },
+  completionTitle: { fontSize: 24, fontWeight: '800', color: '#FFFFFF', marginBottom: 6 },
+  completionDays: { fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 16, textAlign: 'center' },
+  completionReminder: { fontSize: 15, color: 'rgba(255,255,255,0.8)', lineHeight: 24, fontStyle: 'italic', textAlign: 'center', marginBottom: 20 },
+  completionNextWrap: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 14, width: '100%', marginBottom: 20 },
+  completionNextLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.4)', letterSpacing: 1.2, marginBottom: 6 },
+  completionNext: { fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 21 },
+  completionBtn: { backgroundColor: '#4ADE80', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32 },
+  completionBtnText: { fontSize: 15, fontWeight: '700', color: '#1B3D2F' },
   checkInBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 14, marginBottom: 14,
