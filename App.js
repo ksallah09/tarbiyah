@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, createContext, useContext } from 'react';
 import {
   View, StyleSheet, Text,
-  Animated, TouchableOpacity,
+  Animated, TouchableOpacity, AppState,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
@@ -47,7 +47,9 @@ import FeatureTourScreen from './src/screens/FeatureTourScreen';
 import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
-import { requestNotificationPermission } from './src/utils/notifications';
+import { requestNotificationPermission, topUpPlanNotifications } from './src/utils/notifications';
+import { getActivePlan } from './src/utils/pip';
+import { getAllChildPlans } from './src/utils/childPlan';
 
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
@@ -344,13 +346,33 @@ export default function App() {
 
     // Navigate to correct screen when user taps a notification
     notifResponseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      const screen = response.notification.request.content.data?.screen;
-      if (screen === 'Growth') {
+      const { screen, planId } = response.notification.request.content.data ?? {};
+      if (screen === 'PIPDetail') {
+        getActivePlan().then(plan => {
+          if (plan) navigationRef.current?.navigate('PIPDetail', { plan });
+          else navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
+        });
+      } else if (screen === 'ChildPlanDetail') {
+        getAllChildPlans().then(plans => {
+          const plan = planId ? plans.find(p => p.id === planId) : plans[0];
+          if (plan) navigationRef.current?.navigate('ChildPlanDetail', { plan });
+          else navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
+        });
+      } else if (screen === 'Growth') {
         navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
       } else if (screen === 'Community') {
         navigationRef.current?.navigate('Tabs', { screen: 'Community' });
       } else {
         navigationRef.current?.navigate('Tabs', { screen: 'Home' });
+      }
+    });
+
+    // Top up plan notifications when app foregrounds so habits stay fresh
+    const appStateSub = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        Promise.all([getActivePlan(), getAllChildPlans()]).then(([pipPlan, childPlans]) => {
+          topUpPlanNotifications(pipPlan, childPlans).catch(() => {});
+        });
       }
     });
 
@@ -372,6 +394,7 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
       notifResponseListener.current?.remove();
+      appStateSub.remove();
     };
   }, []);
 

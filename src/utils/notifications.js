@@ -159,45 +159,109 @@ export async function cancelDailyNotification() {
   } catch {}
 }
 
-// ─── PIP: habit reminder (daily, repeating) ───────────────────────────────────
-const PIP_REMINDER_ID_KEY  = 'tarbiyah_pip_reminder_id';
-const PIP_CHECKIN_ID_KEY   = 'tarbiyah_pip_checkin_id';
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-export async function schedulePIPReminder(timeStr = '12:00') {
+function getHabitForDay(plan, dayNumber) {
+  const phases = plan?.roadmap;
+  if (!phases?.length || !phases[0]?.dailyHabits) {
+    const habits = plan?.dailyHabits ?? [];
+    return habits.length ? habits[(dayNumber - 1) % habits.length] : null;
+  }
+  let elapsed = 0;
+  for (const phase of phases) {
+    elapsed += phase.durationDays ?? 0;
+    if (dayNumber <= elapsed) {
+      const habits = phase.dailyHabits ?? [];
+      return habits.length ? habits[(dayNumber - 1) % habits.length] : null;
+    }
+  }
+  const last = phases[phases.length - 1].dailyHabits ?? [];
+  return last.length ? last[(dayNumber - 1) % last.length] : null;
+}
+
+function getActionForDay(plan, dayNumber) {
+  const phases = plan?.roadmap;
+  if (!phases?.length || !phases[0]?.parentDailyActions) {
+    const actions = plan?.parentDailyActions ?? [];
+    return actions.length ? actions[(dayNumber - 1) % actions.length] : null;
+  }
+  let elapsed = 0;
+  for (const phase of phases) {
+    elapsed += phase.durationDays ?? 0;
+    if (dayNumber <= elapsed) {
+      const actions = phase.parentDailyActions ?? [];
+      return actions.length ? actions[(dayNumber - 1) % actions.length] : null;
+    }
+  }
+  const last = phases[phases.length - 1].parentDailyActions ?? [];
+  return last.length ? last[(dayNumber - 1) % last.length] : null;
+}
+
+async function cancelNotificationIds(storageKey) {
+  try {
+    const raw = await AsyncStorage.getItem(storageKey);
+    if (!raw) return;
+    try {
+      const ids = JSON.parse(raw);
+      const list = Array.isArray(ids) ? ids : [ids];
+      await Promise.all(list.map(id => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})));
+    } catch {
+      await Notifications.cancelScheduledNotificationAsync(raw).catch(() => {});
+    }
+    await AsyncStorage.removeItem(storageKey);
+  } catch {}
+}
+
+// ─── PIP: habit reminder ──────────────────────────────────────────────────────
+const PIP_REMINDER_ID_KEY = 'tarbiyah_pip_reminder_id';
+const PIP_CHECKIN_ID_KEY  = 'tarbiyah_pip_checkin_id';
+
+export async function schedulePIPReminder(timeStr = '12:00', plan) {
   const granted = await requestNotificationPermission();
   if (!granted) return;
 
-  try {
-    const existing = await AsyncStorage.getItem(PIP_REMINDER_ID_KEY);
-    if (existing) await Notifications.cancelScheduledNotificationAsync(existing).catch(() => {});
-  } catch {}
+  await cancelNotificationIds(PIP_REMINDER_ID_KEY);
+  if (!plan) return;
 
-  const [hourStr, minuteStr] = timeStr.split(':');
-  const hour = parseInt(hourStr, 10);
-  const minute = parseInt(minuteStr || '0', 10);
+  const [h, m] = timeStr.split(':').map(Number);
+  const startDate = new Date(plan.startDate);
+  startDate.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const daysSoFar = Math.floor((today - startDate) / 86400000);
+  const remaining = plan.durationDays - daysSoFar;
+  const count = Math.min(Math.max(remaining, 0), 30);
 
-  const id = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Tarbiyah',
-      subtitle: '🎯 Time for your daily habits',
-      body: "Check off today's 5 improvement habits.",
-      sound: true,
-      data: { screen: 'PIPDetail' },
-    },
-    trigger: { type: 'calendar', repeats: true, hour, minute },
-  });
+  const ids = [];
+  for (let i = 0; i < count; i++) {
+    const fireDate = new Date();
+    fireDate.setDate(fireDate.getDate() + i);
+    fireDate.setHours(h, m, 0, 0);
+    if (fireDate <= new Date()) continue;
 
-  await AsyncStorage.setItem(PIP_REMINDER_ID_KEY, id);
+    const dayNumber = daysSoFar + i + 1;
+    const habit = getHabitForDay(plan, dayNumber);
+    const body = habit
+      ? `${habit} — open the app to check it off and see all 5 habits.`
+      : "Check off today's 5 improvement habits.";
+
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Tarbiyah',
+        subtitle: '🎯 Time for your daily habits',
+        body,
+        sound: true,
+        data: { screen: 'PIPDetail' },
+      },
+      trigger: { type: 'date', date: fireDate },
+    });
+    ids.push(id);
+  }
+
+  await AsyncStorage.setItem(PIP_REMINDER_ID_KEY, JSON.stringify(ids));
 }
 
 export async function cancelPIPReminder() {
-  try {
-    const id = await AsyncStorage.getItem(PIP_REMINDER_ID_KEY);
-    if (id) {
-      await Notifications.cancelScheduledNotificationAsync(id);
-      await AsyncStorage.removeItem(PIP_REMINDER_ID_KEY);
-    }
-  } catch {}
+  await cancelNotificationIds(PIP_REMINDER_ID_KEY);
 }
 
 // ─── PIP: check-in notification (one-time, fires after N days) ────────────────
@@ -244,41 +308,57 @@ export async function cancelPIPCheckIn() {
 const CHILD_REMINDER_ID_KEY = 'tarbiyah_child_reminder_id';
 const CHILD_CHECKIN_ID_KEY  = 'tarbiyah_child_checkin_id';
 
-export async function scheduleChildPlanReminder(timeStr = '08:00') {
+const childReminderKey = (planId) => `tarbiyah_child_reminder_${planId}`;
+
+export async function scheduleChildPlanReminder(timeStr = '08:00', plan) {
   const granted = await requestNotificationPermission();
   if (!granted) return;
 
-  try {
-    const existing = await AsyncStorage.getItem(CHILD_REMINDER_ID_KEY);
-    if (existing) await Notifications.cancelScheduledNotificationAsync(existing).catch(() => {});
-  } catch {}
+  // Cancel old single-key format + per-plan key
+  await cancelNotificationIds(CHILD_REMINDER_ID_KEY);
+  if (plan?.id) await cancelNotificationIds(childReminderKey(plan.id));
+  if (!plan) return;
 
-  const [hourStr, minuteStr] = timeStr.split(':');
-  const hour = parseInt(hourStr, 10);
-  const minute = parseInt(minuteStr || '0', 10);
+  const [h, m] = timeStr.split(':').map(Number);
+  const startDate = new Date(plan.startDate);
+  startDate.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const daysSoFar = Math.floor((today - startDate) / 86400000);
+  const remaining = plan.durationDays - daysSoFar;
+  const count = Math.min(Math.max(remaining, 0), 20);
 
-  const id = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Tarbiyah',
-      subtitle: "🌱 Time for your child's daily actions",
-      body: "Complete today's 5 parent actions to support your child's growth.",
-      sound: true,
-      data: { screen: 'ChildPlanDetail' },
-    },
-    trigger: { type: 'calendar', repeats: true, hour, minute },
-  });
+  const ids = [];
+  for (let i = 0; i < count; i++) {
+    const fireDate = new Date();
+    fireDate.setDate(fireDate.getDate() + i);
+    fireDate.setHours(h, m, 0, 0);
+    if (fireDate <= new Date()) continue;
 
-  await AsyncStorage.setItem(CHILD_REMINDER_ID_KEY, id);
+    const dayNumber = daysSoFar + i + 1;
+    const action = getActionForDay(plan, dayNumber);
+    const body = action
+      ? `${action} — open the app to check it off and see all 5 actions.`
+      : "Complete today's 5 parent actions to support your child's growth.";
+
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Tarbiyah',
+        subtitle: "🌱 Time for your child's daily actions",
+        body,
+        sound: true,
+        data: { screen: 'ChildPlanDetail', planId: plan.id },
+      },
+      trigger: { type: 'date', date: fireDate },
+    });
+    ids.push(id);
+  }
+
+  await AsyncStorage.setItem(childReminderKey(plan.id), JSON.stringify(ids));
 }
 
-export async function cancelChildPlanReminder() {
-  try {
-    const id = await AsyncStorage.getItem(CHILD_REMINDER_ID_KEY);
-    if (id) {
-      await Notifications.cancelScheduledNotificationAsync(id);
-      await AsyncStorage.removeItem(CHILD_REMINDER_ID_KEY);
-    }
-  } catch {}
+export async function cancelChildPlanReminder(planId) {
+  await cancelNotificationIds(CHILD_REMINDER_ID_KEY);
+  if (planId) await cancelNotificationIds(childReminderKey(planId));
 }
 
 // ─── Child Plan: check-in notification (one-time, fires after N days) ─────────
@@ -312,11 +392,27 @@ export async function scheduleChildPlanCheckIn(afterDays, fromDateIso) {
 }
 
 export async function cancelChildPlanCheckIn() {
+  await cancelNotificationIds(CHILD_CHECKIN_ID_KEY);
+}
+
+// ─── Top-up: reschedule plan notifications when app foregrounds ───────────────
+// Call this from App.js on AppState change to 'active' to keep notifications
+// fresh and cycling through the correct phase habits as days progress.
+export async function topUpPlanNotifications(pipPlan, childPlans = []) {
   try {
-    const id = await AsyncStorage.getItem(CHILD_CHECKIN_ID_KEY);
-    if (id) {
-      await Notifications.cancelScheduledNotificationAsync(id);
-      await AsyncStorage.removeItem(CHILD_CHECKIN_ID_KEY);
+    if (pipPlan) {
+      const raw = await AsyncStorage.getItem(PIP_REMINDER_ID_KEY);
+      const ids = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(ids) || ids.length < 7) {
+        await schedulePIPReminder(pipPlan.reminderTime ?? '12:00', pipPlan);
+      }
+    }
+    for (const plan of childPlans) {
+      const raw = await AsyncStorage.getItem(childReminderKey(plan.id));
+      const ids = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(ids) || ids.length < 5) {
+        await scheduleChildPlanReminder(plan.reminderTime ?? '08:00', plan);
+      }
     }
   } catch {}
 }

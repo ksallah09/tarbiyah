@@ -118,7 +118,7 @@ export default function PIPWizardScreen({ navigation }) {
       };
 
       await savePlan(plan);
-      schedulePIPReminder(reminderTime).catch(() => {});
+      schedulePIPReminder(reminderTime, plan).catch(() => {});
       schedulePIPCheckIn(checkInDays, plan.startDate).catch(() => {});
 
       navigation.replace('PIPDetail', { plan, initialTab: 'plan' });
