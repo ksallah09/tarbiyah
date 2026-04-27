@@ -549,6 +549,19 @@ ${sourceContext}`;
     const userPrompt = `Parent situation: "${situation.trim()}"
 ${childAge ? `Child's age: ${childAge}` : ''}${childGender ? `\nChild's gender: ${childGender}` : ''}
 
+STRUCTURE EXAMPLE — follow this shape exactly, replace all content with your own tailored output:
+{
+  "immediateReframe": "Example first sentence naming what is happening developmentally. Example second sentence reframing the moment spiritually.",
+  "whatToSay": ["Example natural phrase a parent can say verbatim.", "Example follow-up phrase.", "Example third phrase if needed."],
+  "whatToDo": ["Example step 1 — specific action and why it works.", "Example step 2.", "Example step 3."],
+  "islamicGuidance": { "text": "Example Islamic wisdom directly applied to this situation — no citations." },
+  "researchInsight": { "text": "Example child development insight explaining the why — no source names." },
+  "longTermFix": ["Example specific habit with a clear mechanism.", "Example second habit from a different angle."],
+  "whenToSeekHelp": "Example 1-2 sentences on when professional support is warranted.",
+  "parentReminder": "Example one powerful closing line.",
+  "moduleNudge": "Example one sentence suggesting a deeper learning topic."
+}
+
 Respond with JSON only (no markdown). Keep total response 300–500 words:
 {
   "immediateReframe": "2 sentences. First: name what is likely happening developmentally or emotionally in the child right now — give the parent genuine insight into the why behind the behaviour. Second: reframe the moment spiritually or emotionally so the parent feels equipped, not defeated.",
@@ -1559,14 +1572,41 @@ ${familyContext ? `Family Context: ${familyContext}` : ''}
 ${stressLevel ? `Stress Level: ${stressLevel}` : ''}
 ${pipFamilyNote}
 
-Respond with valid JSON only (no markdown). Structure:
+STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all content with your own tailored output:
+{
+  "roadmap": [
+    {
+      "phase": "Phase 1: Example Phase Name (Days 1-10)",
+      "title": "Example short title",
+      "description": "Example 2-3 sentence description of what this phase focuses on.",
+      "durationDays": 10,
+      "dailyHabits": [
+        "Example specific trackable habit under 10 words",
+        "Example specific trackable habit under 10 words",
+        "Example specific trackable habit under 10 words",
+        "Example specific trackable habit under 10 words",
+        "Example specific trackable habit under 10 words"
+      ]
+    },
+    {
+      "phase": "Phase 2: Example Phase Name (Days 11-20)",
+      "title": "Example short title",
+      "description": "Example description.",
+      "durationDays": 10,
+      "dailyHabits": ["Example habit 1", "Example habit 2", "Example habit 3", "Example habit 4", "Example habit 5"]
+    }
+  ]
+}
+RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 dailyHabits. Phase label must include the day range e.g. "(Days 1-10)".
+
+Respond with valid JSON only (no markdown). Full structure:
 {
   "title": "Warm motivating plan title",
   "bigPictureGoal": "2-3 sentences on what success looks like",
   "whyHappening": ["Likely cause 1", "Likely cause 2", "Likely cause 3"],
   "islamicFoundation": "One concise Islamic reminder — ayah, hadith, or tarbiyah principle with direct application. No citations or hadith numbers.",
   "researchInsight": "One concise evidence-based insight. No source names or citations.",
-  "roadmap": [{"phase": "Phase label e.g. Week 1", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "dailyHabits": ["Habit 1 (specific, trackable, under 10 words)", "Habit 2", "Habit 3", "Habit 4", "Habit 5"]}],
+  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "dailyHabits": ["Habit 1", "Habit 2", "Habit 3", "Habit 4", "Habit 5"]}],
   "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
   "whatToSayScripts": ["Script 1 — realistic parent voice", "Script 2", "Script 3"],
   "whenYouSlipUp": "Reset strategy for difficult days — 2-3 sentences",
@@ -1790,14 +1830,41 @@ PARENT DAILY ACTIONS RULES:
 - Good: "Spend 10 minutes doing a calm one-on-one activity", "Point out 2 kind words your child uses and praise them specifically".
 - Bad: "Be supportive", "Encourage good behavior", "Model kindness".
 
-Respond with valid JSON only (no markdown). Structure:
+STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all content with your own tailored output:
+{
+  "roadmap": [
+    {
+      "phase": "Phase 1: Example Phase Name (Days 1-10)",
+      "title": "Example short title",
+      "description": "Example 2-3 sentence description of what this phase focuses on.",
+      "durationDays": 10,
+      "parentDailyActions": [
+        "Example concrete parent action — specific and measurable",
+        "Example concrete parent action — specific and measurable",
+        "Example concrete parent action — specific and measurable",
+        "Example concrete parent action — specific and measurable",
+        "Example concrete parent action — specific and measurable"
+      ]
+    },
+    {
+      "phase": "Phase 2: Example Phase Name (Days 11-20)",
+      "title": "Example short title",
+      "description": "Example description.",
+      "durationDays": 10,
+      "parentDailyActions": ["Example action 1", "Example action 2", "Example action 3", "Example action 4", "Example action 5"]
+    }
+  ]
+}
+RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 parentDailyActions. Phase label must include the day range e.g. "(Days 1-10)".
+
+Respond with valid JSON only (no markdown). Full structure:
 {
   "title": "Warm motivating plan title",
   "growthGoal": "2-3 sentences on what healthy progress looks like for this child",
   "whatAffecting": ["Likely contributing factor 1", "Likely contributing factor 2", "Likely contributing factor 3"],
   "islamicFoundation": "One concise Islamic reminder, tarbiyah lesson, ayah, or hadith relevant to nurturing children. No citations or hadith numbers.",
   "researchInsight": "One concise child development insight relevant to this goal. No source names or citations.",
-  "roadmap": [{"phase": "Phase label", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "parentDailyActions": ["Concrete daily parent action 1", "Action 2", "Action 3", "Action 4", "Action 5"]}],
+  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "parentDailyActions": ["Action 1", "Action 2", "Action 3", "Action 4", "Action 5"]}],
   "childGrowthOpportunities": ["Age-appropriate opportunity 1", "Opportunity 2", "Opportunity 3", "Opportunity 4", "Opportunity 5"],
   "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
   "whatToSayScripts": ["Warm realistic script 1", "Script 2", "Script 3"],
