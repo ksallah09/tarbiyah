@@ -88,6 +88,9 @@ export default function AboutScreen() {
             <Paragraph>
               Where possible, Tarbiyah identifies or references the source material behind a piece of content so users can understand where the guidance comes from.
             </Paragraph>
+            <Paragraph style={{ marginTop: 12 }}>
+              We have carefully curated these sources so that only credible, vetted knowledge shapes the guidance you receive.
+            </Paragraph>
           </Section>
 
           {/* Transparency */}
