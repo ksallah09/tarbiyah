@@ -540,11 +540,16 @@ export default function ProgressScreen({ navigation }) {
           <TouchableOpacity
             style={styles.spouseSyncBanner}
             onPress={() => navigation.navigate('FamilySync')}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <Ionicons name="people-outline" size={15} color="#2E7D62" />
-            <Text style={styles.spouseSyncText}>Connect with your partner to share goals</Text>
-            <Ionicons name="chevron-forward" size={13} color="#2E7D62" />
+            <View style={styles.spouseSyncIconWrap}>
+              <Ionicons name="people" size={22} color="#4ADE80" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.spouseSyncText}>Connect with your partner</Text>
+              <Text style={styles.spouseSyncSub}>Share family goals and grow together</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
           </TouchableOpacity>
         )}
 
@@ -854,17 +859,27 @@ const styles = StyleSheet.create({
   spouseSyncBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#E6F4EE',
-    borderRadius: 12,
-    padding: 12,
+    gap: 14,
+    backgroundColor: '#1B3D2F',
+    borderRadius: 16,
+    padding: 18,
     marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#A7D7C5',
+  },
+  spouseSyncIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   spouseSyncText: {
-    flex: 1, fontSize: 12, color: '#2E7D62',
-    lineHeight: 17, fontWeight: '600',
+    fontSize: 15, color: '#FFFFFF',
+    fontWeight: '700', marginBottom: 2,
+  },
+  spouseSyncSub: {
+    fontSize: 12, color: 'rgba(255,255,255,0.55)',
+    fontWeight: '400',
   },
 
   // ── Sync linked card ──
