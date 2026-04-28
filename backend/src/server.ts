@@ -1830,6 +1830,14 @@ PARENT DAILY ACTIONS RULES:
 - Good: "Spend 10 minutes doing a calm one-on-one activity", "Point out 2 kind words your child uses and praise them specifically".
 - Bad: "Be supportive", "Encourage good behavior", "Model kindness".
 
+CHILD GROWTH OPPORTUNITIES RULES:
+- These are activities or experiences the parent sets up for the child to practise the skill naturally.
+- Keep the spotlight on what the child does and experiences — the parent's role is to facilitate, not be the main actor.
+- Each opportunity must be directly tied to the specific growth issue and feel clearly distinct from the parent daily actions.
+- Make them age-appropriate and practical — things that fit naturally into family life.
+- Good: "Create a simple family job chart and let your child choose their task for the day", "Set up a role-play game where your child practises asking for help politely".
+- Bad: "Model good behaviour", "Praise your child's efforts", "Have a calm conversation about the issue".
+
 STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all content with your own tailored output:
 {
   "roadmap": [
