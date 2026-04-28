@@ -19,7 +19,7 @@ import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal } from '../uti
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { rs, hp } from '../utils/responsive';
-import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr, daysSinceStart, getCurrentHabits } from '../utils/pip';
+import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr, daysSinceStart, getCurrentHabits, normalizeHabits } from '../utils/pip';
 import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount, daysSinceStart as childDaysSinceStart, getCurrentActions, normalizeActions } from '../utils/childPlan';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHILD_CARD_W = SCREEN_WIDTH - hp - 40;
@@ -334,12 +334,12 @@ export default function ProgressScreen({ navigation }) {
             <View style={styles.focusBadgeActive}><Text style={styles.focusBadgeActiveText}>Parent growth</Text></View>
             <Text style={styles.pipTitle} numberOfLines={2}>{activePlan.title}</Text>
             <View style={styles.pipHabits}>
-              {getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate)).slice(0, 3).map((h, i) => (
-                <View key={i} style={styles.pipHabitRow}>
-                  <View style={[styles.pipHabitCheck, pipTodayLog[i] && styles.pipHabitCheckDone]}>
-                    {pipTodayLog[i] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+              {normalizeHabits(getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate))).slice(0, 3).map(h => (
+                <View key={h.index} style={styles.pipHabitRow}>
+                  <View style={[styles.pipHabitCheck, pipTodayLog[h.index] && styles.pipHabitCheckDone]}>
+                    {pipTodayLog[h.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
                   </View>
-                  <Text style={[styles.pipHabitText, pipTodayLog[i] && styles.pipHabitTextDone]} numberOfLines={1}>{h}</Text>
+                  <Text style={[styles.pipHabitText, pipTodayLog[h.index] && styles.pipHabitTextDone]} numberOfLines={1}>{h.text}</Text>
                 </View>
               ))}
               {getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate)).length > 3 && (

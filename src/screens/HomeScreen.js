@@ -29,7 +29,7 @@ import { getWeekReadDays, isReadToday, getStreak } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
-import { getActivePlan, getTodayLog, logHabit, todayStr, daysSinceStart, getCurrentHabits } from '../utils/pip';
+import { getActivePlan, getTodayLog, logHabit, todayStr, daysSinceStart, getCurrentHabits, normalizeHabits } from '../utils/pip';
 import { getAllChildPlans, getTodayActionLog, logAction, daysSinceStart as childDaysSinceStart, getCurrentActions, normalizeActions } from '../utils/childPlan';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
@@ -611,17 +611,17 @@ export default function HomeScreen({ navigation }) {
                   </View>
                   <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
                   <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
-                  {getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate)).map((habit, i) => (
+                  {normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).map(h => (
                     <TouchableOpacity
-                      key={i}
+                      key={h.index}
                       style={styles.pipWidgetHabitRow}
-                      onPress={e => { e.stopPropagation?.(); handlePipHabitToggle(i); }}
+                      onPress={e => { e.stopPropagation?.(); handlePipHabitToggle(h.index); }}
                       activeOpacity={0.7}
                     >
-                      <View style={[styles.pipWidgetCheck, pipTodayLog[i] && styles.pipWidgetCheckDone]}>
-                        {pipTodayLog[i] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
+                      <View style={[styles.pipWidgetCheck, pipTodayLog[h.index] && styles.pipWidgetCheckDone]}>
+                        {pipTodayLog[h.index] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
                       </View>
-                      <Text style={[styles.pipWidgetHabitText, pipTodayLog[i] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{habit}</Text>
+                      <Text style={[styles.pipWidgetHabitText, pipTodayLog[h.index] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{h.text}</Text>
                     </TouchableOpacity>
                   ))}
                 </TouchableOpacity>

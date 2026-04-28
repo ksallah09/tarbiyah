@@ -1553,7 +1553,7 @@ IMPORTANT RULES:
 - Prioritize routine if chaos issue.
 - Prioritize worship culture if deen issue.
 - Do NOT include hadith numbers, book names, or study citations in any text fields.
-- Each roadmap phase MUST have its own "dailyHabits" array of exactly 5 habits. Habits should evolve across phases — early phases build awareness and simple actions, later phases deepen practice and increase challenge. The durationDays for all phases must add up exactly to the total plan duration.
+- Each roadmap phase MUST have its own "dailyHabits" array of exactly 5 habits as objects with "text" and "priority" fields. Mark 2–3 as "core" (highest impact, parent must try) and the rest as "bonus" (reinforcing, optional but valuable). Habits should evolve across phases — early phases build awareness and simple actions, later phases deepen practice and increase challenge. The durationDays for all phases must add up exactly to the total plan duration.
 
 === KNOWLEDGE BASE ===
 ${sourceContext}`;
@@ -1581,11 +1581,11 @@ STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all con
       "description": "Example 2-3 sentence description of what this phase focuses on.",
       "durationDays": 10,
       "dailyHabits": [
-        "Example specific trackable habit under 10 words",
-        "Example specific trackable habit under 10 words",
-        "Example specific trackable habit under 10 words",
-        "Example specific trackable habit under 10 words",
-        "Example specific trackable habit under 10 words"
+        { "text": "Example core habit — highest impact, specific and trackable", "priority": "core" },
+        { "text": "Example core habit — highest impact, specific and trackable", "priority": "core" },
+        { "text": "Example core habit — highest impact, specific and trackable", "priority": "core" },
+        { "text": "Example bonus habit — reinforcing, good if time allows", "priority": "bonus" },
+        { "text": "Example bonus habit — reinforcing, good if time allows", "priority": "bonus" }
       ]
     },
     {
@@ -1593,11 +1593,17 @@ STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all con
       "title": "Example short title",
       "description": "Example description.",
       "durationDays": 10,
-      "dailyHabits": ["Example habit 1", "Example habit 2", "Example habit 3", "Example habit 4", "Example habit 5"]
+      "dailyHabits": [
+        { "text": "Example core habit", "priority": "core" },
+        { "text": "Example core habit", "priority": "core" },
+        { "text": "Example bonus habit", "priority": "bonus" },
+        { "text": "Example bonus habit", "priority": "bonus" },
+        { "text": "Example bonus habit", "priority": "bonus" }
+      ]
     }
   ]
 }
-RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 dailyHabits. Phase label must include the day range e.g. "(Days 1-10)".
+RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 dailyHabits as objects with "text" and "priority". Mark 2–3 as "core" and the rest as "bonus". Phase label must include the day range e.g. "(Days 1-10)".
 
 Respond with valid JSON only (no markdown). Full structure:
 {
@@ -1606,7 +1612,7 @@ Respond with valid JSON only (no markdown). Full structure:
   "whyHappening": ["Likely cause 1", "Likely cause 2", "Likely cause 3"],
   "islamicFoundation": "2-3 sentences. First: state the Islamic principle — an ayah, hadith, or tarbiyah lesson. Second: explain what it means in practice. Third: connect it directly to this parent's specific struggle. No citations or hadith numbers.",
   "researchInsight": "2-3 sentences. First: state the evidence-based finding. Second: explain why it works developmentally or psychologically. Third: connect it directly to this parent's situation. No source names or citations.",
-  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "dailyHabits": ["Habit 1", "Habit 2", "Habit 3", "Habit 4", "Habit 5"]}],
+  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "dailyHabits": [{"text": "Habit 1", "priority": "core"}, {"text": "Habit 2", "priority": "core"}, {"text": "Habit 3", "priority": "core"}, {"text": "Habit 4", "priority": "bonus"}, {"text": "Habit 5", "priority": "bonus"}]}],
   "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
   "whatToSayScripts": ["Script 1 — realistic parent voice", "Script 2", "Script 3"],
   "whenYouSlipUp": "Reset strategy for difficult days — 2-3 sentences",
@@ -1646,7 +1652,7 @@ app.post('/pip/checkin', async (req: Request, res: Response) => {
 
     const systemPrompt = `You are Tarbiyah AI, a warm Muslim parenting coach reviewing a parent's progress check-in.
 
-Your role: listen to their feedback, acknowledge their effort, provide short coaching insight, and if needed adjust their 5 daily habits to better fit their current reality.
+Your role: listen to their feedback, acknowledge their effort, provide short coaching insight, and if needed adjust their 5 daily habits to better fit their current reality. Return habits as objects with "text" and "priority" fields — mark 2–3 as "core" and the rest as "bonus".
 
 TONE: Warm, honest, encouraging, non-judgmental. Speak like a trusted coach who knows them.
 RULES:
@@ -1665,7 +1671,7 @@ Parent feedback: "${feedback.trim()}"
 Respond with valid JSON only:
 {
   "coachingResponse": "3-5 sentence warm coaching response acknowledging their feedback and giving one key insight or encouragement",
-  "adjustedHabits": ["Habit 1", "Habit 2", "Habit 3", "Habit 4", "Habit 5"]
+  "adjustedHabits": [{"text": "Habit 1", "priority": "core"}, {"text": "Habit 2", "priority": "core"}, {"text": "Habit 3", "priority": "core"}, {"text": "Habit 4", "priority": "bonus"}, {"text": "Habit 5", "priority": "bonus"}]
 }`;
 
     let raw: string;

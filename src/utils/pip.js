@@ -73,6 +73,15 @@ export function daysSinceStart(startDate) {
   return Math.floor((now - start) / 86400000) + 1;
 }
 
+// Normalises a dailyHabits entry — handles both legacy strings and new { text, priority } objects.
+export function normalizeHabits(habits) {
+  return (habits ?? []).map((h, i) => ({
+    text: typeof h === 'string' ? h : h.text,
+    priority: typeof h === 'string' ? 'core' : (h.priority || 'core'),
+    index: i,
+  }));
+}
+
 // Returns the habits for the current phase of the plan.
 // Falls back to top-level dailyHabits for plans generated before phase support.
 export function getCurrentHabits(plan, dayNumber) {

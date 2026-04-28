@@ -163,20 +163,25 @@ export async function cancelDailyNotification() {
 
 function getHabitForDay(plan, dayNumber) {
   const phases = plan?.roadmap;
+  const toText = (h) => (typeof h === 'string' ? h : h?.text ?? '');
+  const coreOnly = (arr) => {
+    const core = arr.filter(h => typeof h === 'string' || h?.priority === 'core');
+    return core.length ? core : arr;
+  };
   if (!phases?.length || !phases[0]?.dailyHabits) {
-    const habits = plan?.dailyHabits ?? [];
-    return habits.length ? habits[(dayNumber - 1) % habits.length] : null;
+    const habits = coreOnly(plan?.dailyHabits ?? []);
+    return habits.length ? toText(habits[(dayNumber - 1) % habits.length]) : null;
   }
   let elapsed = 0;
   for (const phase of phases) {
     elapsed += phase.durationDays ?? 0;
     if (dayNumber <= elapsed) {
-      const habits = phase.dailyHabits ?? [];
-      return habits.length ? habits[(dayNumber - 1) % habits.length] : null;
+      const habits = coreOnly(phase.dailyHabits ?? []);
+      return habits.length ? toText(habits[(dayNumber - 1) % habits.length]) : null;
     }
   }
-  const last = phases[phases.length - 1].dailyHabits ?? [];
-  return last.length ? last[(dayNumber - 1) % last.length] : null;
+  const habits = coreOnly(phases[phases.length - 1].dailyHabits ?? []);
+  return habits.length ? toText(habits[(dayNumber - 1) % habits.length]) : null;
 }
 
 function getActionForDay(plan, dayNumber) {

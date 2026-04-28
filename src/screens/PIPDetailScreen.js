@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   getActivePlan, savePlan, getTodayLog, logHabit,
   getHabitLogs, getCheckIns, saveCheckIn, clearPlan,
-  daysSinceStart, streakCount, todayStr, getCurrentHabits,
+  daysSinceStart, streakCount, todayStr, getCurrentHabits, normalizeHabits,
 } from '../utils/pip';
 import { schedulePIPCheckIn, cancelPIPReminder, cancelPIPCheckIn } from '../utils/notifications';
 
@@ -49,6 +49,7 @@ export default function PIPDetailScreen({ navigation, route }) {
   const [logs, setLogs] = useState({});
   const [checkIns, setCheckIns] = useState([]);
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const [showBonus, setShowBonus] = useState(false);
   const [checkInText, setCheckInText] = useState('');
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [activeSection, setActiveSection] = useState(route.params?.initialTab || 'habits');
@@ -82,7 +83,7 @@ export default function PIPDetailScreen({ navigation, route }) {
     setCheckInLoading(true);
     try {
       const dayNumber = daysSinceStart(plan.startDate);
-      const currentHabits = getCurrentHabits(plan, dayNumber);
+      const currentHabits = normalizeHabits(getCurrentHabits(plan, dayNumber)).map(h => h.text);
       const res = await fetch(`${API_URL}/pip/checkin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,7 +139,9 @@ export default function PIPDetailScreen({ navigation, route }) {
   const streak       = streakCount(logs);
   const journeyColor = JOURNEY_COLORS[plan.journeyType] || '#2E7D62';
   const todayDone    = todayLog.filter(Boolean).length;
-  const habits       = getCurrentHabits(plan, dayNumber);
+  const habits       = normalizeHabits(getCurrentHabits(plan, dayNumber));
+  const coreHabits   = habits.filter(h => h.priority === 'core');
+  const bonusHabits  = habits.filter(h => h.priority === 'bonus');
   const isComplete   = dayNumber > plan.durationDays;
 
   const TABS = [
@@ -233,12 +236,28 @@ export default function PIPDetailScreen({ navigation, route }) {
         {activeSection === 'habits' && (
           <>
             <Section icon="today-outline" title="Today's To-do's" subtitle="Check off each one as you complete it. Resets at midnight.">
-              {habits.map((habit, i) => (
-                <TouchableOpacity key={i} style={styles.habitRow} onPress={() => handleHabitToggle(i)} activeOpacity={0.75}>
-                  <View style={[styles.habitCheck, todayLog[i] && styles.habitCheckDone]}>
-                    {todayLog[i] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+              {coreHabits.map(h => (
+                <TouchableOpacity key={h.index} style={styles.habitRow} onPress={() => handleHabitToggle(h.index)} activeOpacity={0.75}>
+                  <View style={[styles.habitCheck, todayLog[h.index] && styles.habitCheckDone]}>
+                    {todayLog[h.index] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </View>
-                  <Text style={[styles.habitText, todayLog[i] && styles.habitTextDone]}>{habit}</Text>
+                  <Text style={[styles.habitText, todayLog[h.index] && styles.habitTextDone]}>{h.text}</Text>
+                </TouchableOpacity>
+              ))}
+              {bonusHabits.length > 0 && (
+                <TouchableOpacity style={styles.bonusToggleRow} onPress={() => setShowBonus(v => !v)} activeOpacity={0.7}>
+                  <Ionicons name={showBonus ? 'chevron-up' : 'chevron-down'} size={14} color="#6B7280" />
+                  <Text style={styles.bonusToggleText}>
+                    {showBonus ? 'Hide bonus habits' : `${bonusHabits.length} bonus habit${bonusHabits.length > 1 ? 's' : ''} — tap to see more`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {showBonus && bonusHabits.map(h => (
+                <TouchableOpacity key={h.index} style={[styles.habitRow, styles.habitRowBonus]} onPress={() => handleHabitToggle(h.index)} activeOpacity={0.75}>
+                  <View style={[styles.habitCheck, styles.habitCheckBonus, todayLog[h.index] && styles.habitCheckDone]}>
+                    {todayLog[h.index] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                  </View>
+                  <Text style={[styles.habitText, todayLog[h.index] && styles.habitTextDone]}>{h.text}</Text>
                 </TouchableOpacity>
               ))}
             </Section>
@@ -358,7 +377,7 @@ export default function PIPDetailScreen({ navigation, route }) {
                   <View style={styles.adjustedWrap}>
                     <Text style={styles.adjustedLabel}>Updated habits</Text>
                     {ci.adjustedHabits.map((h, i) => (
-                      <Text key={i} style={styles.adjustedHabit}>· {h}</Text>
+                      <Text key={i} style={styles.adjustedHabit}>· {typeof h === 'string' ? h : h.text}</Text>
                     ))}
                   </View>
                 )}
@@ -429,10 +448,14 @@ const styles = StyleSheet.create({
   tabTextActive: { color: '#1B3D2F' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 },
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  habitRowBonus: { opacity: 0.75 },
   habitCheck: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
+  habitCheckBonus: { borderStyle: 'dashed' },
   habitCheckDone: { backgroundColor: '#2E7D62', borderColor: '#2E7D62' },
   habitText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 },
   habitTextDone: { color: '#9CA3AF', textDecorationLine: 'line-through' },
+  bonusToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12, marginTop: 2 },
+  bonusToggleText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   bodyText: { fontSize: 14, color: '#374151', lineHeight: 22, flex: 1 },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   bulletDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#1B3D2F', marginTop: 8 },
