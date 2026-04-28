@@ -138,10 +138,10 @@ export default function PIPDetailScreen({ navigation, route }) {
   const progress     = Math.min(dayNumber / plan.durationDays, 1);
   const streak       = streakCount(logs);
   const journeyColor = JOURNEY_COLORS[plan.journeyType] || '#2E7D62';
-  const todayDone    = todayLog.filter(Boolean).length;
   const habits       = normalizeHabits(getCurrentHabits(plan, dayNumber));
   const coreHabits   = habits.filter(h => h.priority === 'core');
   const bonusHabits  = habits.filter(h => h.priority === 'bonus');
+  const todayDone    = coreHabits.filter(h => todayLog[h.index]).length;
   const isComplete   = dayNumber > plan.durationDays;
 
   const TABS = [
@@ -185,7 +185,7 @@ export default function PIPDetailScreen({ navigation, route }) {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
-            <Text style={styles.statNum}>{todayDone}/5</Text>
+            <Text style={styles.statNum}>{todayDone}/{coreHabits.length}</Text>
             <Text style={styles.statLabel}>Today</Text>
           </View>
         </View>

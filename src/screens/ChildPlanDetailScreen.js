@@ -154,7 +154,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
   const actions      = normalizeActions(getCurrentActions(plan, dayNumber));
   const coreActions  = actions.filter(a => a.priority === 'core');
   const bonusActions = actions.filter(a => a.priority === 'bonus');
-  const todayDone    = todayLog.filter(Boolean).length;
+  const todayDone    = coreActions.filter(a => todayLog[a.index]).length;
   const isComplete   = dayNumber > plan.durationDays;
 
   const TABS = [
@@ -204,7 +204,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
-            <Text style={styles.statNum}>{todayDone}/5</Text>
+            <Text style={styles.statNum}>{todayDone}/{coreActions.length}</Text>
             <Text style={styles.statLabel}>Today</Text>
           </View>
         </View>
