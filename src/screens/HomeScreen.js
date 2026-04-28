@@ -313,15 +313,29 @@ export default function HomeScreen({ navigation }) {
     const updated = [...pipTodayLog];
     updated[index] = newVal;
     setPipTodayLog(updated);
+    setPipAllLogs(prev => {
+      const today = todayStr();
+      const day = [...(prev[today] || [false, false, false, false, false])];
+      day[index] = newVal;
+      return { ...prev, [today]: day };
+    });
     await logHabit(todayStr(), index, newVal);
   }
 
   async function handleChildActionToggle(planId, index) {
-    const todayLog = childTodayLogs[planId] || [false,false,false,false,false];
+    const todayLog = childTodayLogs[planId] || [false, false, false, false, false];
     const newVal = !todayLog[index];
     const updated = [...todayLog];
     updated[index] = newVal;
     setChildTodayLogs(prev => ({ ...prev, [planId]: updated }));
+    setChildAllLogs(prev => {
+      const today = todayStr();
+      const planLogs = { ...(prev[planId] || {}) };
+      const day = [...(planLogs[today] || [false, false, false, false, false])];
+      day[index] = newVal;
+      planLogs[today] = day;
+      return { ...prev, [planId]: planLogs };
+    });
     await logAction(planId, todayStr(), index, newVal);
   }
 
