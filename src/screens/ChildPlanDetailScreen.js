@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   getActiveChildPlan, saveChildPlan, getTodayActionLog, logAction,
   getActionLogs, clearChildPlan, getCheckIns, saveCheckIn,
-  daysSinceStart, streakCount, todayStr, getCurrentActions, normalizeActions,
+  daysSinceStart, streakCount, todayStr, getCurrentActions, normalizeActions, getActionDayCounts,
 } from '../utils/childPlan';
 
 import { scheduleChildPlanCheckIn, cancelChildPlanReminder, cancelChildPlanCheckIn } from '../utils/notifications';
@@ -160,15 +160,16 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
 
   if (!plan) return null;
 
-  const dayNumber    = daysSinceStart(plan.startDate);
-  const progress     = Math.min(dayNumber / plan.durationDays, 1);
-  const streak       = streakCount(logs);
-  const journeyColor = JOURNEY_COLORS[plan.journeyType] || '#2E7D62';
-  const actions      = normalizeActions(getCurrentActions(plan, dayNumber));
-  const coreActions  = actions.filter(a => a.priority === 'core');
-  const bonusActions = actions.filter(a => a.priority === 'bonus');
-  const todayDone    = coreActions.filter(a => todayLog[a.index]).length;
-  const isComplete   = dayNumber > plan.durationDays;
+  const dayNumber      = daysSinceStart(plan.startDate);
+  const progress       = Math.min(dayNumber / plan.durationDays, 1);
+  const streak         = streakCount(logs);
+  const journeyColor   = JOURNEY_COLORS[plan.journeyType] || '#2E7D62';
+  const actions        = normalizeActions(getCurrentActions(plan, dayNumber));
+  const coreActions    = actions.filter(a => a.priority === 'core');
+  const bonusActions   = actions.filter(a => a.priority === 'bonus');
+  const todayDone      = coreActions.filter(a => todayLog[a.index]).length;
+  const actionDayCounts = getActionDayCounts(logs);
+  const isComplete     = dayNumber > plan.durationDays;
 
   const TABS = [
     { key: 'actions', label: 'Actions' },
@@ -272,7 +273,17 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
                   <View style={[styles.habitCheck, todayLog[a.index] && styles.habitCheckDone]}>
                     {todayLog[a.index] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </View>
-                  <Text style={[styles.habitText, todayLog[a.index] && styles.habitTextDone]}>{a.text}</Text>
+                  <View style={styles.habitContent}>
+                    <View style={styles.habitTopRow}>
+                      <Text style={[styles.habitText, todayLog[a.index] && styles.habitTextDone]}>{a.text}</Text>
+                      {actionDayCounts[a.index] > 0 && (
+                        <Text style={styles.dayCount}>{actionDayCounts[a.index]}d</Text>
+                      )}
+                    </View>
+                    {a.why && !todayLog[a.index] && (
+                      <Text style={styles.habitWhy}>{a.why}</Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               ))}
               {bonusActions.length > 0 && (
@@ -288,7 +299,17 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
                   <View style={[styles.habitCheck, styles.habitCheckBonus, todayLog[a.index] && styles.habitCheckDone]}>
                     {todayLog[a.index] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </View>
-                  <Text style={[styles.habitText, todayLog[a.index] && styles.habitTextDone]}>{a.text}</Text>
+                  <View style={styles.habitContent}>
+                    <View style={styles.habitTopRow}>
+                      <Text style={[styles.habitText, todayLog[a.index] && styles.habitTextDone]}>{a.text}</Text>
+                      {actionDayCounts[a.index] > 0 && (
+                        <Text style={styles.dayCount}>{actionDayCounts[a.index]}d</Text>
+                      )}
+                    </View>
+                    {a.why && !todayLog[a.index] && (
+                      <Text style={styles.habitWhy}>{a.why}</Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               ))}
             </Section>
@@ -495,13 +516,17 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
   tabTextActive: { color: '#1B3D2F' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 },
-  habitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  habitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   habitRowBonus: { opacity: 0.75 },
-  habitCheck: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
+  habitCheck: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   habitCheckBonus: { borderStyle: 'dashed' },
   habitCheckDone: { backgroundColor: '#2E7D62', borderColor: '#2E7D62' },
+  habitContent: { flex: 1, gap: 4 },
+  habitTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   habitText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 },
   habitTextDone: { color: '#9CA3AF', textDecorationLine: 'line-through' },
+  habitWhy: { fontSize: 12, color: '#9CA3AF', lineHeight: 17, fontStyle: 'italic' },
+  dayCount: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', marginTop: 2 },
   bonusToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12, marginTop: 2 },
   bonusToggleText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   bodyText: { fontSize: 14, color: '#374151', lineHeight: 22, flex: 1 },

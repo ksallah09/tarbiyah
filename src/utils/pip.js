@@ -78,8 +78,19 @@ export function normalizeHabits(habits) {
   return (habits ?? []).map((h, i) => ({
     text: typeof h === 'string' ? h : h.text,
     priority: typeof h === 'string' ? 'core' : (h.priority || 'core'),
+    why: typeof h === 'string' ? null : (h.why || null),
     index: i,
   }));
+}
+
+// Returns { [habitIndex]: completedDayCount } across all logged days.
+export function getHabitDayCounts(logs) {
+  const counts = {};
+  for (const dayLog of Object.values(logs)) {
+    if (!Array.isArray(dayLog)) continue;
+    dayLog.forEach((done, i) => { if (done) counts[i] = (counts[i] || 0) + 1; });
+  }
+  return counts;
 }
 
 // Returns the habits for the current phase of the plan.

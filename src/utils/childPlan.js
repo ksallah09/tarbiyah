@@ -122,8 +122,19 @@ export function normalizeActions(actions) {
   return (actions ?? []).map((a, i) => ({
     text: typeof a === 'string' ? a : a.text,
     priority: typeof a === 'string' ? 'core' : (a.priority || 'core'),
+    why: typeof a === 'string' ? null : (a.why || null),
     index: i,
   }));
+}
+
+// Returns { [actionIndex]: completedDayCount } across all logged days.
+export function getActionDayCounts(logs) {
+  const counts = {};
+  for (const dayLog of Object.values(logs)) {
+    if (!Array.isArray(dayLog)) continue;
+    dayLog.forEach((done, i) => { if (done) counts[i] = (counts[i] || 0) + 1; });
+  }
+  return counts;
 }
 
 export function streakCount(logs) {

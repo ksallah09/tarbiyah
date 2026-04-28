@@ -1582,11 +1582,11 @@ STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all con
       "description": "Example 2-3 sentence description of what this phase focuses on.",
       "durationDays": 10,
       "dailyHabits": [
-        { "text": "Example core habit — highest impact, specific and trackable", "priority": "core" },
-        { "text": "Example core habit — highest impact, specific and trackable", "priority": "core" },
-        { "text": "Example core habit — highest impact, specific and trackable", "priority": "core" },
-        { "text": "Example bonus habit — reinforcing, good if time allows", "priority": "bonus" },
-        { "text": "Example bonus habit — reinforcing, good if time allows", "priority": "bonus" }
+        { "text": "Example core habit — highest impact, specific and trackable", "priority": "core", "why": "One sentence explaining why this habit works for this parent's specific struggle." },
+        { "text": "Example core habit — highest impact, specific and trackable", "priority": "core", "why": "One sentence on the psychological or behavioural mechanism." },
+        { "text": "Example core habit — highest impact, specific and trackable", "priority": "core", "why": "One sentence connecting this directly to the parent's goal." },
+        { "text": "Example bonus habit — reinforcing, good if time allows", "priority": "bonus", "why": "One sentence on why this reinforces the core habits." },
+        { "text": "Example bonus habit — reinforcing, good if time allows", "priority": "bonus", "why": "One sentence on why this adds value." }
       ]
     },
     {
@@ -1595,16 +1595,16 @@ STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all con
       "description": "Example description.",
       "durationDays": 10,
       "dailyHabits": [
-        { "text": "Example core habit", "priority": "core" },
-        { "text": "Example core habit", "priority": "core" },
-        { "text": "Example bonus habit", "priority": "bonus" },
-        { "text": "Example bonus habit", "priority": "bonus" },
-        { "text": "Example bonus habit", "priority": "bonus" }
+        { "text": "Example core habit", "priority": "core", "why": "Why this works." },
+        { "text": "Example core habit", "priority": "core", "why": "Why this works." },
+        { "text": "Example bonus habit", "priority": "bonus", "why": "Why this helps." },
+        { "text": "Example bonus habit", "priority": "bonus", "why": "Why this helps." },
+        { "text": "Example bonus habit", "priority": "bonus", "why": "Why this helps." }
       ]
     }
   ]
 }
-RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 dailyHabits as objects with "text" and "priority". Mark 2–3 as "core" and the rest as "bonus". Phase label must include the day range e.g. "(Days 1-10)".
+RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 dailyHabits as objects with "text", "priority", and "why". Mark 2–3 as "core" and the rest as "bonus". The "why" must be one specific sentence explaining the mechanism — not generic. Phase label must include the day range e.g. "(Days 1-10)".
 
 Respond with valid JSON only (no markdown). Full structure:
 {
@@ -1613,7 +1613,7 @@ Respond with valid JSON only (no markdown). Full structure:
   "whyHappening": ["Likely cause 1", "Likely cause 2", "Likely cause 3"],
   "islamicFoundation": "2-3 sentences. First: state the Islamic principle — an ayah, hadith, or tarbiyah lesson. Second: explain what it means in practice. Third: connect it directly to this parent's specific struggle. No citations or hadith numbers.",
   "researchInsight": "2-3 sentences. First: state the evidence-based finding. Second: explain why it works developmentally or psychologically. Third: connect it directly to this parent's situation. No source names or citations.",
-  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "dailyHabits": [{"text": "Habit 1", "priority": "core"}, {"text": "Habit 2", "priority": "core"}, {"text": "Habit 3", "priority": "core"}, {"text": "Habit 4", "priority": "bonus"}, {"text": "Habit 5", "priority": "bonus"}]}],
+  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "dailyHabits": [{"text": "Habit 1", "priority": "core", "why": "Why this works."}, {"text": "Habit 2", "priority": "core", "why": "Why this works."}, {"text": "Habit 3", "priority": "core", "why": "Why this works."}, {"text": "Habit 4", "priority": "bonus", "why": "Why this helps."}, {"text": "Habit 5", "priority": "bonus", "why": "Why this helps."}]}],
   "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
   "whatToSayScripts": ["Script 1 — realistic parent voice", "Script 2", "Script 3"],
   "whenYouSlipUp": "Reset strategy for difficult days — 2-3 sentences",
@@ -1672,7 +1672,7 @@ Parent feedback: "${feedback.trim()}"
 Respond with valid JSON only:
 {
   "coachingResponse": "3-5 sentence warm coaching response acknowledging their feedback and giving one key insight or encouragement",
-  "adjustedHabits": [{"text": "Habit 1", "priority": "core"}, {"text": "Habit 2", "priority": "core"}, {"text": "Habit 3", "priority": "core"}, {"text": "Habit 4", "priority": "bonus"}, {"text": "Habit 5", "priority": "bonus"}]
+  "adjustedHabits": [{"text": "Habit 1", "priority": "core", "why": "Why this works."}, {"text": "Habit 2", "priority": "core", "why": "Why this works."}, {"text": "Habit 3", "priority": "core", "why": "Why this works."}, {"text": "Habit 4", "priority": "bonus", "why": "Why this helps."}, {"text": "Habit 5", "priority": "bonus", "why": "Why this helps."}]
 }`;
 
     let raw: string;
@@ -1727,7 +1727,7 @@ Parent feedback: "${feedback.trim()}"
 Respond with valid JSON only:
 {
   "coachingResponse": "3-5 sentence warm coaching response acknowledging their feedback and giving one key insight or encouragement specific to the child's growth issue",
-  "adjustedActions": [{"text": "Action 1", "priority": "core"}, {"text": "Action 2", "priority": "core"}, {"text": "Action 3", "priority": "core"}, {"text": "Action 4", "priority": "bonus"}, {"text": "Action 5", "priority": "bonus"}]
+  "adjustedActions": [{"text": "Action 1", "priority": "core", "why": "Why this works."}, {"text": "Action 2", "priority": "core", "why": "Why this works."}, {"text": "Action 3", "priority": "core", "why": "Why this works."}, {"text": "Action 4", "priority": "bonus", "why": "Why this helps."}, {"text": "Action 5", "priority": "bonus", "why": "Why this helps."}]
 }`;
 
     let raw: string;
@@ -1855,11 +1855,11 @@ STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all con
       "description": "Example 2-3 sentence description of what this phase focuses on.",
       "durationDays": 10,
       "parentDailyActions": [
-        { "text": "Example core action — highest impact, specific and measurable", "priority": "core" },
-        { "text": "Example core action — highest impact, specific and measurable", "priority": "core" },
-        { "text": "Example core action — highest impact, specific and measurable", "priority": "core" },
-        { "text": "Example bonus action — reinforcing, good if time allows", "priority": "bonus" },
-        { "text": "Example bonus action — reinforcing, good if time allows", "priority": "bonus" }
+        { "text": "Example core action — highest impact, specific and measurable", "priority": "core", "why": "One sentence explaining why this specific action works for this child's growth issue." },
+        { "text": "Example core action — highest impact, specific and measurable", "priority": "core", "why": "One sentence on the mechanism — why this works developmentally or psychologically." },
+        { "text": "Example core action — highest impact, specific and measurable", "priority": "core", "why": "One sentence connecting this action directly to the child's specific struggle." },
+        { "text": "Example bonus action — reinforcing, good if time allows", "priority": "bonus", "why": "One sentence on why this reinforces the core work." },
+        { "text": "Example bonus action — reinforcing, good if time allows", "priority": "bonus", "why": "One sentence on why this adds value." }
       ]
     },
     {
@@ -1868,16 +1868,16 @@ STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all con
       "description": "Example description.",
       "durationDays": 10,
       "parentDailyActions": [
-        { "text": "Example core action", "priority": "core" },
-        { "text": "Example core action", "priority": "core" },
-        { "text": "Example bonus action", "priority": "bonus" },
-        { "text": "Example bonus action", "priority": "bonus" },
-        { "text": "Example bonus action", "priority": "bonus" }
+        { "text": "Example core action", "priority": "core", "why": "Why this works." },
+        { "text": "Example core action", "priority": "core", "why": "Why this works." },
+        { "text": "Example bonus action", "priority": "bonus", "why": "Why this helps." },
+        { "text": "Example bonus action", "priority": "bonus", "why": "Why this helps." },
+        { "text": "Example bonus action", "priority": "bonus", "why": "Why this helps." }
       ]
     }
   ]
 }
-RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 parentDailyActions as objects with "text" and "priority". Mark 2–3 as "core" and the rest as "bonus". Phase label must include the day range e.g. "(Days 1-10)".
+RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 parentDailyActions as objects with "text", "priority", and "why". Mark 2–3 as "core" and the rest as "bonus". The "why" must be one specific sentence explaining the mechanism — not generic. Phase label must include the day range e.g. "(Days 1-10)".
 
 Respond with valid JSON only (no markdown). Full structure:
 {
@@ -1886,7 +1886,7 @@ Respond with valid JSON only (no markdown). Full structure:
   "whatAffecting": ["Likely contributing factor 1", "Likely contributing factor 2", "Likely contributing factor 3"],
   "islamicFoundation": "2-3 sentences. First: state the Islamic principle — an ayah, hadith, or tarbiyah lesson relevant to nurturing this child. Second: explain what it means in practice. Third: connect it directly to this child's specific growth issue. No citations or hadith numbers.",
   "researchInsight": "2-3 sentences. First: state the child development finding relevant to this issue. Second: explain why it matters developmentally for this age. Third: connect it to what the parent can do. No source names or citations.",
-  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "parentDailyActions": [{"text": "Action 1", "priority": "core"}, {"text": "Action 2", "priority": "core"}, {"text": "Action 3", "priority": "core"}, {"text": "Action 4", "priority": "bonus"}, {"text": "Action 5", "priority": "bonus"}]}],
+  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "parentDailyActions": [{"text": "Action 1", "priority": "core", "why": "Why this works for this child."}, {"text": "Action 2", "priority": "core", "why": "Why this works."}, {"text": "Action 3", "priority": "core", "why": "Why this works."}, {"text": "Action 4", "priority": "bonus", "why": "Why this helps."}, {"text": "Action 5", "priority": "bonus", "why": "Why this helps."}]}],
   "childGrowthOpportunities": ["Age-appropriate opportunity 1", "Opportunity 2", "Opportunity 3", "Opportunity 4", "Opportunity 5"],
   "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
   "whatToSayScripts": ["Warm realistic script 1", "Script 2", "Script 3"],

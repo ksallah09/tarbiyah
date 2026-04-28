@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   getActivePlan, savePlan, getTodayLog, logHabit,
   getHabitLogs, getCheckIns, saveCheckIn, clearPlan,
-  daysSinceStart, streakCount, todayStr, getCurrentHabits, normalizeHabits,
+  daysSinceStart, streakCount, todayStr, getCurrentHabits, normalizeHabits, getHabitDayCounts,
 } from '../utils/pip';
 import { schedulePIPCheckIn, cancelPIPReminder, cancelPIPCheckIn } from '../utils/notifications';
 
@@ -151,11 +151,12 @@ export default function PIPDetailScreen({ navigation, route }) {
   const progress     = Math.min(dayNumber / plan.durationDays, 1);
   const streak       = streakCount(logs);
   const journeyColor = JOURNEY_COLORS[plan.journeyType] || '#2E7D62';
-  const habits       = normalizeHabits(getCurrentHabits(plan, dayNumber));
-  const coreHabits   = habits.filter(h => h.priority === 'core');
-  const bonusHabits  = habits.filter(h => h.priority === 'bonus');
-  const todayDone    = coreHabits.filter(h => todayLog[h.index]).length;
-  const isComplete   = dayNumber > plan.durationDays;
+  const habits         = normalizeHabits(getCurrentHabits(plan, dayNumber));
+  const coreHabits     = habits.filter(h => h.priority === 'core');
+  const bonusHabits    = habits.filter(h => h.priority === 'bonus');
+  const todayDone      = coreHabits.filter(h => todayLog[h.index]).length;
+  const habitDayCounts = getHabitDayCounts(logs);
+  const isComplete     = dayNumber > plan.durationDays;
 
   const TABS = [
     { key: 'habits', label: 'Actions' },
@@ -254,7 +255,17 @@ export default function PIPDetailScreen({ navigation, route }) {
                   <View style={[styles.habitCheck, todayLog[h.index] && styles.habitCheckDone]}>
                     {todayLog[h.index] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </View>
-                  <Text style={[styles.habitText, todayLog[h.index] && styles.habitTextDone]}>{h.text}</Text>
+                  <View style={styles.habitContent}>
+                    <View style={styles.habitTopRow}>
+                      <Text style={[styles.habitText, todayLog[h.index] && styles.habitTextDone]}>{h.text}</Text>
+                      {habitDayCounts[h.index] > 0 && (
+                        <Text style={styles.dayCount}>{habitDayCounts[h.index]}d</Text>
+                      )}
+                    </View>
+                    {h.why && !todayLog[h.index] && (
+                      <Text style={styles.habitWhy}>{h.why}</Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               ))}
               {bonusHabits.length > 0 && (
@@ -270,7 +281,17 @@ export default function PIPDetailScreen({ navigation, route }) {
                   <View style={[styles.habitCheck, styles.habitCheckBonus, todayLog[h.index] && styles.habitCheckDone]}>
                     {todayLog[h.index] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </View>
-                  <Text style={[styles.habitText, todayLog[h.index] && styles.habitTextDone]}>{h.text}</Text>
+                  <View style={styles.habitContent}>
+                    <View style={styles.habitTopRow}>
+                      <Text style={[styles.habitText, todayLog[h.index] && styles.habitTextDone]}>{h.text}</Text>
+                      {habitDayCounts[h.index] > 0 && (
+                        <Text style={styles.dayCount}>{habitDayCounts[h.index]}d</Text>
+                      )}
+                    </View>
+                    {h.why && !todayLog[h.index] && (
+                      <Text style={styles.habitWhy}>{h.why}</Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               ))}
             </Section>
@@ -460,13 +481,17 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
   tabTextActive: { color: '#1B3D2F' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 },
-  habitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  habitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   habitRowBonus: { opacity: 0.75 },
-  habitCheck: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
+  habitCheck: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   habitCheckBonus: { borderStyle: 'dashed' },
   habitCheckDone: { backgroundColor: '#2E7D62', borderColor: '#2E7D62' },
+  habitContent: { flex: 1, gap: 4 },
+  habitTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   habitText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 },
   habitTextDone: { color: '#9CA3AF', textDecorationLine: 'line-through' },
+  habitWhy: { fontSize: 12, color: '#9CA3AF', lineHeight: 17, fontStyle: 'italic' },
+  dayCount: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', marginTop: 2 },
   bonusToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12, marginTop: 2 },
   bonusToggleText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   bodyText: { fontSize: 14, color: '#374151', lineHeight: 22, flex: 1 },
