@@ -172,7 +172,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
   const isComplete     = dayNumber > plan.durationDays;
 
   const TABS = [
-    { key: 'actions', label: 'Actions' },
+    { key: 'actions', label: 'Daily Habits' },
     { key: 'plan', label: 'Plan' },
     { key: 'growth', label: 'Growth Tips' },
     { key: 'checkins', label: `Check-ins${checkIns.length > 0 ? ` (${checkIns.length})` : ''}` },

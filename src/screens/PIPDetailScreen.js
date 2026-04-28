@@ -159,7 +159,7 @@ export default function PIPDetailScreen({ navigation, route }) {
   const isComplete     = dayNumber > plan.durationDays;
 
   const TABS = [
-    { key: 'habits', label: 'Actions' },
+    { key: 'habits', label: 'Daily Habits' },
     { key: 'plan', label: 'Plan' },
     { key: 'checkins', label: `Check-ins${checkIns.length > 0 ? ` (${checkIns.length})` : ''}` },
   ];
