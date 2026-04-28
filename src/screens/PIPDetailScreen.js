@@ -145,7 +145,7 @@ export default function PIPDetailScreen({ navigation, route }) {
   const isComplete   = dayNumber > plan.durationDays;
 
   const TABS = [
-    { key: 'habits', label: 'Habits' },
+    { key: 'habits', label: 'Actions' },
     { key: 'plan', label: 'Plan' },
     { key: 'checkins', label: `Check-ins${checkIns.length > 0 ? ` (${checkIns.length})` : ''}` },
   ];
@@ -248,7 +248,7 @@ export default function PIPDetailScreen({ navigation, route }) {
                 <TouchableOpacity style={styles.bonusToggleRow} onPress={() => setShowBonus(v => !v)} activeOpacity={0.7}>
                   <Ionicons name={showBonus ? 'chevron-up' : 'chevron-down'} size={14} color="#6B7280" />
                   <Text style={styles.bonusToggleText}>
-                    {showBonus ? 'Hide bonus habits' : `${bonusHabits.length} bonus habit${bonusHabits.length > 1 ? 's' : ''} — tap to see more`}
+                    {showBonus ? 'Hide bonus actions' : `${bonusHabits.length} bonus action${bonusHabits.length > 1 ? 's' : ''} — tap to see more`}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -375,7 +375,7 @@ export default function PIPDetailScreen({ navigation, route }) {
                 </View>
                 {ci.adjustedHabits && (
                   <View style={styles.adjustedWrap}>
-                    <Text style={styles.adjustedLabel}>Updated habits</Text>
+                    <Text style={styles.adjustedLabel}>Updated actions</Text>
                     {ci.adjustedHabits.map((h, i) => (
                       <Text key={i} style={styles.adjustedHabit}>· {typeof h === 'string' ? h : h.text}</Text>
                     ))}
@@ -399,7 +399,7 @@ export default function PIPDetailScreen({ navigation, route }) {
             <Text style={styles.checkInSheetSubtitle}>Share honestly — your coach will adapt your plan if needed.</Text>
             <TextInput
               style={styles.checkInInput}
-              placeholder="e.g. I've been consistent with 3 habits but struggling with the morning one. The kids are still resistant..."
+              placeholder="e.g. I've been consistent with 3 actions but struggling with the morning one. The kids are still resistant..."
               placeholderTextColor="#9CA3AF"
               multiline
               numberOfLines={5}
