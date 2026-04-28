@@ -19,8 +19,8 @@ import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal } from '../uti
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { rs, hp } from '../utils/responsive';
-import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr, daysSinceStart, getCurrentHabits, normalizeHabits } from '../utils/pip';
-import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount, daysSinceStart as childDaysSinceStart, getCurrentActions, normalizeActions } from '../utils/childPlan';
+import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr, daysSinceStart, getCurrentHabits, normalizeHabits, getHabitDayCounts } from '../utils/pip';
+import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount, daysSinceStart as childDaysSinceStart, getCurrentActions, normalizeActions, getActionDayCounts } from '../utils/childPlan';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHILD_CARD_W = SCREEN_WIDTH - hp - 40;
 
@@ -266,6 +266,7 @@ export default function ProgressScreen({ navigation }) {
                     {(() => {
                       const coreActions = normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).filter(a => a.priority === 'core');
                       const coreDone    = coreActions.filter(a => todayLog[a.index]).length;
+                      const dayCounts   = getActionDayCounts(childLogs[plan.id] || {});
                       return (
                         <>
                           <View style={styles.pipHabits}>
@@ -275,6 +276,12 @@ export default function ProgressScreen({ navigation }) {
                                   {todayLog[a.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
                                 </View>
                                 <Text style={[styles.pipHabitText, todayLog[a.index] && styles.pipHabitTextDone]} numberOfLines={1}>{a.text}</Text>
+                                {dayCounts[a.index] > 0 && (
+                                  <View style={styles.cardDayPill}>
+                                    <Ionicons name="checkmark-circle" size={10} color="#4ADE80" />
+                                    <Text style={styles.cardDayPillText}>{dayCounts[a.index]}d</Text>
+                                  </View>
+                                )}
                               </View>
                             ))}
                           </View>
@@ -339,8 +346,9 @@ export default function ProgressScreen({ navigation }) {
             <View style={styles.focusBadgeActive}><Text style={styles.focusBadgeActiveText}>Parent growth</Text></View>
             <Text style={styles.pipTitle} numberOfLines={2}>{activePlan.title}</Text>
             {(() => {
-              const coreHabits = normalizeHabits(getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate))).filter(h => h.priority === 'core');
-              const coreDone   = coreHabits.filter(h => pipTodayLog[h.index]).length;
+              const coreHabits  = normalizeHabits(getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate))).filter(h => h.priority === 'core');
+              const coreDone    = coreHabits.filter(h => pipTodayLog[h.index]).length;
+              const dayCounts   = getHabitDayCounts(pipLogs);
               return (
                 <>
                   <View style={styles.pipHabits}>
@@ -350,6 +358,12 @@ export default function ProgressScreen({ navigation }) {
                           {pipTodayLog[h.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
                         </View>
                         <Text style={[styles.pipHabitText, pipTodayLog[h.index] && styles.pipHabitTextDone]} numberOfLines={1}>{h.text}</Text>
+                        {dayCounts[h.index] > 0 && (
+                          <View style={styles.cardDayPill}>
+                            <Ionicons name="checkmark-circle" size={10} color="#C9A84C" />
+                            <Text style={styles.cardDayPillText}>{dayCounts[h.index]}d</Text>
+                          </View>
+                        )}
                       </View>
                     ))}
                   </View>
@@ -921,6 +935,8 @@ const styles = StyleSheet.create({
   pipHabitText: { flex: 1, flexShrink: 1, fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 19 },
   pipHabitTextDone: { color: 'rgba(255,255,255,0.35)', textDecorationLine: 'line-through' },
   pipMoreHabits: { fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '600', paddingLeft: 30 },
+  cardDayPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, paddingHorizontal: 6, paddingVertical: 2 },
+  cardDayPillText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
   pipProgressRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 12 },
   pipProgressLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
   dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginBottom: 16 },

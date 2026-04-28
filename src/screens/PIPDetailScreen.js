@@ -268,7 +268,10 @@ export default function PIPDetailScreen({ navigation, route }) {
                     <View style={styles.habitTopRow}>
                       <Text style={[styles.habitText, todayLog[h.index] && styles.habitTextDone]}>{h.text}</Text>
                       {habitDayCounts[h.index] > 0 && (
-                        <Text style={styles.dayCount}>{habitDayCounts[h.index]}d</Text>
+                        <View style={styles.dayCountPill}>
+                          <Ionicons name="checkmark-circle" size={11} color="#2563EB" />
+                          <Text style={styles.dayCountText}>{habitDayCounts[h.index]} days</Text>
+                        </View>
                       )}
                     </View>
                     {h.why && !todayLog[h.index] && (
@@ -294,7 +297,10 @@ export default function PIPDetailScreen({ navigation, route }) {
                     <View style={styles.habitTopRow}>
                       <Text style={[styles.habitText, todayLog[h.index] && styles.habitTextDone]}>{h.text}</Text>
                       {habitDayCounts[h.index] > 0 && (
-                        <Text style={styles.dayCount}>{habitDayCounts[h.index]}d</Text>
+                        <View style={styles.dayCountPill}>
+                          <Ionicons name="checkmark-circle" size={11} color="#2563EB" />
+                          <Text style={styles.dayCountText}>{habitDayCounts[h.index]} days</Text>
+                        </View>
                       )}
                     </View>
                     {h.why && !todayLog[h.index] && (
@@ -514,7 +520,8 @@ const styles = StyleSheet.create({
   habitText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 },
   habitTextDone: { color: '#9CA3AF', textDecorationLine: 'line-through' },
   habitWhy: { fontSize: 12, color: '#9CA3AF', lineHeight: 17, fontStyle: 'italic' },
-  dayCount: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', marginTop: 2 },
+  dayCountPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#EFF6FF', borderRadius: 20, paddingHorizontal: 7, paddingVertical: 3, marginTop: 1 },
+  dayCountText: { fontSize: 11, fontWeight: '600', color: '#2563EB' },
   bonusToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12, marginTop: 2 },
   bonusToggleText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   phaseInfoCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#EFF6FF', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#BFDBFE' },

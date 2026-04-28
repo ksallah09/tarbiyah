@@ -544,8 +544,11 @@ export default function HomeScreen({ navigation }) {
                             </View>
                             <Text style={styles.pipWidgetCount}>{coreDone}/{coreActions.length}</Text>
                           </View>
+                          <View style={styles.pipWidgetDayRow}>
+                            <Ionicons name="calendar-outline" size={11} color="rgba(255,255,255,0.4)" />
+                            <Text style={styles.pipWidgetDayText}>Day {childDaysSinceStart(plan.startDate)} of {plan.durationDays}</Text>
+                          </View>
                           <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
-                          <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
                           {coreActions.map((action) => (
                             <TouchableOpacity
                               key={action.index}
@@ -611,8 +614,11 @@ export default function HomeScreen({ navigation }) {
                     </View>
                     <Text style={styles.pipWidgetCount}>{normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core' && pipTodayLog[h.index]).length}/{normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core').length}</Text>
                   </View>
+                  <View style={styles.pipWidgetDayRow}>
+                    <Ionicons name="calendar-outline" size={11} color="rgba(255,255,255,0.4)" />
+                    <Text style={styles.pipWidgetDayText}>Day {daysSinceStart(pipPlan.startDate)} of {pipPlan.durationDays}</Text>
+                  </View>
                   <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
-                  <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
                   {normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core').map(h => (
                     <TouchableOpacity
                       key={h.index}
@@ -1515,8 +1521,10 @@ const styles = StyleSheet.create({
   homeDotActive: { backgroundColor: '#1B3D2F', width: 18 },
   homeDotsSwipeHint: { fontSize: 11, color: '#9CA3AF', marginLeft: 6 },
   childWidgetTitle: { flex: 1, fontSize: 12, fontWeight: '600', color: '#C9A84C', lineHeight: 17 },
-  pipWidgetTodoHeading: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', marginBottom: 2, marginTop: 4, letterSpacing: 0.1 },
+  pipWidgetTodoHeading: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', marginBottom: 8, marginTop: 4, letterSpacing: 0.1 },
   pipWidgetSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10 },
+  pipWidgetDayRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, marginTop: 2 },
+  pipWidgetDayText: { fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: '500' },
   pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   pipWidgetHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
   pipWidgetCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
