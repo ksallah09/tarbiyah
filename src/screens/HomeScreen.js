@@ -527,7 +527,9 @@ export default function HomeScreen({ navigation }) {
                     scrollEventThrottle={16}
                   >
                     {childPlans.map((plan) => {
-                      const todayLog = childTodayLogs[plan.id] || [];
+                      const todayLog    = childTodayLogs[plan.id] || [];
+                      const coreActions = normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).filter(a => a.priority === 'core');
+                      const coreDone    = coreActions.filter(a => todayLog[a.index]).length;
                       return (
                         <TouchableOpacity
                           key={plan.id}
@@ -540,11 +542,11 @@ export default function HomeScreen({ navigation }) {
                               <Ionicons name="leaf-outline" size={13} color="#4ADE80" />
                               <Text style={styles.pipWidgetLabel} numberOfLines={1}>{`${plan.title ? plan.title.split(':')[0].toUpperCase() : 'CHILD PLAN'}${plan.childAge ? ` · AGE ${plan.childAge}` : ''}`}</Text>
                             </View>
-                            <Text style={styles.pipWidgetCount}>{todayLog.filter(Boolean).length}/5</Text>
+                            <Text style={styles.pipWidgetCount}>{coreDone}/{coreActions.length}</Text>
                           </View>
                           <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
                           <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
-                          {normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).map((action) => (
+                          {coreActions.map((action) => (
                             <TouchableOpacity
                               key={action.index}
                               style={styles.pipWidgetHabitRow}
@@ -607,11 +609,11 @@ export default function HomeScreen({ navigation }) {
                       <Ionicons name="trending-up-outline" size={14} color="#C9A84C" />
                       <Text style={styles.pipWidgetLabel}>YOUR PLAN · TODAY</Text>
                     </View>
-                    <Text style={styles.pipWidgetCount}>{pipTodayLog.filter(Boolean).length}/5</Text>
+                    <Text style={styles.pipWidgetCount}>{normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core' && pipTodayLog[h.index]).length}/{normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core').length}</Text>
                   </View>
                   <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
                   <Text style={styles.pipWidgetSubtitle}>Check off each one as you complete it. Resets at midnight.</Text>
-                  {normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).map(h => (
+                  {normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core').map(h => (
                     <TouchableOpacity
                       key={h.index}
                       style={styles.pipWidgetHabitRow}

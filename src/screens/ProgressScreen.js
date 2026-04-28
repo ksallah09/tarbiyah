@@ -263,22 +263,27 @@ export default function ProgressScreen({ navigation }) {
                     </View>
                     <View style={[styles.focusBadgeActive, { backgroundColor: 'rgba(74,222,128,0.15)' }]}><Text style={[styles.focusBadgeActiveText, { color: '#4ADE80' }]}>Child growth</Text></View>
                     <Text style={styles.pipTitle} numberOfLines={2}>{plan.title}</Text>
-                    <View style={styles.pipHabits}>
-                      {normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).slice(0, 3).map((a) => (
-                        <View key={a.index} style={styles.pipHabitRow}>
-                          <View style={[styles.pipHabitCheck, todayLog[a.index] && styles.pipHabitCheckDone]}>
-                            {todayLog[a.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+                    {(() => {
+                      const coreActions = normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).filter(a => a.priority === 'core');
+                      const coreDone    = coreActions.filter(a => todayLog[a.index]).length;
+                      return (
+                        <>
+                          <View style={styles.pipHabits}>
+                            {coreActions.map(a => (
+                              <View key={a.index} style={styles.pipHabitRow}>
+                                <View style={[styles.pipHabitCheck, todayLog[a.index] && styles.pipHabitCheckDone]}>
+                                  {todayLog[a.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+                                </View>
+                                <Text style={[styles.pipHabitText, todayLog[a.index] && styles.pipHabitTextDone]} numberOfLines={1}>{a.text}</Text>
+                              </View>
+                            ))}
                           </View>
-                          <Text style={[styles.pipHabitText, todayLog[a.index] && styles.pipHabitTextDone]} numberOfLines={1}>{a.text}</Text>
-                        </View>
-                      ))}
-                      {getCurrentActions(plan, childDaysSinceStart(plan.startDate)).length > 3 && (
-                        <Text style={styles.pipMoreHabits}>+{getCurrentActions(plan, childDaysSinceStart(plan.startDate)).length - 3} more actions</Text>
-                      )}
-                    </View>
-                    <View style={styles.pipProgressRow}>
-                      <Text style={styles.pipProgressLabel}>{todayLog.filter(Boolean).length}/5 today · {childStreakCount(childLogs[plan.id] || {})} day streak</Text>
-                    </View>
+                          <View style={styles.pipProgressRow}>
+                            <Text style={styles.pipProgressLabel}>{coreDone}/{coreActions.length} today · {childStreakCount(childLogs[plan.id] || {})} day streak</Text>
+                          </View>
+                        </>
+                      );
+                    })()}
                   </TouchableOpacity>
                 );
               })}
@@ -333,22 +338,27 @@ export default function ProgressScreen({ navigation }) {
             </View>
             <View style={styles.focusBadgeActive}><Text style={styles.focusBadgeActiveText}>Parent growth</Text></View>
             <Text style={styles.pipTitle} numberOfLines={2}>{activePlan.title}</Text>
-            <View style={styles.pipHabits}>
-              {normalizeHabits(getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate))).slice(0, 3).map(h => (
-                <View key={h.index} style={styles.pipHabitRow}>
-                  <View style={[styles.pipHabitCheck, pipTodayLog[h.index] && styles.pipHabitCheckDone]}>
-                    {pipTodayLog[h.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+            {(() => {
+              const coreHabits = normalizeHabits(getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate))).filter(h => h.priority === 'core');
+              const coreDone   = coreHabits.filter(h => pipTodayLog[h.index]).length;
+              return (
+                <>
+                  <View style={styles.pipHabits}>
+                    {coreHabits.map(h => (
+                      <View key={h.index} style={styles.pipHabitRow}>
+                        <View style={[styles.pipHabitCheck, pipTodayLog[h.index] && styles.pipHabitCheckDone]}>
+                          {pipTodayLog[h.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+                        </View>
+                        <Text style={[styles.pipHabitText, pipTodayLog[h.index] && styles.pipHabitTextDone]} numberOfLines={1}>{h.text}</Text>
+                      </View>
+                    ))}
                   </View>
-                  <Text style={[styles.pipHabitText, pipTodayLog[h.index] && styles.pipHabitTextDone]} numberOfLines={1}>{h.text}</Text>
-                </View>
-              ))}
-              {getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate)).length > 3 && (
-                <Text style={styles.pipMoreHabits}>+{getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate)).length - 3} more habits</Text>
-              )}
-            </View>
-            <View style={styles.pipProgressRow}>
-              <Text style={styles.pipProgressLabel}>{pipTodayLog.filter(Boolean).length}/5 today · {streakCount(pipLogs)} day streak</Text>
-            </View>
+                  <View style={styles.pipProgressRow}>
+                    <Text style={styles.pipProgressLabel}>{coreDone}/{coreHabits.length} today · {streakCount(pipLogs)} day streak</Text>
+                  </View>
+                </>
+              );
+            })()}
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.pipEmptyCard} onPress={() => navigation.navigate('PIPWizard')} activeOpacity={0.85}>
