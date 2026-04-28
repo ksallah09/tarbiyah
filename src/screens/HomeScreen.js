@@ -280,21 +280,23 @@ export default function HomeScreen({ navigation }) {
       loadFamilyGoalsCached().then(setFamilyGoals);
       loadFamilyGoals().then(setFamilyGoals);
       loadCompletions().then(setCompletions);
+      // Load PIP plan + logs in parallel — logs must not wait for plan to resolve
       getActivePlan().then(p => {
         setPipPlan(p);
-        if (p) {
-          getTodayLog().then(setPipTodayLog);
-          getHabitLogs().then(setPipAllLogs);
-        }
+        if (p) getTodayLog().then(setPipTodayLog);
       });
+      getHabitLogs().then(setPipAllLogs);
+
+      // Load child plans + all logs in parallel
       getAllChildPlans().then(async plans => {
         setChildPlans(plans);
         const todayLogs = {};
         const allLogs   = {};
-        for (const p of plans) {
-          todayLogs[p.id] = await getTodayActionLog(p.id);
-          allLogs[p.id]   = await getActionLogs(p.id);
-        }
+        await Promise.all(plans.map(async p => {
+          const [tl, al] = await Promise.all([getTodayActionLog(p.id), getActionLogs(p.id)]);
+          todayLogs[p.id] = tl;
+          allLogs[p.id]   = al;
+        }));
         setChildTodayLogs(todayLogs);
         setChildAllLogs(allLogs);
       });
