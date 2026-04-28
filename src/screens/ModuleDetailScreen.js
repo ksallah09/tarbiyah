@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
-  keepOpenBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(245,158,11,0.12)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)' },
+  keepOpenBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(245,158,11,0.12)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)', alignSelf: 'stretch' },
   keepOpenText: { fontSize: 12, color: '#F59E0B', fontWeight: '600', flex: 1 },
   pickerChooseLabel: {
     fontSize: 14,
@@ -1045,6 +1045,8 @@ const styles = StyleSheet.create({
   tasbiBottom: {
     alignItems: 'center',
     paddingBottom: 32,
+    paddingHorizontal: 20,
+    gap: 12,
   },
   cancelGenerationBtn: {
     paddingHorizontal: 24,
