@@ -607,6 +607,10 @@ export default function HomeScreen({ navigation }) {
                               )}
                             </TouchableOpacity>
                           ))}
+                          <View style={styles.viewPlanRow}>
+                            <Text style={styles.viewPlanText}>Tap to view full plan</Text>
+                            <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.35)" />
+                          </View>
                         </TouchableOpacity>
                       );
                     })}
@@ -691,6 +695,10 @@ export default function HomeScreen({ navigation }) {
                       )}
                     </TouchableOpacity>
                   ))}
+                  <View style={styles.viewPlanRow}>
+                    <Text style={styles.viewPlanText}>Tap to view full plan</Text>
+                    <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.35)" />
+                  </View>
                 </TouchableOpacity>
                 );
               })()}
@@ -1589,6 +1597,8 @@ const styles = StyleSheet.create({
   pipWidgetDayText: { fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: '500' },
   widgetDayPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, paddingHorizontal: 5, paddingVertical: 2 },
   widgetDayPillText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  viewPlanRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 12, marginTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
+  viewPlanText: { fontSize: 12, color: 'rgba(255,255,255,0.35)', fontWeight: '500' },
   pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   pipWidgetHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
   pipWidgetCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
