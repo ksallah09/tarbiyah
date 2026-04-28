@@ -1554,6 +1554,7 @@ IMPORTANT RULES:
 - Prioritize worship culture if deen issue.
 - Do NOT include hadith numbers, book names, or study citations in any text fields.
 - Each roadmap phase MUST have its own "dailyHabits" array of exactly 5 habits as objects with "text" and "priority" fields. Mark 2–3 as "core" (highest impact, parent must try) and the rest as "bonus" (reinforcing, optional but valuable). Habits should evolve across phases — early phases build awareness and simple actions, later phases deepen practice and increase challenge. The durationDays for all phases must add up exactly to the total plan duration.
+- CRITICAL: Every habit must be written as a daily repeatable action — something the parent can meaningfully do every single day. Never write one-time tasks, setup activities, or time-bound observations (e.g. never "track for 3 days", "have an initial conversation", "set up a system this week"). If an action involves reflection or observation, write it as a daily micro-habit: instead of "track your anger triggers for a week", write "take 2 minutes before bed to note one moment today where you felt triggered".
 
 === KNOWLEDGE BASE ===
 ${sourceContext}`;
@@ -1833,8 +1834,9 @@ PARENT DAILY ACTIONS RULES:
 - Each action must be specific, practical, and directly tied to the growth issue.
 - Include a quantity or time goal where possible (e.g. "Spend 10 minutes...", "Give 2 specific praise statements...", "Practice one role-play scenario...").
 - Actions should describe what the parent DOES, not vague intentions.
-- Good: "Spend 10 minutes doing a calm one-on-one activity", "Point out 2 kind words your child uses and praise them specifically".
-- Bad: "Be supportive", "Encourage good behavior", "Model kindness".
+- CRITICAL: Every action must be written as a daily repeatable habit — something the parent can meaningfully do every single day throughout the plan. Never write one-time tasks, time-bound observations, or setup activities (e.g. never "observe for 3 days", "have an initial conversation", "set up a chart this week"). If an action involves observation, write it as a daily micro-habit: instead of "observe screen patterns for 3 days", write "take 2 minutes tonight to note one screen pattern you observed today".
+- Good: "Spend 10 minutes doing a calm one-on-one activity", "Point out 2 kind words your child uses and praise them specifically", "Take 2 minutes to note one thing you observed about your child today".
+- Bad: "Be supportive", "Encourage good behavior", "Observe for 3 days", "Have an initial conversation about screens", "Set up a family routine this week".
 
 CHILD GROWTH OPPORTUNITIES RULES:
 - These are activities or experiences the parent sets up for the child to practise the skill naturally.
