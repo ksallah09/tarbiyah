@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   getActiveChildPlan, saveChildPlan, getTodayActionLog, logAction,
   getActionLogs, clearChildPlan, getCheckIns, saveCheckIn,
-  daysSinceStart, streakCount, todayStr, getCurrentActions,
+  daysSinceStart, streakCount, todayStr, getCurrentActions, normalizeActions,
 } from '../utils/childPlan';
 
 import { scheduleChildPlanCheckIn, cancelChildPlanReminder, cancelChildPlanCheckIn } from '../utils/notifications';
@@ -47,6 +47,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [plan, setPlan] = useState(route.params?.plan || null);
   const [todayLog, setTodayLog] = useState([false, false, false, false, false]);
+  const [showBonus, setShowBonus] = useState(false);
   const [logs, setLogs] = useState({});
   const [activeSection, setActiveSection] = useState(route.params?.initialTab || 'actions');
   const [checkIns, setCheckIns] = useState([]);
@@ -150,8 +151,10 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
   const progress     = Math.min(dayNumber / plan.durationDays, 1);
   const streak       = streakCount(logs);
   const journeyColor = JOURNEY_COLORS[plan.journeyType] || '#2E7D62';
+  const actions      = normalizeActions(getCurrentActions(plan, dayNumber));
+  const coreActions  = actions.filter(a => a.priority === 'core');
+  const bonusActions = actions.filter(a => a.priority === 'bonus');
   const todayDone    = todayLog.filter(Boolean).length;
-  const actions      = getCurrentActions(plan, dayNumber);
   const isComplete   = dayNumber > plan.durationDays;
 
   const TABS = [
@@ -251,12 +254,28 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
         {activeSection === 'actions' && (
           <>
             <Section icon="today-outline" title="Today's To-do's" subtitle="Check off each one as you complete it. Resets at midnight.">
-              {actions.map((action, i) => (
-                <TouchableOpacity key={i} style={styles.habitRow} onPress={() => handleActionToggle(i)} activeOpacity={0.75}>
-                  <View style={[styles.habitCheck, todayLog[i] && styles.habitCheckDone]}>
-                    {todayLog[i] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+              {coreActions.map(a => (
+                <TouchableOpacity key={a.index} style={styles.habitRow} onPress={() => handleActionToggle(a.index)} activeOpacity={0.75}>
+                  <View style={[styles.habitCheck, todayLog[a.index] && styles.habitCheckDone]}>
+                    {todayLog[a.index] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </View>
-                  <Text style={[styles.habitText, todayLog[i] && styles.habitTextDone]}>{action}</Text>
+                  <Text style={[styles.habitText, todayLog[a.index] && styles.habitTextDone]}>{a.text}</Text>
+                </TouchableOpacity>
+              ))}
+              {bonusActions.length > 0 && (
+                <TouchableOpacity style={styles.bonusToggleRow} onPress={() => setShowBonus(v => !v)} activeOpacity={0.7}>
+                  <Ionicons name={showBonus ? 'chevron-up' : 'chevron-down'} size={14} color="#6B7280" />
+                  <Text style={styles.bonusToggleText}>
+                    {showBonus ? 'Hide bonus actions' : `${bonusActions.length} bonus action${bonusActions.length > 1 ? 's' : ''} — tap to see more`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {showBonus && bonusActions.map(a => (
+                <TouchableOpacity key={a.index} style={[styles.habitRow, styles.habitRowBonus]} onPress={() => handleActionToggle(a.index)} activeOpacity={0.75}>
+                  <View style={[styles.habitCheck, styles.habitCheckBonus, todayLog[a.index] && styles.habitCheckDone]}>
+                    {todayLog[a.index] && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                  </View>
+                  <Text style={[styles.habitText, todayLog[a.index] && styles.habitTextDone]}>{a.text}</Text>
                 </TouchableOpacity>
               ))}
             </Section>
@@ -464,10 +483,14 @@ const styles = StyleSheet.create({
   tabTextActive: { color: '#1B3D2F' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 },
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  habitRowBonus: { opacity: 0.75 },
   habitCheck: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
+  habitCheckBonus: { borderStyle: 'dashed' },
   habitCheckDone: { backgroundColor: '#2E7D62', borderColor: '#2E7D62' },
   habitText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 },
   habitTextDone: { color: '#9CA3AF', textDecorationLine: 'line-through' },
+  bonusToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12, marginTop: 2 },
+  bonusToggleText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   bodyText: { fontSize: 14, color: '#374151', lineHeight: 22, flex: 1 },
   sectionNote: { fontSize: 12, color: '#9CA3AF', marginBottom: 10, lineHeight: 18 },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },

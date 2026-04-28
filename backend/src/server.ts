@@ -1720,7 +1720,7 @@ Parent feedback: "${feedback.trim()}"
 Respond with valid JSON only:
 {
   "coachingResponse": "3-5 sentence warm coaching response acknowledging their feedback and giving one key insight or encouragement specific to the child's growth issue",
-  "adjustedActions": ["Action 1", "Action 2", "Action 3", "Action 4", "Action 5"]
+  "adjustedActions": [{"text": "Action 1", "priority": "core"}, {"text": "Action 2", "priority": "core"}, {"text": "Action 3", "priority": "core"}, {"text": "Action 4", "priority": "bonus"}, {"text": "Action 5", "priority": "bonus"}]
 }`;
 
     let raw: string;
@@ -1797,7 +1797,7 @@ IMPORTANT RULES:
 - Do NOT frame the child as broken or defective.
 - Do NOT focus on punishment or compliance.
 - Do NOT include hadith numbers, book names, or study citations.
-- Each roadmap phase MUST have its own "parentDailyActions" array of exactly 5 actions. Actions should progress across phases — early phases focus on observation and gentle intervention, later phases build consistency and deeper connection. The durationDays for all phases must add up exactly to the total plan duration.
+- Each roadmap phase MUST have its own "parentDailyActions" array of exactly 5 actions as objects with "text" and "priority" fields. Mark 2–3 as "core" (highest impact, parent must try) and the rest as "bonus" (reinforcing, optional but valuable). Actions should progress across phases — early phases focus on observation and gentle intervention, later phases build consistency and deeper connection. The durationDays for all phases must add up exactly to the total plan duration.
 
 === KNOWLEDGE BASE ===
 ${sourceContext}`;
@@ -1839,11 +1839,11 @@ STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all con
       "description": "Example 2-3 sentence description of what this phase focuses on.",
       "durationDays": 10,
       "parentDailyActions": [
-        "Example concrete parent action — specific and measurable",
-        "Example concrete parent action — specific and measurable",
-        "Example concrete parent action — specific and measurable",
-        "Example concrete parent action — specific and measurable",
-        "Example concrete parent action — specific and measurable"
+        { "text": "Example core action — highest impact, specific and measurable", "priority": "core" },
+        { "text": "Example core action — highest impact, specific and measurable", "priority": "core" },
+        { "text": "Example core action — highest impact, specific and measurable", "priority": "core" },
+        { "text": "Example bonus action — reinforcing, good if time allows", "priority": "bonus" },
+        { "text": "Example bonus action — reinforcing, good if time allows", "priority": "bonus" }
       ]
     },
     {
@@ -1851,11 +1851,17 @@ STRUCTURE EXAMPLE — follow this shape exactly for every field, replace all con
       "title": "Example short title",
       "description": "Example description.",
       "durationDays": 10,
-      "parentDailyActions": ["Example action 1", "Example action 2", "Example action 3", "Example action 4", "Example action 5"]
+      "parentDailyActions": [
+        { "text": "Example core action", "priority": "core" },
+        { "text": "Example core action", "priority": "core" },
+        { "text": "Example bonus action", "priority": "bonus" },
+        { "text": "Example bonus action", "priority": "bonus" },
+        { "text": "Example bonus action", "priority": "bonus" }
+      ]
     }
   ]
 }
-RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 parentDailyActions. Phase label must include the day range e.g. "(Days 1-10)".
+RULES: durationDays across all phases must sum to the total plan duration. Every phase must have exactly 5 parentDailyActions as objects with "text" and "priority". Mark 2–3 as "core" and the rest as "bonus". Phase label must include the day range e.g. "(Days 1-10)".
 
 Respond with valid JSON only (no markdown). Full structure:
 {
@@ -1864,7 +1870,7 @@ Respond with valid JSON only (no markdown). Full structure:
   "whatAffecting": ["Likely contributing factor 1", "Likely contributing factor 2", "Likely contributing factor 3"],
   "islamicFoundation": "2-3 sentences. First: state the Islamic principle — an ayah, hadith, or tarbiyah lesson relevant to nurturing this child. Second: explain what it means in practice. Third: connect it directly to this child's specific growth issue. No citations or hadith numbers.",
   "researchInsight": "2-3 sentences. First: state the child development finding relevant to this issue. Second: explain why it matters developmentally for this age. Third: connect it to what the parent can do. No source names or citations.",
-  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "parentDailyActions": ["Action 1", "Action 2", "Action 3", "Action 4", "Action 5"]}],
+  "roadmap": [{"phase": "Phase 1: Name (Days 1-10)", "title": "Short title", "description": "2-3 sentences", "durationDays": 10, "parentDailyActions": [{"text": "Action 1", "priority": "core"}, {"text": "Action 2", "priority": "core"}, {"text": "Action 3", "priority": "core"}, {"text": "Action 4", "priority": "bonus"}, {"text": "Action 5", "priority": "bonus"}]}],
   "childGrowthOpportunities": ["Age-appropriate opportunity 1", "Opportunity 2", "Opportunity 3", "Opportunity 4", "Opportunity 5"],
   "firstActionSteps": {"day1": "Specific task", "day2": "Specific task", "day3": "Specific task"},
   "whatToSayScripts": ["Warm realistic script 1", "Script 2", "Script 3"],

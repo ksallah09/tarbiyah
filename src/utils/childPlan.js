@@ -117,6 +117,15 @@ export function getCurrentActions(plan, dayNumber) {
   return phases[phases.length - 1].parentDailyActions;
 }
 
+// Normalises a parentDailyActions entry — handles both legacy strings and new { text, priority } objects.
+export function normalizeActions(actions) {
+  return (actions ?? []).map((a, i) => ({
+    text: typeof a === 'string' ? a : a.text,
+    priority: typeof a === 'string' ? 'core' : (a.priority || 'core'),
+    index: i,
+  }));
+}
+
 export function streakCount(logs) {
   let streak = 0;
   const today = new Date();

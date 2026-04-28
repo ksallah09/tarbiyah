@@ -51,10 +51,11 @@ export default function ChildPlanWizardScreen({ navigation }) {
   // Step 1
   const [growthGoal, setGrowthGoal] = useState('');
   const [childAge, setChildAge] = useState('');
+  const [childGender, setChildGender] = useState('');
   // Step 2
   const [journeyType, setJourneyType] = useState('Growth');
   // Step 3
-  const [temperament, setTemperament] = useState('');
+  const [temperament, setTemperament] = useState([]);
   const [parentChallenge, setParentChallenge] = useState('');
   const [checkInDays, setCheckInDays] = useState(3);
   const [reminderTime, setReminderTime] = useState('08:00');
@@ -90,7 +91,7 @@ export default function ChildPlanWizardScreen({ navigation }) {
       const res = await fetch(`${API_URL}/child-plan/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ growthGoal, childAge, temperament, parentChallenge, journeyType, familyStructure: profile.familyStructure ?? 'prefer_not_to_say' }),
+        body: JSON.stringify({ growthGoal, childAge, childGender, temperament: temperament.join(', '), parentChallenge, journeyType, familyStructure: profile.familyStructure ?? 'prefer_not_to_say' }),
       });
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
@@ -100,7 +101,8 @@ export default function ChildPlanWizardScreen({ navigation }) {
         id: Date.now().toString(),
         growthGoal,
         childAge,
-        temperament,
+        childGender,
+        temperament: temperament.join(', '),
         parentChallenge,
         journeyType,
         checkInDays,
@@ -189,6 +191,18 @@ export default function ChildPlanWizardScreen({ navigation }) {
                 onChangeText={setChildAge}
                 keyboardType="default"
               />
+              <Text style={styles.fieldLabel}>Child's gender (optional)</Text>
+              <View style={styles.pillRow}>
+                {['Boy', 'Girl'].map(g => (
+                  <TouchableOpacity
+                    key={g}
+                    style={[styles.pill, childGender === g && styles.pillActive]}
+                    onPress={() => setChildGender(prev => prev === g ? '' : g)}
+                  >
+                    <Text style={[styles.pillText, childGender === g && styles.pillTextActive]}>{g}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
             </View>
           )}
@@ -229,15 +243,15 @@ export default function ChildPlanWizardScreen({ navigation }) {
               <Text style={styles.stepTitle}>A little more context</Text>
               <Text style={styles.stepSubtitle}>Optional — helps personalise the plan further.</Text>
 
-              <Text style={styles.fieldLabel}>Child's temperament (optional)</Text>
+              <Text style={styles.fieldLabel}>Child's temperament (optional, select all that apply)</Text>
               <View style={styles.pillRow}>
                 {TEMPERAMENTS.map(t => (
                   <TouchableOpacity
                     key={t}
-                    style={[styles.pill, temperament === t && styles.pillActive]}
-                    onPress={() => setTemperament(prev => prev === t ? '' : t)}
+                    style={[styles.pill, temperament.includes(t) && styles.pillActive]}
+                    onPress={() => setTemperament(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
                   >
-                    <Text style={[styles.pillText, temperament === t && styles.pillTextActive]}>{t}</Text>
+                    <Text style={[styles.pillText, temperament.includes(t) && styles.pillTextActive]}>{t}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
