@@ -951,7 +951,7 @@ const styles = StyleSheet.create({
   // ── Hero header ──
   hero: {
     paddingHorizontal: hp,
-    paddingBottom: 8,
+    paddingBottom: 0,
     overflow: 'hidden',
   },
   heroBgImage: {
