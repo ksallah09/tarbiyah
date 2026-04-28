@@ -37,6 +37,13 @@ let _familyGoalsCache  = [];
 let _completionsCache  = [];
 let _syncStatusCache   = { linked: false, partner: null };
 
+function getMotivationText(done, total) {
+  if (done === 0 || total === 0) return null;
+  if (done >= total) return 'Alhamdulillah! All done 🤲';
+  if (done >= total - 1) return 'Allahu Akbar! Almost there ✨';
+  return 'Ma Shaa Allah! Keep it up 💪';
+}
+
 function MonthGrid({ days, color, todayColor }) {
   return (
     <View style={gridStyles.grid}>
@@ -267,8 +274,12 @@ export default function ProgressScreen({ navigation }) {
                       const coreActions = normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).filter(a => a.priority === 'core');
                       const coreDone    = coreActions.filter(a => todayLog[a.index]).length;
                       const dayCounts   = getActionDayCounts(childLogs[plan.id] || {});
+                      const motivation  = getMotivationText(coreDone, coreActions.length);
                       return (
                         <>
+                          {motivation && (
+                            <Text style={styles.cardMotivation}>{motivation}</Text>
+                          )}
                           <View style={styles.pipHabits}>
                             {coreActions.map(a => (
                               <View key={a.index} style={styles.pipHabitRow}>
@@ -349,8 +360,12 @@ export default function ProgressScreen({ navigation }) {
               const coreHabits  = normalizeHabits(getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate))).filter(h => h.priority === 'core');
               const coreDone    = coreHabits.filter(h => pipTodayLog[h.index]).length;
               const dayCounts   = getHabitDayCounts(pipLogs);
+              const motivation  = getMotivationText(coreDone, coreHabits.length);
               return (
                 <>
+                  {motivation && (
+                    <Text style={styles.cardMotivation}>{motivation}</Text>
+                  )}
                   <View style={styles.pipHabits}>
                     {coreHabits.map(h => (
                       <View key={h.index} style={styles.pipHabitRow}>
@@ -937,6 +952,7 @@ const styles = StyleSheet.create({
   pipMoreHabits: { fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '600', paddingLeft: 30 },
   cardDayPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, paddingHorizontal: 6, paddingVertical: 2 },
   cardDayPillText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
+  cardMotivation: { fontSize: 11, fontWeight: '600', color: '#C9A84C', marginBottom: 8 },
   pipProgressRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 12 },
   pipProgressLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
   dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginBottom: 16 },

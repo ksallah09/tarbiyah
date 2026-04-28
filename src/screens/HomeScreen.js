@@ -55,6 +55,13 @@ const API_URL   = 'https://tarbiyah-production.up.railway.app';
 const CACHE_KEY = 'tarbiyah_daily_cache';
 
 
+function getMotivationText(done, total) {
+  if (done === 0 || total === 0) return null;
+  if (done >= total) return 'Alhamdulillah! All done 🤲';
+  if (done >= total - 1) return 'Allahu Akbar! Almost there ✨';
+  return 'Ma Shaa Allah! Keep it up 💪';
+}
+
 function WeekRow({ days, color, todayColor }) {
   return (
     <View style={weekRowStyles.row}>
@@ -530,6 +537,7 @@ export default function HomeScreen({ navigation }) {
                       const todayLog    = childTodayLogs[plan.id] || [];
                       const coreActions = normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).filter(a => a.priority === 'core');
                       const coreDone    = coreActions.filter(a => todayLog[a.index]).length;
+                      const motivation  = getMotivationText(coreDone, coreActions.length);
                       return (
                         <TouchableOpacity
                           key={plan.id}
@@ -548,7 +556,10 @@ export default function HomeScreen({ navigation }) {
                             <Ionicons name="calendar-outline" size={11} color="rgba(255,255,255,0.4)" />
                             <Text style={styles.pipWidgetDayText}>Day {childDaysSinceStart(plan.startDate)} of {plan.durationDays}</Text>
                           </View>
-                          <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
+                          <View style={styles.pipWidgetTodoRow}>
+                            <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
+                            {motivation && <Text style={styles.pipWidgetMotivation}>{motivation}</Text>}
+                          </View>
                           {coreActions.map((action) => (
                             <TouchableOpacity
                               key={action.index}
@@ -601,7 +612,11 @@ export default function HomeScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
               )}
-              {pipPlan && (
+              {pipPlan && (() => {
+                const pipCoreHabits = normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core');
+                const pipCoreDone   = pipCoreHabits.filter(h => pipTodayLog[h.index]).length;
+                const pipMotivation = getMotivationText(pipCoreDone, pipCoreHabits.length);
+                return (
                 <TouchableOpacity
                   style={styles.pipWidget}
                   onPress={() => navigation.navigate('PIPDetail', { plan: pipPlan })}
@@ -612,14 +627,17 @@ export default function HomeScreen({ navigation }) {
                       <Ionicons name="trending-up-outline" size={14} color="#C9A84C" />
                       <Text style={styles.pipWidgetLabel}>YOUR PLAN · TODAY</Text>
                     </View>
-                    <Text style={styles.pipWidgetCount}>{normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core' && pipTodayLog[h.index]).length}/{normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core').length}</Text>
+                    <Text style={styles.pipWidgetCount}>{pipCoreDone}/{pipCoreHabits.length}</Text>
                   </View>
                   <View style={styles.pipWidgetDayRow}>
                     <Ionicons name="calendar-outline" size={11} color="rgba(255,255,255,0.4)" />
                     <Text style={styles.pipWidgetDayText}>Day {daysSinceStart(pipPlan.startDate)} of {pipPlan.durationDays}</Text>
                   </View>
-                  <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
-                  {normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core').map(h => (
+                  <View style={styles.pipWidgetTodoRow}>
+                    <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
+                    {pipMotivation && <Text style={styles.pipWidgetMotivation}>{pipMotivation}</Text>}
+                  </View>
+                  {pipCoreHabits.map(h => (
                     <TouchableOpacity
                       key={h.index}
                       style={styles.pipWidgetHabitRow}
@@ -633,7 +651,8 @@ export default function HomeScreen({ navigation }) {
                     </TouchableOpacity>
                   ))}
                 </TouchableOpacity>
-              )}
+                );
+              })()}
 
               {/* FAMILY GOALS */}
               {familyGoals.length === 0 && (
@@ -1521,7 +1540,9 @@ const styles = StyleSheet.create({
   homeDotActive: { backgroundColor: '#1B3D2F', width: 18 },
   homeDotsSwipeHint: { fontSize: 11, color: '#9CA3AF', marginLeft: 6 },
   childWidgetTitle: { flex: 1, fontSize: 12, fontWeight: '600', color: '#C9A84C', lineHeight: 17 },
-  pipWidgetTodoHeading: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', marginBottom: 8, marginTop: 4, letterSpacing: 0.1 },
+  pipWidgetTodoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, marginTop: 4 },
+  pipWidgetTodoHeading: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.1 },
+  pipWidgetMotivation: { fontSize: 10, fontWeight: '600', color: '#C9A84C', flexShrink: 1, textAlign: 'right', marginLeft: 6 },
   pipWidgetSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10 },
   pipWidgetDayRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, marginTop: 2 },
   pipWidgetDayText: { fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: '500' },
