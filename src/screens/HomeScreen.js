@@ -355,8 +355,9 @@ export default function HomeScreen({ navigation }) {
   const dailyDua         = getDailyDua();
   const dailyAyah        = getDailyAyah();
 
-  const greetingLines = name
-    ? ['As-Salāmu ʿAlaykum,', name]
+  const firstName     = name ? name.split(' ')[0] : '';
+  const greetingLines = firstName
+    ? ['As-Salāmu ʿAlaykum,', firstName]
     : ['As-Salāmu ʿAlaykum.'];
 
   return (
@@ -390,9 +391,9 @@ export default function HomeScreen({ navigation }) {
                 ) : (
                   <Text>
                     <Text style={styles.greetingSmall}>
-                      {'As-Salāmu ʿAlaykum' + (name ? ',' : '.') + '\n'}
+                      {'As-Salāmu ʿAlaykum' + (firstName ? ',' : '.') + '\n'}
                     </Text>
-                    {name ? <Text style={styles.greetingName}>{name}</Text> : null}
+                    {firstName ? <Text style={styles.greetingName}>{firstName}</Text> : null}
                   </Text>
                 )}
               </View>

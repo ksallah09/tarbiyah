@@ -61,6 +61,7 @@ export default function OnboardingName({ navigation, route }) {
                   placeholder=""
                   value={name}
                   onChangeText={setName}
+                  maxLength={30}
                   autoCapitalize="words"
                   returnKeyType="next"
                   onSubmitEditing={handleNext}
