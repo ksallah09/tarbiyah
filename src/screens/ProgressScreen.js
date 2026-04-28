@@ -39,9 +39,9 @@ let _syncStatusCache   = { linked: false, partner: null };
 
 function getMotivationText(done, total) {
   if (done === 0 || total === 0) return null;
-  if (done >= total) return 'Alhamdulillah! All done 🤲';
-  if (done >= total - 1) return 'Allahu Akbar! Almost there ✨';
-  return 'Ma Shaa Allah! Keep it up 💪';
+  if (done >= total) return 'Alhamdulillah! All done';
+  if (done >= total - 1) return 'Allahu Akbar! Almost there';
+  return 'Ma Shaa Allah! Keep it up';
 }
 
 function MonthGrid({ days, color, todayColor }) {
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
   pipMoreHabits: { fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '600', paddingLeft: 30 },
   cardDayPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, paddingHorizontal: 6, paddingVertical: 2 },
   cardDayPillText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
-  cardMotivation: { fontSize: 11, fontWeight: '600', color: '#C9A84C', marginBottom: 8 },
+  cardMotivation: { fontSize: 11, fontWeight: '600', color: '#4ADE80', marginBottom: 8 },
   pipProgressRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 12 },
   pipProgressLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
   dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginBottom: 16 },

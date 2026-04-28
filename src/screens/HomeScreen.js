@@ -29,8 +29,8 @@ import { getWeekReadDays, isReadToday, getStreak } from '../utils/readInsights';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
-import { getActivePlan, getTodayLog, logHabit, todayStr, daysSinceStart, getCurrentHabits, normalizeHabits } from '../utils/pip';
-import { getAllChildPlans, getTodayActionLog, logAction, daysSinceStart as childDaysSinceStart, getCurrentActions, normalizeActions } from '../utils/childPlan';
+import { getActivePlan, getTodayLog, logHabit, todayStr, daysSinceStart, getCurrentHabits, normalizeHabits, getHabitLogs, getHabitDayCounts } from '../utils/pip';
+import { getAllChildPlans, getTodayActionLog, logAction, daysSinceStart as childDaysSinceStart, getCurrentActions, normalizeActions, getActionLogs, getActionDayCounts } from '../utils/childPlan';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification } from '../utils/notifications';
@@ -57,9 +57,9 @@ const CACHE_KEY = 'tarbiyah_daily_cache';
 
 function getMotivationText(done, total) {
   if (done === 0 || total === 0) return null;
-  if (done >= total) return 'Alhamdulillah! All done 🤲';
-  if (done >= total - 1) return 'Allahu Akbar! Almost there ✨';
-  return 'Ma Shaa Allah! Keep it up 💪';
+  if (done >= total) return 'Alhamdulillah! All done';
+  if (done >= total - 1) return 'Allahu Akbar! Almost there';
+  return 'Ma Shaa Allah! Keep it up';
 }
 
 function WeekRow({ days, color, todayColor }) {
@@ -141,11 +141,13 @@ export default function HomeScreen({ navigation }) {
   const [quranStreak, setQuranStreak] = useState(0);
   const [familyGoals,  setFamilyGoals]  = useState([]);
   const [completions,  setCompletions]  = useState([]);
-  const [pipPlan,        setPipPlan]        = useState(null);
-  const [pipTodayLog,    setPipTodayLog]    = useState([false, false, false, false, false]);
-  const [childPlans,     setChildPlans]     = useState([]);
-  const [childTodayLogs, setChildTodayLogs] = useState({});
-  const [childCardIndex, setChildCardIndex] = useState(0);
+  const [pipPlan,          setPipPlan]          = useState(null);
+  const [pipTodayLog,      setPipTodayLog]      = useState([false, false, false, false, false]);
+  const [pipAllLogs,       setPipAllLogs]       = useState({});
+  const [childPlans,       setChildPlans]       = useState([]);
+  const [childTodayLogs,   setChildTodayLogs]   = useState({});
+  const [childAllLogs,     setChildAllLogs]     = useState({});
+  const [childCardIndex,   setChildCardIndex]   = useState(0);
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
@@ -280,13 +282,21 @@ export default function HomeScreen({ navigation }) {
       loadCompletions().then(setCompletions);
       getActivePlan().then(p => {
         setPipPlan(p);
-        if (p) getTodayLog().then(setPipTodayLog);
+        if (p) {
+          getTodayLog().then(setPipTodayLog);
+          getHabitLogs().then(setPipAllLogs);
+        }
       });
       getAllChildPlans().then(async plans => {
         setChildPlans(plans);
-        const logs = {};
-        for (const p of plans) { logs[p.id] = await getTodayActionLog(p.id); }
-        setChildTodayLogs(logs);
+        const todayLogs = {};
+        const allLogs   = {};
+        for (const p of plans) {
+          todayLogs[p.id] = await getTodayActionLog(p.id);
+          allLogs[p.id]   = await getActionLogs(p.id);
+        }
+        setChildTodayLogs(todayLogs);
+        setChildAllLogs(allLogs);
       });
     }, [])
   );
@@ -538,6 +548,7 @@ export default function HomeScreen({ navigation }) {
                       const coreActions = normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).filter(a => a.priority === 'core');
                       const coreDone    = coreActions.filter(a => todayLog[a.index]).length;
                       const motivation  = getMotivationText(coreDone, coreActions.length);
+                      const dayCounts   = getActionDayCounts(childAllLogs[plan.id] || {});
                       return (
                         <TouchableOpacity
                           key={plan.id}
@@ -571,6 +582,12 @@ export default function HomeScreen({ navigation }) {
                                 {todayLog[action.index] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
                               </View>
                               <Text style={[styles.pipWidgetHabitText, todayLog[action.index] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{action.text}</Text>
+                              {dayCounts[action.index] > 0 && (
+                                <View style={styles.widgetDayPill}>
+                                  <Ionicons name="checkmark-circle" size={10} color="#4ADE80" />
+                                  <Text style={styles.widgetDayPillText}>{dayCounts[action.index]}d</Text>
+                                </View>
+                              )}
                             </TouchableOpacity>
                           ))}
                         </TouchableOpacity>
@@ -613,9 +630,10 @@ export default function HomeScreen({ navigation }) {
                 </View>
               )}
               {pipPlan && (() => {
-                const pipCoreHabits = normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core');
-                const pipCoreDone   = pipCoreHabits.filter(h => pipTodayLog[h.index]).length;
-                const pipMotivation = getMotivationText(pipCoreDone, pipCoreHabits.length);
+                const pipCoreHabits  = normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core');
+                const pipCoreDone    = pipCoreHabits.filter(h => pipTodayLog[h.index]).length;
+                const pipMotivation  = getMotivationText(pipCoreDone, pipCoreHabits.length);
+                const pipDayCounts   = getHabitDayCounts(pipAllLogs);
                 return (
                 <TouchableOpacity
                   style={styles.pipWidget}
@@ -648,6 +666,12 @@ export default function HomeScreen({ navigation }) {
                         {pipTodayLog[h.index] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
                       </View>
                       <Text style={[styles.pipWidgetHabitText, pipTodayLog[h.index] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{h.text}</Text>
+                      {pipDayCounts[h.index] > 0 && (
+                        <View style={styles.widgetDayPill}>
+                          <Ionicons name="checkmark-circle" size={10} color="#C9A84C" />
+                          <Text style={styles.widgetDayPillText}>{pipDayCounts[h.index]}d</Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
                   ))}
                 </TouchableOpacity>
@@ -1542,10 +1566,12 @@ const styles = StyleSheet.create({
   childWidgetTitle: { flex: 1, fontSize: 12, fontWeight: '600', color: '#C9A84C', lineHeight: 17 },
   pipWidgetTodoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, marginTop: 4 },
   pipWidgetTodoHeading: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.1 },
-  pipWidgetMotivation: { fontSize: 10, fontWeight: '600', color: '#C9A84C', flexShrink: 1, textAlign: 'right', marginLeft: 6 },
+  pipWidgetMotivation: { fontSize: 10, fontWeight: '600', color: '#4ADE80', flexShrink: 1, textAlign: 'right', marginLeft: 6 },
   pipWidgetSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10 },
   pipWidgetDayRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, marginTop: 2 },
   pipWidgetDayText: { fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: '500' },
+  widgetDayPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, paddingHorizontal: 5, paddingVertical: 2 },
+  widgetDayPillText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
   pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   pipWidgetHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
   pipWidgetCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
