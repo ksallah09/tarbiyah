@@ -355,7 +355,7 @@ export default function LessonReaderScreen({ route, navigation }) {
                   </View>
                   {lesson.whatToSay.map((phrase, i) => (
                     <View key={i} style={styles.speechBubble}>
-                      <Text style={styles.speechText}>"{phrase}"</Text>
+                      <Text style={styles.speechText}>{phrase}</Text>
                     </View>
                   ))}
                 </View>

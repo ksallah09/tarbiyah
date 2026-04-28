@@ -356,7 +356,7 @@ export default function PIPDetailScreen({ navigation, route }) {
             <Section icon="chatbubble-outline" title="What to Say">
               {plan.whatToSayScripts.map((s, i) => (
                 <View key={i} style={styles.scriptCard}>
-                  <Text style={styles.scriptText}>"{s}"</Text>
+                  <Text style={styles.scriptText}>{s}</Text>
                 </View>
               ))}
             </Section>

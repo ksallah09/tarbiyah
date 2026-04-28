@@ -385,9 +385,7 @@ export default function GuideMeNowScreen({ navigation, route }) {
             </View>
             {(response.whatToSay ?? []).map((line, i) => (
               <View key={i} style={styles.sayLine}>
-                <Text style={styles.sayQuoteMark}>"</Text>
                 <Text style={styles.sayText}>{line}</Text>
-                <Text style={styles.sayQuoteMark}>"</Text>
               </View>
             ))}
           </View>
