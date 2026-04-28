@@ -274,11 +274,6 @@ export default function GuideMeNowScreen({ navigation, route }) {
                     onPress={() => toggleGender(g.id)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons
-                      name={g.icon}
-                      size={22}
-                      color={childGenders.includes(g.id) ? '#1B3D2F' : '#6B7280'}
-                    />
                     <Text style={[styles.genderLabel, childGenders.includes(g.id) && styles.genderLabelActive]}>{g.label}</Text>
                   </TouchableOpacity>
                 ))}
