@@ -374,7 +374,7 @@ export default function HomeScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
         >
           {/* ── Dark hero header ── */}
-          <View style={[styles.hero, { paddingTop: insets.top + 10, backgroundColor: '#1B3D2F' }]}>
+          <View style={[styles.hero, { paddingTop: insets.top + 20, backgroundColor: '#1B3D2F' }]}>
             <View style={styles.heroRow}>
               <View style={styles.heroText}>
                 {animate ? (
