@@ -158,6 +158,15 @@ export default function PIPDetailScreen({ navigation, route }) {
   const habitDayCounts = getHabitDayCounts(logs);
   const isComplete     = dayNumber > plan.durationDays;
 
+  let phaseElapsed = 0;
+  const currentPhaseIndex = (plan.roadmap ?? []).findIndex(phase => {
+    phaseElapsed += phase.durationDays ?? 0;
+    return dayNumber <= phaseElapsed;
+  });
+  const currentPhase = plan.roadmap?.[currentPhaseIndex] ?? plan.roadmap?.[plan.roadmap.length - 1];
+  const totalPhases  = plan.roadmap?.length ?? 1;
+  const phaseNum     = currentPhaseIndex >= 0 ? currentPhaseIndex + 1 : totalPhases;
+
   const TABS = [
     { key: 'habits', label: 'Daily Habits' },
     { key: 'plan', label: 'Plan' },
@@ -295,6 +304,20 @@ export default function PIPDetailScreen({ navigation, route }) {
                 </TouchableOpacity>
               ))}
             </Section>
+
+            {currentPhase && (
+              <View style={styles.phaseInfoCard}>
+                <Ionicons name="map-outline" size={15} color="#2563EB" style={{ marginTop: 1 }} />
+                <Text style={styles.phaseInfoText}>
+                  You're in{' '}
+                  <Text style={styles.phaseInfoBold}>{currentPhase.title}</Text>
+                  {totalPhases > 1
+                    ? ` — Phase ${phaseNum} of ${totalPhases}. Your daily habits are tailored to this stage and will naturally deepen as you move into the next phase.`
+                    : '. Your daily habits are built for this journey and will keep you focused on meaningful progress each day.'
+                  }
+                </Text>
+              </View>
+            )}
 
             <TouchableOpacity style={styles.checkInBtn} onPress={() => setShowCheckIn(true)} activeOpacity={0.85}>
               <Ionicons name="chatbubble-ellipses-outline" size={18} color="#1B3D2F" />
@@ -494,6 +517,9 @@ const styles = StyleSheet.create({
   dayCount: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', marginTop: 2 },
   bonusToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12, marginTop: 2 },
   bonusToggleText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
+  phaseInfoCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#EFF6FF', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#BFDBFE' },
+  phaseInfoText: { flex: 1, fontSize: 13, color: '#374151', lineHeight: 20 },
+  phaseInfoBold: { fontWeight: '700', color: '#1A2E4A' },
   bodyText: { fontSize: 14, color: '#374151', lineHeight: 22, flex: 1 },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   bulletDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#1B3D2F', marginTop: 8 },
