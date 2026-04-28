@@ -226,6 +226,10 @@ export default function GuideMeNowScreen({ navigation, route }) {
               </View>
             ))}
           </View>
+          <View style={styles.keepOpenBanner}>
+            <Ionicons name="warning" size={15} color="#F59E0B" />
+            <Text style={styles.keepOpenText}>Please keep the app open until your guidance is ready</Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -665,6 +669,8 @@ const styles = StyleSheet.create({
   loadingTime: {
     fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 24, textAlign: 'center',
   },
+  keepOpenBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(245,158,11,0.12)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, marginTop: 24, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)', alignSelf: 'stretch' },
+  keepOpenText: { fontSize: 12, color: '#F59E0B', fontWeight: '600', flex: 1 },
 
   // ── Footer ──
   footer: {
