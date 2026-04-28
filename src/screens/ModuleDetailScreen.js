@@ -1044,7 +1044,7 @@ const styles = StyleSheet.create({
   },
   tasbiBottom: {
     alignItems: 'center',
-    paddingBottom: 32,
+    paddingBottom: 48,
     paddingHorizontal: 20,
     gap: 12,
   },
