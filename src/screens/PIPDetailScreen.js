@@ -102,8 +102,21 @@ export default function PIPDetailScreen({ navigation, route }) {
 
       await saveCheckIn(ci);
 
-      if (data.adjustedHabits && data.adjustedHabits.length === 5) {
-        const updatedPlan = { ...plan, dailyHabits: data.adjustedHabits };
+      if (data.adjustedHabits?.length === 5) {
+        let updatedPlan;
+        if (plan.roadmap?.length) {
+          let elapsed = 0;
+          const updatedRoadmap = plan.roadmap.map(phase => {
+            const prev = elapsed;
+            elapsed += phase.durationDays ?? 0;
+            return (dayNumber > prev && dayNumber <= elapsed)
+              ? { ...phase, dailyHabits: data.adjustedHabits }
+              : phase;
+          });
+          updatedPlan = { ...plan, roadmap: updatedRoadmap };
+        } else {
+          updatedPlan = { ...plan, dailyHabits: data.adjustedHabits };
+        }
         await savePlan(updatedPlan);
         setPlan(updatedPlan);
         const nextCheckIn = new Date();

@@ -113,7 +113,20 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
       await saveCheckIn(plan.id, ci);
 
       if (data.adjustedActions?.length === 5) {
-        const updatedPlan = { ...plan, parentDailyActions: data.adjustedActions };
+        let updatedPlan;
+        if (plan.roadmap?.length) {
+          let elapsed = 0;
+          const updatedRoadmap = plan.roadmap.map(phase => {
+            const prev = elapsed;
+            elapsed += phase.durationDays ?? 0;
+            return (dayNumber > prev && dayNumber <= elapsed)
+              ? { ...phase, parentDailyActions: data.adjustedActions }
+              : phase;
+          });
+          updatedPlan = { ...plan, roadmap: updatedRoadmap };
+        } else {
+          updatedPlan = { ...plan, parentDailyActions: data.adjustedActions };
+        }
         await saveChildPlan(updatedPlan);
         setPlan(updatedPlan);
       }
