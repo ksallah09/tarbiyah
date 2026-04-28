@@ -181,20 +181,21 @@ function getHabitForDay(plan, dayNumber) {
 
 function getActionForDay(plan, dayNumber) {
   const phases = plan?.roadmap;
+  const toText = (a) => (typeof a === 'string' ? a : a?.text ?? '');
   if (!phases?.length || !phases[0]?.parentDailyActions) {
     const actions = plan?.parentDailyActions ?? [];
-    return actions.length ? actions[(dayNumber - 1) % actions.length] : null;
+    return actions.length ? toText(actions[(dayNumber - 1) % actions.length]) : null;
   }
   let elapsed = 0;
   for (const phase of phases) {
     elapsed += phase.durationDays ?? 0;
     if (dayNumber <= elapsed) {
       const actions = phase.parentDailyActions ?? [];
-      return actions.length ? actions[(dayNumber - 1) % actions.length] : null;
+      return actions.length ? toText(actions[(dayNumber - 1) % actions.length]) : null;
     }
   }
   const last = phases[phases.length - 1].parentDailyActions ?? [];
-  return last.length ? last[(dayNumber - 1) % last.length] : null;
+  return last.length ? toText(last[(dayNumber - 1) % last.length]) : null;
 }
 
 async function cancelNotificationIds(storageKey) {

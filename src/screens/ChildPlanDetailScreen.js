@@ -86,7 +86,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
     setCheckInLoading(true);
     try {
       const dayNumber = daysSinceStart(plan.startDate);
-      const currentActions = getCurrentActions(plan, dayNumber);
+      const currentActions = normalizeActions(getCurrentActions(plan, dayNumber)).map(a => a.text);
       const res = await fetch(`${API_URL}/child-plan/checkin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -410,7 +410,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
                   <View style={styles.adjustedWrap}>
                     <Text style={styles.adjustedLabel}>UPDATED ACTIONS</Text>
                     {ci.adjustedActions.map((a, i) => (
-                      <Text key={i} style={styles.adjustedHabit}>{i + 1}. {a}</Text>
+                      <Text key={i} style={styles.adjustedHabit}>{i + 1}. {typeof a === 'string' ? a : a.text}</Text>
                     ))}
                   </View>
                 )}

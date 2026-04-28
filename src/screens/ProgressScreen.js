@@ -20,7 +20,7 @@ import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { rs, hp } from '../utils/responsive';
 import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr, daysSinceStart, getCurrentHabits } from '../utils/pip';
-import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount, daysSinceStart as childDaysSinceStart, getCurrentActions } from '../utils/childPlan';
+import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount, daysSinceStart as childDaysSinceStart, getCurrentActions, normalizeActions } from '../utils/childPlan';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHILD_CARD_W = SCREEN_WIDTH - hp - 40;
 
@@ -264,12 +264,12 @@ export default function ProgressScreen({ navigation }) {
                     <View style={[styles.focusBadgeActive, { backgroundColor: 'rgba(74,222,128,0.15)' }]}><Text style={[styles.focusBadgeActiveText, { color: '#4ADE80' }]}>Child growth</Text></View>
                     <Text style={styles.pipTitle} numberOfLines={2}>{plan.title}</Text>
                     <View style={styles.pipHabits}>
-                      {getCurrentActions(plan, childDaysSinceStart(plan.startDate)).slice(0, 3).map((a, i) => (
-                        <View key={i} style={styles.pipHabitRow}>
-                          <View style={[styles.pipHabitCheck, todayLog[i] && styles.pipHabitCheckDone]}>
-                            {todayLog[i] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+                      {normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).slice(0, 3).map((a) => (
+                        <View key={a.index} style={styles.pipHabitRow}>
+                          <View style={[styles.pipHabitCheck, todayLog[a.index] && styles.pipHabitCheckDone]}>
+                            {todayLog[a.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
                           </View>
-                          <Text style={[styles.pipHabitText, todayLog[i] && styles.pipHabitTextDone]} numberOfLines={1}>{a}</Text>
+                          <Text style={[styles.pipHabitText, todayLog[a.index] && styles.pipHabitTextDone]} numberOfLines={1}>{a.text}</Text>
                         </View>
                       ))}
                       {getCurrentActions(plan, childDaysSinceStart(plan.startDate)).length > 3 && (
