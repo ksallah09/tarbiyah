@@ -322,6 +322,27 @@ export default function App() {
   const notifResponseListener         = useRef(null);
   useFonts({ Amiri_400Regular, Amiri_700Bold });
 
+  function handleNotifNavigation({ screen, planId } = {}) {
+    if (screen === 'PIPDetail') {
+      getActivePlan().then(plan => {
+        if (plan) navigationRef.current?.navigate('PIPDetail', { plan });
+        else navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
+      });
+    } else if (screen === 'ChildPlanDetail') {
+      getAllChildPlans().then(plans => {
+        const plan = planId ? plans.find(p => p.id === planId) : plans[0];
+        if (plan) navigationRef.current?.navigate('ChildPlanDetail', { plan });
+        else navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
+      });
+    } else if (screen === 'Growth') {
+      navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
+    } else if (screen === 'Community') {
+      navigationRef.current?.navigate('Tabs', { screen: 'Community' });
+    } else {
+      navigationRef.current?.navigate('Tabs', { screen: 'Home' });
+    }
+  }
+
   useEffect(() => {
     Promise.all([isOnboardingComplete(), getSession()])
       .then(async ([complete]) => {
@@ -346,25 +367,7 @@ export default function App() {
 
     // Navigate to correct screen when user taps a notification
     notifResponseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      const { screen, planId } = response.notification.request.content.data ?? {};
-      if (screen === 'PIPDetail') {
-        getActivePlan().then(plan => {
-          if (plan) navigationRef.current?.navigate('PIPDetail', { plan });
-          else navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
-        });
-      } else if (screen === 'ChildPlanDetail') {
-        getAllChildPlans().then(plans => {
-          const plan = planId ? plans.find(p => p.id === planId) : plans[0];
-          if (plan) navigationRef.current?.navigate('ChildPlanDetail', { plan });
-          else navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
-        });
-      } else if (screen === 'Growth') {
-        navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
-      } else if (screen === 'Community') {
-        navigationRef.current?.navigate('Tabs', { screen: 'Community' });
-      } else {
-        navigationRef.current?.navigate('Tabs', { screen: 'Home' });
-      }
+      handleNotifNavigation(response.notification.request.content.data ?? {});
     });
 
     // Top up plan notifications when app foregrounds so habits stay fresh
@@ -413,7 +416,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
     <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding }}>
-      <NavigationContainer ref={navigationRef}>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={() => {
+          const response = Notifications.getLastNotificationResponse();
+          if (response) handleNotifNavigation(response.notification.request.content.data ?? {});
+        }}
+      >
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           {onboarded ? (
             <RootStack.Screen name="MainApp" component={MainApp} />

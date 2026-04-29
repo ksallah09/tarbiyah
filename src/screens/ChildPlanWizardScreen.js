@@ -113,7 +113,7 @@ export default function ChildPlanWizardScreen({ navigation }) {
 
       await saveChildPlan(plan);
       scheduleChildPlanReminder(reminderTime, plan).catch(() => {});
-      scheduleChildPlanCheckIn(checkInDays, plan.startDate).catch(() => {});
+      scheduleChildPlanCheckIn(checkInDays, plan.startDate, plan.id).catch(() => {});
       scheduleChildPlanCompletion(plan).catch(() => {});
 
       navigation.replace('ChildPlanDetail', { plan, initialTab: 'plan' });

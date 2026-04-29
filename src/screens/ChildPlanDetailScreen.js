@@ -134,7 +134,7 @@ export default function ChildPlanDetailScreen({ navigation, route }) {
       if (plan.checkInDays) {
         const nextCheckIn = new Date();
         nextCheckIn.setDate(nextCheckIn.getDate() + plan.checkInDays);
-        scheduleChildPlanCheckIn(plan.checkInDays, nextCheckIn.toISOString()).catch(() => {});
+        scheduleChildPlanCheckIn(plan.checkInDays, nextCheckIn.toISOString(), plan.id).catch(() => {});
       }
 
       setCheckIns(prev => [ci, ...prev]);

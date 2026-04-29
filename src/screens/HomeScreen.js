@@ -129,6 +129,8 @@ export default function HomeScreen({ navigation }) {
   const [sciReadWeek,   setScientificReadWeek]= useState([]);
   const [quranReadWeek, setQuranReadWeek]     = useState([]);
   const [name, setName]                      = useState('');
+  const [photoUrl, setPhotoUrl]              = useState(null);
+  const [devRefreshing, setDevRefreshing]    = useState(false);
   const [animate, setAnimate]                = useState(false);
   const [ayahRead, setAyahRead]              = useState(false);
   const [tipIndex, setTipIndex]              = useState(0);
@@ -244,6 +246,13 @@ export default function HomeScreen({ navigation }) {
     }
   }
 
+  async function devForceRefresh() {
+    setDevRefreshing(true);
+    await AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
+    await loadDaily();
+    setDevRefreshing(false);
+  }
+
   // TODO: re-enable trending challenges fetch in future release
   // useEffect(() => {
   //   fetch(`${API_URL}/trending/challenges`)
@@ -273,6 +282,13 @@ export default function HomeScreen({ navigation }) {
           setName(profileName || '');
           setAnimate(shouldAnimate);
         });
+
+      // Load photo from auth provider (Google provides avatar_url, Apple does not)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        const meta = session?.user?.user_metadata ?? {};
+        const url = meta.avatar_url || meta.picture || null;
+        if (url) setPhotoUrl(url);
+      });
 
       loadDaily();
 
@@ -421,9 +437,13 @@ export default function HomeScreen({ navigation }) {
                 activeOpacity={0.75}
               >
                 <View style={styles.heroProfileAvatar}>
-                  <Text style={styles.heroProfileInitial}>
-                    {name ? name.charAt(0).toUpperCase() : '?'}
-                  </Text>
+                  {photoUrl ? (
+                    <Image source={{ uri: photoUrl }} style={styles.heroProfilePhoto} />
+                  ) : (
+                    <Text style={styles.heroProfileInitial}>
+                      {name ? name.charAt(0).toUpperCase() : '?'}
+                    </Text>
+                  )}
                 </View>
                 <Text style={styles.heroProfileDate}>Profile</Text>
               </TouchableOpacity>
@@ -438,6 +458,7 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.sectionTitleWrap}>
                 <Text style={styles.sectionTitle}>TODAY'S PARENTING INSIGHTS</Text>
               </View>
+
 
               {spiritualInsight && (
                 <TouchableOpacity
@@ -921,6 +942,13 @@ export default function HomeScreen({ navigation }) {
                 <WeekRow days={quranReadWeek} color="#1A3A6B" todayColor="#D0E4F7" />
               </View>
 
+              {__DEV__ && (
+                <TouchableOpacity style={styles.devRefreshBtn} onPress={devForceRefresh} activeOpacity={0.7}>
+                  <Ionicons name={devRefreshing ? 'sync' : 'refresh-outline'} size={13} color="#9CA3AF" />
+                  <Text style={styles.devRefreshText}>{devRefreshing ? 'Refreshing…' : 'DEV — Force refresh insights'}</Text>
+                </TouchableOpacity>
+              )}
+
               <View style={{ height: 32 }} />
             </View>
           </Animated.View>
@@ -1000,6 +1028,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center', justifyContent: 'center',
+  },
+  heroProfilePhoto: {
+    width: 44, height: 44, borderRadius: 22,
   },
   heroProfileInitial: {
     fontSize: 19, fontWeight: '700', color: '#FFFFFF',

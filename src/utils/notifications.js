@@ -124,7 +124,7 @@ export async function scheduleWeeklyShareNotification() {
       subtitle: '📚 Help a fellow parent today',
       body: 'Share a resource that\'s helped your family — a video, article, or activity. It only takes a minute.',
       sound: true,
-      data: { screen: 'Resources' },
+      data: { screen: 'Community' },
     },
     trigger: {
       type: 'calendar',
@@ -372,7 +372,7 @@ export async function cancelChildPlanReminder(planId) {
 }
 
 // ─── Child Plan: check-in notification (one-time, fires after N days) ─────────
-export async function scheduleChildPlanCheckIn(afterDays, fromDateIso) {
+export async function scheduleChildPlanCheckIn(afterDays, fromDateIso, planId) {
   const granted = await requestNotificationPermission();
   if (!granted) return;
 
@@ -393,7 +393,7 @@ export async function scheduleChildPlanCheckIn(afterDays, fromDateIso) {
       subtitle: `💬 ${afterDays}-day check-in — how is your child doing?`,
       body: "Share your child's progress and get personalised coaching to adjust the plan.",
       sound: true,
-      data: { screen: 'ChildPlanDetail' },
+      data: { screen: 'ChildPlanDetail', ...(planId ? { planId } : {}) },
     },
     trigger: { type: 'date', date: fireDate },
   });
