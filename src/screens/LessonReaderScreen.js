@@ -83,7 +83,7 @@ export default function LessonReaderScreen({ route, navigation }) {
   const metaOpacity       = compactAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
   const metaMaxHeight     = compactAnim.interpolate({ inputRange: [0, 1], outputRange: [80, 0] });
   const titleOpacity      = compactAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-  const titleMaxHeight    = compactAnim.interpolate({ inputRange: [0, 1], outputRange: [120, 0] });
+  const titleMaxHeight    = compactAnim.interpolate({ inputRange: [0, 1], outputRange: [180, 0] });
   const seekMarginBottom  = compactAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 10] });
   const heroPaddingBottom = compactAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 14] });
 
