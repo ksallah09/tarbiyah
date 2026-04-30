@@ -19,8 +19,8 @@ import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal } from '../uti
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { rs, hp } from '../utils/responsive';
-import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr, daysSinceStart, getCurrentHabits, normalizeHabits, getHabitDayCounts } from '../utils/pip';
-import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount, daysSinceStart as childDaysSinceStart, getCurrentActions, normalizeActions, getActionDayCounts } from '../utils/childPlan';
+import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr, daysSinceStart } from '../utils/pip';
+import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount, daysSinceStart as childDaysSinceStart } from '../utils/childPlan';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHILD_CARD_W = SCREEN_WIDTH - hp - 40;
 
@@ -43,6 +43,116 @@ function getMotivationText(done, total) {
   if (done >= total - 1) return 'Allahu Akbar! Almost there';
   return 'Ma Shaa Allah! Keep it up';
 }
+
+function phaseShortName(phase, index) {
+  const match = phase?.phase?.match(/Phase \d+[:\s]+(.+?)\s*\(Days/i);
+  return match ? match[1].trim() : (phase?.title || `Phase ${index + 1}`);
+}
+
+function PlanPhaseVisual({ plan, daysSince, streak, accentColor }) {
+  const phases = plan?.roadmap ?? [];
+  const totalDays = plan?.durationDays ?? 0;
+  const dayNumber = Math.min(Math.max((daysSince ?? 0) + 1, 1), totalDays);
+
+  // Find which phase we're in
+  let currentPhaseIdx = Math.max(phases.length - 1, 0);
+  let elapsed = 0;
+  for (let i = 0; i < phases.length; i++) {
+    elapsed += phases[i].durationDays ?? 0;
+    if (dayNumber <= elapsed) { currentPhaseIdx = i; break; }
+  }
+  const currentPhase = phases[currentPhaseIdx];
+
+  return (
+    <View style={phaseStyles.wrap}>
+
+      {/* Phase label pills */}
+      {phases.length > 0 && (
+        <View style={phaseStyles.pillRow}>
+          {phases.map((p, i) => {
+            const done = i < currentPhaseIdx;
+            const active = i === currentPhaseIdx;
+            return (
+              <View key={i} style={[phaseStyles.pill, active && { borderColor: accentColor, backgroundColor: `${accentColor}18` }, done && phaseStyles.pillDone]}>
+                {done
+                  ? <Ionicons name="checkmark" size={9} color={accentColor} style={{ opacity: 0.7 }} />
+                  : active
+                    ? <View style={[phaseStyles.pillDot, { backgroundColor: accentColor }]} />
+                    : <View style={phaseStyles.pillDotFuture} />
+                }
+                <Text style={[phaseStyles.pillText, active && { color: accentColor }, done && { color: 'rgba(255,255,255,0.4)' }]} numberOfLines={1}>
+                  {phaseShortName(p, i)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Segmented progress bar */}
+      <View style={phaseStyles.barRow}>
+        {phases.length > 1 ? phases.map((p, i) => {
+          const phaseStart = phases.slice(0, i).reduce((s, ph) => s + (ph.durationDays ?? 0), 0);
+          const phaseDays  = p.durationDays ?? 0;
+          const done = i < currentPhaseIdx;
+          const active = i === currentPhaseIdx;
+          const fill = done ? 1 : active ? Math.min(Math.max((dayNumber - phaseStart) / phaseDays, 0), 1) : 0;
+          return (
+            <View key={i} style={[phaseStyles.barSegment, { flex: phaseDays }, i > 0 && { marginLeft: 3 }]}>
+              <View style={[phaseStyles.barFill, { width: `${fill * 100}%`, backgroundColor: accentColor, opacity: done ? 0.45 : 1 }]} />
+            </View>
+          );
+        }) : (
+          // No phases — single bar
+          <View style={[phaseStyles.barSegment, { flex: 1 }]}>
+            <View style={[phaseStyles.barFill, { width: `${totalDays > 0 ? Math.min(dayNumber / totalDays, 1) * 100 : 0}%`, backgroundColor: accentColor }]} />
+          </View>
+        )}
+      </View>
+
+      {/* Footer: day count + current phase name + streak */}
+      <View style={phaseStyles.footer}>
+        <Text style={phaseStyles.footerDay}>Day {dayNumber} of {totalDays}</Text>
+        {currentPhase && (
+          <>
+            <Text style={phaseStyles.footerSep}>·</Text>
+            <Text style={phaseStyles.footerPhase} numberOfLines={1}>{phaseShortName(currentPhase, currentPhaseIdx)}</Text>
+          </>
+        )}
+        <View style={{ flex: 1 }} />
+        <Ionicons name="flame" size={11} color={accentColor} />
+        <Text style={[phaseStyles.footerStreak, { color: accentColor }]}>{streak ?? 0} day streak</Text>
+      </View>
+
+    </View>
+  );
+}
+
+const phaseStyles = StyleSheet.create({
+  wrap: { marginTop: 4 },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  pillDone: { borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'transparent' },
+  pillDot: { width: 6, height: 6, borderRadius: 3 },
+  pillDotFuture: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.2)' },
+  pillText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)', maxWidth: 90 },
+  barRow: { flexDirection: 'row', marginBottom: 12 },
+  barSegment: {
+    height: 6, borderRadius: 3, overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  barFill: { height: '100%', borderRadius: 3 },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
+  footerDay: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
+  footerSep: { fontSize: 12, color: 'rgba(255,255,255,0.25)' },
+  footerPhase: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '500', flexShrink: 1 },
+  footerStreak: { fontSize: 12, fontWeight: '700' },
+});
 
 function MonthGrid({ days, color, todayColor }) {
   return (
@@ -104,32 +214,22 @@ export default function ProgressScreen({ navigation }) {
 
   // ── PIP ──
   const [activePlan,  setActivePlan]  = useState(null);
-  const [pipTodayLog, setPipTodayLog] = useState([false, false, false, false, false]);
   const [pipLogs,     setPipLogs]     = useState({});
 
   // ── Child Plans ──
   const [childPlans,         setChildPlans]         = useState([]);
-  const [childTodayLogs,     setChildTodayLogs]     = useState({});
   const [childLogs,          setChildLogs]          = useState({});
   const [childCardIndex,     setChildCardIndex]     = useState(0);
 
   useFocusEffect(useCallback(() => {
     getActivePlan().then(p => {
       setActivePlan(p);
-      if (p) {
-        getTodayLog().then(setPipTodayLog);
-        getHabitLogs().then(setPipLogs);
-      }
+      if (p) getHabitLogs().then(setPipLogs);
     });
     getAllChildPlans().then(async plans => {
       setChildPlans(plans);
-      const todayLogs = {};
       const allLogs = {};
-      for (const p of plans) {
-        todayLogs[p.id] = await getTodayActionLog(p.id);
-        allLogs[p.id]   = await getActionLogs(p.id);
-      }
-      setChildTodayLogs(todayLogs);
+      for (const p of plans) allLogs[p.id] = await getActionLogs(p.id);
       setChildLogs(allLogs);
     });
   }, []));
@@ -253,7 +353,6 @@ export default function ProgressScreen({ navigation }) {
               style={{ marginBottom: childPlans.length > 1 ? 8 : 16 }}
             >
               {childPlans.map((plan) => {
-                const todayLog = childTodayLogs[plan.id] || [];
                 return (
                   <TouchableOpacity
                     key={plan.id}
@@ -270,38 +369,12 @@ export default function ProgressScreen({ navigation }) {
                     </View>
                     <View style={[styles.focusBadgeActive, { backgroundColor: 'rgba(74,222,128,0.15)' }]}><Text style={[styles.focusBadgeActiveText, { color: '#4ADE80' }]}>Child growth</Text></View>
                     <Text style={styles.pipTitle} numberOfLines={2}>{plan.title}</Text>
-                    {(() => {
-                      const coreActions = normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).filter(a => a.priority === 'core');
-                      const coreDone    = coreActions.filter(a => todayLog[a.index]).length;
-                      const dayCounts   = getActionDayCounts(childLogs[plan.id] || {});
-                      const motivation  = getMotivationText(coreDone, coreActions.length);
-                      return (
-                        <>
-                          {motivation && (
-                            <Text style={styles.cardMotivation}>{motivation}</Text>
-                          )}
-                          <View style={styles.pipHabits}>
-                            {coreActions.map(a => (
-                              <View key={a.index} style={styles.pipHabitRow}>
-                                <View style={[styles.pipHabitCheck, todayLog[a.index] && styles.pipHabitCheckDone]}>
-                                  {todayLog[a.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
-                                </View>
-                                <Text style={[styles.pipHabitText, todayLog[a.index] && styles.pipHabitTextDone]} numberOfLines={1}>{a.text}</Text>
-                                {dayCounts[a.index] > 0 && (
-                                  <View style={styles.cardDayPill}>
-                                    <Ionicons name="checkmark-circle" size={10} color="#4ADE80" />
-                                    <Text style={styles.cardDayPillText}>{dayCounts[a.index]}d</Text>
-                                  </View>
-                                )}
-                              </View>
-                            ))}
-                          </View>
-                          <View style={styles.pipProgressRow}>
-                            <Text style={styles.pipProgressLabel}>{coreDone}/{coreActions.length} today · {childStreakCount(childLogs[plan.id] || {})} day streak</Text>
-                          </View>
-                        </>
-                      );
-                    })()}
+                    <PlanPhaseVisual
+                      plan={plan}
+                      daysSince={childDaysSinceStart(plan.startDate)}
+                      streak={childStreakCount(childLogs[plan.id] || {})}
+                      accentColor="#4ADE80"
+                    />
                   </TouchableOpacity>
                 );
               })}
@@ -356,38 +429,12 @@ export default function ProgressScreen({ navigation }) {
             </View>
             <View style={styles.focusBadgeActive}><Text style={styles.focusBadgeActiveText}>Parent growth</Text></View>
             <Text style={styles.pipTitle} numberOfLines={2}>{activePlan.title}</Text>
-            {(() => {
-              const coreHabits  = normalizeHabits(getCurrentHabits(activePlan, daysSinceStart(activePlan.startDate))).filter(h => h.priority === 'core');
-              const coreDone    = coreHabits.filter(h => pipTodayLog[h.index]).length;
-              const dayCounts   = getHabitDayCounts(pipLogs);
-              const motivation  = getMotivationText(coreDone, coreHabits.length);
-              return (
-                <>
-                  {motivation && (
-                    <Text style={styles.cardMotivation}>{motivation}</Text>
-                  )}
-                  <View style={styles.pipHabits}>
-                    {coreHabits.map(h => (
-                      <View key={h.index} style={styles.pipHabitRow}>
-                        <View style={[styles.pipHabitCheck, pipTodayLog[h.index] && styles.pipHabitCheckDone]}>
-                          {pipTodayLog[h.index] && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
-                        </View>
-                        <Text style={[styles.pipHabitText, pipTodayLog[h.index] && styles.pipHabitTextDone]} numberOfLines={1}>{h.text}</Text>
-                        {dayCounts[h.index] > 0 && (
-                          <View style={styles.cardDayPill}>
-                            <Ionicons name="checkmark-circle" size={10} color="#C9A84C" />
-                            <Text style={styles.cardDayPillText}>{dayCounts[h.index]}d</Text>
-                          </View>
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                  <View style={styles.pipProgressRow}>
-                    <Text style={styles.pipProgressLabel}>{coreDone}/{coreHabits.length} today · {streakCount(pipLogs)} day streak</Text>
-                  </View>
-                </>
-              );
-            })()}
+            <PlanPhaseVisual
+              plan={activePlan}
+              daysSince={daysSinceStart(activePlan.startDate)}
+              streak={streakCount(pipLogs)}
+              accentColor="#C9A84C"
+            />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.pipEmptyCard} onPress={() => navigation.navigate('PIPWizard')} activeOpacity={0.85}>
