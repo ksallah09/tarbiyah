@@ -132,8 +132,7 @@ export async function scheduleWeeklyShareNotification() {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Tarbiyah',
-      subtitle: '📚 Help a fellow parent today',
+      title: '📚 Help a fellow parent today',
       body: 'Share a resource that\'s helped your family — a video, article, or activity. It only takes a minute.',
       sound: true,
       data: { screen: 'Community' },
@@ -220,6 +219,15 @@ function getActionForDay(plan, dayNumber) {
   return actions.length ? toText(actions[(dayNumber - 1) % actions.length]) : null;
 }
 
+// Turns a habit/action sentence into a short notification title (up to 6 words)
+function toNotifTitle(text, fallback = 'Tarbiyah') {
+  if (!text) return fallback;
+  const clean = text.replace(/[.!?,;].*$/, '').trim();
+  const words = clean.split(/\s+/);
+  if (words.length <= 6) return words.join(' ');
+  return words.slice(0, 6).join(' ') + '…';
+}
+
 async function cancelNotificationIds(storageKey) {
   try {
     const raw = await AsyncStorage.getItem(storageKey);
@@ -269,8 +277,7 @@ export async function schedulePIPReminder(timeStr = '12:00', plan) {
 
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Tarbiyah',
-        subtitle: '🎯 Time for your daily habits',
+        title: toNotifTitle(habit, '🎯 Your daily habits are ready'),
         body,
         sound: true,
         data: { screen: 'PIPDetail' },
@@ -306,8 +313,7 @@ export async function schedulePIPCheckIn(afterDays, fromDateIso) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Tarbiyah',
-      subtitle: `💬 ${afterDays}-day check-in — how's it going?`,
+      title: `💬 ${afterDays}-day check-in — how's it going?`,
       body: 'Share your progress and get personalised coaching to adjust your plan.',
       sound: true,
       data: { screen: 'PIPDetail' },
@@ -367,8 +373,7 @@ export async function scheduleChildPlanReminder(timeStr = '08:00', plan) {
 
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Tarbiyah',
-        subtitle: "🌱 Time for your child's daily actions",
+        title: toNotifTitle(action, "🌱 Your child's actions are ready"),
         body,
         sound: true,
         data: { screen: 'ChildPlanDetail', planId: plan.id },
@@ -405,8 +410,7 @@ export async function scheduleChildPlanCheckIn(afterDays, fromDateIso, planId) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Tarbiyah',
-      subtitle: `💬 ${afterDays}-day check-in — how is your child doing?`,
+      title: `💬 ${afterDays}-day check-in — how is your child doing?`,
       body: "Share your child's progress and get personalised coaching to adjust the plan.",
       sound: true,
       data: { screen: 'ChildPlanDetail', ...(planId ? { planId } : {}) },
@@ -439,8 +443,7 @@ export async function schedulePIPCompletion(plan) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Tarbiyah',
-      subtitle: '🏆 You completed your journey!',
+      title: '🏆 You completed your journey!',
       body: 'Open the app to reflect on your progress and see what\'s next.',
       sound: true,
       data: { screen: 'PIPDetail' },
@@ -468,8 +471,7 @@ export async function scheduleChildPlanCompletion(plan) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Tarbiyah',
-      subtitle: '🌱 Your child\'s journey is complete!',
+      title: "🌱 Your child's journey is complete!",
       body: 'Open the app to reflect on their progress and see what\'s next.',
       sound: true,
       data: { screen: 'ChildPlanDetail', planId: plan.id },
