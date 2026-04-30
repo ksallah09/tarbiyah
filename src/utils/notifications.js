@@ -175,48 +175,48 @@ export async function cancelDailyNotification() {
 
 function getHabitForDay(plan, dayNumber) {
   const phases = plan?.roadmap;
-  const toText = (h) => (typeof h === 'string' ? h : h?.text ?? '');
+  const toObj = (h) => (typeof h === 'string' ? { text: h } : h ?? {});
   const coreOnly = (arr) => {
     const core = arr.filter(h => typeof h === 'string' || h?.priority === 'core');
     return core.length ? core : arr;
   };
   if (!phases?.length || !phases[0]?.dailyHabits) {
     const habits = coreOnly(plan?.dailyHabits ?? []);
-    return habits.length ? toText(habits[(dayNumber - 1) % habits.length]) : null;
+    return habits.length ? toObj(habits[(dayNumber - 1) % habits.length]) : null;
   }
   let elapsed = 0;
   for (const phase of phases) {
     elapsed += phase.durationDays ?? 0;
     if (dayNumber <= elapsed) {
       const habits = coreOnly(phase.dailyHabits ?? []);
-      return habits.length ? toText(habits[(dayNumber - 1) % habits.length]) : null;
+      return habits.length ? toObj(habits[(dayNumber - 1) % habits.length]) : null;
     }
   }
   const habits = coreOnly(phases[phases.length - 1].dailyHabits ?? []);
-  return habits.length ? toText(habits[(dayNumber - 1) % habits.length]) : null;
+  return habits.length ? toObj(habits[(dayNumber - 1) % habits.length]) : null;
 }
 
 function getActionForDay(plan, dayNumber) {
   const phases = plan?.roadmap;
-  const toText = (a) => (typeof a === 'string' ? a : a?.text ?? '');
+  const toObj = (a) => (typeof a === 'string' ? { text: a } : a ?? {});
   const coreOnly = (arr) => {
     const core = arr.filter(a => typeof a === 'string' || a?.priority === 'core');
-    return core.length ? core : arr; // fall back to all if no core tagged (legacy plans)
+    return core.length ? core : arr;
   };
   if (!phases?.length || !phases[0]?.parentDailyActions) {
     const actions = coreOnly(plan?.parentDailyActions ?? []);
-    return actions.length ? toText(actions[(dayNumber - 1) % actions.length]) : null;
+    return actions.length ? toObj(actions[(dayNumber - 1) % actions.length]) : null;
   }
   let elapsed = 0;
   for (const phase of phases) {
     elapsed += phase.durationDays ?? 0;
     if (dayNumber <= elapsed) {
       const actions = coreOnly(phase.parentDailyActions ?? []);
-      return actions.length ? toText(actions[(dayNumber - 1) % actions.length]) : null;
+      return actions.length ? toObj(actions[(dayNumber - 1) % actions.length]) : null;
     }
   }
   const actions = coreOnly(phases[phases.length - 1].parentDailyActions ?? []);
-  return actions.length ? toText(actions[(dayNumber - 1) % actions.length]) : null;
+  return actions.length ? toObj(actions[(dayNumber - 1) % actions.length]) : null;
 }
 
 // Turns a habit/action sentence into a short notification title (up to 6 words)
@@ -271,13 +271,14 @@ export async function schedulePIPReminder(timeStr = '12:00', plan) {
 
     const dayNumber = daysSoFar + i + 1;
     const habit = getHabitForDay(plan, dayNumber);
-    const body = habit
-      ? `${habit} — open the app to check it off and see all 5 habits.`
+    const habitText = habit?.text ?? null;
+    const body = habitText
+      ? `${habitText} — open the app to check it off and see all 5 habits.`
       : "Check off today's 5 improvement habits.";
 
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: toNotifTitle(habit, '🎯 Your daily habits are ready'),
+        title: habit?.notifTitle || toNotifTitle(habitText, '🎯 Your daily habits are ready'),
         body,
         sound: true,
         data: { screen: 'PIPDetail' },
@@ -367,13 +368,14 @@ export async function scheduleChildPlanReminder(timeStr = '08:00', plan) {
 
     const dayNumber = daysSoFar + i + 1;
     const action = getActionForDay(plan, dayNumber);
-    const body = action
-      ? `${action} — open the app to check it off and see all 5 actions.`
+    const actionText = action?.text ?? null;
+    const body = actionText
+      ? `${actionText} — open the app to check it off and see all 5 actions.`
       : "Complete today's 5 parent actions to support your child's growth.";
 
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: toNotifTitle(action, "🌱 Your child's actions are ready"),
+        title: action?.notifTitle || toNotifTitle(actionText, "🌱 Your child's actions are ready"),
         body,
         sound: true,
         data: { screen: 'ChildPlanDetail', planId: plan.id },
