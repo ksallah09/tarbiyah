@@ -80,7 +80,7 @@ function PlanPhaseVisual({ plan, daysSince, streak, accentColor }) {
                     ? <View style={[phaseStyles.pillDot, { backgroundColor: accentColor }]} />
                     : <View style={phaseStyles.pillDotFuture} />
                 }
-                <Text style={[phaseStyles.pillText, active && { color: accentColor }, done && { color: 'rgba(255,255,255,0.4)' }]} numberOfLines={1}>
+                <Text style={[phaseStyles.pillText, active && { color: accentColor }, done && { color: 'rgba(255,255,255,0.4)' }]}>
                   {phaseShortName(p, i)}
                 </Text>
               </View>
@@ -140,7 +140,7 @@ const phaseStyles = StyleSheet.create({
   pillDone: { borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'transparent' },
   pillDot: { width: 6, height: 6, borderRadius: 3 },
   pillDotFuture: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.2)' },
-  pillText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)', maxWidth: 90 },
+  pillText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
   barRow: { flexDirection: 'row', marginBottom: 12 },
   barSegment: {
     height: 6, borderRadius: 3, overflow: 'hidden',
