@@ -52,7 +52,7 @@ function phaseShortName(phase, index) {
 function PlanPhaseVisual({ plan, daysSince, streak, accentColor }) {
   const phases = plan?.roadmap ?? [];
   const totalDays = plan?.durationDays ?? 0;
-  const dayNumber = Math.min(Math.max((daysSince ?? 0) + 1, 1), totalDays);
+  const dayNumber = Math.min(Math.max(daysSince ?? 1, 1), totalDays);
 
   // Find which phase we're in
   let currentPhaseIdx = Math.max(phases.length - 1, 0);
