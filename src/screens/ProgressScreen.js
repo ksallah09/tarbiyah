@@ -68,25 +68,30 @@ function PlanPhaseVisual({ plan, daysSince, streak, accentColor }) {
 
       {/* Phase label pills */}
       {phases.length > 0 && (
-        <View style={phaseStyles.pillRow}>
-          {phases.map((p, i) => {
-            const done = i < currentPhaseIdx;
-            const active = i === currentPhaseIdx;
-            return (
-              <View key={i} style={[phaseStyles.pill, active && { borderColor: accentColor, backgroundColor: `${accentColor}18` }, done && phaseStyles.pillDone]}>
-                {done
-                  ? <Ionicons name="checkmark" size={9} color={accentColor} style={{ opacity: 0.7 }} />
-                  : active
-                    ? <View style={[phaseStyles.pillDot, { backgroundColor: accentColor }]} />
-                    : <View style={phaseStyles.pillDotFuture} />
-                }
-                <Text style={[phaseStyles.pillText, active && { color: accentColor }, done && { color: 'rgba(255,255,255,0.4)' }]}>
-                  {phaseShortName(p, i)}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+        <>
+          <Text style={phaseStyles.pillsLabel}>PHASES</Text>
+          <View style={phaseStyles.pillRow}>
+            {phases.map((p, i) => {
+              const done = i < currentPhaseIdx;
+              const active = i === currentPhaseIdx;
+              return (
+                <View key={i} style={[phaseStyles.pill, active && { borderColor: accentColor, backgroundColor: `${accentColor}18` }, done && phaseStyles.pillDone]}>
+                  <Text style={[phaseStyles.pillNum, active && { color: accentColor }, done && { color: 'rgba(255,255,255,0.3)' }]}>{i + 1}</Text>
+                  <View style={phaseStyles.pillDivider} />
+                  {done
+                    ? <Ionicons name="checkmark" size={9} color={accentColor} style={{ opacity: 0.7 }} />
+                    : active
+                      ? <View style={[phaseStyles.pillDot, { backgroundColor: accentColor }]} />
+                      : <View style={phaseStyles.pillDotFuture} />
+                  }
+                  <Text style={[phaseStyles.pillText, active && { color: accentColor }, done && { color: 'rgba(255,255,255,0.4)' }]}>
+                    {phaseShortName(p, i)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </>
       )}
 
       {/* Segmented progress bar */}
@@ -130,6 +135,7 @@ function PlanPhaseVisual({ plan, daysSince, streak, accentColor }) {
 
 const phaseStyles = StyleSheet.create({
   wrap: { marginTop: 4 },
+  pillsLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 0.8, marginBottom: 8 },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
   pill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -138,6 +144,8 @@ const phaseStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   pillDone: { borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'transparent' },
+  pillNum: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.35)' },
+  pillDivider: { width: 1, height: 10, backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 1 },
   pillDot: { width: 6, height: 6, borderRadius: 3 },
   pillDotFuture: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.2)' },
   pillText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
