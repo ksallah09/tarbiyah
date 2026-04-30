@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // ─── Notification handler (must be set before any scheduling) ─────────────────
 Notifications.setNotificationHandler({
@@ -10,6 +11,16 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+// ─── Android channel (required for Android 8+) ────────────────────────────────
+if (Platform.OS === 'android') {
+  Notifications.setNotificationChannelAsync('default', {
+    name: 'Tarbiyah',
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: true,
+    vibrationPattern: [0, 250, 250, 250],
+  });
+}
 
 const DAILY_NOTIF_ID_KEY   = 'tarbiyah_daily_notif_id';
 const WEEKLY_SHARE_NOTIF_ID_KEY = 'tarbiyah_weekly_share_notif_id';
@@ -99,6 +110,7 @@ export async function scheduleDailyNotification(reminderTimeStr) {
       body: content.body,
       sound: true,
       data: { screen: 'Home' },
+      android: { channelId: 'default' },
     },
     trigger: {
       type: 'calendar',
@@ -125,6 +137,7 @@ export async function scheduleWeeklyShareNotification() {
       body: 'Share a resource that\'s helped your family — a video, article, or activity. It only takes a minute.',
       sound: true,
       data: { screen: 'Community' },
+      android: { channelId: 'default' },
     },
     trigger: {
       type: 'calendar',
@@ -261,6 +274,7 @@ export async function schedulePIPReminder(timeStr = '12:00', plan) {
         body,
         sound: true,
         data: { screen: 'PIPDetail' },
+        android: { channelId: 'default' },
       },
       trigger: { type: 'date', date: fireDate },
     });
@@ -297,6 +311,7 @@ export async function schedulePIPCheckIn(afterDays, fromDateIso) {
       body: 'Share your progress and get personalised coaching to adjust your plan.',
       sound: true,
       data: { screen: 'PIPDetail' },
+      android: { channelId: 'default' },
     },
     trigger: { type: 'date', date: fireDate },
   });
@@ -357,6 +372,7 @@ export async function scheduleChildPlanReminder(timeStr = '08:00', plan) {
         body,
         sound: true,
         data: { screen: 'ChildPlanDetail', planId: plan.id },
+        android: { channelId: 'default' },
       },
       trigger: { type: 'date', date: fireDate },
     });
@@ -394,6 +410,7 @@ export async function scheduleChildPlanCheckIn(afterDays, fromDateIso, planId) {
       body: "Share your child's progress and get personalised coaching to adjust the plan.",
       sound: true,
       data: { screen: 'ChildPlanDetail', ...(planId ? { planId } : {}) },
+      android: { channelId: 'default' },
     },
     trigger: { type: 'date', date: fireDate },
   });
@@ -427,6 +444,7 @@ export async function schedulePIPCompletion(plan) {
       body: 'Open the app to reflect on your progress and see what\'s next.',
       sound: true,
       data: { screen: 'PIPDetail' },
+      android: { channelId: 'default' },
     },
     trigger: { type: 'date', date: fireDate },
   });
@@ -455,6 +473,7 @@ export async function scheduleChildPlanCompletion(plan) {
       body: 'Open the app to reflect on their progress and see what\'s next.',
       sound: true,
       data: { screen: 'ChildPlanDetail', planId: plan.id },
+      android: { channelId: 'default' },
     },
     trigger: { type: 'date', date: fireDate },
   });
