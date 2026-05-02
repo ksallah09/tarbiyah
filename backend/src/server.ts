@@ -2042,7 +2042,19 @@ Rules:
 - All habits and activities must be visibly connected to the specific challenge.
 - Habits progress across weeks (Week 1: observe and connect → Week 4: sustain and celebrate).
 - Activities become progressively more child-led across weeks.
-- No markdown. No extra fields. Valid JSON only.`;
+- dailyTips: exactly 28 items — one for each day of the 4-week plan.
+- Each tip must have a short punchy "title" (3–5 words) and a "body" (1–2 sentences).
+- Tips must be directly relevant to THIS specific growth challenge — not generic parenting advice.
+- Rotate through 4 tip types across the 28 days (7 of each, spread evenly — not grouped): Islamic wisdom, child development insight, practical encouragement, parent self-reminder.
+- Tips must feel like a wise friend speaking to this parent on that specific day of the journey — warm, specific, varied, and never repetitive.
+- No citations, hadith numbers, or source names.
+- No markdown. No extra fields. Valid JSON only.
+
+Also add to the JSON structure:
+  "dailyTips": [
+    { "title": "3-5 word title", "body": "1-2 sentences. Warm, specific to the challenge, directly useful to the parent today." },
+    ... 28 items total
+  ]`;
 
     let raw: string;
     try {
