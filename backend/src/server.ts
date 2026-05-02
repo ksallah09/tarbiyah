@@ -2050,11 +2050,20 @@ Respond with valid JSON only (no markdown):
       "theme": "Short theme title for this week (3-5 words)",
       "habits": [
         {
-          "text": "Specific repeatable parent habit or behaviour — what the parent does daily. Written as a clear action.",
+          "priority": "primary",
+          "text": "The single most impactful habit for this week. A busy parent must do this one above all others.",
           "wisdom": "2-3 sentences explaining the developmental mechanism — why this specific action works for this child's specific issue. No generic advice."
         },
-        { "text": "...", "wisdom": "..." },
-        { "text": "...", "wisdom": "..." }
+        {
+          "priority": "secondary",
+          "text": "An important supporting habit. Do this if you have 10 extra minutes in your day.",
+          "wisdom": "2-3 sentences on why this reinforces the primary habit for this specific child."
+        },
+        {
+          "priority": "bonus",
+          "text": "A bonus habit for parents who want to go deeper this week.",
+          "wisdom": "2-3 sentences on why this adds meaningful value for this child's growth."
+        }
       ],
       "activities": [
         {
@@ -2073,7 +2082,7 @@ Respond with valid JSON only (no markdown):
 
 Rules:
 - Exactly 4 weeks.
-- Each week: exactly 3 habits and exactly 3 activities.
+- Each week: exactly 3 habits (one "primary", one "secondary", one "bonus" — in that order) and exactly 3 activities.
 - All habits and activities must be visibly connected to the specific challenge.
 - Habits progress across weeks (Week 1: observe and connect → Week 4: sustain and celebrate).
 - Activities become progressively more child-led across weeks.
