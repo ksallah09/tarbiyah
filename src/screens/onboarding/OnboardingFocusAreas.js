@@ -46,7 +46,7 @@ export default function OnboardingFocusAreas({ navigation, route }) {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <ProgressDots current={3} total={6} />
+          <ProgressDots current={6} total={9} />
 
           <View style={styles.textWrap}>
             <TypewriterText

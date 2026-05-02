@@ -510,6 +510,50 @@ export async function topUpPlanNotifications(pipPlan, childPlans = []) {
   } catch {}
 }
 
+// ─── Family Goal: end-of-week reminder ───────────────────────────────────────
+const FAMILY_GOAL_REMINDER_ID_KEY = 'tarbiyah_family_goal_reminder_id';
+
+function getNextSaturday7pm() {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun … 6=Sat
+  const fire = new Date(now);
+  fire.setHours(19, 0, 0, 0);
+
+  if (day === 6) {
+    if (now.getHours() >= 19) fire.setDate(fire.getDate() + 7);
+  } else {
+    fire.setDate(fire.getDate() + ((6 - day + 7) % 7));
+  }
+  return fire;
+}
+
+export async function updateFamilyGoalReminder(hasIncompleteGoals) {
+  try {
+    const granted = await requestNotificationPermission();
+    if (!granted) return;
+
+    await cancelNotificationIds(FAMILY_GOAL_REMINDER_ID_KEY);
+
+    if (!hasIncompleteGoals) return;
+
+    const fireDate = getNextSaturday7pm();
+    if (fireDate <= new Date()) return;
+
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Family Goals',
+        body: "This week didn't go as planned — your family goals are incomplete. Next week is a new opportunity to nurture faith and connection in your family. You've got this.",
+        sound: true,
+        data: { screen: 'Progress' },
+        android: { channelId: 'default' },
+      },
+      trigger: { type: 'date', date: fireDate },
+    });
+
+    await AsyncStorage.setItem(FAMILY_GOAL_REMINDER_ID_KEY, id);
+  } catch {}
+}
+
 // ─── Called on app open — reschedules with latest insight titles ──────────────
 export async function refreshDailyNotification() {
   try {

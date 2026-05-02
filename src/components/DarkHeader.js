@@ -13,7 +13,7 @@ export default function DarkHeader({ title, subtitle, right }) {
   return (
     <>
       <StatusBar style="light" />
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View style={styles.row}>
           <View style={styles.textBlock}>
             <Text style={styles.title}>{title}</Text>
@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#1B3D2F',
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 28,
   },
   row: {
     flexDirection: 'row',

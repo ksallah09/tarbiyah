@@ -5,28 +5,30 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Switch,
   AppState,
   RefreshControl,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DarkHeader from '../components/DarkHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { getMonthReadDays, getStreak } from '../utils/readInsights';
+import { getMonthReadDays, getStreak, getPartnerMonthCounts } from '../utils/readInsights';
 
 import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal } from '../utils/familyGoals';
+import { getAllChildProfiles, syncChildProfilesFromSupabase } from '../utils/childProfiles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
+import { updateFamilyGoalReminder } from '../utils/notifications';
 import { rs, hp } from '../utils/responsive';
-import { getActivePlan, getTodayLog, logHabit, streakCount, getHabitLogs, todayStr, daysSinceStart } from '../utils/pip';
-import { getAllChildPlans, getTodayActionLog, getActionLogs, streakCount as childStreakCount, daysSinceStart as childDaysSinceStart } from '../utils/childPlan';
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CHILD_CARD_W = SCREEN_WIDTH - hp - 40;
 
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Module-level caches so state initialises instantly on re-mount
+let _childrenCache = [];
 let _spirCache       = [];
 let _sciCache        = [];
 let _quranCache      = [];
@@ -44,170 +46,8 @@ function getMotivationText(done, total) {
   return 'Ma Shaa Allah! Keep it up';
 }
 
-function phaseShortName(phase, index) {
-  const match = phase?.phase?.match(/Phase \d+[:\s]+(.+?)\s*\(Days/i);
-  return match ? match[1].trim() : (phase?.title || `Phase ${index + 1}`);
-}
-
-function PlanPhaseVisual({ plan, daysSince, streak, accentColor }) {
-  const phases = plan?.roadmap ?? [];
-  const totalDays = plan?.durationDays ?? 0;
-  const dayNumber = Math.min(Math.max(daysSince ?? 1, 1), totalDays);
-
-  // Find which phase we're in
-  let currentPhaseIdx = Math.max(phases.length - 1, 0);
-  let elapsed = 0;
-  for (let i = 0; i < phases.length; i++) {
-    elapsed += phases[i].durationDays ?? 0;
-    if (dayNumber <= elapsed) { currentPhaseIdx = i; break; }
-  }
-  const currentPhase = phases[currentPhaseIdx];
-
-  return (
-    <View style={phaseStyles.wrap}>
-
-      {/* Phase label pills */}
-      {phases.length > 0 && (
-        <>
-          <Text style={phaseStyles.pillsLabel}>PHASES</Text>
-          <View style={phaseStyles.pillRow}>
-            {phases.map((p, i) => {
-              const done = i < currentPhaseIdx;
-              const active = i === currentPhaseIdx;
-              return (
-                <View key={i} style={[phaseStyles.pill, active && { borderColor: accentColor, backgroundColor: `${accentColor}18` }, done && phaseStyles.pillDone]}>
-                  <Text style={[phaseStyles.pillNum, active && { color: accentColor }, done && { color: 'rgba(255,255,255,0.3)' }]}>{i + 1}</Text>
-                  <View style={phaseStyles.pillDivider} />
-                  {done
-                    ? <Ionicons name="checkmark" size={9} color={accentColor} style={{ opacity: 0.7 }} />
-                    : active
-                      ? <View style={[phaseStyles.pillDot, { backgroundColor: accentColor }]} />
-                      : <View style={phaseStyles.pillDotFuture} />
-                  }
-                  <Text style={[phaseStyles.pillText, active && { color: accentColor }, done && { color: 'rgba(255,255,255,0.4)' }]}>
-                    {phaseShortName(p, i)}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </>
-      )}
-
-      {/* Segmented progress bar */}
-      <View style={phaseStyles.barRow}>
-        {phases.length > 1 ? phases.map((p, i) => {
-          const phaseStart = phases.slice(0, i).reduce((s, ph) => s + (ph.durationDays ?? 0), 0);
-          const phaseDays  = p.durationDays ?? 0;
-          const done = i < currentPhaseIdx;
-          const active = i === currentPhaseIdx;
-          const fill = done ? 1 : active ? Math.min(Math.max((dayNumber - phaseStart) / phaseDays, 0), 1) : 0;
-          return (
-            <View key={i} style={[phaseStyles.barSegment, { flex: phaseDays }, i > 0 && { marginLeft: 3 }]}>
-              <View style={[phaseStyles.barFill, { width: `${fill * 100}%`, backgroundColor: accentColor, opacity: done ? 0.45 : 1 }]} />
-            </View>
-          );
-        }) : (
-          // No phases — single bar
-          <View style={[phaseStyles.barSegment, { flex: 1 }]}>
-            <View style={[phaseStyles.barFill, { width: `${totalDays > 0 ? Math.min(dayNumber / totalDays, 1) * 100 : 0}%`, backgroundColor: accentColor }]} />
-          </View>
-        )}
-      </View>
-
-      {/* Footer: day count + current phase name + streak */}
-      <View style={phaseStyles.footer}>
-        <Text style={phaseStyles.footerDay}>Day {dayNumber} of {totalDays}</Text>
-        {currentPhase && (
-          <>
-            <Text style={phaseStyles.footerSep}>·</Text>
-            <Text style={phaseStyles.footerPhase} numberOfLines={1}>{phaseShortName(currentPhase, currentPhaseIdx)}</Text>
-          </>
-        )}
-        <View style={{ flex: 1 }} />
-        <Ionicons name="flame" size={11} color={accentColor} />
-        <Text style={[phaseStyles.footerStreak, { color: accentColor }]}>{streak ?? 0} day streak</Text>
-      </View>
-
-    </View>
-  );
-}
-
-const phaseStyles = StyleSheet.create({
-  wrap: { marginTop: 4 },
-  pillsLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 0.8, marginBottom: 8 },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
-  pill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  pillDone: { borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'transparent' },
-  pillNum: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.35)' },
-  pillDivider: { width: 1, height: 10, backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 1 },
-  pillDot: { width: 6, height: 6, borderRadius: 3 },
-  pillDotFuture: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.2)' },
-  pillText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
-  barRow: { flexDirection: 'row', marginBottom: 12 },
-  barSegment: {
-    height: 6, borderRadius: 3, overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  barFill: { height: '100%', borderRadius: 3 },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
-  footerDay: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
-  footerSep: { fontSize: 12, color: 'rgba(255,255,255,0.25)' },
-  footerPhase: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '500', flexShrink: 1 },
-  footerStreak: { fontSize: 12, fontWeight: '700' },
-});
-
-function MonthGrid({ days, color, todayColor }) {
-  return (
-    <View style={gridStyles.grid}>
-      {days.map(d => (
-        <View
-          key={d.day}
-          style={[
-            gridStyles.dot,
-            d.completed && { backgroundColor: color },
-            d.today && !d.completed && { backgroundColor: todayColor, borderColor: color, borderWidth: 1.5 },
-            d.future && gridStyles.dotFuture,
-          ]}
-        >
-          {d.today && !d.completed
-            ? <Text style={[gridStyles.dotNum, { color, fontWeight: '700' }]}>{d.day}</Text>
-            : !d.completed && !d.future
-              ? <Text style={gridStyles.dotNum}>{d.day}</Text>
-              : d.completed
-                ? <Ionicons name="checkmark" size={10} color="#FFF" />
-                : null
-          }
-        </View>
-      ))}
-    </View>
-  );
-}
-
-const gridStyles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  dot: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F0F1F3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dotFuture: { backgroundColor: '#F7F8F9' },
-  dotNum: { fontSize: 10, fontWeight: '600', color: '#9CA3AF' },
-});
-
 export default function ProgressScreen({ navigation }) {
+  const [children,    setChildren]         = useState(_childrenCache);
   const [spirMonth,   setSpiritualMonth]   = useState(_spirCache);
   const [sciMonth,    setScientificMonth]  = useState(_sciCache);
   const [quranMonth,  setQuranMonth]       = useState(_quranCache);
@@ -216,36 +56,14 @@ export default function ProgressScreen({ navigation }) {
   const [quranStreak, setQuranStreak]      = useState(_quranStreakCache);
   const [familyGoals,  setFamilyGoals]  = useState(_familyGoalsCache);
   const [completions,  setCompletions]  = useState(_completionsCache);
-  const [syncStatus,   setSyncStatus]   = useState(_syncStatusCache);
+  const [syncStatus,    setSyncStatus]    = useState(_syncStatusCache);
+  const [partnerCounts, setPartnerCounts] = useState({ spiritual: 0, scientific: 0, quran: 0 });
+  const [partnerSyncOn, setPartnerSyncOn] = useState(true);
   const [refreshing,  setRefreshing]       = useState(false);
   const hasMountedRef = useRef(false);
 
-  // ── PIP ──
-  const [activePlan,  setActivePlan]  = useState(null);
-  const [pipLogs,     setPipLogs]     = useState({});
-
-  // ── Child Plans ──
-  const [childPlans,         setChildPlans]         = useState([]);
-  const [childLogs,          setChildLogs]          = useState({});
-  const [childCardIndex,     setChildCardIndex]     = useState(0);
-
-  useFocusEffect(useCallback(() => {
-    getActivePlan().then(p => {
-      setActivePlan(p);
-      if (p) getHabitLogs().then(setPipLogs);
-    });
-    getAllChildPlans().then(async plans => {
-      setChildPlans(plans);
-      const allLogs = {};
-      for (const p of plans) allLogs[p.id] = await getActionLogs(p.id);
-      setChildLogs(allLogs);
-    });
-  }, []));
-
-  const now = new Date();
-  const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
-
   const refreshAll = useCallback(() => {
+    getAllChildProfiles().then(v => { _childrenCache = v; setChildren(v); });
     getMonthReadDays('spiritual').then(v  => { _spirCache       = v;  setSpiritualMonth(v); });
     getMonthReadDays('scientific').then(v => { _sciCache        = v;  setScientificMonth(v); });
     getMonthReadDays('quran').then(v      => { _quranCache      = v;  setQuranMonth(v); });
@@ -264,16 +82,27 @@ export default function ProgressScreen({ navigation }) {
     // Phase 2: sync status (AsyncStorage instant → Supabase background)
     getCachedSyncStatus().then(cached => {
       _syncStatusCache = cached; setSyncStatus(cached);
+      if (cached.linked && cached.partner?.userId) {
+        getPartnerMonthCounts(cached.partner.userId).then(setPartnerCounts);
+      }
       getFamilySyncStatus().then(live => {
         _syncStatusCache = live; setSyncStatus(live);
-        // Reload goals after sync resolves in case family_id changed
         loadFamilyGoals().then(v => { _familyGoalsCache = v; setFamilyGoals(v); });
+        if (live.linked && live.partner?.userId) {
+          getPartnerMonthCounts(live.partner.userId).then(setPartnerCounts);
+        }
       });
     });
   }, []);
 
   // Initial load on mount
-  useEffect(() => { refreshAll(); }, []);
+  useEffect(() => {
+    refreshAll();
+    syncChildProfilesFromSupabase().then(() => getAllChildProfiles().then(v => { _childrenCache = v; setChildren(v); }));
+    AsyncStorage.getItem('tarbiyah_partner_sync_on').then(val => {
+      if (val === 'false') setPartnerSyncOn(false);
+    });
+  }, []);
 
   // Re-sync on subsequent focuses to pick up reads/updates from other tabs
   // Skip the very first focus since useEffect already handles initial load
@@ -299,6 +128,13 @@ export default function ProgressScreen({ navigation }) {
     ]);
     setRefreshing(false);
   }, []);
+
+  // Schedule or cancel the Saturday family goal reminder based on current completion state
+  useEffect(() => {
+    if (familyGoals.length === 0) return;
+    const hasIncomplete = familyGoals.some(g => countThisWeek(completions, g.id) < (g.frequency ?? 1));
+    updateFamilyGoalReminder(hasIncomplete);
+  }, [familyGoals, completions]);
 
   // Re-sync when the app comes back to the foreground (cross-device updates)
   const appState = useRef(AppState.currentState);
@@ -334,129 +170,54 @@ export default function ProgressScreen({ navigation }) {
           />
         }
       >
-        <DarkHeader title="Growth" subtitle="Actionable plans for lasting change" />
+        <DarkHeader title="Family" subtitle="Manage profiles, track goals, and grow together" />
         <View style={styles.sheet}>
         <View style={styles.content}>
 
-        {/* ── Child Development Plan ── */}
+        {/* ── Your Children ── */}
         <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>CHILD DEVELOPMENT PLAN</Text>
-          <TouchableOpacity style={styles.addGoalBtn} onPress={() => navigation.navigate('ChildPlanWizard')} activeOpacity={0.8}>
-            <Ionicons name="add" size={14} color="#FFFFFF" />
-            <Text style={styles.addGoalBtnText}>New Plan</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>YOUR CHILDREN</Text>
         </View>
-        {childPlans.length > 0 ? (
-          <>
-            <View style={{ marginHorizontal: -hp }}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={CHILD_CARD_W + 12}
-              decelerationRate="fast"
-              disableIntervalMomentum
-              contentContainerStyle={{ paddingLeft: hp }}
-              onScroll={e => setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / (CHILD_CARD_W + 12)))}
-              scrollEventThrottle={16}
-              style={{ marginBottom: childPlans.length > 1 ? 8 : 16 }}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={childStyles.row}
+          style={{ marginHorizontal: -hp, marginBottom: 28 }}
+          nestedScrollEnabled
+        >
+          <View style={{ width: hp }} />
+          {children.map(child => (
+            <TouchableOpacity
+              key={child.id}
+              style={childStyles.card}
+              onPress={() => navigation.navigate('ChildDashboard', { child })}
+              activeOpacity={0.82}
             >
-              {childPlans.map((plan) => {
-                return (
-                  <TouchableOpacity
-                    key={plan.id}
-                    style={[styles.pipCard, { width: CHILD_CARD_W, marginBottom: 0, marginRight: 12, backgroundColor: '#1B3D2F' }]}
-                    onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
-                    activeOpacity={0.88}
-                  >
-                    <View style={styles.pipCardTop}>
-                      <View style={styles.pipJourneyBadge}>
-                        <Ionicons name="leaf-outline" size={12} color="#4ADE80" />
-                        <Text style={styles.pipJourneyText}>Age {plan.childAge} · {plan.journeyType} · {plan.durationDays} days</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
-                    </View>
-                    <View style={[styles.focusBadgeActive, { backgroundColor: 'rgba(74,222,128,0.15)' }]}><Text style={[styles.focusBadgeActiveText, { color: '#4ADE80' }]}>Child growth</Text></View>
-                    <Text style={styles.pipTitle} numberOfLines={2}>{plan.title}</Text>
-                    <PlanPhaseVisual
-                      plan={plan}
-                      daysSince={childDaysSinceStart(plan.startDate)}
-                      streak={childStreakCount(childLogs[plan.id] || {})}
-                      accentColor="#4ADE80"
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            </View>
-            {childPlans.length > 1 && (
-              <View style={styles.dotsRow}>
-                {childPlans.map((_, i) => (
-                  <View key={i} style={[styles.dot, i === childCardIndex && styles.dotActive]} />
-                ))}
-                <Text style={styles.dotsSwipeHint}>Swipe to see more</Text>
+              <View style={[childStyles.avatar, { backgroundColor: child.color }]}>
+                {child.photo
+                  ? <Image source={{ uri: child.photo }} style={childStyles.avatarPhoto} />
+                  : <Text style={childStyles.avatarInitial}>{child.name[0]}</Text>
+                }
               </View>
-            )}
-          </>
-        ) : (
-          <TouchableOpacity style={styles.pipEmptyCard} onPress={() => navigation.navigate('ChildPlanWizard')} activeOpacity={0.85}>
-            <View style={styles.pipEmptyIcon}>
-              <Ionicons name="leaf-outline" size={26} color="#2E7D62" />
-            </View>
-            <View style={styles.pipEmptyText}>
-              <View style={[styles.focusBadge, { backgroundColor: '#E8F5EF' }]}><Text style={[styles.focusBadgeText, { color: '#2E7D62' }]}>Child growth</Text></View>
-              <Text style={styles.pipEmptyTitle}>Child Development Plan</Text>
-              <Text style={styles.pipEmptyBody}>Get a personalised plan to help nurture your child's confidence, responsibility, faith, or any growth area.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
-        )}
-
-        {/* ── Parent Development Plan ── */}
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>PARENT DEVELOPMENT PLAN</Text>
-          {!activePlan && (
-            <TouchableOpacity style={styles.addGoalBtn} onPress={() => navigation.navigate('PIPWizard')} activeOpacity={0.8}>
-              <Ionicons name="add" size={14} color="#FFFFFF" />
-              <Text style={styles.addGoalBtnText}>New Plan</Text>
+              <Text style={childStyles.childName}>{child.name}</Text>
+              <View style={childStyles.agePill}>
+                <Text style={childStyles.ageText}>Age {child.age}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={12} color="#9CA3AF" style={{ marginTop: 6 }} />
             </TouchableOpacity>
-          )}
-        </View>
-
-        {activePlan ? (
+          ))}
           <TouchableOpacity
-            style={styles.pipCard}
-            onPress={() => navigation.navigate('PIPDetail', { plan: activePlan })}
-            activeOpacity={0.88}
+            style={[childStyles.card, childStyles.addCard]}
+            activeOpacity={0.82}
+            onPress={() => navigation.navigate('AddChildWizard')}
           >
-            <View style={styles.pipCardTop}>
-              <View style={styles.pipJourneyBadge}>
-                <Ionicons name={activePlan.journeyType === 'Reset' ? 'flash-outline' : activePlan.journeyType === 'Transformation' ? 'sparkles-outline' : 'trending-up-outline'} size={12} color="#C9A84C" />
-                <Text style={styles.pipJourneyText}>{activePlan.journeyType} · {activePlan.durationDays} days</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+            <View style={childStyles.addIcon}>
+              <Ionicons name="add" size={22} color="#2E7D62" />
             </View>
-            <View style={styles.focusBadgeActive}><Text style={styles.focusBadgeActiveText}>Parent growth</Text></View>
-            <Text style={styles.pipTitle} numberOfLines={2}>{activePlan.title}</Text>
-            <PlanPhaseVisual
-              plan={activePlan}
-              daysSince={daysSinceStart(activePlan.startDate)}
-              streak={streakCount(pipLogs)}
-              accentColor="#C9A84C"
-            />
+            <Text style={childStyles.addLabel}>Add Child</Text>
           </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.pipEmptyCard} onPress={() => navigation.navigate('PIPWizard')} activeOpacity={0.85}>
-            <View style={styles.pipEmptyIcon}>
-              <Ionicons name="rocket-outline" size={26} color="#2E7D62" />
-            </View>
-            <View style={styles.pipEmptyText}>
-              <View style={styles.focusBadge}><Text style={styles.focusBadgeText}>Parent growth</Text></View>
-              <Text style={styles.pipEmptyTitle}>Start a Parent Development Plan</Text>
-              <Text style={styles.pipEmptyBody}>Get a personalized plan to build the skills, habits, and capacity to become the prophetic parent you aspire to be.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
-        )}
+          <View style={{ width: hp }} />
+        </ScrollView>
 
         {/* ── Family Goals ── */}
         <View style={styles.sectionTitleRow}>
@@ -566,8 +327,22 @@ export default function ProgressScreen({ navigation }) {
           })
         )}
 
-        {/* Family sync status */}
-        {syncStatus.linked ? (
+        {/* ── Partner Sync ── */}
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>PARTNER SYNC</Text>
+          <Switch
+            value={partnerSyncOn}
+            onValueChange={val => {
+              setPartnerSyncOn(val);
+              AsyncStorage.setItem('tarbiyah_partner_sync_on', String(val));
+            }}
+            trackColor={{ false: '#D1D5DB', true: '#2E7D62' }}
+            thumbColor="#FFFFFF"
+            style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+          />
+        </View>
+
+        {partnerSyncOn && (syncStatus.linked ? (
           <View style={styles.syncLinkedCard}>
             <View style={styles.syncLinkedAvatarRow}>
               <View style={styles.syncAvatar}>
@@ -606,78 +381,116 @@ export default function ProgressScreen({ navigation }) {
             </View>
             <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
           </TouchableOpacity>
+        ))}
+
+        {partnerSyncOn && !syncStatus.linked && (
+          <View style={styles.leaderboardPreview}>
+            <View style={styles.leaderboardPreviewHeader}>
+              <Ionicons name="trophy" size={13} color="#C9A84C" />
+              <Text style={styles.leaderboardHeaderText}>MONTHLY READS LEADERBOARD</Text>
+              <View style={styles.leaderboardLockPill}>
+                <Ionicons name="lock-closed" size={9} color="#C9A84C" />
+                <Text style={styles.leaderboardLockText}>Sync to unlock</Text>
+              </View>
+            </View>
+            <View style={styles.leaderboardColRow}>
+              <Text style={styles.leaderboardColLabel}>YOU</Text>
+              <View style={{ flex: 1 }} />
+              <Text style={[styles.leaderboardColLabel, { color: 'rgba(255,255,255,0.2)' }]}>PARTNER</Text>
+            </View>
+            {[
+              { label: 'Spiritual', icon: 'moon',        color: '#4ADE80' },
+              { label: 'Research',  icon: 'bulb-outline', color: '#F59E0B' },
+              { label: 'Quran',     icon: 'book-outline', color: '#93C5FD' },
+            ].map(({ label, icon, color }) => (
+              <View key={label} style={styles.leaderboardRow}>
+                <Text style={styles.leaderboardScore}>{spirStreak + sciStreak + quranStreak > 0 ? [spirMonth, sciMonth, quranMonth][['Spiritual','Research','Quran'].indexOf(label)].filter(d => d.completed).length : '—'}</Text>
+                <View style={styles.leaderboardMid}>
+                  <View style={styles.leaderboardBarWrap}>
+                    <View style={[styles.leaderboardBarFill, styles.leaderboardBarLeft, { width: '60%', backgroundColor: color + '55' }]} />
+                  </View>
+                  <View style={[styles.leaderboardCatPill, { backgroundColor: color + '22' }]}>
+                    <Ionicons name={icon} size={10} color={color} />
+                    <Text style={[styles.leaderboardCatText, { color }]}>{label}</Text>
+                  </View>
+                  <View style={[styles.leaderboardBarWrap, { opacity: 0.25 }]}>
+                    <View style={[styles.leaderboardBarFill, styles.leaderboardBarRight, { width: '40%', backgroundColor: '#FFFFFF' }]} />
+                  </View>
+                </View>
+                <Text style={[styles.leaderboardScore, { color: 'rgba(255,255,255,0.15)' }]}>?</Text>
+              </View>
+            ))}
+            <View style={styles.leaderboardDivider} />
+            <TouchableOpacity
+              style={styles.leaderboardUnlockBtn}
+              onPress={() => navigation.navigate('FamilySync')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="people-outline" size={14} color="#1B3D2F" />
+              <Text style={styles.leaderboardUnlockText}>Sync with your partner to see the leaderboard</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
-        {/* ── Streak counters ── */}
-        <Text style={[styles.sectionTitle, { marginTop: 28 }]}>CURRENT LEARNING STREAKS</Text>
-        <View style={styles.streakRow}>
-          {[
-            { label: 'Spiritual',  streak: spirStreak,  icon: 'moon',        color: '#2E7D62', bg: '#E8F5EF' },
-            { label: 'Research',   streak: sciStreak,   icon: 'bulb-outline', color: '#D4871A', bg: '#FEF3E7' },
-            { label: 'Quran',      streak: quranStreak, icon: 'book-outline', color: '#1A3A6B', bg: '#EEF4FB' },
-          ].map(({ label, streak, icon, color, bg }) => (
-            <View key={label} style={[styles.streakCountCard, { backgroundColor: bg }]}>
-              <Ionicons name={icon} size={16} color={color} />
-              <Text style={[styles.streakCountNum, { color }]}>{streak}</Text>
-              <Text style={[styles.streakCountLabel, { color }]}>{label}</Text>
-              <Text style={styles.streakCountSub}>day streak</Text>
+        {partnerSyncOn && syncStatus.linked && (() => {
+          const partnerFirstName = syncStatus.partner?.name?.split(' ')[0] ?? 'Partner';
+          const mySpir   = spirMonth.filter(d => d.completed).length;
+          const mySci    = sciMonth.filter(d => d.completed).length;
+          const myQuran  = quranMonth.filter(d => d.completed).length;
+          const myTotal  = mySpir + mySci + myQuran;
+          const prtTotal = partnerCounts.spiritual + partnerCounts.scientific + partnerCounts.quran;
+          const ROWS = [
+            { label: 'Spiritual', icon: 'moon',        color: '#4ADE80', my: mySpir,  partner: partnerCounts.spiritual },
+            { label: 'Research',  icon: 'bulb-outline', color: '#F59E0B', my: mySci,   partner: partnerCounts.scientific },
+            { label: 'Quran',     icon: 'book-outline', color: '#93C5FD', my: myQuran, partner: partnerCounts.quran },
+          ];
+          const winnerMsg = myTotal > prtTotal
+            ? "You're leading — Ma Shaa Allah! 🏆"
+            : prtTotal > myTotal
+              ? `${partnerFirstName} is leading — keep going! 💪`
+              : "You're tied — great effort, both of you! 🤝";
+          return (
+            <View style={styles.leaderboardCard}>
+              <View style={styles.leaderboardHeaderRow}>
+                <Ionicons name="trophy" size={13} color="#C9A84C" />
+                <Text style={styles.leaderboardHeaderText}>MONTHLY READS LEADERBOARD</Text>
+              </View>
+              <View style={styles.leaderboardColRow}>
+                <Text style={styles.leaderboardColLabel}>YOU</Text>
+                <View style={{ flex: 1 }} />
+                <Text style={styles.leaderboardColLabel}>{partnerFirstName.toUpperCase()}</Text>
+              </View>
+              {ROWS.map(({ label, icon, color, my, partner }) => {
+                const max = Math.max(my, partner, 1);
+                return (
+                  <View key={label} style={styles.leaderboardRow}>
+                    <Text style={[styles.leaderboardScore, my > partner && styles.leaderboardScoreWin]}>{my}</Text>
+                    <View style={styles.leaderboardMid}>
+                      <View style={styles.leaderboardBarWrap}>
+                        <View style={[styles.leaderboardBarFill, styles.leaderboardBarLeft, { width: `${(my / max) * 100}%`, backgroundColor: color + 'CC' }]} />
+                      </View>
+                      <View style={[styles.leaderboardCatPill, { backgroundColor: color + '22' }]}>
+                        <Ionicons name={icon} size={10} color={color} />
+                        <Text style={[styles.leaderboardCatText, { color }]}>{label}</Text>
+                      </View>
+                      <View style={styles.leaderboardBarWrap}>
+                        <View style={[styles.leaderboardBarFill, styles.leaderboardBarRight, { width: `${(partner / max) * 100}%`, backgroundColor: color + 'CC' }]} />
+                      </View>
+                    </View>
+                    <Text style={[styles.leaderboardScore, partner > my && styles.leaderboardScoreWin]}>{partner}</Text>
+                  </View>
+                );
+              })}
+              <View style={styles.leaderboardDivider} />
+              <View style={styles.leaderboardTotalRow}>
+                <Text style={[styles.leaderboardTotalNum, myTotal >= prtTotal && myTotal > 0 && styles.leaderboardScoreWin]}>{myTotal}</Text>
+                <Text style={styles.leaderboardTotalLabel}>TOTAL</Text>
+                <Text style={[styles.leaderboardTotalNum, prtTotal > myTotal && styles.leaderboardScoreWin]}>{prtTotal}</Text>
+              </View>
+              <Text style={styles.leaderboardWinner}>{winnerMsg}</Text>
             </View>
-          ))}
-        </View>
-
-        {/* ── This Month ── */}
-        <Text style={[styles.sectionTitle, { marginTop: 28 }]}>THIS MONTH</Text>
-
-        {/* Spiritual month */}
-        <View style={[styles.trackCard, styles.trackCardSpiritual]}>
-          <View style={styles.cardTopRow}>
-            <View style={styles.labelRow}>
-              <Ionicons name="moon" size={13} color="#2E7D62" />
-              <Text style={[styles.cardLabel, { color: '#2E7D62' }]}>Spiritual</Text>
-            </View>
-            <Text style={styles.monthLabel}>{monthLabel}</Text>
-          </View>
-          <Text style={styles.subLabel}>Days you read a spiritual insight</Text>
-          <MonthGrid days={spirMonth} color="#1B3D2F" todayColor="#D6EFE3" />
-          <View style={styles.streakInline}>
-            <Ionicons name="flame" size={12} color="#2E7D62" />
-            <Text style={[styles.streakInlineText, { color: '#2E7D62' }]}>{spirStreak} day streak</Text>
-          </View>
-        </View>
-
-        {/* Scientific month */}
-        <View style={[styles.trackCard, styles.trackCardResearch, { marginTop: 12 }]}>
-          <View style={styles.cardTopRow}>
-            <View style={styles.labelRow}>
-              <Ionicons name="bulb-outline" size={13} color="#D4871A" />
-              <Text style={[styles.cardLabel, { color: '#D4871A' }]}>Research</Text>
-            </View>
-            <Text style={styles.monthLabel}>{monthLabel}</Text>
-          </View>
-          <Text style={styles.subLabel}>Days you read a scientific insight</Text>
-          <MonthGrid days={sciMonth} color="#D4871A" todayColor="#FDE8C0" />
-          <View style={styles.streakInline}>
-            <Ionicons name="flame" size={12} color="#D4871A" />
-            <Text style={[styles.streakInlineText, { color: '#D4871A' }]}>{sciStreak} day streak</Text>
-          </View>
-        </View>
-
-        {/* Quran month */}
-        <View style={[styles.trackCard, styles.trackCardQuran, { marginTop: 12 }]}>
-          <View style={styles.cardTopRow}>
-            <View style={styles.labelRow}>
-              <Ionicons name="book-outline" size={13} color="#6B9FD4" />
-              <Text style={[styles.cardLabel, { color: '#6B9FD4' }]}>Quran</Text>
-            </View>
-            <Text style={styles.monthLabel}>{monthLabel}</Text>
-          </View>
-          <Text style={styles.subLabel}>Days you read the verses of the day</Text>
-          <MonthGrid days={quranMonth} color="#1A3A6B" todayColor="#D0E4F7" />
-          <View style={styles.streakInline}>
-            <Ionicons name="flame" size={12} color="#6B9FD4" />
-            <Text style={[styles.streakInlineText, { color: '#6B9FD4' }]}>{quranStreak} day streak</Text>
-          </View>
-        </View>
+          );
+        })()}
 
         <View style={{ height: 32 }} />
         </View>
@@ -695,16 +508,11 @@ const styles = StyleSheet.create({
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: 'hidden',
   },
   content: { paddingHorizontal: hp, paddingTop: 20 },
-
-  // ── Streak inline ──
-  trackCardSpiritual: { borderTopWidth: 2, borderTopColor: '#1B3D2F' },
-  trackCardResearch:  { borderTopWidth: 2, borderTopColor: '#D4871A' },
-  trackCardQuran:     { borderTopWidth: 2, borderTopColor: '#1A3A6B' },
-  streakInline: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 14 },
-  streakInlineText: { fontSize: 11, fontWeight: '700' },
 
   // ── Section title ──
   sectionTitleRow: {
@@ -722,48 +530,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
     letterSpacing: 0.3,
     marginBottom: 14,
-  },
-  focusBadge: {
-    backgroundColor: '#FEF3C7', borderRadius: 100,
-    paddingHorizontal: 9, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 6,
-  },
-  focusBadgeText: { fontSize: 10, fontWeight: '700', color: '#B45309' },
-  focusBadgeActive: {
-    backgroundColor: 'rgba(201,168,76,0.15)', borderRadius: 100,
-    paddingHorizontal: 9, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 6,
-  },
-  focusBadgeActiveText: { fontSize: 10, fontWeight: '700', color: '#C9A84C' },
-  streakRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 4,
-  },
-  streakCountCard: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 14,
-    alignItems: 'center',
-    gap: 2,
-  },
-  streakCountNum: {
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -1,
-    marginTop: 6,
-  },
-  streakCountEmoji: {
-    fontSize: 14, // kept for layout spacing — rendered as Ionicons
-  },
-  streakCountLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    marginTop: 4,
-  },
-  streakCountSub: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    fontWeight: '500',
   },
   addGoalBtn: {
     flexDirection: 'row',
@@ -910,6 +676,87 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
+  // ── Partner Sync leaderboard ──
+  leaderboardPreview: {
+    backgroundColor: '#1B3D2F', borderRadius: 18, padding: 18, marginBottom: 4,
+    marginTop: 10, opacity: 0.88,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 14, elevation: 5,
+  },
+  leaderboardPreviewHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16,
+  },
+  leaderboardLockPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(201,168,76,0.15)', borderRadius: 20,
+    paddingHorizontal: 8, paddingVertical: 3, marginLeft: 'auto',
+  },
+  leaderboardLockText: { fontSize: 10, fontWeight: '700', color: '#C9A84C' },
+  leaderboardUnlockBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 7, backgroundColor: '#C9A84C', borderRadius: 12,
+    paddingVertical: 11, marginTop: 4,
+  },
+  leaderboardUnlockText: {
+    fontSize: 12, fontWeight: '700', color: '#1B3D2F',
+  },
+  leaderboardCard: {
+    backgroundColor: '#1B3D2F', borderRadius: 18, padding: 18, marginBottom: 4,
+    marginTop: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 14, elevation: 5,
+  },
+  leaderboardHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16,
+  },
+  leaderboardHeaderText: {
+    fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C',
+  },
+  leaderboardColRow: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 12,
+  },
+  leaderboardColLabel: {
+    fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.5)', letterSpacing: 1,
+  },
+  leaderboardRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10,
+  },
+  leaderboardScore: {
+    width: 28, fontSize: 18, fontWeight: '800', color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center',
+  },
+  leaderboardScoreWin: { color: '#FFFFFF' },
+  leaderboardMid: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
+  },
+  leaderboardBarWrap: { flex: 1, height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' },
+  leaderboardBarFill: { height: '100%', borderRadius: 2 },
+  leaderboardBarLeft:  { alignSelf: 'flex-end' },
+  leaderboardBarRight: { alignSelf: 'flex-start' },
+  leaderboardCatPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  leaderboardCatText: { fontSize: 10, fontWeight: '700' },
+  leaderboardDivider: {
+    height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 12,
+  },
+  leaderboardTotalRow: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 10,
+  },
+  leaderboardTotalNum: {
+    width: 28, fontSize: 20, fontWeight: '800', color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center',
+  },
+  leaderboardTotalLabel: {
+    flex: 1, fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.4)',
+    textAlign: 'center', letterSpacing: 1,
+  },
+  leaderboardWinner: {
+    fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center',
+  },
+
   // ── Spouse sync banner ──
   spouseSyncBanner: {
     flexDirection: 'row',
@@ -982,61 +829,53 @@ const styles = StyleSheet.create({
     fontSize: 12, fontWeight: '600', color: '#2E7D62',
   },
 
-  // ── Month tracker cards ──
-  trackCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+});
+
+const CHILD_CARD_SHADOW = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.07,
+  shadowRadius: 8,
+  elevation: 3,
+};
+
+const childStyles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 10, paddingBottom: 4 },
+  card: {
+    width: 110,
+    backgroundColor: '#FFF',
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    marginBottom: 4,
+    ...CHILD_CARD_SHADOW,
   },
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
-  monthLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
-  subLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginBottom: 14 },
+  avatar: {
+    width: 52, height: 52, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 10,
+  },
+  avatarInitial: { fontSize: 20, fontWeight: '800', color: '#FFF' },
+  avatarPhoto:   { width: 52, height: 52, borderRadius: 26 },
+  childName:     { fontSize: 13, fontWeight: '700', color: '#1A1A2E', marginBottom: 6 },
+  agePill: {
+    backgroundColor: '#E8F5EF',
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 20,
+  },
+  ageText: { fontSize: 11, fontWeight: '600', color: '#2E7D62' },
 
-  // ── PIP ──
-  pipCard: {
-    backgroundColor: '#1A2E4A', borderRadius: 18, padding: 18, marginBottom: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 4,
+  addCard: {
+    borderWidth: 1.5,
+    borderColor: '#C3DDD6',
+    borderStyle: 'dashed',
+    backgroundColor: '#FAFAFA',
   },
-  pipCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  pipJourneyBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(201,168,76,0.15)', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
-  pipJourneyText: { fontSize: 11, fontWeight: '700', color: '#C9A84C' },
-  pipTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', lineHeight: 22, marginBottom: 14 },
-  pipHabits: { gap: 10, marginBottom: 14 },
-  pipHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, overflow: 'hidden' },
-  pipHabitCheck: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
-  pipHabitCheckDone: { backgroundColor: '#4ADE80', borderColor: '#4ADE80' },
-  pipHabitText: { flex: 1, flexShrink: 1, fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 19 },
-  pipHabitTextDone: { color: 'rgba(255,255,255,0.35)', textDecorationLine: 'line-through' },
-  pipMoreHabits: { fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '600', paddingLeft: 30 },
-  cardDayPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, paddingHorizontal: 6, paddingVertical: 2 },
-  cardDayPillText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
-  cardMotivation: { fontSize: 11, fontWeight: '600', color: '#4ADE80', marginBottom: 8 },
-  pipProgressRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 12 },
-  pipProgressLabel: { fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginBottom: 16 },
-  dotsSwipeHint: { fontSize: 11, color: '#9CA3AF', marginLeft: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D1D5DB' },
-  dotActive: { backgroundColor: '#1B3D2F', width: 18 },
-  pipEmptyCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, marginBottom: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+  addIcon: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: '#E8F5EF',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 10,
   },
-  pipEmptyIcon: { width: 50, height: 50, borderRadius: 14, backgroundColor: '#E8F5EF', alignItems: 'center', justifyContent: 'center' },
-  pipEmptyText: { flex: 1, gap: 4 },
-  pipEmptyTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E' },
-  pipEmptyBody: { fontSize: 13, color: '#6B7280', lineHeight: 19 },
-
+  addLabel: { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
 });

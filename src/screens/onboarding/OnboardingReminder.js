@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated, Platform,
 } from 'react-native';
@@ -24,14 +24,17 @@ export default function OnboardingReminder({ navigation, route }) {
   const data                              = route.params ?? {};
   const [time, setTime]                   = useState(DEFAULT_TIME);
   const [subtitleReady, setSubtitleReady] = useState(false);
-  const [pickerReady, setPickerReady]     = useState(false);
   const [showAndroidPicker, setShowAndroidPicker] = useState(false);
-  const contentOpacity                    = useRef(new Animated.Value(0)).current;
+  const subtitleOpacity = useRef(new Animated.Value(0)).current;
+  const contentOpacity  = useRef(new Animated.Value(0)).current;
 
-  function handleSubtitleComplete() {
-    setPickerReady(true);
-    Animated.timing(contentOpacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-  }
+  useEffect(() => {
+    if (!subtitleReady) return;
+    Animated.sequence([
+      Animated.timing(subtitleOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(contentOpacity,  { toValue: 1, duration: 500, useNativeDriver: true, delay: 100 }),
+    ]).start();
+  }, [subtitleReady]);
 
   function handleNext() {
     navigation.navigate('OnboardingAccount', {
@@ -45,7 +48,7 @@ export default function OnboardingReminder({ navigation, route }) {
       <StatusBar style="light" />
       <LinearGradient colors={['#1B3D2F', '#0D2419']} style={{ flex: 1 }}>
         <View style={[styles.container, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 }]}>
-          <ProgressDots current={4} total={6} />
+          <ProgressDots current={7} total={9} />
 
           <View style={styles.textWrap}>
             <TypewriterText
@@ -54,14 +57,9 @@ export default function OnboardingReminder({ navigation, route }) {
               style={styles.question}
               onComplete={() => setSubtitleReady(true)}
             />
-            {subtitleReady && (
-              <TypewriterText
-                lines={["Each day at this time, we'll send you a parenting insight drawn from Islamic wisdom and child development research — a moment to reflect and grow."]}
-                charDelay={18}
-                style={styles.subText}
-                onComplete={handleSubtitleComplete}
-              />
-            )}
+            <Animated.Text style={[styles.subText, { opacity: subtitleOpacity }]}>
+              {"Each day at this time, we'll send you a parenting insight drawn from Islamic wisdom and child development research — a moment to reflect and grow."}
+            </Animated.Text>
           </View>
 
           <Animated.View style={[styles.pickerWrap, { opacity: contentOpacity }]}>

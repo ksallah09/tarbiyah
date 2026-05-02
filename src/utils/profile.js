@@ -3,28 +3,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveOnboardingData } from './onboarding';
 import { saveFocusAreas } from './focusAreas';
 
-/** Save profile data to Supabase after onboarding. */
-export async function saveProfileToSupabase({ userId, name, childrenCount, childrenAges, reminderTime, focusAreas, familyStructure, language }) {
+export async function saveProfileToSupabase({
+  userId, name, childrenCount, childrenAges, reminderTime,
+  focusAreas, familyStructure, language,
+  parentRole, isWorkingParent, workHoursPerWeek, availability,
+}) {
   const { error } = await supabase
     .from('profiles')
     .upsert({
-      user_id:          userId,
+      user_id:              userId,
       name,
-      children_count:   childrenCount    ?? null,
-      children_ages:    childrenAges     ?? [],
-      reminder_time:    reminderTime     ?? null,
-      focus_areas:      focusAreas       ?? [],
-      family_structure: familyStructure  ?? 'prefer_not_to_say',
-      language:         language         ?? 'English',
+      children_count:       childrenCount       ?? null,
+      children_ages:        childrenAges        ?? [],
+      reminder_time:        reminderTime        ?? null,
+      focus_areas:          focusAreas          ?? [],
+      family_structure:     familyStructure     ?? 'prefer_not_to_say',
+      language:             language            ?? 'English',
+      parent_role:          parentRole          ?? null,
+      is_working_parent:    isWorkingParent     ?? null,
+      work_hours_per_week:  workHoursPerWeek    ?? null,
+      availability:         availability        ?? null,
     }, { onConflict: 'user_id' });
   return error;
 }
 
-/**
- * Fetch profile from Supabase and write it into local AsyncStorage.
- * If no Supabase profile exists yet, marks onboarding complete and
- * leaves any existing local profile data untouched.
- */
 export async function syncProfileFromSupabase(userId) {
   const { data, error } = await supabase
     .from('profiles')
@@ -32,18 +34,20 @@ export async function syncProfileFromSupabase(userId) {
     .eq('user_id', userId)
     .single();
 
-  if (error || !data) {
-    return false;
-  }
+  if (error || !data) return false;
 
   await Promise.all([
     AsyncStorage.setItem('tarbiyah_profile', JSON.stringify({
-      name:            data.name,
-      children:        data.children_count,
-      childrenAges:    data.children_ages,
-      reminderTime:    data.reminder_time,
-      familyStructure: data.family_structure ?? 'prefer_not_to_say',
-      language:        data.language ?? 'English',
+      name:              data.name,
+      children:          data.children_count,
+      childrenAges:      data.children_ages,
+      reminderTime:      data.reminder_time,
+      familyStructure:   data.family_structure   ?? 'prefer_not_to_say',
+      language:          data.language           ?? 'English',
+      parentRole:        data.parent_role        ?? null,
+      isWorkingParent:   data.is_working_parent  ?? null,
+      workHoursPerWeek:  data.work_hours_per_week ?? null,
+      availability:      data.availability       ?? null,
     })),
     saveOnboardingData({
       name:          data.name,

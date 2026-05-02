@@ -178,6 +178,57 @@ export async function getStreak(type) {
   return streak;
 }
 
+// ── My total reads this month (all 3 types) ───────────────
+export async function getMonthTotal() {
+  const log = await getReadLog();
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let total = 0;
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(year, month, i);
+    if (d > today) break;
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (log[ds]?.spiritual)  total++;
+    if (log[ds]?.scientific) total++;
+    if (log[ds]?.quran)      total++;
+  }
+  return total;
+}
+
+// ── Partner: monthly read counts from Supabase ────────────
+export async function getPartnerMonthCounts(partnerUserId) {
+  try {
+    const { data, error } = await supabase
+      .from('user_read_history')
+      .select('read_days')
+      .eq('user_id', partnerUserId)
+      .single();
+
+    if (error || !data?.read_days) return { spiritual: 0, scientific: 0, quran: 0 };
+
+    const log = data.read_days;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const counts = { spiritual: 0, scientific: 0, quran: 0 };
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(year, month, i);
+      if (d > today) break;
+      const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if (log[ds]?.spiritual)  counts.spiritual++;
+      if (log[ds]?.scientific) counts.scientific++;
+      if (log[ds]?.quran)      counts.quran++;
+    }
+    return counts;
+  } catch {
+    return { spiritual: 0, scientific: 0, quran: 0 };
+  }
+}
+
 // ── Goal checked state (persisted by date + goalId) ────────
 
 export async function setGoalChecked(goalId, done) {

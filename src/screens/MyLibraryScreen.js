@@ -60,7 +60,20 @@ export default function MyLibraryScreen({ navigation }) {
       <View style={styles.bgTop} />
       <StatusBar style="light" />
 
-      <DarkHeader title="My Library" subtitle={subtitle} />
+      <DarkHeader
+        title="My Library"
+        subtitle={subtitle}
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.closeBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.sheet}>
         {/* Search + topic filters */}
@@ -206,8 +219,13 @@ export default function MyLibraryScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  closeBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '40%', backgroundColor: '#1B3D2F' },
-  sheet: { flex: 1, backgroundColor: '#F5F6F8', overflow: 'hidden' },
+  sheet: { flex: 1, backgroundColor: '#F5F6F8', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
   controls: { backgroundColor: '#F5F6F8', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, gap: 12 },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,

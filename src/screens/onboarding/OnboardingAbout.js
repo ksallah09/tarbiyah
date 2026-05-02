@@ -44,7 +44,8 @@ export default function OnboardingAbout({ navigation }) {
       >
         <Animated.View style={[styles.inner, { opacity: fadeAnim }]}>
 
-          {/* Heading */}
+          {/* Heading + Pillars grouped */}
+          <View style={styles.topGroup}>
           <View style={styles.headingWrap}>
             <Text style={styles.heading}>Our Approach</Text>
             <Text style={styles.body}>
@@ -68,6 +69,8 @@ export default function OnboardingAbout({ navigation }) {
               </View>
             ))}
           </View>
+
+          </View>{/* end topGroup */}
 
           {/* CTA */}
           <View style={styles.btnWrap}>
@@ -94,6 +97,9 @@ const styles = StyleSheet.create({
   inner: {
     flex: 1,
     justifyContent: 'space-between',
+  },
+  topGroup: {
+    gap: 28,
   },
   headingWrap: {
     gap: 16,

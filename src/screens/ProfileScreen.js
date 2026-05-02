@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,14 @@ import {
   Linking,
   Modal,
   FlatList,
+  TextInput,
+  Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import DarkHeader from '../components/DarkHeader';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { getSavedInsights, unsaveInsight } from '../utils/savedInsights';
+import { getSavedResources, unsaveResource } from '../utils/savedResources';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_FOCUS_AREAS, getFocusAreas, saveFocusAreas } from '../utils/focusAreas';
 import { getCurrentUser, getSession } from '../utils/auth';
@@ -22,6 +25,16 @@ import { saveProfileToSupabase, syncProfileFromSupabase } from '../utils/profile
 import { useAuth } from '../../App';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
+
+const CATEGORY_CONFIG = {
+  'Lecture/Video':      { color: '#2E7D62', icon: 'play-circle-outline' },
+  'Article/Book':       { color: '#D4871A', icon: 'book-outline' },
+  'Activity/Printable': { color: '#7C3AED', icon: 'color-palette-outline' },
+  'Duas & Adhkar':      { color: '#0D9488', icon: 'sparkles' },
+  'Podcast':            { color: '#2563EB', icon: 'mic-outline' },
+  'Other':              { color: '#6B7280', icon: 'grid-outline' },
+};
+function catConfig(cat) { return CATEGORY_CONFIG[cat] ?? { color: '#6B7280', icon: 'grid-outline' }; }
 import * as Notifications from 'expo-notifications';
 import { scheduleDailyNotification, cancelDailyNotification, requestNotificationPermission } from '../utils/notifications';
 
@@ -293,6 +306,14 @@ function SettingRow({ icon, iconBg, iconColor, title, subtitle, value, onPress, 
 export default function ProfileScreen() {
   const { handleSignOut: authSignOut } = useAuth();
   const navigation = useNavigation();
+  const route      = useRoute();
+  const insets     = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState(route?.params?.tab ?? 'settings');
+  const [savedInsights,  setSavedInsights]  = useState([]);
+  const [savedResources, setSavedResources] = useState([]);
+  const [libQuery,       setLibQuery]       = useState('');
+  const [libActiveTopic, setLibActiveTopic] = useState('All');
+  const [hiddenThumbs,   setHiddenThumbs]   = useState(new Set());
   const [notifications,    setNotifications]    = useState(true);
   const [focusAreas,       setFocusAreas]       = useState([]);
   const [profileName,      setProfileName]      = useState('');
@@ -305,6 +326,11 @@ export default function ProfileScreen() {
   const [childrenCount,      setChildrenCount]      = useState(null);
   const [childrenAges,       setChildrenAges]       = useState([]);
   const userIdRef = useRef(null);
+
+  useFocusEffect(useCallback(() => {
+    getSavedInsights().then(setSavedInsights);
+    getSavedResources().then(setSavedResources);
+  }, []));
 
   useEffect(() => {
     let localProfile = null;
@@ -511,26 +537,172 @@ export default function ProfileScreen() {
     );
   }
 
+  const libAllTopics = ['All', ...Array.from(new Set(savedInsights.flatMap(i => i.tags ?? []))).sort()];
+  const libFiltered = savedInsights.filter(i => {
+    const matchTopic = libActiveTopic === 'All' || (i.tags ?? []).includes(libActiveTopic);
+    const q = libQuery.toLowerCase();
+    return matchTopic && (!q || i.insightTitle?.toLowerCase().includes(q) || i.body?.toLowerCase().includes(q));
+  });
+  const libTotalCount = savedInsights.length + savedResources.length;
+
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.bgTop} />
+
+      {/* ── Fixed header with tab switcher ── */}
+      <View style={[styles.profileHeader, { paddingTop: insets.top + 16 }]}>
+        <View style={styles.profileHeaderRow}>
+          <Text style={styles.profileHeaderTitle}>Profile</Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.closeBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.profileTabRow}>
+          {[
+            { key: 'settings', label: 'Profile Settings' },
+            { key: 'library',  label: 'My Library' },
+          ].map(tab => {
+            const active = activeTab === tab.key;
+            return (
+              <TouchableOpacity key={tab.key} style={styles.profileTabBtn} onPress={() => setActiveTab(tab.key)} activeOpacity={0.75}>
+                <Text style={[styles.profileTabLabel, active && styles.profileTabLabelActive]}>{tab.label}</Text>
+                {active && <View style={styles.profileTabUnderline} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode="interactive"
       >
-        <DarkHeader
-          title="Profile"
-          subtitle="Manage your account and preferences"
-          right={
-            <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={24} color="rgba(255,255,255,0.7)" />
-            </TouchableOpacity>
-          }
-        />
         <View style={styles.sheet}>
         <View style={styles.content}>
-        {/* ── Profile Card ── */}
+
+        {activeTab === 'library' ? (
+          /* ── My Library ── */
+          <>
+            <View style={styles.libControls}>
+              <View style={styles.libSearchBar}>
+                <Ionicons name="search-outline" size={17} color="#9CA3AF" />
+                <View style={{ flex: 1 }}>
+                  {!libQuery && <Text style={styles.libSearchPlaceholder} pointerEvents="none">Search saved items...</Text>}
+                  <TextInput style={styles.libSearchInput} value={libQuery} onChangeText={setLibQuery} />
+                </View>
+                {libQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setLibQuery('')}>
+                    <Ionicons name="close-circle" size={17} color="#9CA3AF" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {libTotalCount === 0 ? (
+              <View style={styles.libEmpty}>
+                <Ionicons name="bookmark-outline" size={48} color="#D1D5DB" />
+                <Text style={styles.libEmptyTitle}>Nothing saved yet</Text>
+                <Text style={styles.libEmptyBody}>Bookmark insights or save community resources to find them here.</Text>
+              </View>
+            ) : (
+              <>
+                {libFiltered.map(item => {
+                  const isSpiritual = item.type === 'spiritual';
+                  const accentColor = isSpiritual ? '#2E7D62' : '#D4871A';
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.libCard}
+                      activeOpacity={0.85}
+                      onPress={() => navigation.navigate('InsightDetail', { insight: item })}
+                    >
+                      <View style={[styles.libCardAccent, { backgroundColor: accentColor }]} />
+                      <View style={styles.libCardBody}>
+                        <View style={styles.libCardTopRow}>
+                          <Text style={[styles.libCardType, { color: accentColor }]}>
+                            {isSpiritual ? 'Spiritual Insight' : 'Research Insight'}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={async () => { await unsaveInsight(item.id); setSavedInsights(prev => prev.filter(i => i.id !== item.id)); }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="bookmark" size={18} color={accentColor} />
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.libCardTitle}>{item.insightTitle}</Text>
+                        <Text style={styles.libCardPreview} numberOfLines={2}>{item.body}</Text>
+                        {item.tags?.length > 0 && (
+                          <View style={styles.libTagsRow}>
+                            {item.tags.slice(0, 3).map(tag => (
+                              <View key={tag} style={[styles.libTag, { backgroundColor: accentColor + '15' }]}>
+                                <Text style={[styles.libTagText, { color: accentColor }]}>{tag}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+                {savedResources.map(item => {
+                  const cfg = catConfig(item.category);
+                  return (
+                    <View key={item.id} style={[styles.libResourceCard, item.thumbnail_url && !hiddenThumbs.has(item.id) && styles.libResourceCardColumn]}>
+                      {item.thumbnail_url && !hiddenThumbs.has(item.id) ? (
+                        <>
+                          <Image
+                            source={{ uri: item.thumbnail_url }}
+                            style={styles.libResourceThumb}
+                            resizeMode="cover"
+                            onError={() => setHiddenThumbs(prev => new Set(prev).add(item.id))}
+                          />
+                          <View style={[styles.libResourceThumbAccent, { backgroundColor: cfg.color }]} />
+                        </>
+                      ) : (
+                        <View style={[styles.libResourceAccent, { backgroundColor: cfg.color }]} />
+                      )}
+                      <View style={styles.libResourceBody}>
+                        <View style={styles.libResourceTop}>
+                          <View style={[styles.libResourceCatPill, { backgroundColor: cfg.color + '18' }]}>
+                            <Ionicons name={cfg.icon} size={11} color={cfg.color} />
+                            <Text style={[styles.libResourceCatText, { color: cfg.color }]}>{item.category}</Text>
+                          </View>
+                          <Text style={styles.libResourceAge}>{item.age_range}</Text>
+                        </View>
+                        <Text style={styles.libResourceTitle}>{item.title}</Text>
+                        {item.why_helped ? <Text style={styles.libResourceWhy}>"{item.why_helped}"</Text> : null}
+                        <View style={styles.libResourceActions}>
+                          <TouchableOpacity
+                            style={styles.libSaveBtnActive}
+                            onPress={async () => { await unsaveResource(item.id); setSavedResources(prev => prev.filter(r => r.id !== item.id)); }}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name="bookmark" size={15} color="#FFFFFF" />
+                            <Text style={styles.libSaveBtnText}>Saved</Text>
+                          </TouchableOpacity>
+                          {item.url ? (
+                            <TouchableOpacity style={styles.libOpenBtn} onPress={() => Linking.openURL(item.url)} activeOpacity={0.75}>
+                              <Ionicons name="open-outline" size={15} color="#FFFFFF" />
+                              <Text style={styles.libOpenBtnText}>Open</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </>
+            )}
+          </>
+        ) : (
+        <>
         <View style={styles.profileCard}>
           <View style={styles.profileAvatarCircle}>
             <Text style={styles.profileAvatarText}>{profileName.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}</Text>
@@ -706,6 +878,8 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <Text style={styles.versionLabel}>Tarbiyah v1.0.0</Text>
+        </>
+        )}{/* end settings tab */}
         </View>{/* end content */}
         </View>{/* end sheet */}
       </ScrollView>
@@ -734,14 +908,82 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F6F8' },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
+
+  // ── Fixed profile header ──
+  profileHeader: { backgroundColor: '#1B3D2F', paddingHorizontal: 20, paddingBottom: 12 },
+  profileHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  profileHeaderTitle: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.2 },
+  closeBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  profileTabRow: { flexDirection: 'row', gap: 24 },
+  profileTabBtn: { paddingVertical: 14, alignItems: 'center', position: 'relative' },
+  profileTabLabel: { fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.4)' },
+  profileTabLabelActive: { color: '#FFFFFF', fontWeight: '700' },
+  profileTabUnderline: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    height: 3, borderRadius: 2, backgroundColor: '#FFFFFF',
+  },
+
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1 },
-  sheet: {
-    flexGrow: 1,
-    backgroundColor: '#F5F6F8',
-    overflow: 'hidden',
+  sheet: { flexGrow: 1, backgroundColor: '#F5F6F8', overflow: 'hidden' },
+  content: { paddingTop: 20, paddingBottom: 32, paddingHorizontal: 20 },
+
+  // ── My Library ──
+  libControls: { gap: 12, marginBottom: 12 },
+  libSearchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
   },
-  content: { paddingTop: 8, paddingBottom: 32, paddingHorizontal: 20 },
+  libSearchInput: { fontSize: 14, color: '#1A1A2E', flex: 1 },
+  libSearchPlaceholder: { position: 'absolute', top: 0, left: 0, right: 0, fontSize: 14, color: '#9CA3AF' },
+  libFilterRow: { paddingHorizontal: 4, gap: 8, alignItems: 'center' },
+  libFilterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 100, backgroundColor: '#E8EAED' },
+  libFilterChipActive: { backgroundColor: '#1B3D2F' },
+  libFilterChipText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  libFilterChipTextActive: { color: '#FFFFFF' },
+  libEmpty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24, gap: 12 },
+  libEmptyTitle: { fontSize: 17, fontWeight: '700', color: '#374151', textAlign: 'center' },
+  libEmptyBody: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', lineHeight: 22 },
+  libCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 12,
+    flexDirection: 'row', overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+  },
+  libCardAccent: { width: 4 },
+  libCardBody: { flex: 1, padding: 14 },
+  libCardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  libCardType: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
+  libCardTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', marginBottom: 4, lineHeight: 21 },
+  libCardPreview: { fontSize: 13, color: '#6B7280', lineHeight: 19, marginBottom: 10 },
+  libTagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  libTag: { borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
+  libTagText: { fontSize: 11, fontWeight: '600' },
+  libResourceCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 12,
+    flexDirection: 'row', overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+  },
+  libResourceCardColumn: { flexDirection: 'column' },
+  libResourceAccent: { width: 4 },
+  libResourceThumb: { width: '100%', height: 160, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: '#F3F4F6' },
+  libResourceThumbAccent: { height: 3, width: '100%' },
+  libResourceBody: { flex: 1, padding: 14 },
+  libResourceTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  libResourceCatPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
+  libResourceCatText: { fontSize: 11, fontWeight: '700' },
+  libResourceAge: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  libResourceTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', lineHeight: 21, marginBottom: 4 },
+  libResourceWhy: { fontSize: 13, color: '#6B7280', lineHeight: 20, fontStyle: 'italic', marginBottom: 12 },
+  libResourceActions: { flexDirection: 'row', gap: 8 },
+  libSaveBtnActive: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, backgroundColor: '#1B3D2F' },
+  libSaveBtnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+  libOpenBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 100, backgroundColor: '#1B3D2F' },
+  libOpenBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 
   title: { fontSize: 28, fontWeight: '700', color: '#1B3D2F', marginBottom: 0 },
 

@@ -25,7 +25,7 @@ export default function OnboardingFamilyStructure({ navigation, route }) {
   }
 
   function handleNext() {
-    navigation.navigate('OnboardingFocusAreas', { ...data, familyStructure: selected ?? null });
+    navigation.navigate('OnboardingParentRole', { ...data, familyStructure: selected ?? null });
   }
 
   return (
@@ -36,7 +36,7 @@ export default function OnboardingFamilyStructure({ navigation, route }) {
           contentContainerStyle={[styles.container, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 }]}
           showsVerticalScrollIndicator={false}
         >
-          <ProgressDots current={2} total={6} />
+          <ProgressDots current={2} total={9} />
 
           <View style={styles.textWrap}>
             <TypewriterText

@@ -60,7 +60,7 @@ export default function OnboardingChildren({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <ProgressDots current={1} total={6} />
+          <ProgressDots current={1} total={9} />
 
           <View style={styles.textWrap}>
             <TypewriterText

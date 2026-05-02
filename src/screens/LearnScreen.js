@@ -13,18 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { loadModules, loadModulesCached, deleteModule } from '../utils/modules';
-import { getSavedAdvice, deleteSavedAdvice } from '../utils/savedAdvice';
 
-// Module-level cache so state initialises instantly on re-mount
 let _modulesCache = null;
 
 const SUGGESTED_PROMPTS = [
   'My child has a lot of anger and tantrums',
   'I want to build a stronger connection with my teen',
-  'Should I raise my voice and shout to discipline?',
   'My child is struggling with screen time',
   'How do I raise a child with strong Islamic identity?',
   'My child is anxious and lacks confidence',
@@ -32,7 +28,9 @@ const SUGGESTED_PROMPTS = [
   'My child refuses to pray — how do I handle this gently?',
   'Building a healthy bedtime routine for my family',
   'My children fight with each other constantly',
+  'Should I raise my voice to discipline?',
 ];
+
 
 export default function LearnScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
@@ -40,8 +38,6 @@ export default function LearnScreen({ navigation, route }) {
   const [modules, setModules]       = useState(_modulesCache ?? []);
   const [showWizard, setShowWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
-  const [bottomTab, setBottomTab]   = useState('modules');
-  const [savedAdvice, setSavedAdvice] = useState([]);
   const hasMountedRef = useRef(false);
 
   useEffect(() => {
@@ -61,52 +57,28 @@ export default function LearnScreen({ navigation, route }) {
     }
   }, [route?.params?.prefillTopic]);
 
-  // Initial load on mount — two-phase: AsyncStorage instant, then network refresh
   useEffect(() => {
-    // Phase 1: show locally-cached data immediately (no network)
     if (!_modulesCache) {
       loadModulesCached().then(cached => {
         if (cached.length > 0) { _modulesCache = cached; setModules(cached); }
       });
     }
-    // Phase 2: background refresh from Railway/Supabase
     loadModules().then(ms => { _modulesCache = ms; setModules(ms); });
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      getSavedAdvice().then(setSavedAdvice);
-      if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
-      loadModules().then(ms => { _modulesCache = ms; setModules(ms); });
-    }, [])
-  );
-
-  function handleDeleteAdvice(item) {
-    Alert.alert('Delete Guidance', 'Remove this saved advice?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        const updated = await deleteSavedAdvice(item.id);
-        if (updated) setSavedAdvice(updated);
-      }},
-    ]);
-  }
+  useFocusEffect(useCallback(() => {
+    if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
+    loadModules().then(ms => { _modulesCache = ms; setModules(ms); });
+  }, []));
 
   function handleDelete(mod) {
-    Alert.alert(
-      'Delete Module',
-      `Remove "${mod.title}"? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteModule(mod.id);
-            setModules(prev => prev.filter(m => m.id !== mod.id));
-          },
-        },
-      ]
-    );
+    Alert.alert('Delete Module', `Remove "${mod.title}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        await deleteModule(mod.id);
+        setModules(prev => prev.filter(m => m.id !== mod.id));
+      }},
+    ]);
   }
 
   function handleGenerate(voice) {
@@ -118,250 +90,146 @@ export default function LearnScreen({ navigation, route }) {
     navigation.navigate('ModuleDetail', { topic, voice, isNew: true });
   }
 
-  function openWizard() {
-    setWizardStep(1);
-    setShowWizard(true);
-  }
-
-  function closeWizard() {
-    setShowWizard(false);
-    setWizardStep(1);
-    setInput('');
-  }
-
-  const hasModules = modules.length > 0;
+  function openWizard() { setWizardStep(1); setShowWizard(true); }
+  function closeWizard() { setShowWizard(false); setWizardStep(1); setInput(''); }
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
-        <View style={styles.bgTop} />
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ flexGrow: 1 }}
-          keyboardDismissMode="interactive"
-        >
-          {/* ── Dark hero header ── */}
-          <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-            <Text style={styles.heroTitle}>Learn</Text>
-            <Text style={styles.heroSub}>
-              Deep learning and real-time guidance for every parenting moment.
-            </Text>
-          </View>
+      <View style={styles.bgTop} />
 
-          {/* ── Content sheet ── */}
-          <View style={styles.sheet}>
-            <View style={styles.contentPad}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
 
-              {/* ── Choice cards ── */}
-              <Text style={styles.sectionHeading}>BUILD YOUR PARENTING KNOWLEDGE</Text>
-              <TouchableOpacity
-                style={styles.choiceCardDark}
-                activeOpacity={0.88}
-                onPress={() => navigation.navigate('GuideMeNow')}
-              >
-                <LinearGradient
-                  colors={['#2E5E45', '#1B3D2F']}
-                  start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                  style={styles.choiceCardInner}
-                >
-                  <View style={[styles.choiceIcon, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                    <Ionicons name="flash" size={22} color="#FCD34D" />
+        {/* ── Hero ── */}
+        <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
+          <Text style={styles.heroLabel}>PARENTING EDUCATION</Text>
+          <Text style={styles.heroTitle}>Learn</Text>
+          <Text style={styles.heroSub}>
+            Understand the science and wisdom behind every parenting challenge — on the topics you choose.
+          </Text>
+        </View>
+
+        {/* ── Content sheet ── */}
+        <View style={styles.sheet}>
+          <View style={styles.content}>
+
+            {/* Section header */}
+            <View style={styles.sectionRow}>
+              <View style={styles.sectionLeft}>
+                <Text style={styles.sectionTitle}>YOUR MODULES</Text>
+                {modules.length > 0 && (
+                  <View style={styles.sectionBadge}>
+                    <Text style={styles.sectionBadgeText}>{modules.length}</Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.choiceCardTitle}>Real-Time</Text>
-                    <Text style={styles.choiceCardSub}>I'm in a situation and need quick advice immediately</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.35)" />
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.choiceCardGreen}
-                activeOpacity={0.88}
-                onPress={openWizard}
-              >
-                <LinearGradient
-                  colors={['#2E5E45', '#1B3D2F']}
-                  start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                  style={styles.choiceCardInner}
-                >
-                  <View style={[styles.choiceIcon, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                    <Ionicons name="layers" size={22} color="#4ADE80" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.choiceCardTitle}>Go Deeper</Text>
-                    <Text style={styles.choiceCardSub}>Build a personalized module that provides more comprehensive guidance and sustainable solutions</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.35)" />
-                </LinearGradient>
-              </TouchableOpacity>
-
-
-              {/* ── Divider ── */}
-              <View style={styles.sectionDivider} />
-
-              {/* ── Bottom tab bar ── */}
-              <View style={styles.bottomTabRow}>
-                <TouchableOpacity
-                  style={[styles.bottomTabBtn, bottomTab === 'modules' && styles.bottomTabBtnActive]}
-                  onPress={() => setBottomTab('modules')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="layers-outline" size={15} color={bottomTab === 'modules' ? '#FFFFFF' : '#6B7280'} />
-                  <Text style={[styles.bottomTabText, bottomTab === 'modules' && styles.bottomTabTextActive]}>
-                    Your Modules
-                  </Text>
-                  {modules.length > 0 && (
-                    <View style={[styles.bottomTabBadge, bottomTab === 'modules' && styles.bottomTabBadgeActive]}>
-                      <Text style={[styles.bottomTabBadgeText, bottomTab === 'modules' && styles.bottomTabBadgeTextActive]}>
-                        {modules.length}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.bottomTabBtn, bottomTab === 'advice' && styles.bottomTabBtnActive]}
-                  onPress={() => setBottomTab('advice')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="flash-outline" size={15} color={bottomTab === 'advice' ? '#FFFFFF' : '#6B7280'} />
-                  <Text style={[styles.bottomTabText, bottomTab === 'advice' && styles.bottomTabTextActive]}>
-                    Saved Advice
-                  </Text>
-                  {savedAdvice.length > 0 && (
-                    <View style={[styles.bottomTabBadge, bottomTab === 'advice' && styles.bottomTabBadgeActive]}>
-                      <Text style={[styles.bottomTabBadgeText, bottomTab === 'advice' && styles.bottomTabBadgeTextActive]}>
-                        {savedAdvice.length}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                )}
               </View>
-
-              {/* ── Your Modules tab ── */}
-              {bottomTab === 'modules' && (<>
-                {hasModules ? modules.map((mod) => (
-                  <TouchableOpacity
-                    key={mod.id}
-                    style={styles.moduleCard}
-                    activeOpacity={0.85}
-                    onPress={() => navigation.navigate('ModuleDetail', { module: mod, isNew: false })}
-                  >
-                    <View style={styles.moduleCardTop}>
-                      <View style={[styles.moduleProgress, { width: `${(mod.completedLessons / mod.totalLessons) * 100}%` }]} />
-                    </View>
-                    <View style={styles.moduleCardBody}>
-                      <View style={styles.moduleCardLeft}>
-                        <Text style={styles.moduleCardTitle} numberOfLines={2}>{mod.title}</Text>
-                        <Text style={styles.moduleCardTopic} numberOfLines={1}>{mod.topic}</Text>
-                      </View>
-                      <View style={styles.moduleCardRight}>
-                        <View style={styles.moduleLessonsWrap}>
-                          <Text style={styles.moduleLessonsNum}>{mod.completedLessons}</Text>
-                          <Text style={styles.moduleLessonsOf}>/{mod.totalLessons}</Text>
-                        </View>
-                        <Text style={styles.moduleLessonsLabel}>lessons</Text>
-                      </View>
-                    </View>
-                    <View style={styles.moduleCardFooter}>
-                      <View style={styles.moduleStatusDot} />
-                      <Text style={styles.moduleStatusText}>
-                        {mod.completedLessons === mod.totalLessons ? 'Completed' : 'In progress'}
-                      </Text>
-                      <Text style={styles.moduleDate}>{mod.createdAt}</Text>
-                      <TouchableOpacity
-                        style={styles.moduleDeleteBtn}
-                        onPress={() => handleDelete(mod)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                )) : (
-                  <View style={styles.emptyModules}>
-                    <View style={styles.emptyIcon}>
-                      <Ionicons name="layers-outline" size={28} color="#2E7D62" />
-                    </View>
-                    <Text style={styles.emptyTitle}>No modules yet</Text>
-                    <Text style={styles.emptyBody}>
-                      Tap Go Deeper above to generate your first personalized lesson plan.
-                    </Text>
-                  </View>
-                )}
-              </>)}
-
-              {/* ── Saved Advice tab ── */}
-              {bottomTab === 'advice' && (<>
-                {savedAdvice.length > 0 ? savedAdvice.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.adviceCard}
-                    activeOpacity={0.85}
-                    onPress={() => navigation.navigate('GuideMeNow', { savedItem: item })}
-                  >
-                    <View style={styles.adviceCardLeft}>
-                      <View style={styles.adviceFlashIcon}>
-                        <Ionicons name="flash" size={14} color="#F87171" />
-                      </View>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.adviceCardSituation} numberOfLines={2}>{item.situation}</Text>
-                      <Text style={styles.adviceCardMeta}>
-                        {item.childGenders?.map(g => g === 'son' ? 'Son' : 'Daughter').join(' & ')}
-                        {item.childAges?.length > 0 ? ` · ${item.childAges.join(' & ')}` : ''}
-                        {item.savedAt ? ` · ${new Date(item.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
-                      </Text>
-                    </View>
-                    <View style={styles.adviceCardActions}>
-                      <TouchableOpacity
-                        onPress={() => handleDeleteAdvice(item)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
-                      </TouchableOpacity>
-                      <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
-                    </View>
-                  </TouchableOpacity>
-                )) : (
-                  <View style={styles.emptyModules}>
-                    <View style={styles.emptyIcon}>
-                      <Ionicons name="flash-outline" size={28} color="#2E7D62" />
-                    </View>
-                    <Text style={styles.emptyTitle}>No saved advice yet</Text>
-                    <Text style={styles.emptyBody}>
-                      Tap Right Now above, get guidance for a situation, and save it to revisit later.
-                    </Text>
-                  </View>
-                )}
-              </>)}
-
-              <View style={{ height: 32 }} />
+              {modules.length > 0 && (
+                <TouchableOpacity style={styles.newTopicBtn} onPress={openWizard} activeOpacity={0.85}>
+                  <Ionicons name="add" size={14} color="#FFFFFF" />
+                  <Text style={styles.newTopicBtnText}>New Topic</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
-        </ScrollView>
 
-      {/* ── Generate Wizard Modal ── */}
+            {/* Module list */}
+            {modules.length > 0 ? modules.map(mod => {
+              const pct  = mod.totalLessons > 0 ? mod.completedLessons / mod.totalLessons : 0;
+              const done = mod.completedLessons === mod.totalLessons && mod.totalLessons > 0;
+              return (
+                <TouchableOpacity
+                  key={mod.id}
+                  style={styles.moduleCard}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('ModuleDetail', { module: mod, isNew: false })}
+                >
+                  {/* Accent bar + progress */}
+                  <View style={styles.moduleBarBg}>
+                    <View style={[styles.moduleBarFill, { width: `${pct * 100}%`, backgroundColor: done ? '#9CA3AF' : '#2E7D62' }]} />
+                  </View>
+
+                  <View style={styles.moduleCardBody}>
+                    <View style={styles.moduleCardLeft}>
+                      <View style={[styles.statusPill, done && styles.statusPillDone]}>
+                        <View style={[styles.statusDot, done && styles.statusDotDone]} />
+                        <Text style={[styles.statusText, done && styles.statusTextDone]}>
+                          {done ? 'Completed' : 'In progress'}
+                        </Text>
+                      </View>
+                      <Text style={styles.moduleTitle} numberOfLines={2}>{mod.title}</Text>
+                      <Text style={styles.moduleTopic} numberOfLines={1}>{mod.topic}</Text>
+                    </View>
+
+                    <View style={styles.moduleCardRight}>
+                      <View style={styles.lessonCountWrap}>
+                        <Text style={[styles.lessonNum, done && { color: '#9CA3AF' }]}>{mod.completedLessons}</Text>
+                        <Text style={styles.lessonDen}>/{mod.totalLessons}</Text>
+                      </View>
+                      <Text style={styles.lessonLabel}>lessons</Text>
+                      <TouchableOpacity
+                        onPress={() => handleDelete(mod)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={styles.deleteBtn}
+                      >
+                        <Ionicons name="trash-outline" size={13} color="#D1D5DB" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            }) : (
+              /* ── Empty state ── */
+              <>
+                <TouchableOpacity style={styles.startCard} onPress={openWizard} activeOpacity={0.88}>
+                  <View style={styles.startCardIcon}>
+                    <Ionicons name="layers" size={24} color="#2E7D62" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.startCardTitle}>Start your first module</Text>
+                    <Text style={styles.startCardSub}>Pick a topic and get a personalised lesson plan built around it</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#2E7D62" />
+                </TouchableOpacity>
+
+                <Text style={styles.suggestedLabel}>COMMON TOPICS</Text>
+                <View style={styles.suggestedGrid}>
+                  {SUGGESTED_PROMPTS.map((p, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.suggestedChip}
+                      activeOpacity={0.75}
+                      onPress={() => { setInput(p); openWizard(); }}
+                    >
+                      <Ionicons name="bulb-outline" size={12} color="#6B7280" style={{ marginRight: 6, flexShrink: 0 }} />
+                      <Text style={styles.suggestedChipText}>{p}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+            <View style={{ height: 40 }} />
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* ── Wizard Modal ── */}
       <Modal visible={showWizard} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <SafeAreaView style={styles.wizardSafe} edges={['top']}>
 
-            {/* Header */}
             <View style={styles.wizardHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.wizardHeaderLabel}>
-                  {wizardStep === 1 ? 'PERSONALIZED LEARNING' : 'STEP 2 OF 2'}
+                  {wizardStep === 1 ? 'PERSONALISED LEARNING' : 'STEP 2 OF 2'}
                 </Text>
                 <Text style={styles.wizardHeaderTitle}>
                   {wizardStep === 1 ? "What's on your mind?" : 'Choose Your Narrator'}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.wizardCloseBtn} onPress={closeWizard}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity style={styles.wizardCloseBtn} onPress={closeWizard} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={20} color="rgba(255,255,255,0.7)" />
               </TouchableOpacity>
             </View>
 
-            {/* Step indicator */}
             <View style={styles.wizardStepRow}>
               <View style={[styles.wizardStepDot, styles.wizardStepDotActive]} />
               <View style={[styles.wizardStepLine, wizardStep === 2 && styles.wizardStepLineActive]} />
@@ -398,12 +266,12 @@ export default function LearnScreen({ navigation, route }) {
                 </ScrollView>
                 <View style={[styles.wizardFooter, { paddingBottom: insets.bottom + 16 }]}>
                   <TouchableOpacity
-                    style={[styles.wizardGenerateBtn, !input.trim() && styles.wizardGenerateBtnDisabled]}
+                    style={[styles.wizardContinueBtn, !input.trim() && styles.wizardContinueBtnDisabled]}
                     onPress={() => setWizardStep(2)}
                     disabled={!input.trim()}
                     activeOpacity={0.85}
                   >
-                    <Text style={styles.wizardGenerateBtnText}>Continue</Text>
+                    <Text style={styles.wizardContinueBtnText}>Continue</Text>
                     <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
@@ -411,21 +279,14 @@ export default function LearnScreen({ navigation, route }) {
             ) : (
               <>
                 <ScrollView contentContainerStyle={styles.wizardScroll} showsVerticalScrollIndicator={false}>
-                  {/* Topic recap */}
                   <View style={styles.wizardTopicRecap}>
                     <Ionicons name="chatbubble-outline" size={13} color="rgba(255,255,255,0.4)" />
                     <Text style={styles.wizardTopicRecapText} numberOfLines={2}>{input}</Text>
                   </View>
-
                   <Text style={styles.wizardNarratorSub}>
                     Your narrator will read each lesson aloud so you can listen hands-free. Choose the voice that feels most comfortable.
                   </Text>
-
-                  <TouchableOpacity
-                    style={styles.wizardVoiceOption}
-                    activeOpacity={0.8}
-                    onPress={() => handleGenerate('shimmer')}
-                  >
+                  <TouchableOpacity style={styles.wizardVoiceOption} activeOpacity={0.8} onPress={() => handleGenerate('shimmer')}>
                     <View style={[styles.wizardVoiceIcon, { backgroundColor: 'rgba(46,125,98,0.3)' }]}>
                       <Ionicons name="mic" size={24} color="#4ADE80" />
                     </View>
@@ -435,12 +296,7 @@ export default function LearnScreen({ navigation, route }) {
                     </View>
                     <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
                   </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.wizardVoiceOption}
-                    activeOpacity={0.8}
-                    onPress={() => handleGenerate('onyx')}
-                  >
+                  <TouchableOpacity style={styles.wizardVoiceOption} activeOpacity={0.8} onPress={() => handleGenerate('onyx')}>
                     <View style={[styles.wizardVoiceIcon, { backgroundColor: 'rgba(79,70,229,0.3)' }]}>
                       <Ionicons name="mic" size={24} color="#818CF8" />
                     </View>
@@ -451,7 +307,6 @@ export default function LearnScreen({ navigation, route }) {
                     <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
                   </TouchableOpacity>
                 </ScrollView>
-
                 <View style={[styles.wizardFooter, { paddingBottom: insets.bottom + 16 }]}>
                   <TouchableOpacity onPress={() => setWizardStep(1)} style={styles.wizardBackBtn}>
                     <Ionicons name="chevron-back" size={15} color="rgba(255,255,255,0.5)" />
@@ -477,528 +332,201 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: '#1B3D2F',
     paddingHorizontal: 24,
-    paddingBottom: 16,
+    paddingBottom: 20,
   },
   heroLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: 'rgba(255,255,255,0.4)',
-    marginBottom: 8,
+    fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
+    color: 'rgba(255,255,255,0.38)', marginBottom: 8,
   },
   heroTitle: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-    lineHeight: 36,
-    marginBottom: 10,
+    fontSize: 34, fontWeight: '800', color: '#FFFFFF',
+    letterSpacing: -0.5, lineHeight: 40, marginBottom: 10,
   },
   heroSub: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-    lineHeight: 21,
+    fontSize: 14, color: 'rgba(255,255,255,0.58)', lineHeight: 22,
   },
 
   // ── Sheet ──
   sheet: {
-    flexGrow: 1,
-    backgroundColor: '#F5F6F8',
-    overflow: 'hidden',
+    flexGrow: 1, backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden',
   },
-  contentPad: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 36 },
-  sectionHeadingWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  sectionHeading: { fontSize: 15, fontWeight: '700', color: '#1B3D2F', letterSpacing: 0.3, marginBottom: 16 },
+  content: { paddingHorizontal: 20, paddingTop: 24 },
 
-  // ── Choice cards ──
-  choiceCardDark: {
-    borderRadius: 20, overflow: 'hidden', marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
+  // ── Section header ──
+  sectionRow: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 16,
   },
-  choiceCardGreen: {
-    borderRadius: 20, overflow: 'hidden', marginBottom: 24,
-    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
-  },
-  choiceCardInner: {
-    flexDirection: 'row', alignItems: 'center', padding: 18, gap: 14, height: 100,
-  },
-  choiceIcon: {
-    width: 46, height: 46, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  choiceCardTitle: {
-    fontSize: 16, fontWeight: '800', color: '#FFFFFF', marginBottom: 3,
-  },
-  choiceCardSub: {
-    fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 17,
-  },
-
-  // ── Generate button (kept for wizard reference) ──
-  generateBtn: {
-    borderRadius: 20, overflow: 'hidden', marginBottom: 24,
-    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
-  },
-  generateBtnInner: {
-    flexDirection: 'row', alignItems: 'center', padding: 18, gap: 14,
-  },
-  generateBtnIcon: {
-    width: 42, height: 42, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  generateBtnTitle: {
-    fontSize: 15, fontWeight: '700', color: '#FFFFFF', marginBottom: 2,
-  },
-  generateBtnSub: {
-    fontSize: 12, color: 'rgba(255,255,255,0.5)',
-  },
-
-  // ── Input card ──
-  inputCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-  inputCardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1B3D2F',
-    marginBottom: 4,
-  },
-  inputCardSub: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 19,
-    marginBottom: 16,
-  },
-  textInput: {
-    backgroundColor: '#F5F6F8',
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 14,
-    color: '#1C1C1E',
-    lineHeight: 22,
-    minHeight: 100,
-    textAlignVertical: 'top',
-    marginBottom: 14,
-  },
-  inputActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 10,
-  },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  cancelBtnText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: '#1B3D2F',
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-  },
-  submitBtnDisabled: { backgroundColor: '#D1D5DB' },
-  submitBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
-  // ── Divider + bottom tabs ──
-  sectionDivider: {
-    height: 1, backgroundColor: '#E5E7EB', marginBottom: 20,
-  },
-  bottomTabRow: {
-    flexDirection: 'row', gap: 10, marginBottom: 20,
-  },
-  bottomTabBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 11, borderRadius: 12,
-    backgroundColor: '#EEEEEE',
-  },
-  bottomTabBtnActive: { backgroundColor: '#1B3D2F' },
-  bottomTabText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  bottomTabTextActive: { color: '#FFFFFF' },
-  bottomTabBadge: {
-    backgroundColor: '#D1D5DB', borderRadius: 10,
-    paddingHorizontal: 6, paddingVertical: 1,
-  },
-  bottomTabBadgeActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
-  bottomTabBadgeText: { fontSize: 10, fontWeight: '700', color: '#6B7280' },
-  bottomTabBadgeTextActive: { color: '#FFFFFF' },
-
-  // ── Saved advice cards ──
-  adviceCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-  },
-  adviceCardLeft: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: 'rgba(248,113,113,0.1)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  adviceFlashIcon: { alignItems: 'center', justifyContent: 'center' },
-  adviceCardSituation: {
-    fontSize: 14, fontWeight: '600', color: '#1C1C1E', lineHeight: 20, marginBottom: 3,
-  },
-  adviceCardMeta: { fontSize: 11, color: '#9CA3AF' },
-  adviceCardActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-
-  // ── Section titles ──
-  sectionTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
+  sectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1B3D2F',
-    letterSpacing: 0.3,
+    fontSize: 15, fontWeight: '700', color: '#1B3D2F', letterSpacing: 0.3,
   },
-  sectionCount: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    backgroundColor: '#1B3D2F',
-    borderRadius: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    overflow: 'hidden',
+  sectionBadge: {
+    backgroundColor: '#1B3D2F', borderRadius: 10,
+    paddingHorizontal: 7, paddingVertical: 2,
   },
-
-  // ── Suggested prompts ──
-  promptsWrap: { gap: 8, marginBottom: 24 },
-  promptChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+  sectionBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
+  newTopicBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#2E7D62', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 8,
   },
-  promptText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#374151',
-    lineHeight: 19,
-  },
+  newTopicBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 
   // ── Module cards ──
   moduleCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    marginBottom: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 18, marginBottom: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
+    borderWidth: 1, borderColor: '#EEF0F2',
   },
-  moduleCardTop: {
-    height: 4,
-    backgroundColor: '#E8F5EF',
-  },
-  moduleProgress: {
-    height: 4,
-    backgroundColor: '#2E7D62',
-    borderRadius: 2,
-  },
+  moduleBarBg: { height: 4, backgroundColor: '#EEF0F2' },
+  moduleBarFill: { height: 4, borderRadius: 2 },
   moduleCardBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
+    flexDirection: 'row', alignItems: 'flex-start',
+    padding: 16, gap: 12,
   },
   moduleCardLeft: { flex: 1 },
-  moduleCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    lineHeight: 21,
-    marginBottom: 4,
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    alignSelf: 'flex-start', marginBottom: 8,
+    backgroundColor: '#E8F5EF', borderRadius: 20,
+    paddingHorizontal: 9, paddingVertical: 4,
   },
-  moduleCardTopic: {
-    fontSize: 12,
-    color: '#6B7280',
+  statusPillDone: { backgroundColor: '#F3F4F6' },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2E7D62' },
+  statusDotDone: { backgroundColor: '#9CA3AF' },
+  statusText: { fontSize: 10, fontWeight: '700', color: '#2E7D62' },
+  statusTextDone: { color: '#9CA3AF' },
+  moduleTitle: {
+    fontSize: 15, fontWeight: '700', color: '#1C1C1E',
+    lineHeight: 21, marginBottom: 4,
   },
-  moduleCardRight: { alignItems: 'center' },
-  moduleLessonsWrap: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+  moduleTopic: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+  moduleCardRight: { alignItems: 'center', gap: 2, paddingTop: 4 },
+  lessonCountWrap: { flexDirection: 'row', alignItems: 'baseline' },
+  lessonNum: { fontSize: 24, fontWeight: '800', color: '#1B3D2F' },
+  lessonDen: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
+  lessonLabel: { fontSize: 10, color: '#9CA3AF', fontWeight: '500', marginBottom: 8 },
+  deleteBtn: { padding: 4 },
+
+  // ── Empty / start state ──
+  startCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18,
+    marginBottom: 24,
+    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1, shadowRadius: 14, elevation: 4,
+    borderWidth: 1, borderColor: '#D6EFE3',
+    borderLeftWidth: 4, borderLeftColor: '#2E7D62',
   },
-  moduleLessonsNum: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1B3D2F',
+  startCardIcon: {
+    width: 48, height: 48, borderRadius: 14,
+    backgroundColor: '#E8F5EF',
+    alignItems: 'center', justifyContent: 'center',
   },
-  moduleLessonsOf: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#9CA3AF',
+  startCardTitle: { fontSize: 15, fontWeight: '700', color: '#1C1C1E', marginBottom: 3 },
+  startCardSub: { fontSize: 12, color: '#6B7280', lineHeight: 18 },
+
+  suggestedLabel: {
+    fontSize: 11, fontWeight: '700', letterSpacing: 1.2,
+    color: '#9CA3AF', marginBottom: 12,
   },
-  moduleLessonsLabel: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    fontWeight: '500',
+  suggestedGrid: { gap: 8 },
+  suggestedChip: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF', borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+    borderWidth: 1, borderColor: '#EEF0F2',
   },
-  moduleCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  moduleStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#2E7D62',
-  },
-  moduleStatusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#2E7D62',
-    flex: 1,
-  },
-  moduleDate: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  moduleDeleteBtn: {
-    padding: 4,
-    marginLeft: 4,
+  suggestedChipText: {
+    flex: 1, fontSize: 13, color: '#374151', lineHeight: 19,
   },
 
   // ── Wizard modal ──
   wizardSafe: { flex: 1, backgroundColor: '#1B3D2F' },
   wizardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
+    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
+    paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24,
   },
   wizardHeaderLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: 'rgba(255,255,255,0.4)',
-    marginBottom: 6,
+    fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
+    color: 'rgba(255,255,255,0.4)', marginBottom: 6,
   },
-  wizardHeaderTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
+  wizardHeaderTitle: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.3 },
   wizardCloseBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: 4,
-  },
-  wizardScroll: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-  },
-  wizardInput: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 15,
-    color: '#FFFFFF',
-    lineHeight: 24,
-    minHeight: 110,
-    textAlignVertical: 'top',
-    marginBottom: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  wizardTopicsLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-    color: 'rgba(255,255,255,0.4)',
-    marginBottom: 14,
-  },
-  wizardTopicsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  wizardTopicChip: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    maxWidth: '100%',
-  },
-  wizardTopicChipActive: {
-    backgroundColor: 'rgba(212,135,26,0.2)',
-    borderColor: 'rgba(212,135,26,0.6)',
-  },
-  wizardTopicText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
-    lineHeight: 19,
-  },
-  wizardTopicTextActive: {
-    color: '#F5C842',
-    fontWeight: '600',
-  },
-  wizardFooter: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: '#1B3D2F',
-  },
-  wizardGenerateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#D4871A',
-    borderRadius: 16,
-    paddingVertical: 16,
-  },
-  wizardGenerateBtnDisabled: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  wizardGenerateBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
+    alignItems: 'center', justifyContent: 'center', marginTop: 4,
   },
   wizardStepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 24,
-    gap: 0,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 24, marginBottom: 24,
   },
-  wizardStepDot: {
-    width: 8, height: 8, borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
+  wizardStepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.2)' },
   wizardStepDotActive: { backgroundColor: '#D4871A' },
-  wizardStepLine: {
-    flex: 1, height: 2, marginHorizontal: 6,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
+  wizardStepLine: { flex: 1, height: 2, marginHorizontal: 6, backgroundColor: 'rgba(255,255,255,0.12)' },
   wizardStepLineActive: { backgroundColor: '#D4871A' },
+  wizardScroll: { paddingHorizontal: 24, paddingBottom: 24 },
+  wizardInput: {
+    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 16,
+    padding: 16, fontSize: 15, color: '#FFFFFF', lineHeight: 24,
+    minHeight: 110, textAlignVertical: 'top', marginBottom: 28,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  },
+  wizardTopicsLabel: {
+    fontSize: 11, fontWeight: '700', letterSpacing: 1.4,
+    color: 'rgba(255,255,255,0.4)', marginBottom: 14,
+  },
+  wizardTopicsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  wizardTopicChip: {
+    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', maxWidth: '100%',
+  },
+  wizardTopicChipActive: {
+    backgroundColor: 'rgba(212,135,26,0.2)', borderColor: 'rgba(212,135,26,0.6)',
+  },
+  wizardTopicText: { fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 19 },
+  wizardTopicTextActive: { color: '#F5C842', fontWeight: '600' },
+  wizardFooter: {
+    paddingHorizontal: 24, paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#1B3D2F',
+  },
+  wizardContinueBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#D4871A', borderRadius: 16, paddingVertical: 16,
+  },
+  wizardContinueBtnDisabled: { backgroundColor: 'rgba(255,255,255,0.15)' },
+  wizardContinueBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.2 },
   wizardTopicRecap: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12,
+    padding: 14, marginBottom: 20,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   wizardTopicRecapText: {
-    flex: 1,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-    lineHeight: 19,
-    fontStyle: 'italic',
+    flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 19, fontStyle: 'italic',
   },
   wizardNarratorSub: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
-    lineHeight: 22,
-    marginBottom: 28,
+    fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 22, marginBottom: 28,
   },
   wizardVoiceOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    flexDirection: 'row', alignItems: 'center', gap: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 18,
+    padding: 18, marginBottom: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  wizardVoiceIcon: {
-    width: 52, height: 52, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  wizardVoiceName: {
-    fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 3,
-  },
-  wizardVoiceDesc: {
-    fontSize: 13, color: 'rgba(255,255,255,0.45)',
-  },
+  wizardVoiceIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  wizardVoiceName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 3 },
+  wizardVoiceDesc: { fontSize: 13, color: 'rgba(255,255,255,0.45)' },
   wizardBackBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'center',
-    padding: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'center', padding: 8,
   },
-  wizardBackBtnText: {
-    fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.5)',
-  },
-
-  // ── Empty state ──
-  emptyModules: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-  },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#E8F5EF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 8,
-  },
-  emptyBody: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  wizardBackBtnText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.5)' },
 });

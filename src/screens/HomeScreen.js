@@ -17,7 +17,6 @@ import * as Sharing from 'expo-sharing';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const TIP_CARD_WIDTH = SCREEN_WIDTH - 80; // 20 left inset + 12 gap + 48 peek
-const CHILD_CARD_W = SCREEN_WIDTH - hp - 40;
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,12 +24,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import fallbackData from '../data/insights.json';
-import { getWeekReadDays, isReadToday, getStreak } from '../utils/readInsights';
+import { getWeekReadDays, isReadToday, getStreak, getMonthTotal, getPartnerMonthCounts } from '../utils/readInsights';
+import { getCachedSyncStatus } from '../utils/familySync';
 import { saveGoalsForDate } from '../utils/goalHistory';
-import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
-import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
-import { getActivePlan, getTodayLog, logHabit, todayStr, daysSinceStart, getCurrentHabits, normalizeHabits, getHabitLogs, getHabitDayCounts } from '../utils/pip';
-import { getAllChildPlans, getTodayActionLog, logAction, daysSinceStart as childDaysSinceStart, getCurrentActions, normalizeActions, getActionLogs, getActionDayCounts } from '../utils/childPlan';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification } from '../utils/notifications';
@@ -141,15 +137,10 @@ export default function HomeScreen({ navigation }) {
   const [streak,      setStreak]      = useState(0);
   const [sciStreak,   setSciStreak]   = useState(0);
   const [quranStreak, setQuranStreak] = useState(0);
-  const [familyGoals,  setFamilyGoals]  = useState([]);
-  const [completions,  setCompletions]  = useState([]);
-  const [pipPlan,          setPipPlan]          = useState(null);
-  const [pipTodayLog,      setPipTodayLog]      = useState([false, false, false, false, false]);
-  const [pipAllLogs,       setPipAllLogs]       = useState({});
-  const [childPlans,       setChildPlans]       = useState([]);
-  const [childTodayLogs,   setChildTodayLogs]   = useState({});
-  const [childAllLogs,     setChildAllLogs]     = useState({});
-  const [childCardIndex,   setChildCardIndex]   = useState(0);
+  const [syncStatus,        setSyncStatus]        = useState({ linked: false, partner: null });
+  const [partnerSyncOn,     setPartnerSyncOn]     = useState(true);
+  const [myMonthTotal,      setMyMonthTotal]      = useState(0);
+  const [partnerMonthTotal, setPartnerMonthTotal] = useState(0);
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
@@ -292,68 +283,22 @@ export default function HomeScreen({ navigation }) {
 
       loadDaily();
 
-      // Load family goals + completions (cached for instant paint, live in background)
-      loadFamilyGoalsCached().then(setFamilyGoals);
-      loadFamilyGoals().then(setFamilyGoals);
-      loadCompletions().then(setCompletions);
-      // Load PIP plan + logs in parallel — logs must not wait for plan to resolve
-      getActivePlan().then(p => {
-        setPipPlan(p);
-        if (p) getTodayLog().then(setPipTodayLog);
-      });
-      getHabitLogs().then(setPipAllLogs);
-
-      // Load child plans + all logs in parallel
-      getAllChildPlans().then(async plans => {
-        setChildPlans(plans);
-        const todayLogs = {};
-        const allLogs   = {};
-        await Promise.all(plans.map(async p => {
-          const [tl, al] = await Promise.all([getTodayActionLog(p.id), getActionLogs(p.id)]);
-          todayLogs[p.id] = tl;
-          allLogs[p.id]   = al;
-        }));
-        setChildTodayLogs(todayLogs);
-        setChildAllLogs(allLogs);
+      // Load partner sync status + monthly scores for hero score strip
+      getMonthTotal().then(setMyMonthTotal);
+      AsyncStorage.getItem('tarbiyah_partner_sync_on').then(val => {
+        if (val === 'false') { setPartnerSyncOn(false); return; }
+        setPartnerSyncOn(true);
+        getCachedSyncStatus().then(status => {
+          setSyncStatus(status);
+          if (status.linked && status.partner?.userId) {
+            getPartnerMonthCounts(status.partner.userId).then(counts => {
+              setPartnerMonthTotal(counts.spiritual + counts.scientific + counts.quran);
+            });
+          }
+        });
       });
     }, [])
   );
-
-  async function handleLogCompletion(goalId) {
-    const updated = await logCompletion(goalId);
-    setCompletions(updated);
-  }
-
-  async function handlePipHabitToggle(index) {
-    const newVal = !pipTodayLog[index];
-    const updated = [...pipTodayLog];
-    updated[index] = newVal;
-    setPipTodayLog(updated);
-    setPipAllLogs(prev => {
-      const today = todayStr();
-      const day = [...(prev[today] || [false, false, false, false, false])];
-      day[index] = newVal;
-      return { ...prev, [today]: day };
-    });
-    await logHabit(todayStr(), index, newVal);
-  }
-
-  async function handleChildActionToggle(planId, index) {
-    const todayLog = childTodayLogs[planId] || [false, false, false, false, false];
-    const newVal = !todayLog[index];
-    const updated = [...todayLog];
-    updated[index] = newVal;
-    setChildTodayLogs(prev => ({ ...prev, [planId]: updated }));
-    setChildAllLogs(prev => {
-      const today = todayStr();
-      const planLogs = { ...(prev[planId] || {}) };
-      const day = [...(planLogs[today] || [false, false, false, false, false])];
-      day[index] = newVal;
-      planLogs[today] = day;
-      return { ...prev, [planId]: planLogs };
-    });
-    await logAction(planId, todayStr(), index, newVal);
-  }
 
   const spiritualInsight = dailyData?.insights?.find(i => i.type === 'spiritual') ?? null;
   const scienceInsight   = dailyData?.insights?.find(i => i.type === 'scientific') ?? null;
@@ -448,6 +393,32 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.heroProfileDate}>Profile</Text>
               </TouchableOpacity>
             </View>
+
+            {/* ── Partner score strip ── */}
+            {partnerSyncOn && syncStatus.linked && (() => {
+              const partnerName = syncStatus.partner?.name?.split(' ')[0] ?? 'Partner';
+              const myWin      = myMonthTotal > partnerMonthTotal;
+              const partnerWin = partnerMonthTotal > myMonthTotal;
+              return (
+                <View style={styles.scoreStrip}>
+                  {/* Your side */}
+                  <View style={[styles.scoreSide, myWin && styles.scoreSideWin]}>
+                    {myWin && <Ionicons name="trophy" size={11} color="#C9A84C" />}
+                    <Text style={[styles.scoreNum, myWin && styles.scoreNumWin]}>{myMonthTotal}</Text>
+                    <Text style={[styles.scoreLabel, myWin && styles.scoreLabelWin]}>YOU</Text>
+                  </View>
+
+                  <Text style={styles.scoreVs}>vs</Text>
+
+                  {/* Partner side */}
+                  <View style={[styles.scoreSide, styles.scoreSideRight, partnerWin && styles.scoreSideWin]}>
+                    <Text style={[styles.scoreLabel, partnerWin && styles.scoreLabelWin]}>{partnerName.toUpperCase()}</Text>
+                    <Text style={[styles.scoreNum, partnerWin && styles.scoreNumWin]}>{partnerMonthTotal}</Text>
+                    {partnerWin && <Ionicons name="trophy" size={11} color="#C9A84C" />}
+                  </View>
+                </View>
+              );
+            })()}
           </View>
 
           {/* ── Content ── */}
@@ -549,257 +520,6 @@ export default function HomeScreen({ navigation }) {
               )}
 
 
-              {/* CHILD DEVELOPMENT PLAN */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>CHILD DEVELOPMENT PLAN</Text>
-              </View>
-              {childPlans.length === 0 && (
-                <View style={styles.childEmptyCard}>
-                  <View style={styles.childEmptyTop}>
-                    <View style={styles.childEmptyIconWrap}>
-                      <Ionicons name="leaf-outline" size={22} color="#2E7D62" />
-                    </View>
-                    <Text style={styles.childEmptyLabel}>No active plan</Text>
-                    <Text style={styles.childEmptySub}>Nurture your child's confidence, responsibility, faith & more</Text>
-                  </View>
-                  <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('Growth')} activeOpacity={0.85}>
-                    <Text style={styles.childEmptyBtnText}>Start a Child Development Plan</Text>
-                    <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
-                  </TouchableOpacity>
-                </View>
-              )}
-              {childPlans.length > 0 && (
-                <>
-                  <View style={{ marginHorizontal: -hp }}>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    snapToInterval={CHILD_CARD_W + 12}
-                    decelerationRate="fast"
-                    disableIntervalMomentum
-                    contentContainerStyle={{ paddingLeft: hp }}
-                    onScroll={e => setChildCardIndex(Math.round(e.nativeEvent.contentOffset.x / (CHILD_CARD_W + 12)))}
-                    scrollEventThrottle={16}
-                  >
-                    {childPlans.map((plan) => {
-                      const todayLog    = childTodayLogs[plan.id] || [];
-                      const coreActions = normalizeActions(getCurrentActions(plan, childDaysSinceStart(plan.startDate))).filter(a => a.priority === 'core');
-                      const coreDone    = coreActions.filter(a => todayLog[a.index]).length;
-                      const motivation  = getMotivationText(coreDone, coreActions.length);
-                      const dayCounts   = getActionDayCounts(childAllLogs[plan.id] || {});
-                      return (
-                        <TouchableOpacity
-                          key={plan.id}
-                          style={[styles.pipWidget, { width: CHILD_CARD_W, marginRight: 12, backgroundColor: '#1B3D2F' }]}
-                          onPress={() => navigation.navigate('ChildPlanDetail', { plan })}
-                          activeOpacity={0.88}
-                        >
-                          <View style={styles.pipWidgetHeader}>
-                            <View style={styles.pipWidgetTitleRow}>
-                              <Ionicons name="leaf-outline" size={13} color="#4ADE80" />
-                              <Text style={styles.pipWidgetLabel} numberOfLines={1}>{`${plan.title ? plan.title.split(':')[0].toUpperCase() : 'CHILD PLAN'}${plan.childAge ? ` · AGE ${plan.childAge}` : ''}`}</Text>
-                            </View>
-                            <Text style={styles.pipWidgetCount}>{coreDone}/{coreActions.length}</Text>
-                          </View>
-                          <View style={styles.pipWidgetDayRow}>
-                            <Ionicons name="calendar-outline" size={11} color="rgba(255,255,255,0.4)" />
-                            <Text style={styles.pipWidgetDayText}>Day {childDaysSinceStart(plan.startDate)} of {plan.durationDays}</Text>
-                          </View>
-                          <View style={styles.pipWidgetTodoRow}>
-                            <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
-                            {motivation && <Text style={styles.pipWidgetMotivation}>{motivation}</Text>}
-                          </View>
-                          {coreActions.map((action) => (
-                            <TouchableOpacity
-                              key={action.index}
-                              style={styles.pipWidgetHabitRow}
-                              onPress={e => { e.stopPropagation?.(); handleChildActionToggle(plan.id, action.index); }}
-                              activeOpacity={0.7}
-                            >
-                              <View style={[styles.pipWidgetCheck, todayLog[action.index] && styles.pipWidgetCheckDone]}>
-                                {todayLog[action.index] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
-                              </View>
-                              <Text style={[styles.pipWidgetHabitText, todayLog[action.index] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{action.text}</Text>
-                              {dayCounts[action.index] > 0 && (
-                                <View style={styles.widgetDayPill}>
-                                  <Ionicons name="checkmark-circle" size={10} color="#4ADE80" />
-                                  <Text style={styles.widgetDayPillText}>{dayCounts[action.index]}d</Text>
-                                </View>
-                              )}
-                            </TouchableOpacity>
-                          ))}
-                          <View style={styles.viewPlanRow}>
-                            <Text style={styles.viewPlanText}>Tap to view full plan</Text>
-                            <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.35)" />
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                  </View>
-                  {childPlans.length > 1 && (
-                    <View style={styles.homeDotsRow}>
-                      {childPlans.map((_, i) => (
-                        <View key={i} style={[styles.homeDot, i === childCardIndex && styles.homeDotActive]} />
-                      ))}
-                      <Text style={styles.homeDotsSwipeHint}>Swipe to see more</Text>
-                    </View>
-                  )}
-                </>
-              )}
-
-              {/* PARENT DEVELOPMENT PLAN */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>PARENT DEVELOPMENT PLAN</Text>
-              </View>
-              {!pipPlan && (
-                <View style={styles.childEmptyCard}>
-                  <View style={styles.childEmptyTop}>
-                    <View style={styles.childEmptyIconWrap}>
-                      <Ionicons name="rocket-outline" size={22} color="#2E7D62" />
-                    </View>
-                    <Text style={styles.childEmptyLabel}>No active plan</Text>
-                    <Text style={styles.childEmptySub}>Build the skills, habits and capacity to show up as the parent you want to be</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.childEmptyBtn}
-                    onPress={() => navigation.navigate('Growth')}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.childEmptyBtnText}>Start a Parent Development Plan</Text>
-                    <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
-                  </TouchableOpacity>
-                </View>
-              )}
-              {pipPlan && (() => {
-                const pipCoreHabits  = normalizeHabits(getCurrentHabits(pipPlan, daysSinceStart(pipPlan.startDate))).filter(h => h.priority === 'core');
-                const pipCoreDone    = pipCoreHabits.filter(h => pipTodayLog[h.index]).length;
-                const pipMotivation  = getMotivationText(pipCoreDone, pipCoreHabits.length);
-                const pipDayCounts   = getHabitDayCounts(pipAllLogs);
-                return (
-                <TouchableOpacity
-                  style={styles.pipWidget}
-                  onPress={() => navigation.navigate('PIPDetail', { plan: pipPlan })}
-                  activeOpacity={0.88}
-                >
-                  <View style={styles.pipWidgetHeader}>
-                    <View style={styles.pipWidgetTitleRow}>
-                      <Ionicons name="trending-up-outline" size={14} color="#C9A84C" />
-                      <Text style={styles.pipWidgetLabel}>YOUR PLAN · TODAY</Text>
-                    </View>
-                    <Text style={styles.pipWidgetCount}>{pipCoreDone}/{pipCoreHabits.length}</Text>
-                  </View>
-                  <View style={styles.pipWidgetDayRow}>
-                    <Ionicons name="calendar-outline" size={11} color="rgba(255,255,255,0.4)" />
-                    <Text style={styles.pipWidgetDayText}>Day {daysSinceStart(pipPlan.startDate)} of {pipPlan.durationDays}</Text>
-                  </View>
-                  <View style={styles.pipWidgetTodoRow}>
-                    <Text style={styles.pipWidgetTodoHeading}>Today's To-do's</Text>
-                    {pipMotivation && <Text style={styles.pipWidgetMotivation}>{pipMotivation}</Text>}
-                  </View>
-                  {pipCoreHabits.map(h => (
-                    <TouchableOpacity
-                      key={h.index}
-                      style={styles.pipWidgetHabitRow}
-                      onPress={e => { e.stopPropagation?.(); handlePipHabitToggle(h.index); }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.pipWidgetCheck, pipTodayLog[h.index] && styles.pipWidgetCheckDone]}>
-                        {pipTodayLog[h.index] && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
-                      </View>
-                      <Text style={[styles.pipWidgetHabitText, pipTodayLog[h.index] && styles.pipWidgetHabitTextDone]} numberOfLines={1}>{h.text}</Text>
-                      {pipDayCounts[h.index] > 0 && (
-                        <View style={styles.widgetDayPill}>
-                          <Ionicons name="checkmark-circle" size={10} color="#C9A84C" />
-                          <Text style={styles.widgetDayPillText}>{pipDayCounts[h.index]}d</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                  <View style={styles.viewPlanRow}>
-                    <Text style={styles.viewPlanText}>Tap to view full plan</Text>
-                    <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.35)" />
-                  </View>
-                </TouchableOpacity>
-                );
-              })()}
-
-              {/* FAMILY GOALS */}
-              {familyGoals.length === 0 && (
-                <>
-                  <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                    <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
-                  </View>
-                  <View style={styles.childEmptyCard}>
-                    <View style={styles.childEmptyTop}>
-                      <View style={styles.childEmptyIconWrap}>
-                        <Ionicons name="people-outline" size={22} color="#2E7D62" />
-                      </View>
-                      <Text style={styles.childEmptyLabel}>No family goals yet</Text>
-                      <Text style={styles.childEmptySub}>Pray together, eat together, read Quran — build habits that matter</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.childEmptyBtn}
-                      onPress={() => navigation.navigate('Growth')}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.childEmptyBtnText}>Set a Family Goal</Text>
-                      <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-              {familyGoals.length > 0 && (
-                <>
-                  <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                    <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Growth')}>
-                      <Text style={styles.sectionSeeAll}>See all</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {familyGoals.map(goal => {
-                    const target    = goal.frequency ?? 1;
-                    const count     = countThisWeek(completions, goal.id);
-                    const doneToday = isCompletedToday(completions, goal.id);
-                    const goalMet   = count >= target;
-                    const dotCount  = Math.min(target, 7);
-                    return (
-                      <View key={goal.id} style={styles.homeGoalCard}>
-                        <View style={[styles.homeGoalIconWrap, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '20' }]}>
-                          <Ionicons name={goal.icon ?? 'trophy'} size={16} color={goal.iconColor ?? '#2E7D62'} />
-                        </View>
-                        <View style={styles.homeGoalBody}>
-                          <Text style={styles.homeGoalTitle} numberOfLines={1}>{goal.title}</Text>
-                          <View style={styles.homeGoalTrackerRow}>
-                            <View style={styles.homeGoalDots}>
-                              {Array.from({ length: dotCount }).map((_, i) => (
-                                <View key={i} style={[styles.homeGoalDot, i < count && { backgroundColor: goal.iconColor ?? '#2E7D62' }]} />
-                              ))}
-                            </View>
-                            <Text style={styles.homeGoalCount}>{count}/{target}</Text>
-                          </View>
-                        </View>
-                        {goalMet ? (
-                          <View style={styles.homeGoalMetPill}>
-                            <Ionicons name="checkmark-circle" size={13} color="#2E7D62" />
-                            <Text style={styles.homeGoalMetText}>Done</Text>
-                          </View>
-                        ) : (
-                          <TouchableOpacity
-                            style={[styles.homeGoalLogBtn, doneToday && styles.homeGoalLogBtnDone]}
-                            onPress={() => handleLogCompletion(goal.id)}
-                            disabled={doneToday}
-                            activeOpacity={0.75}
-                          >
-                            <Ionicons name={doneToday ? 'checkmark' : 'add'} size={14} color={doneToday ? '#2E7D62' : '#FFFFFF'} />
-                            {!doneToday && <Text style={styles.homeGoalLogBtnText}>Log it</Text>}
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    );
-                  })}
-                </>
-              )}
 
               {/* YOU'RE NOT ALONE — hidden, re-enable in future release */}
 
@@ -897,6 +617,25 @@ export default function HomeScreen({ navigation }) {
                   <Text style={styles.duaShareBtnText}>Share Dua</Text>
                 </TouchableOpacity>
               </ImageBackground>
+
+              {/* CURRENT LEARNING STREAKS */}
+              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+                <Text style={styles.sectionTitle}>CURRENT LEARNING STREAKS</Text>
+              </View>
+              <View style={styles.streakRow}>
+                {[
+                  { label: 'Spiritual',  streak,      icon: 'moon',         color: '#2E7D62', bg: '#E8F5EF' },
+                  { label: 'Research',   streak: sciStreak,  icon: 'bulb-outline', color: '#D4871A', bg: '#FEF3E7' },
+                  { label: 'Quran',      streak: quranStreak, icon: 'book-outline', color: '#1A3A6B', bg: '#EEF4FB' },
+                ].map(({ label, streak: s, icon, color, bg }) => (
+                  <View key={label} style={[styles.streakCountCard, { backgroundColor: bg }]}>
+                    <Ionicons name={icon} size={16} color={color} />
+                    <Text style={[styles.streakCountNum, { color }]}>{s}</Text>
+                    <Text style={[styles.streakCountLabel, { color }]}>{label}</Text>
+                    <Text style={styles.streakCountSub}>day streak</Text>
+                  </View>
+                ))}
+              </View>
 
               {/* THIS WEEK */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
@@ -1019,7 +758,6 @@ const styles = StyleSheet.create({
   heroText: { flex: 1 },
   heroProfileBtn: {
     padding: 4,
-    marginTop: 2,
     alignItems: 'center',
     gap: 5,
   },
@@ -1080,6 +818,32 @@ const styles = StyleSheet.create({
   heroProgressItemLabel: {
     fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)',
   },
+  // ── Partner score strip ──
+  scoreStrip: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14,
+    marginTop: 14, marginBottom: 4,
+  },
+  scoreSide: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1,
+  },
+  scoreSideRight: { justifyContent: 'flex-end' },
+  scoreSideWin: {},
+  scoreNum: {
+    fontSize: 22, fontWeight: '800', color: 'rgba(255,255,255,0.4)',
+  },
+  scoreNumWin: { color: '#FFFFFF' },
+  scoreLabel: {
+    fontSize: 10, fontWeight: '700', letterSpacing: 0.8,
+    color: 'rgba(255,255,255,0.35)',
+  },
+  scoreLabelWin: { color: 'rgba(255,255,255,0.7)' },
+  scoreVs: {
+    fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 10,
+  },
+
   greetingLine: { color: '#FFFFFF' },
   greetingSmall: {
     fontSize: 14,
@@ -1116,6 +880,8 @@ const styles = StyleSheet.create({
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: 'hidden',
   },
   scrollContent: { flexGrow: 1 },
@@ -1139,85 +905,6 @@ const styles = StyleSheet.create({
   },
   sectionSeeAll: {
     fontSize: 11, fontWeight: '700', color: '#2E7D62', marginLeft: 'auto',
-  },
-
-  // ── Home family goal empty state ──
-  homeGoalEmptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 8,
-    flexDirection: 'row', // kept for potential reuse
-    alignItems: 'center',
-    gap: 10,
-    shadowColor: '#1B3D2F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-    borderLeftWidth: 3,
-    borderLeftColor: '#2E7D62',
-  },
-  homeGoalEmptyText: {
-    fontSize: 13, fontWeight: '600', color: '#6B7280', flex: 1,
-  },
-  homeGoalEmptyLink: {
-    fontSize: 12, fontWeight: '700', color: '#2E7D62',
-  },
-
-  // ── Home family goal cards ──
-  homeGoalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    shadowColor: '#1B3D2F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-    borderLeftWidth: 3,
-    borderLeftColor: '#2E7D62',
-  },
-  homeGoalIconWrap: {
-    width: 36, height: 36, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
-  homeGoalBody: { flex: 1 },
-  homeGoalTitle: {
-    fontSize: 13, fontWeight: '700', color: '#111827', marginBottom: 6,
-  },
-  homeGoalTrackerRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-  },
-  homeGoalDots: { flexDirection: 'row', gap: 3 },
-  homeGoalDot: {
-    width: 7, height: 7, borderRadius: 4,
-    backgroundColor: '#E5E7EB',
-  },
-  homeGoalCount: {
-    fontSize: 10, color: '#9CA3AF', fontWeight: '600',
-  },
-  homeGoalMetPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#E8F5EF', borderRadius: 20,
-    paddingHorizontal: 8, paddingVertical: 5,
-  },
-  homeGoalMetText: {
-    fontSize: 11, color: '#2E7D62', fontWeight: '700',
-  },
-  homeGoalLogBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#2E7D62', borderRadius: 20,
-    paddingHorizontal: 10, paddingVertical: 6,
-  },
-  homeGoalLogBtnDone: { backgroundColor: '#E8F5EF' },
-  homeGoalLogBtnText: {
-    fontSize: 11, color: '#FFFFFF', fontWeight: '700',
   },
 
   // ── Insight cards ──
@@ -1505,6 +1192,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
+  // ── Streak count badges ──
+  streakRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  streakCountCard: {
+    flex: 1, borderRadius: 16, padding: 14,
+    alignItems: 'center', gap: 2,
+  },
+  streakCountNum: {
+    fontSize: 28, fontWeight: '800', letterSpacing: -1, marginTop: 6,
+  },
+  streakCountLabel: {
+    fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginTop: 4,
+  },
+  streakCountSub: { fontSize: 10, color: '#9CA3AF', fontWeight: '500' },
+
   // ── Streak card ──
   streakCard: {
     backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
@@ -1607,43 +1308,6 @@ const styles = StyleSheet.create({
   },
   duaShareCardPillStoreText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
 
-  // ── PIP habit widget ──
-  pipWidget: {
-    backgroundColor: '#1A2E4A', borderRadius: 18, padding: 16, marginBottom: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3,
-  },
-  pipWidgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  pipWidgetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 },
-  pipWidgetLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C', flex: 1 },
-  homeDotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 8, marginBottom: 8 },
-  homeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D1D5DB' },
-  homeDotActive: { backgroundColor: '#1B3D2F', width: 18 },
-  homeDotsSwipeHint: { fontSize: 11, color: '#9CA3AF', marginLeft: 6 },
-  childWidgetTitle: { flex: 1, fontSize: 12, fontWeight: '600', color: '#C9A84C', lineHeight: 17 },
-  pipWidgetTodoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, marginTop: 4 },
-  pipWidgetTodoHeading: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.1 },
-  pipWidgetMotivation: { fontSize: 10, fontWeight: '600', color: '#4ADE80', flexShrink: 1, textAlign: 'right', marginLeft: 6 },
-  pipWidgetSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10 },
-  pipWidgetDayRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, marginTop: 2 },
-  pipWidgetDayText: { fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: '500' },
-  widgetDayPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, paddingHorizontal: 5, paddingVertical: 2 },
-  widgetDayPillText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
-  viewPlanRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 12, marginTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
-  viewPlanText: { fontSize: 12, color: 'rgba(255,255,255,0.35)', fontWeight: '500' },
-  pipWidgetCount: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
-  pipWidgetHabitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
-  pipWidgetCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
-  pipWidgetCheckDone: { backgroundColor: '#4ADE80', borderColor: '#4ADE80' },
-  pipWidgetHabitText: { flex: 1, flexShrink: 1, fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 19 },
-  pipWidgetHabitTextDone: { color: 'rgba(255,255,255,0.3)', textDecorationLine: 'line-through' },
-  pipEmptyWidget: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: '#E5E7EB',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
-  },
-  pipEmptyWidgetTitle: { fontSize: 14, fontWeight: '700', color: '#1C1C1E' },
-  pipEmptyWidgetSub: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
   childEmptyCard: {
     backgroundColor: '#FFFFFF', borderRadius: 18, overflow: 'hidden', marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,

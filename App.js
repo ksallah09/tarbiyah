@@ -20,10 +20,6 @@ import ProgressScreen      from './src/screens/ProgressScreen';
 import LearnScreen         from './src/screens/LearnScreen';
 import GuideMeNowScreen    from './src/screens/GuideMeNowScreen';
 import MyLibraryScreen     from './src/screens/MyLibraryScreen';
-import PIPWizardScreen        from './src/screens/PIPWizardScreen';
-import PIPDetailScreen        from './src/screens/PIPDetailScreen';
-import ChildPlanWizardScreen  from './src/screens/ChildPlanWizardScreen';
-import ChildPlanDetailScreen  from './src/screens/ChildPlanDetailScreen';
 import ModuleDetailScreen  from './src/screens/ModuleDetailScreen';
 import LessonReaderScreen  from './src/screens/LessonReaderScreen';
 import ProfileScreen       from './src/screens/ProfileScreen';
@@ -32,12 +28,20 @@ import VerseDetailScreen         from './src/screens/VerseDetailScreen';
 import FamilyGoalWizardScreen    from './src/screens/FamilyGoalWizardScreen';
 import FamilySyncScreen          from './src/screens/FamilySyncScreen';
 import AboutScreen               from './src/screens/AboutScreen';
+import ChildDashboardScreen      from './src/screens/ChildDashboardScreen';
+import DashboardsScreen          from './src/screens/DashboardsScreen';
+import AddChildWizardScreen      from './src/screens/AddChildWizardScreen';
+import GrowthAreaWizardScreen    from './src/screens/GrowthAreaWizardScreen';
+import GrowthAreaPlanScreen      from './src/screens/GrowthAreaPlanScreen';
 
 import OnboardingWelcome         from './src/screens/onboarding/OnboardingWelcome';
 import OnboardingAbout           from './src/screens/onboarding/OnboardingAbout';
 import OnboardingName            from './src/screens/onboarding/OnboardingName';
 import OnboardingChildren        from './src/screens/onboarding/OnboardingChildren';
 import OnboardingFamilyStructure from './src/screens/onboarding/OnboardingFamilyStructure';
+import OnboardingParentRole      from './src/screens/onboarding/OnboardingParentRole';
+import OnboardingWorkHours       from './src/screens/onboarding/OnboardingWorkHours';
+import OnboardingAvailability    from './src/screens/onboarding/OnboardingAvailability';
 import OnboardingFocusAreas      from './src/screens/onboarding/OnboardingFocusAreas';
 import OnboardingReminder        from './src/screens/onboarding/OnboardingReminder';
 import OnboardingAccount         from './src/screens/onboarding/OnboardingAccount';
@@ -47,9 +51,7 @@ import FeatureTourScreen from './src/screens/FeatureTourScreen';
 import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
-import { requestNotificationPermission, topUpPlanNotifications } from './src/utils/notifications';
-import { getActivePlan } from './src/utils/pip';
-import { getAllChildPlans } from './src/utils/childPlan';
+import { requestNotificationPermission } from './src/utils/notifications';
 
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
@@ -162,11 +164,11 @@ const RootStack  = createNativeStackNavigator();
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
 const TAB_CONFIG = {
-  Home:        { filled: 'home',        outline: 'home-outline' },
-  Growth:      { filled: 'trending-up', outline: 'trending-up-outline' },
-  Learn:       { filled: 'layers',      outline: 'layers-outline' },
-  Community:   { filled: 'globe',       outline: 'globe-outline' },
-  'My Library': { filled: 'bookmark',   outline: 'bookmark-outline' },
+  Home:       { filled: 'home',    outline: 'home-outline' },
+  Family:     { filled: 'people',  outline: 'people-outline' },
+  Dashboards: { filled: 'apps',    outline: 'apps-outline' },
+  Learn:      { filled: 'layers',  outline: 'layers-outline' },
+  Community:  { filled: 'globe',   outline: 'globe-outline' },
 };
 
 function CustomTabBar({ state, navigation }) {
@@ -209,10 +211,10 @@ function Tabs() {
   return (
     <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }} lazy={false}>
       <Tab.Screen name="Home"       component={HomeScreen} />
-      <Tab.Screen name="Growth"     component={ProgressScreen} />
+      <Tab.Screen name="Family"     component={ProgressScreen} />
+      <Tab.Screen name="Dashboards" component={DashboardsScreen} />
       <Tab.Screen name="Learn"      component={LearnScreen} />
       <Tab.Screen name="Community"  component={LibraryScreen} />
-      <Tab.Screen name="My Library" component={MyLibraryScreen} />
     </Tab.Navigator>
   );
 }
@@ -257,34 +259,39 @@ function MainApp() {
         options={{ animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
-        name="PIPWizard"
-        component={PIPWizardScreen}
-        options={{ animation: 'slide_from_bottom' }}
-      />
-      <Stack.Screen
-        name="PIPDetail"
-        component={PIPDetailScreen}
-        options={{ animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="ChildPlanWizard"
-        component={ChildPlanWizardScreen}
-        options={{ animation: 'slide_from_bottom' }}
-      />
-      <Stack.Screen
-        name="ChildPlanDetail"
-        component={ChildPlanDetailScreen}
-        options={{ animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
         name="About"
         component={AboutScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="ChildDashboard"
+        component={ChildDashboardScreen}
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
         name="GuideMeNow"
         component={GuideMeNowScreen}
         options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="MyLibrary"
+        component={MyLibraryScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="AddChildWizard"
+        component={AddChildWizardScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="GrowthAreaWizard"
+        component={GrowthAreaWizardScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="GrowthAreaPlan"
+        component={GrowthAreaPlanScreen}
+        options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>
   );
@@ -300,7 +307,10 @@ function OnboardingStack() {
       <Stack.Screen name="OnboardingName"       component={OnboardingName} />
       <Stack.Screen name="OnboardingChildren"        component={OnboardingChildren} />
       <Stack.Screen name="OnboardingFamilyStructure" component={OnboardingFamilyStructure} />
-      <Stack.Screen name="OnboardingFocusAreas"      component={OnboardingFocusAreas} />
+      <Stack.Screen name="OnboardingParentRole"       component={OnboardingParentRole} />
+      <Stack.Screen name="OnboardingWorkHours"        component={OnboardingWorkHours} />
+      <Stack.Screen name="OnboardingAvailability"     component={OnboardingAvailability} />
+      <Stack.Screen name="OnboardingFocusAreas"       component={OnboardingFocusAreas} />
       <Stack.Screen name="OnboardingReminder"   component={OnboardingReminder} />
       <Stack.Screen name="OnboardingAccount"    component={OnboardingAccount} />
       <Stack.Screen name="OnboardingAllSet"     component={OnboardingAllSet} />
@@ -322,20 +332,9 @@ export default function App() {
   const notifResponseListener         = useRef(null);
   useFonts({ Amiri_400Regular, Amiri_700Bold });
 
-  function handleNotifNavigation({ screen, planId } = {}) {
-    if (screen === 'PIPDetail') {
-      getActivePlan().then(plan => {
-        if (plan) navigationRef.current?.navigate('PIPDetail', { plan });
-        else navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
-      });
-    } else if (screen === 'ChildPlanDetail') {
-      getAllChildPlans().then(plans => {
-        const plan = planId ? plans.find(p => p.id === planId) : plans[0];
-        if (plan) navigationRef.current?.navigate('ChildPlanDetail', { plan });
-        else navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
-      });
-    } else if (screen === 'Growth') {
-      navigationRef.current?.navigate('Tabs', { screen: 'Growth' });
+  function handleNotifNavigation({ screen } = {}) {
+    if (screen === 'Family') {
+      navigationRef.current?.navigate('Tabs', { screen: 'Family' });
     } else if (screen === 'Community') {
       navigationRef.current?.navigate('Tabs', { screen: 'Community' });
     } else {
@@ -373,9 +372,6 @@ export default function App() {
     // Top up plan notifications when app foregrounds so habits stay fresh
     const appStateSub = AppState.addEventListener('change', state => {
       if (state === 'active') {
-        Promise.all([getActivePlan(), getAllChildPlans()]).then(([pipPlan, childPlans]) => {
-          topUpPlanNotifications(pipPlan, childPlans).catch(() => {});
-        });
       }
     });
 

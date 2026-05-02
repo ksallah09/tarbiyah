@@ -60,13 +60,17 @@ export default function OnboardingAccount({ navigation, route }) {
       })),
       userId && saveProfileToSupabase({
         userId,
-        name:            data.name,
-        childrenCount:   data.childrenCount,
-        childrenAges:    data.childrenAges,
-        reminderTime:    data.reminderTime,
-        focusAreas:      data.focusAreas ?? [],
-        familyStructure: data.familyStructure ?? 'prefer_not_to_say',
-        language:        'English',
+        name:              data.name,
+        childrenCount:     data.childrenCount,
+        childrenAges:      data.childrenAges,
+        reminderTime:      data.reminderTime,
+        focusAreas:        data.focusAreas        ?? [],
+        familyStructure:   data.familyStructure   ?? 'prefer_not_to_say',
+        language:          'English',
+        parentRole:        data.parentRole        ?? null,
+        isWorkingParent:   data.isWorkingParent   ?? null,
+        workHoursPerWeek:  data.workHoursPerWeek  ?? null,
+        availability:      data.availability      ?? null,
       }),
     ].filter(Boolean));
   }
@@ -227,7 +231,7 @@ export default function OnboardingAccount({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <ProgressDots current={5} total={6} />
+          <ProgressDots current={8} total={9} />
 
           <View style={styles.textWrap}>
             <TypewriterText

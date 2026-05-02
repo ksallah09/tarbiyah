@@ -21,7 +21,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import DarkHeader from '../components/DarkHeader';
 import { useFocusEffect } from '@react-navigation/native';
 import { getSavedInsights, unsaveInsight } from '../utils/savedInsights';
 import { getSavedResources, saveResource, unsaveResource } from '../utils/savedResources';
@@ -756,61 +755,46 @@ export default function LibraryScreen({ navigation }) {
       <View style={styles.bgTop} />
       <StatusBar style="light" />
 
-      <DarkHeader title="Community" subtitle={subtitleText} />
-
-      {/* ── Tab bar ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabBarScroll}
-        contentContainerStyle={styles.tabBarContent}
-      >
-        {[
-          { key: 'resources', label: 'Resources',  icon: 'compass-outline', dot: false },
-          { key: 'dua',       label: "Du'a Board", icon: 'sparkles',         dot: showDuaDot },
-          { key: 'wins',      label: 'Wins',        icon: 'trophy-outline',   dot: showWinsDot },
-          { key: 'myposts',   label: 'My Posts',   icon: 'person-outline',   dot: false },
-        ].map(tab => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tabBarBtn, activeTab === tab.key && styles.tabBarBtnActive]}
-            onPress={() => {
-              setActiveTab(tab.key);
-              if (tab.key === 'dua') {
-                setShowDuaDot(false);
-                AsyncStorage.setItem('tarbiyah_last_visited_dua', new Date().toISOString());
-              } else if (tab.key === 'wins') {
-                setShowWinsDot(false);
-                AsyncStorage.setItem('tarbiyah_last_visited_wins', new Date().toISOString());
-              }
-            }}
-            activeOpacity={0.75}
-          >
-            <Ionicons name={tab.icon} size={14} color={activeTab === tab.key ? '#1B3D2F' : 'rgba(255,255,255,0.55)'} />
-            <Text style={[styles.tabBarBtnText, activeTab === tab.key && styles.tabBarBtnTextActive]}>{tab.label}</Text>
-            {tab.dot && <View style={styles.tabNewDot} />}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* ── Tab dots ── */}
-      <View style={styles.tabDotsRow}>
-        {['resources', 'dua', 'wins', 'myposts'].map(key => (
-          <View
-            key={key}
-            style={[styles.tabDot, activeTab === key && styles.tabDotActive]}
-          />
-        ))}
+      {/* ── Header tab switcher ── */}
+      <View style={[styles.tabHeader, { paddingTop: insets.top + 16 }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabRow}
+        >
+          {[
+            { key: 'resources', label: 'Resources',  dot: false },
+            { key: 'dua',       label: "Du'a Board", dot: showDuaDot },
+            { key: 'wins',      label: 'Wins',        dot: showWinsDot },
+            { key: 'myposts',   label: 'My Posts',   dot: false },
+          ].map(tab => {
+            const active = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={styles.tabBtn}
+                onPress={() => {
+                  setActiveTab(tab.key);
+                  if (tab.key === 'dua') {
+                    setShowDuaDot(false);
+                    AsyncStorage.setItem('tarbiyah_last_visited_dua', new Date().toISOString());
+                  } else if (tab.key === 'wins') {
+                    setShowWinsDot(false);
+                    AsyncStorage.setItem('tarbiyah_last_visited_wins', new Date().toISOString());
+                  }
+                }}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.tabBtnLabel, active && styles.tabBtnLabelActive]}>
+                  {tab.label}
+                </Text>
+                {active && <View style={styles.tabBtnUnderline} />}
+                {tab.dot && <View style={styles.tabNewDot} />}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
-
-      {/* ── Swipe hint (first visit only) ── */}
-      {showSwipeHint && (
-        <Animated.View style={[styles.swipeHint, { opacity: swipeHintOpacity, transform: [{ translateX: swipeHintX }] }]}>
-          <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.7)" />
-          <Text style={styles.swipeHintText}>Swipe for more</Text>
-          <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.7)" />
-        </Animated.View>
-      )}
 
       <View style={styles.sheet}>
         {activeTab === 'library' ? (
@@ -1708,7 +1692,7 @@ const styles = StyleSheet.create({
   },
   loadingOverlayHadith: {
     fontSize: 24, fontWeight: '700', letterSpacing: 0.3,
-    color: '#D4A843', textAlign: 'center', lineHeight: 36,
+    color: '#FFFFFF', textAlign: 'center', lineHeight: 36,
     fontStyle: 'italic',
   },
   loadingOverlayAttribution: {
@@ -1718,7 +1702,7 @@ const styles = StyleSheet.create({
   },
   overlayBtn: {
     marginTop: 40,
-    backgroundColor: '#D4A843',
+    backgroundColor: '#FFFFFF',
     borderRadius: 100,
     paddingVertical: 14,
     paddingHorizontal: 48,
@@ -1728,47 +1712,42 @@ const styles = StyleSheet.create({
   },
   loadingOverlayTagline: {
     fontSize: 13, fontWeight: '600', letterSpacing: 1.2,
-    color: 'rgba(255,255,255,0.3)',
+    color: 'rgba(255,255,255,0.4)',
     marginTop: 32, textAlign: 'center', textTransform: 'uppercase',
   },
   safe: { flex: 1, backgroundColor: '#F5F6F8' },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '40%', backgroundColor: '#1B3D2F' },
-  sheet: { flex: 1, backgroundColor: '#F5F6F8', overflow: 'hidden' },
+  sheet: { flex: 1, backgroundColor: '#F5F6F8', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
 
   // ── Tab bar ──
-  tabBarScroll: { backgroundColor: 'transparent', flexGrow: 0 },
-  tabBarContent: { paddingHorizontal: 16, paddingBottom: 12, gap: 8, alignItems: 'center' },
-  tabBarBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    position: 'relative',
+  // ── Header tab switcher ──
+  tabHeader: {
+    backgroundColor: '#1B3D2F',
+    paddingBottom: 16,
   },
-  tabBarBtnActive: { backgroundColor: '#D4A843' },
-  tabBarBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
-  tabBarBtnTextActive: { color: '#1B3D2F' },
+  tabRow: {
+    paddingHorizontal: 20, gap: 28, alignItems: 'center',
+  },
+  tabBtn: {
+    paddingVertical: 16, alignItems: 'center', position: 'relative',
+  },
+  tabBtnLabel: {
+    fontSize: 16, fontWeight: '600',
+    color: 'rgba(255,255,255,0.4)', letterSpacing: 0.2,
+  },
+  tabBtnLabelActive: {
+    color: '#FFFFFF', fontWeight: '700',
+  },
+  tabBtnUnderline: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    height: 3, borderRadius: 2, backgroundColor: '#FFFFFF',
+  },
   tabNewDot: {
-    position: 'absolute', top: -3, right: -3,
-    width: 9, height: 9, borderRadius: 5,
-    backgroundColor: '#C9A84C',
+    position: 'absolute', top: 10, right: -10,
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: '#4ADE80',
     borderWidth: 1.5, borderColor: '#1B3D2F',
   },
-  tabDotsRow: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    gap: 5, paddingBottom: 8,
-  },
-  tabDot: {
-    width: 5, height: 5, borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-  },
-  tabDotActive: {
-    width: 16, backgroundColor: '#D4A843',
-  },
-  swipeHint: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 4, paddingBottom: 8,
-  },
-  swipeHintText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.7)', letterSpacing: 0.5 },
 
   // ── Du'a / Win cards ──
   duaCard: {
