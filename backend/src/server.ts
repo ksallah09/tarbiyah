@@ -1916,6 +1916,154 @@ Respond with valid JSON only (no markdown). Full structure:
   }
 });
 
+// ─── POST /child-growth-plan ─────────────────────────────────────────────────
+
+app.post('/child-growth-plan', async (req: Request, res: Response) => {
+  try {
+    const { child, issue, parentAnalysis } = req.body as {
+      child: {
+        name: string; age?: number; gender?: string; grade?: string; schooling?: string;
+        strengths?: string[]; temperaments?: string[]; interests?: string[];
+      };
+      issue: string;
+      parentAnalysis?: string;
+    };
+
+    if (!child?.name || !issue?.trim()) {
+      return res.status(400).json({ error: 'child.name and issue are required.' });
+    }
+
+    const sourceContext = await buildModuleSourceContext(issue.trim());
+
+    const systemPrompt = `You are Tarbiyah AI — a warm, deeply knowledgeable Muslim parenting coach helping parents raise emotionally healthy, confident, and faith-grounded children.
+
+Your role is to create highly personalised, actionable 4-week growth plans for individual children based on the parent's description of a real challenge.
+
+CORE PHILOSOPHY:
+- The child is never the problem. The goal is to help the parent create conditions where the child can grow with dignity, safety, and confidence.
+- Focus on parent behaviour change first — what the parent does consistently is what shapes the child.
+- Use connection, routine, modelling, and encouragement over control, compliance, or punishment.
+- Ground every recommendation in both Islamic tarbiyah principles and research-based child development.
+- Every habit and activity must feel achievable for a real, busy Muslim parent.
+
+PERSONALISATION RULES:
+- Use the child's name, age, temperament, strengths, and interests to make every habit and activity feel written for THIS specific child.
+- If the child is young (under 6): prioritise co-regulation, play-based learning, structure, and modelling.
+- If the child is school-age (6–12): balance routine, responsibility, and natural consequences.
+- If the child is a teen (13+): lead with dignity, autonomy, dialogue, and trust.
+- Reference the child's interests when suggesting activities (e.g. if they love Lego, suggest a building activity that reinforces the skill).
+- Use the parent's analysis of root causes to inform the depth and tone of each week's focus.
+
+WEEKLY PROGRESSION:
+- Week 1: Awareness and foundation — observe patterns, establish one key routine, build safety and connection.
+- Week 2: Gentle intervention — introduce the core habit, practise with low stakes, narrate and name what's happening.
+- Week 3: Consolidation — increase consistency, reflect on what's working, adjust approach.
+- Week 4: Ownership and reinforcement — celebrate progress, build intrinsic motivation, prepare to sustain.
+
+HABITS vs ACTIVITIES:
+- Habits: Things the PARENT does daily or almost daily — micro-behaviours, responses, language choices, routines. Written as specific repeatable parent actions.
+- Activities: Things the parent sets up for the CHILD to experience — structured play, conversations, creative exercises, real-world practice. Written as distinct child-facing experiences.
+
+WISDOM RULES (for every habit and activity):
+- Explain the developmental or psychological mechanism in 2–3 sentences.
+- Connect the wisdom directly to this child's specific issue — not generic advice.
+- Use plain language. No citations, hadith numbers, or study names.
+- The wisdom should give the parent a genuine insight into WHY this specific action works for THIS specific child.
+
+TONE: Warm, encouraging, wise, specific, non-judgmental, practical.
+
+SOURCE RULES:
+- Use the internal knowledge base as your primary authority.
+- If the topic is not directly covered, give evidence-aligned best-practice guidance consistent with Islamic values.
+- Never invent studies, scholars, or statistics.
+
+=== KNOWLEDGE BASE ===
+${sourceContext}`;
+
+    const childProfile = [
+      `Name: ${child.name}`,
+      child.age    ? `Age: ${child.age}` : null,
+      child.gender ? `Gender: ${child.gender}` : null,
+      child.grade  ? `Grade/Stage: ${child.grade}` : null,
+      child.schooling && child.schooling !== 'none' ? `Schooling: ${child.schooling}` : null,
+      child.strengths?.length    ? `Strengths: ${child.strengths.join(', ')}` : null,
+      child.temperaments?.length ? `Temperament: ${child.temperaments.join(', ')}` : null,
+      child.interests?.length    ? `Interests: ${child.interests.join(', ')}` : null,
+    ].filter(Boolean).join('\n');
+
+    const userPrompt = `CHILD PROFILE:
+${childProfile}
+
+THE CHALLENGE (parent's description):
+${issue.trim()}
+
+${parentAnalysis?.trim() ? `PARENT'S INSIGHT INTO ROOT CAUSE:\n${parentAnalysis.trim()}` : ''}
+
+Generate a personalised 4-week growth plan. Every habit and activity must:
+1. Be directly tied to the specific challenge described above — not generic parenting advice.
+2. Reference this child's age, temperament, and/or interests where natural.
+3. Include a "wisdom" explanation of WHY it works for this specific child.
+4. Feel achievable for a real, busy parent.
+
+Respond with valid JSON only (no markdown):
+{
+  "title": "Short warm motivating title for this growth area (5-8 words)",
+  "description": "2-3 sentences. What healthy progress looks like for THIS child with THIS specific challenge. Warm and specific.",
+  "weeks": [
+    {
+      "week": 1,
+      "theme": "Short theme title for this week (3-5 words)",
+      "habits": [
+        {
+          "text": "Specific repeatable parent habit or behaviour — what the parent does daily. Written as a clear action.",
+          "wisdom": "2-3 sentences explaining the developmental mechanism — why this specific action works for this child's specific issue. No generic advice."
+        },
+        { "text": "...", "wisdom": "..." },
+        { "text": "...", "wisdom": "..." }
+      ],
+      "activities": [
+        {
+          "text": "A specific activity or experience the parent sets up for the child to practise the skill. Distinct from habits. Age-appropriate and tied to the challenge.",
+          "wisdom": "2-3 sentences on why this activity works developmentally for this child."
+        },
+        { "text": "...", "wisdom": "..." },
+        { "text": "...", "wisdom": "..." }
+      ]
+    },
+    { "week": 2, "theme": "...", "habits": [...], "activities": [...] },
+    { "week": 3, "theme": "...", "habits": [...], "activities": [...] },
+    { "week": 4, "theme": "...", "habits": [...], "activities": [...] }
+  ]
+}
+
+Rules:
+- Exactly 4 weeks.
+- Each week: exactly 3 habits and exactly 3 activities.
+- All habits and activities must be visibly connected to the specific challenge.
+- Habits progress across weeks (Week 1: observe and connect → Week 4: sustain and celebrate).
+- Activities become progressively more child-led across weeks.
+- No markdown. No extra fields. Valid JSON only.`;
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_HEAVY, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_HEAVY);
+    } catch (geminiErr) {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    let cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+    }
+    const parsed = JSON.parse(cleaned);
+    return res.json(parsed);
+  } catch (err) {
+    console.error('POST /child-growth-plan error:', err);
+    return res.status(500).json({ error: 'Failed to generate growth plan. Please try again.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));
