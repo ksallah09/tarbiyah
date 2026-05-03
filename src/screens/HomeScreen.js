@@ -24,8 +24,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import fallbackData from '../data/insights.json';
-import { getWeekReadDays, isReadToday, getStreak, getMonthTotal, getPartnerMonthCounts } from '../utils/readInsights';
-import { getCachedSyncStatus } from '../utils/familySync';
+import { getWeekReadDays, isReadToday, getStreak, getMonthTotal, getMonthReadDays, getPartnerMonthCounts } from '../utils/readInsights';
+import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
@@ -33,7 +33,7 @@ import { refreshDailyNotification } from '../utils/notifications';
 import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
 import { getAllChildProfiles } from '../utils/childProfiles';
-import { getWeekCompletions, getChildWeeklyCounts } from '../utils/childCompletions';
+import { getWeekCompletions, getChildWeeklyCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
 
 
 const SCIENCE_IMAGES = [
@@ -145,9 +145,16 @@ export default function HomeScreen({ navigation }) {
   const [partnerMonthTotal, setPartnerMonthTotal] = useState(0);
   const [children,        setChildren]        = useState([]);
   const [weekCompletions, setWeekCompletions] = useState({});
+  const [spirMonth,       setSpiritualMonth]  = useState([]);
+  const [sciMonth,        setScientificMonth] = useState([]);
+  const [quranMonth,      setQuranMonth]      = useState([]);
+  const [partnerCounts,   setPartnerCounts]   = useState({ spiritual: 0, scientific: 0, quran: 0 });
+  const [myHabAct,        setMyHabAct]        = useState({ habits: 0, activities: 0 });
+  const [prtHabAct,       setPrtHabAct]       = useState({ habits: 0, activities: 0 });
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
-  const insightIdsRef = useRef({ spiritual: null, scientific: null });
+  const insightIdsRef     = useRef({ spiritual: null, scientific: null });
+  const partnerChannelRef = useRef(null);
   const sheetSlide   = useRef(new Animated.Value(40)).current;
   const sheetOpacity = useRef(new Animated.Value(0)).current;
 
@@ -266,7 +273,13 @@ export default function HomeScreen({ navigation }) {
       getStreak('quran').then(setQuranStreak);
       isReadToday('quran', dailyAyah.reference).then(setAyahRead);
       getAllChildProfiles().then(setChildren);
-      getWeekCompletions().then(setWeekCompletions);
+      getWeekCompletions().then(counts => {
+        setWeekCompletions(counts);
+        setMyHabAct(getMonthlyHabitActivityTotals(counts));
+      });
+      getMonthReadDays('spiritual').then(setSpiritualMonth);
+      getMonthReadDays('scientific').then(setScientificMonth);
+      getMonthReadDays('quran').then(setQuranMonth);
 
       // Re-check insight read badges on every focus (e.g. returning from InsightDetail)
       const { spiritual: spirId, scientific: sciId } = insightIdsRef.current;
@@ -294,15 +307,45 @@ export default function HomeScreen({ navigation }) {
       AsyncStorage.getItem('tarbiyah_partner_sync_on').then(val => {
         if (val === 'false') { setPartnerSyncOn(false); return; }
         setPartnerSyncOn(true);
-        getCachedSyncStatus().then(status => {
+        function applyPartnerStatus(status) {
           setSyncStatus(status);
           if (status.linked && status.partner?.userId) {
-            getPartnerMonthCounts(status.partner.userId).then(counts => {
+            const uid = status.partner.userId;
+            getPartnerMonthCounts(uid).then(counts => {
               setPartnerMonthTotal(counts.spiritual + counts.scientific + counts.quran);
+              setPartnerCounts(counts);
             });
+            getPartnerMonthCompletions(uid).then(setPrtHabAct);
+
+            // Real-time: re-fetch partner leaderboard whenever their data changes
+            if (partnerChannelRef.current) supabase.removeChannel(partnerChannelRef.current);
+            partnerChannelRef.current = supabase
+              .channel(`partner-lb-${uid}`)
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'user_read_history', filter: `user_id=eq.${uid}` }, () => {
+                getPartnerMonthCounts(uid).then(counts => {
+                  setPartnerMonthTotal(counts.spiritual + counts.scientific + counts.quran);
+                  setPartnerCounts(counts);
+                });
+              })
+              .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${uid}` }, () => {
+                getPartnerMonthCompletions(uid).then(setPrtHabAct);
+              })
+              .subscribe();
           }
-        });
+        }
+
+        // Phase 1: instant from cache
+        getCachedSyncStatus().then(applyPartnerStatus);
+        // Phase 2: live from Supabase (catches first-login with no cache)
+        getFamilySyncStatus().then(applyPartnerStatus);
       });
+
+      return () => {
+        if (partnerChannelRef.current) {
+          supabase.removeChannel(partnerChannelRef.current);
+          partnerChannelRef.current = null;
+        }
+      };
     }, [])
   );
 
@@ -400,31 +443,6 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* ── Partner score strip ── */}
-            {partnerSyncOn && syncStatus.linked && (() => {
-              const partnerName = syncStatus.partner?.name?.split(' ')[0] ?? 'Partner';
-              const myWin      = myMonthTotal > partnerMonthTotal;
-              const partnerWin = partnerMonthTotal > myMonthTotal;
-              return (
-                <View style={styles.scoreStrip}>
-                  {/* Your side */}
-                  <View style={[styles.scoreSide, myWin && styles.scoreSideWin]}>
-                    {myWin && <Ionicons name="trophy" size={11} color="#C9A84C" />}
-                    <Text style={[styles.scoreNum, myWin && styles.scoreNumWin]}>{myMonthTotal}</Text>
-                    <Text style={[styles.scoreLabel, myWin && styles.scoreLabelWin]}>YOU</Text>
-                  </View>
-
-                  <Text style={styles.scoreVs}>vs</Text>
-
-                  {/* Partner side */}
-                  <View style={[styles.scoreSide, styles.scoreSideRight, partnerWin && styles.scoreSideWin]}>
-                    <Text style={[styles.scoreLabel, partnerWin && styles.scoreLabelWin]}>{partnerName.toUpperCase()}</Text>
-                    <Text style={[styles.scoreNum, partnerWin && styles.scoreNumWin]}>{partnerMonthTotal}</Text>
-                    {partnerWin && <Ionicons name="trophy" size={11} color="#C9A84C" />}
-                  </View>
-                </View>
-              );
-            })()}
           </View>
 
           {/* ── Content ── */}
@@ -528,53 +546,173 @@ export default function HomeScreen({ navigation }) {
 
 
               {/* CHILDREN'S PROGRESS THIS WEEK */}
-              {children.length > 0 && (
-                <>
-                  <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
-                    <Text style={styles.sectionTitle}>CHILDREN'S PROGRESS THIS WEEK</Text>
+              <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                <Text style={styles.sectionTitle}>CHILDREN'S PROGRESS THIS WEEK</Text>
+              </View>
+              {children.length === 0 ? (
+                <View style={styles.childEmptyCard}>
+                  <View style={styles.childEmptyTop}>
+                    <View style={styles.childEmptyIconWrap}>
+                      <Ionicons name="people-outline" size={24} color="#1B3D2F" />
+                    </View>
+                    <Text style={styles.childEmptyLabel}>Add your children</Text>
+                    <Text style={styles.childEmptySub}>Track habits, activities, and growth — all in one place.</Text>
                   </View>
-                  {children.map((child, idx) => {
-                    const hasAreas = (child.growthAreas ?? []).length > 0;
-                    const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
-                    return (
-                      <TouchableOpacity key={child.id} style={[styles.childProgressCard, idx > 0 && { marginTop: 8 }]} onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })} activeOpacity={0.82}>
-                        {/* Avatar + age underneath */}
-                        <View style={styles.childProgressAvatarWrap}>
-                          <View style={[styles.childProgressAvatar, { backgroundColor: child.color }]}>
-                            {child.photo
-                              ? <Image source={{ uri: child.photo }} style={styles.childProgressAvatarPhoto} />
-                              : <Text style={styles.childProgressInitial}>{child.name[0]}</Text>
-                            }
-                          </View>
-                          <Text style={styles.childProgressAge}>Age {child.age}</Text>
+                  <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('AddChildWizard')} activeOpacity={0.75}>
+                    <Ionicons name="add-circle-outline" size={16} color="#1B3D2F" />
+                    <Text style={styles.childEmptyBtnText}>Add a Child</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                children.map((child, idx) => {
+                  const hasAreas = (child.growthAreas ?? []).length > 0;
+                  const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
+                  return (
+                    <TouchableOpacity key={child.id} style={[styles.childProgressCard, idx > 0 && { marginTop: 8 }]} onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })} activeOpacity={0.82}>
+                      <View style={styles.childProgressAvatarWrap}>
+                        <View style={[styles.childProgressAvatar, { backgroundColor: child.color }]}>
+                          {child.photo
+                            ? <Image source={{ uri: child.photo }} style={styles.childProgressAvatarPhoto} />
+                            : <Text style={styles.childProgressInitial}>{child.name[0]}</Text>
+                          }
                         </View>
-                        {/* Name */}
-                        <Text style={[styles.childProgressName, { flex: 1 }]}>{child.name}</Text>
-                        {/* Counts or empty */}
-                        {hasAreas ? (
-                          <View style={styles.childProgressCounts}>
-                            <View style={styles.childProgressCount}>
-                              <Text style={styles.childProgressNum}>{habits}</Text>
-                              <Text style={styles.childProgressLabel}>Habits{'\n'}Logged</Text>
-                            </View>
-                            <View style={styles.childProgressDivider} />
-                            <View style={styles.childProgressCount}>
-                              <Text style={[styles.childProgressNum, { color: '#B45309' }]}>{activities}</Text>
-                              <Text style={styles.childProgressLabel}>Activities{'\n'}Logged</Text>
-                            </View>
+                        <Text style={styles.childProgressAge}>Age {child.age}</Text>
+                      </View>
+                      <Text style={[styles.childProgressName, { flex: 1 }]}>{child.name}</Text>
+                      {hasAreas ? (
+                        <View style={styles.childProgressCounts}>
+                          <View style={styles.childProgressCount}>
+                            <Text style={styles.childProgressNum}>{habits}</Text>
+                            <Text style={styles.childProgressLabel}>Habits{'\n'}Logged</Text>
                           </View>
-                        ) : (
-                          <View style={styles.childProgressEmpty}>
-                            <Ionicons name="leaf-outline" size={13} color="#C3DDD6" />
-                            <Text style={styles.childProgressEmptyText}>No growth areas yet</Text>
+                          <View style={styles.childProgressDivider} />
+                          <View style={styles.childProgressCount}>
+                            <Text style={[styles.childProgressNum, { color: '#B45309' }]}>{activities}</Text>
+                            <Text style={styles.childProgressLabel}>Activities{'\n'}Logged</Text>
                           </View>
-                        )}
-                        <Ionicons name="chevron-forward" size={14} color="#D1D5DB" />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </>
+                        </View>
+                      ) : (
+                        <View style={styles.childProgressEmpty}>
+                          <Ionicons name="leaf-outline" size={13} color="#C3DDD6" />
+                          <Text style={styles.childProgressEmptyText}>No growth areas yet</Text>
+                        </View>
+                      )}
+                      <Ionicons name="chevron-forward" size={14} color="#D1D5DB" />
+                    </TouchableOpacity>
+                  );
+                })
               )}
+
+              {/* MONTHLY LEADERBOARD — only when partner sync is on */}
+              {partnerSyncOn && (() => {
+                const mySpir  = spirMonth.filter(d => d.completed).length;
+                const mySci   = sciMonth.filter(d => d.completed).length;
+                const myQuran = quranMonth.filter(d => d.completed).length;
+                const myTotal = mySpir + mySci + myQuran + myHabAct.habits + myHabAct.activities;
+                const ROWS = [
+                  { label: 'Spiritual',  icon: 'moon',                  color: '#4ADE80' },
+                  { label: 'Research',   icon: 'bulb-outline',          color: '#F59E0B' },
+                  { label: 'Quran',      icon: 'book-outline',          color: '#93C5FD' },
+                  { label: 'Habits',     icon: 'repeat-outline',        color: '#86EFAC' },
+                  { label: 'Activities', icon: 'color-palette-outline', color: '#FCD34D' },
+                ];
+                const myScore = r => r.label === 'Habits' ? myHabAct.habits : r.label === 'Activities' ? myHabAct.activities : r.label === 'Spiritual' ? mySpir : r.label === 'Research' ? mySci : myQuran;
+
+                if (!syncStatus.linked) {
+                  return (
+                    <>
+                      <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                        <Text style={styles.sectionTitle}>MONTHLY LEADERBOARD</Text>
+                      </View>
+                      <View style={styles.homeLeaderCard}>
+                        <View style={styles.homeLbColRow}>
+                          <Text style={styles.homeLbColLabel}>YOU</Text>
+                          <View style={{ flex: 1 }} />
+                          <Text style={[styles.homeLbColLabel, { color: 'rgba(255,255,255,0.25)' }]}>PARTNER</Text>
+                        </View>
+                        {ROWS.map(r => (
+                          <View key={r.label} style={styles.homeLbRow}>
+                            <Text style={styles.homeLbScore}>{myScore(r)}</Text>
+                            <View style={styles.homeLbMid}>
+                              <View style={styles.homeLbBarWrap}>
+                                <View style={[styles.homeLbBarFillL, { width: '60%', backgroundColor: r.color + '55' }]} />
+                              </View>
+                              <View style={[styles.homeLbCatPill, { backgroundColor: r.color + '22' }]}>
+                                <Ionicons name={r.icon} size={10} color={r.color} />
+                                <Text style={[styles.homeLbCatText, { color: r.color }]}>{r.label}</Text>
+                              </View>
+                              <View style={[styles.homeLbBarWrap, { opacity: 0.25 }]}>
+                                <View style={[styles.homeLbBarFillR, { width: '40%', backgroundColor: '#FFFFFF' }]} />
+                              </View>
+                            </View>
+                            <Text style={[styles.homeLbScore, { color: 'rgba(255,255,255,0.15)' }]}>?</Text>
+                          </View>
+                        ))}
+                        <View style={styles.homeLbDivider} />
+                        <TouchableOpacity style={styles.homeLbUnlockBtn} onPress={() => navigation.navigate('Tabs', { screen: 'Progress' })} activeOpacity={0.85}>
+                          <Ionicons name="people-outline" size={14} color="#1B3D2F" />
+                          <Text style={styles.homeLbUnlockText}>Sync with your partner to see the leaderboard</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  );
+                }
+
+                const partnerFirstName = syncStatus.partner?.name?.split(' ')[0] ?? 'Partner';
+                const prtTotal = partnerCounts.spiritual + partnerCounts.scientific + partnerCounts.quran + prtHabAct.habits + prtHabAct.activities;
+                const prtScore = r => r.label === 'Habits' ? prtHabAct.habits : r.label === 'Activities' ? prtHabAct.activities : r.label === 'Spiritual' ? partnerCounts.spiritual : r.label === 'Research' ? partnerCounts.scientific : partnerCounts.quran;
+                const winnerData = myTotal > prtTotal
+                  ? { text: "You're leading — Ma Shaa Allah!", icon: 'trophy',         iconColor: '#C9A84C' }
+                  : prtTotal > myTotal
+                    ? { text: `${partnerFirstName} is leading — keep going!`, icon: 'barbell-outline', iconColor: '#86EFAC' }
+                    : { text: "You're tied — great effort, both of you!", icon: 'people-outline', iconColor: '#93C5FD' };
+                return (
+                  <>
+                    <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                      <Text style={styles.sectionTitle}>MONTHLY LEADERBOARD</Text>
+                    </View>
+                    <View style={styles.homeLeaderCard}>
+                      <View style={styles.homeLbColRow}>
+                        <Text style={styles.homeLbColLabel}>YOU</Text>
+                        <View style={{ flex: 1 }} />
+                        <Text style={styles.homeLbColLabel}>{partnerFirstName.toUpperCase()}</Text>
+                      </View>
+                      {ROWS.map(r => {
+                        const my = myScore(r), partner = prtScore(r);
+                        const max = Math.max(my, partner, 1);
+                        return (
+                          <View key={r.label} style={styles.homeLbRow}>
+                            <Text style={[styles.homeLbScore, my > partner && styles.homeLbScoreWin]}>{my}</Text>
+                            <View style={styles.homeLbMid}>
+                              <View style={styles.homeLbBarWrap}>
+                                <View style={[styles.homeLbBarFillL, { width: `${(my / max) * 100}%`, backgroundColor: r.color + 'CC' }]} />
+                              </View>
+                              <View style={[styles.homeLbCatPill, { backgroundColor: r.color + '22' }]}>
+                                <Ionicons name={r.icon} size={10} color={r.color} />
+                                <Text style={[styles.homeLbCatText, { color: r.color }]}>{r.label}</Text>
+                              </View>
+                              <View style={styles.homeLbBarWrap}>
+                                <View style={[styles.homeLbBarFillR, { width: `${(partner / max) * 100}%`, backgroundColor: r.color + 'CC' }]} />
+                              </View>
+                            </View>
+                            <Text style={[styles.homeLbScore, partner > my && styles.homeLbScoreWin]}>{partner}</Text>
+                          </View>
+                        );
+                      })}
+                      <View style={styles.homeLbDivider} />
+                      <View style={styles.homeLbTotalRow}>
+                        <Text style={[styles.homeLbTotalNum, myTotal >= prtTotal && myTotal > 0 && styles.homeLbScoreWin]}>{myTotal}</Text>
+                        <Text style={styles.homeLbTotalLabel}>TOTAL</Text>
+                        <Text style={[styles.homeLbTotalNum, prtTotal > myTotal && styles.homeLbScoreWin]}>{prtTotal}</Text>
+                      </View>
+                      <View style={styles.homeLbWinnerRow}>
+                        <Ionicons name={winnerData.icon} size={13} color={winnerData.iconColor} />
+                        <Text style={styles.homeLbWinner}>{winnerData.text}</Text>
+                      </View>
+                    </View>
+                  </>
+                );
+              })()}
 
               {/* YOU'RE NOT ALONE — hidden, re-enable in future release */}
 
@@ -1379,4 +1517,39 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingVertical: 14,
   },
   childEmptyBtnText: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
+
+  // ── Home leaderboard card ──
+  homeLeaderCard: {
+    backgroundColor: '#1B3D2F', borderRadius: 20, padding: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12, shadowRadius: 12, elevation: 4,
+  },
+  homeLbLockPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(201,168,76,0.15)', borderRadius: 100,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  homeLbLockText: { fontSize: 10, fontWeight: '600', color: '#C9A84C' },
+  homeLbColRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  homeLbColLabel: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+  homeLbRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
+  homeLbScore: { width: 28, fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.55)', textAlign: 'center' },
+  homeLbScoreWin: { color: '#FFFFFF' },
+  homeLbMid: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  homeLbBarWrap: { flex: 1, height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' },
+  homeLbBarFillL: { height: 4, borderRadius: 2, alignSelf: 'flex-end' },
+  homeLbBarFillR: { height: 4, borderRadius: 2 },
+  homeLbCatPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
+  homeLbCatText: { fontSize: 10, fontWeight: '600' },
+  homeLbDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 10 },
+  homeLbTotalRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  homeLbTotalNum: { width: 28, fontSize: 15, fontWeight: '800', color: 'rgba(255,255,255,0.55)', textAlign: 'center' },
+  homeLbTotalLabel: { flex: 1, fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.35)', textAlign: 'center', letterSpacing: 1 },
+  homeLbWinnerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  homeLbWinner: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)' },
+  homeLbUnlockBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#D4A843', borderRadius: 12, paddingVertical: 11,
+  },
+  homeLbUnlockText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
 });

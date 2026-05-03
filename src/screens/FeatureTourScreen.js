@@ -8,7 +8,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../App';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IS_SMALL = SCREEN_HEIGHT < 700;
+const GLOW_SIZE   = IS_SMALL ? 140 : 200;
+const GLOW_MID    = IS_SMALL ? 105 : 150;
+const GLOW_INNER  = IS_SMALL ?  70 : 100;
+const GLOW_ICON   = IS_SMALL ?  36 :  52;
+const GLOW_MB     = IS_SMALL ?  20 :  40;
+const SLIDE_EXTRA = IS_SMALL ?  60 : 120;
 const TAB_WIDTH = SCREEN_WIDTH / 5;
 const MOCK_TAB_HEIGHT = 60;
 
@@ -157,12 +164,12 @@ export default function FeatureTourScreen() {
         renderItem={({ item }) => {
           const glowRgb = item.iconColor === '#4ADE80' ? '74,222,128' : '212,168,67';
           return (
-            <View style={[styles.slide, { paddingBottom: mockTabBarHeight + 120 }]}>
-              <View style={styles.glowStack}>
-                <View style={[styles.glowOuter, { backgroundColor: `rgba(${glowRgb},0.06)` }]} />
-                <View style={[styles.glowMid, { backgroundColor: `rgba(${glowRgb},0.1)` }]} />
-                <View style={[styles.glowInner, { backgroundColor: `rgba(${glowRgb},0.15)` }]}>
-                  <Ionicons name={item.icon} size={52} color={item.iconColor} />
+            <View style={[styles.slide, { paddingBottom: mockTabBarHeight + SLIDE_EXTRA }]}>
+              <View style={[styles.glowStack, { width: GLOW_SIZE, height: GLOW_SIZE, marginBottom: GLOW_MB }]}>
+                <View style={[styles.glowOuter, { borderRadius: GLOW_SIZE / 2, backgroundColor: `rgba(${glowRgb},0.06)` }]} />
+                <View style={[styles.glowMid, { width: GLOW_MID, height: GLOW_MID, borderRadius: GLOW_MID / 2, backgroundColor: `rgba(${glowRgb},0.1)` }]} />
+                <View style={[styles.glowInner, { width: GLOW_INNER, height: GLOW_INNER, borderRadius: GLOW_INNER / 2, backgroundColor: `rgba(${glowRgb},0.15)` }]}>
+                  <Ionicons name={item.icon} size={GLOW_ICON} color={item.iconColor} />
                 </View>
               </View>
               <Text style={styles.title}>{item.title}</Text>
@@ -267,34 +274,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   glowStack: {
-    width: 200,
-    height: 200,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 40,
   },
   glowOuter: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 100,
-    backgroundColor: 'rgba(212,168,67,0.06)',
   },
   glowMid: {
     position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(212,168,67,0.1)',
   },
   glowInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(212,168,67,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 26,
+    fontSize: IS_SMALL ? 22 : 26,
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',

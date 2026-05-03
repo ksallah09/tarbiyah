@@ -78,6 +78,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
   const [analysis, setAnalysis]     = useState('');
   const [savedArea, setSavedArea]   = useState(null);
   const [error, setError]           = useState('');
+  const [areasSaved, setAreasSaved] = useState(0);
   const fadeAnim      = useRef(new Animated.Value(1)).current;
   const slideAnim     = useRef(new Animated.Value(800)).current;
   const pollRef       = useRef(null);
@@ -206,6 +207,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
 
           await addGrowthArea(child.id, growthArea);
           setSavedArea(growthArea);
+          setAreasSaved(n => n + 1);
           fadeTo(STEP_DONE);
         } else if (data.status === 'failed') {
           clearInterval(pollRef.current);
@@ -505,7 +507,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
 
   function renderDone() {
     const existingAreas = child?.growthAreas ?? [];
-    const totalAreas    = existingAreas.length + 1;
+    const totalAreas    = existingAreas.length + areasSaved;
     const canAddMore    = totalAreas < 2;
 
     return (

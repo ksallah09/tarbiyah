@@ -352,27 +352,30 @@ export default function ProgressScreen({ navigation }) {
 
         {partnerSyncOn && (syncStatus.linked ? (
           <View style={styles.syncLinkedCard}>
+            <View style={styles.syncLinkedHeaderRow}>
+              <Ionicons name="people" size={13} color="#4ADE80" />
+              <Text style={styles.syncLinkedHeaderText}>PARTNER SYNC</Text>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={styles.syncEditBtn} onPress={() => navigation.navigate('FamilySync')} activeOpacity={0.8}>
+                <Ionicons name="pencil-outline" size={12} color="#C9A84C" />
+                <Text style={styles.syncEditText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.syncLinkedAvatarRow}>
               <View style={styles.syncAvatar}>
-                <Ionicons name="person" size={18} color="#2E7D62" />
+                <Ionicons name="person" size={18} color="#4ADE80" />
               </View>
               <View style={styles.syncLinkedLine} />
-              <Ionicons name="heart" size={14} color="#D4871A" />
+              <View style={styles.syncHeartWrap}>
+                <Ionicons name="heart" size={12} color="#C9A84C" />
+              </View>
               <View style={styles.syncLinkedLine} />
               <View style={styles.syncAvatar}>
-                <Ionicons name="person" size={18} color="#2E7D62" />
+                <Ionicons name="person" size={18} color="#4ADE80" />
               </View>
             </View>
             <Text style={styles.syncLinkedLabel}>Connected with</Text>
             <Text style={styles.syncLinkedName}>{syncStatus.partner?.name || 'Your partner'}</Text>
-            <TouchableOpacity
-              style={styles.syncEditBtn}
-              onPress={() => navigation.navigate('FamilySync')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="pencil-outline" size={13} color="#2E7D62" />
-              <Text style={styles.syncEditText}>Edit</Text>
-            </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
@@ -381,13 +384,13 @@ export default function ProgressScreen({ navigation }) {
             activeOpacity={0.85}
           >
             <View style={styles.spouseSyncIconWrap}>
-              <Ionicons name="people" size={22} color="#4ADE80" />
+              <Ionicons name="people" size={20} color="#4ADE80" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.spouseSyncText}>Connect with your partner</Text>
               <Text style={styles.spouseSyncSub}>Share family goals and grow together</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.35)" />
           </TouchableOpacity>
         ))}
 
@@ -404,7 +407,7 @@ export default function ProgressScreen({ navigation }) {
             <View style={styles.leaderboardColRow}>
               <Text style={styles.leaderboardColLabel}>YOU</Text>
               <View style={{ flex: 1 }} />
-              <Text style={[styles.leaderboardColLabel, { color: 'rgba(255,255,255,0.2)' }]}>PARTNER</Text>
+              <Text style={[styles.leaderboardColLabel, { color: 'rgba(255,255,255,0.25)' }]}>PARTNER</Text>
             </View>
             {[
               { label: 'Spiritual', icon: 'moon',           color: '#4ADE80' },
@@ -461,11 +464,11 @@ export default function ProgressScreen({ navigation }) {
             { label: 'Habits',     icon: 'repeat-outline',        color: '#86EFAC', my: myHabAct.habits,     partner: prtHabAct.habits },
             { label: 'Activities', icon: 'color-palette-outline', color: '#FCD34D', my: myHabAct.activities, partner: prtHabAct.activities },
           ];
-          const winnerMsg = myTotal > prtTotal
-            ? "You're leading — Ma Shaa Allah! 🏆"
+          const winnerData = myTotal > prtTotal
+            ? { text: "You're leading — Ma Shaa Allah!", icon: 'trophy',         iconColor: '#C9A84C' }
             : prtTotal > myTotal
-              ? `${partnerFirstName} is leading — keep going! 💪`
-              : "You're tied — great effort, both of you! 🤝";
+              ? { text: `${partnerFirstName} is leading — keep going!`, icon: 'barbell-outline', iconColor: '#86EFAC' }
+              : { text: "You're tied — great effort, both of you!", icon: 'people-outline',  iconColor: '#93C5FD' };
           return (
             <View style={styles.leaderboardCard}>
               <View style={styles.leaderboardHeaderRow}>
@@ -504,7 +507,10 @@ export default function ProgressScreen({ navigation }) {
                 <Text style={styles.leaderboardTotalLabel}>TOTAL</Text>
                 <Text style={[styles.leaderboardTotalNum, prtTotal > myTotal && styles.leaderboardScoreWin]}>{prtTotal}</Text>
               </View>
-              <Text style={styles.leaderboardWinner}>{winnerMsg}</Text>
+              <View style={styles.leaderboardWinnerRow}>
+                <Ionicons name={winnerData.icon} size={13} color={winnerData.iconColor} />
+                <Text style={styles.leaderboardWinner}>{winnerData.text}</Text>
+              </View>
             </View>
           );
         })()}
@@ -733,7 +739,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', marginBottom: 12,
   },
   leaderboardColLabel: {
-    fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.5)', letterSpacing: 1,
+    fontSize: 14, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5,
   },
   leaderboardRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10,
@@ -769,81 +775,74 @@ const styles = StyleSheet.create({
     flex: 1, fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.4)',
     textAlign: 'center', letterSpacing: 1,
   },
+  leaderboardWinnerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
   leaderboardWinner: {
     fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)',
-    textAlign: 'center',
   },
 
   // ── Spouse sync banner ──
   spouseSyncBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: '#1B3D2F',
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#1B3D2F', borderRadius: 20, padding: 18, marginBottom: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12, shadowRadius: 12, elevation: 4,
   },
   spouseSyncIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: 'rgba(74,222,128,0.12)',
+    alignItems: 'center', justifyContent: 'center',
   },
   spouseSyncText: {
-    fontSize: 15, color: '#FFFFFF',
-    fontWeight: '700', marginBottom: 2,
+    fontSize: 15, color: '#FFFFFF', fontWeight: '700', marginBottom: 2,
   },
   spouseSyncSub: {
-    fontSize: 12, color: 'rgba(255,255,255,0.55)',
-    fontWeight: '400',
+    fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '400',
   },
 
   // ── Sync linked card ──
   syncLinkedCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
-    alignItems: 'center',
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#A7D7C5',
-    shadowColor: '#1B3D2F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: '#1B3D2F', borderRadius: 20, padding: 16, marginBottom: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12, shadowRadius: 12, elevation: 4,
+  },
+  syncLinkedHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16,
+  },
+  syncLinkedHeaderText: {
+    fontSize: 11, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1,
   },
   syncLinkedAvatarRow: {
-    flexDirection: 'row', alignItems: 'center',
-    gap: 8, marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14,
   },
   syncAvatar: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#E6F4EE',
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(74,222,128,0.12)',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: '#A7D7C5',
+    borderWidth: 1.5, borderColor: 'rgba(74,222,128,0.25)',
+  },
+  syncHeartWrap: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: 'rgba(201,168,76,0.15)',
+    alignItems: 'center', justifyContent: 'center',
   },
   syncLinkedLine: {
-    flex: 1, height: 1.5,
-    backgroundColor: '#A7D7C5',
+    flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)',
   },
   syncLinkedLabel: {
-    fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginBottom: 2,
+    fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: '500', marginBottom: 3,
   },
   syncLinkedName: {
-    fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 14,
+    fontSize: 16, fontWeight: '800', color: '#FFFFFF',
   },
   syncEditBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderWidth: 1, borderColor: '#A7D7C5',
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
-    backgroundColor: '#E6F4EE',
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(201,168,76,0.15)', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 5,
   },
   syncEditText: {
-    fontSize: 12, fontWeight: '600', color: '#2E7D62',
+    fontSize: 12, fontWeight: '600', color: '#C9A84C',
   },
 
 });
