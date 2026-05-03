@@ -2278,7 +2278,57 @@ ${sourceContext}`;
       child.interests?.length    ? `Interests: ${child.interests.join(', ')}` : null,
     ].filter(Boolean).join('\n');
 
-    const userPrompt = `CHILD PROFILE:\n${childProfile}\n\nTHE CHALLENGE:\n${issue.trim()}\n\n${parentAnalysis?.trim() ? `PARENT'S INSIGHT:\n${parentAnalysis.trim()}` : ''}\n\nGenerate the full JSON growth plan as specified. Valid JSON only, no markdown.`;
+    const userPrompt = `CHILD PROFILE:
+${childProfile}
+
+THE CHALLENGE (parent's description):
+${issue.trim()}
+
+${parentAnalysis?.trim() ? `PARENT'S INSIGHT INTO ROOT CAUSE:\n${parentAnalysis.trim()}` : ''}
+
+Generate a personalised 4-week growth plan rooted in Islamic tarbiyah and child development research. Every habit, activity, and insight must:
+1. Be directly tied to the specific challenge described — not generic parenting advice.
+2. Reference this child's profile (age, temperament, interests) where natural.
+3. Carry genuine Islamic grounding — not surface-level mentions, but real tarbiyah wisdom.
+4. Be layered with child development insight alongside the Islamic foundation.
+5. Feel achievable for a real, busy Muslim parent.
+
+Respond with valid JSON only (no markdown):
+{
+  "title": "Short warm motivating title (5-8 words) — can carry an Islamic tone if natural",
+  "description": "2-3 sentences. What healthy, character-grounded progress looks like for THIS child with THIS specific challenge. Warm, specific, and hopeful.",
+  "islamicFoundation": "2-3 sentences. Connect this specific challenge to an Islamic principle, Prophetic example, or tarbiyah concept. Specific and substantive — not generic.",
+  "weeks": [
+    {
+      "week": 1,
+      "theme": "Short theme title (3-5 words)",
+      "islamicPrinciple": "One Islamic concept that frames this week. 1-2 sentences on what this principle means for THIS week's approach with THIS child.",
+      "habits": [
+        { "priority": "primary", "text": "The single most impactful daily habit for this week.", "wisdom": "2-3 sentences. Islamic grounding required — name the tarbiyah principle, explain its depth, connect to this child's challenge." },
+        { "priority": "secondary", "text": "An important supporting habit.", "wisdom": "2-3 sentences. Draw from child development — explain the mechanism and connect to this child's specific issue." },
+        { "priority": "bonus", "text": "A bonus habit for parents who want to go deeper.", "wisdom": "2-3 sentences. Blend Islamic and developmental insight." }
+      ],
+      "activities": [
+        { "text": "A specific experience the parent sets up for the child. Age-appropriate, tied to the challenge.", "wisdom": "2-3 sentences. Islamic grounding required — how does this build the child's fitrah or akhlaq?" },
+        { "text": "A second activity — more play-based or creative, still tied to the challenge.", "wisdom": "2-3 sentences. Child development research — why does this experience build the specific skill?" },
+        { "text": "A third activity — more child-led than the first two.", "wisdom": "2-3 sentences. Blend Islamic and developmental insight." }
+      ]
+    },
+    { "week": 2, "theme": "...", "islamicPrinciple": "...", "habits": [{ "priority": "primary", "text": "...", "wisdom": "..." }, { "priority": "secondary", "text": "...", "wisdom": "..." }, { "priority": "bonus", "text": "...", "wisdom": "..." }], "activities": [{ "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }] },
+    { "week": 3, "theme": "...", "islamicPrinciple": "...", "habits": [{ "priority": "primary", "text": "...", "wisdom": "..." }, { "priority": "secondary", "text": "...", "wisdom": "..." }, { "priority": "bonus", "text": "...", "wisdom": "..." }], "activities": [{ "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }] },
+    { "week": 4, "theme": "...", "islamicPrinciple": "...", "habits": [{ "priority": "primary", "text": "...", "wisdom": "..." }, { "priority": "secondary", "text": "...", "wisdom": "..." }, { "priority": "bonus", "text": "...", "wisdom": "..." }], "activities": [{ "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }] }
+  ],
+  "dailyTips": [
+    { "title": "3-5 word punchy title", "body": "1-2 sentences. Islamic wisdom OR child development insight OR practical encouragement. Warm, specific to the challenge." }
+  ]
+}
+
+Rules:
+- Exactly 4 weeks. Each week: exactly 3 habits and exactly 3 activities.
+- Every week MUST have an "islamicPrinciple".
+- Primary habit wisdom: Islamic grounding required. First activity wisdom: Islamic grounding required.
+- dailyTips: exactly 28 items. At least 12 must be genuinely Islamic tarbiyah wisdom.
+- No hadith numbers, scholar names, or study citations. No markdown. Valid JSON only.`;
 
     function cleanJson(raw: string): string {
       let s = raw.trim();
