@@ -282,6 +282,10 @@ const styles = StyleSheet.create({
   // Section label
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 1, marginBottom: 12 },
 
+  planSubNote: {
+    fontSize: 12, color: '#9CA3AF', lineHeight: 18, marginBottom: 14, marginTop: 2,
+  },
+
   // Week tabs
   weekTabs: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   weekTab: {

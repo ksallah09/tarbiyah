@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { updateFamilyGoalReminder } from '../utils/notifications';
+import { getWeekCompletions, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
 import { rs, hp } from '../utils/responsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -58,6 +59,8 @@ export default function ProgressScreen({ navigation }) {
   const [completions,  setCompletions]  = useState(_completionsCache);
   const [syncStatus,    setSyncStatus]    = useState(_syncStatusCache);
   const [partnerCounts, setPartnerCounts] = useState({ spiritual: 0, scientific: 0, quran: 0 });
+  const [myHabAct,      setMyHabAct]      = useState({ habits: 0, activities: 0 });
+  const [prtHabAct,     setPrtHabAct]     = useState({ habits: 0, activities: 0 });
   const [partnerSyncOn, setPartnerSyncOn] = useState(true);
   const [refreshing,  setRefreshing]       = useState(false);
   const hasMountedRef = useRef(false);
@@ -79,17 +82,22 @@ export default function ProgressScreen({ navigation }) {
     }
     loadCompletions().then(v => { _completionsCache = v; setCompletions(v); });
 
+    // My monthly habit/activity totals
+    getWeekCompletions().then(counts => setMyHabAct(getMonthlyHabitActivityTotals(counts)));
+
     // Phase 2: sync status (AsyncStorage instant → Supabase background)
     getCachedSyncStatus().then(cached => {
       _syncStatusCache = cached; setSyncStatus(cached);
       if (cached.linked && cached.partner?.userId) {
         getPartnerMonthCounts(cached.partner.userId).then(setPartnerCounts);
+        getPartnerMonthCompletions(cached.partner.userId).then(setPrtHabAct);
       }
       getFamilySyncStatus().then(live => {
         _syncStatusCache = live; setSyncStatus(live);
         loadFamilyGoals().then(v => { _familyGoalsCache = v; setFamilyGoals(v); });
         if (live.linked && live.partner?.userId) {
           getPartnerMonthCounts(live.partner.userId).then(setPartnerCounts);
+          getPartnerMonthCompletions(live.partner.userId).then(setPrtHabAct);
         }
       });
     });
@@ -387,7 +395,7 @@ export default function ProgressScreen({ navigation }) {
           <View style={styles.leaderboardPreview}>
             <View style={styles.leaderboardPreviewHeader}>
               <Ionicons name="trophy" size={13} color="#C9A84C" />
-              <Text style={styles.leaderboardHeaderText}>MONTHLY READS LEADERBOARD</Text>
+              <Text style={styles.leaderboardHeaderText}>MONTHLY LEADERBOARD</Text>
               <View style={styles.leaderboardLockPill}>
                 <Ionicons name="lock-closed" size={9} color="#C9A84C" />
                 <Text style={styles.leaderboardLockText}>Sync to unlock</Text>
@@ -399,12 +407,19 @@ export default function ProgressScreen({ navigation }) {
               <Text style={[styles.leaderboardColLabel, { color: 'rgba(255,255,255,0.2)' }]}>PARTNER</Text>
             </View>
             {[
-              { label: 'Spiritual', icon: 'moon',        color: '#4ADE80' },
-              { label: 'Research',  icon: 'bulb-outline', color: '#F59E0B' },
-              { label: 'Quran',     icon: 'book-outline', color: '#93C5FD' },
+              { label: 'Spiritual', icon: 'moon',           color: '#4ADE80' },
+              { label: 'Research',  icon: 'bulb-outline',   color: '#F59E0B' },
+              { label: 'Quran',     icon: 'book-outline',   color: '#93C5FD' },
+              { label: 'Habits',    icon: 'repeat-outline', color: '#86EFAC' },
+              { label: 'Activities',icon: 'color-palette-outline', color: '#FCD34D' },
             ].map(({ label, icon, color }) => (
               <View key={label} style={styles.leaderboardRow}>
-                <Text style={styles.leaderboardScore}>{spirStreak + sciStreak + quranStreak > 0 ? [spirMonth, sciMonth, quranMonth][['Spiritual','Research','Quran'].indexOf(label)].filter(d => d.completed).length : '—'}</Text>
+                <Text style={styles.leaderboardScore}>{(() => {
+                  if (label === 'Habits') return myHabAct.habits;
+                  if (label === 'Activities') return myHabAct.activities;
+                  const idx = ['Spiritual','Research','Quran'].indexOf(label);
+                  return idx >= 0 ? [spirMonth, sciMonth, quranMonth][idx].filter(d => d.completed).length : '—';
+                })()}</Text>
                 <View style={styles.leaderboardMid}>
                   <View style={styles.leaderboardBarWrap}>
                     <View style={[styles.leaderboardBarFill, styles.leaderboardBarLeft, { width: '60%', backgroundColor: color + '55' }]} />
@@ -437,12 +452,14 @@ export default function ProgressScreen({ navigation }) {
           const mySpir   = spirMonth.filter(d => d.completed).length;
           const mySci    = sciMonth.filter(d => d.completed).length;
           const myQuran  = quranMonth.filter(d => d.completed).length;
-          const myTotal  = mySpir + mySci + myQuran;
-          const prtTotal = partnerCounts.spiritual + partnerCounts.scientific + partnerCounts.quran;
+          const myTotal  = mySpir + mySci + myQuran + myHabAct.habits + myHabAct.activities;
+          const prtTotal = partnerCounts.spiritual + partnerCounts.scientific + partnerCounts.quran + prtHabAct.habits + prtHabAct.activities;
           const ROWS = [
-            { label: 'Spiritual', icon: 'moon',        color: '#4ADE80', my: mySpir,  partner: partnerCounts.spiritual },
-            { label: 'Research',  icon: 'bulb-outline', color: '#F59E0B', my: mySci,   partner: partnerCounts.scientific },
-            { label: 'Quran',     icon: 'book-outline', color: '#93C5FD', my: myQuran, partner: partnerCounts.quran },
+            { label: 'Spiritual',  icon: 'moon',                  color: '#4ADE80', my: mySpir,              partner: partnerCounts.spiritual },
+            { label: 'Research',   icon: 'bulb-outline',          color: '#F59E0B', my: mySci,               partner: partnerCounts.scientific },
+            { label: 'Quran',      icon: 'book-outline',          color: '#93C5FD', my: myQuran,             partner: partnerCounts.quran },
+            { label: 'Habits',     icon: 'repeat-outline',        color: '#86EFAC', my: myHabAct.habits,     partner: prtHabAct.habits },
+            { label: 'Activities', icon: 'color-palette-outline', color: '#FCD34D', my: myHabAct.activities, partner: prtHabAct.activities },
           ];
           const winnerMsg = myTotal > prtTotal
             ? "You're leading — Ma Shaa Allah! 🏆"
@@ -453,7 +470,7 @@ export default function ProgressScreen({ navigation }) {
             <View style={styles.leaderboardCard}>
               <View style={styles.leaderboardHeaderRow}>
                 <Ionicons name="trophy" size={13} color="#C9A84C" />
-                <Text style={styles.leaderboardHeaderText}>MONTHLY READS LEADERBOARD</Text>
+                <Text style={styles.leaderboardHeaderText}>MONTHLY LEADERBOARD</Text>
               </View>
               <View style={styles.leaderboardColRow}>
                 <Text style={styles.leaderboardColLabel}>YOU</Text>

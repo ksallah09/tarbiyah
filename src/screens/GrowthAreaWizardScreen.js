@@ -2,11 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, Animated,
-  ActivityIndicator, Keyboard,
+  ActivityIndicator, Keyboard, Alert, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addGrowthArea } from '../utils/childProfiles';
+import { supabase } from '../utils/supabase';
+
+const PENDING_JOB_KEY = 'tarbiyah_pending_growth_plan_job';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -16,6 +20,7 @@ const STEP_SAFETY   = 2;
 const STEP_ANALYSIS = 3;
 const STEP_LOADING  = 4;
 const STEP_DONE     = 5;
+const STEP_BRIDGE   = 6;
 
 // ── Safety detection ──────────────────────────────────────────────────────────
 
@@ -49,7 +54,7 @@ function ProgressBar({ step }) {
     }).start();
   }, [step]);
 
-  if (step <= STEP_INTRO || step === STEP_SAFETY || step >= STEP_LOADING) return null;
+  if (step <= STEP_INTRO || step === STEP_SAFETY || step === STEP_BRIDGE || step >= STEP_LOADING) return null;
 
   return (
     <View style={pb.track}>
@@ -73,7 +78,11 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
   const [analysis, setAnalysis]     = useState('');
   const [savedArea, setSavedArea]   = useState(null);
   const [error, setError]           = useState('');
-  const fadeAnim                    = useRef(new Animated.Value(1)).current;
+  const fadeAnim      = useRef(new Animated.Value(1)).current;
+  const slideAnim     = useRef(new Animated.Value(800)).current;
+  const pollRef       = useRef(null);
+  const jobIdRef      = useRef(null);
+  const appStateRef   = useRef(AppState.currentState);
 
   const stage1Opacity = useRef(new Animated.Value(0)).current;
   const stage2Opacity = useRef(new Animated.Value(0)).current;
@@ -82,6 +91,28 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
 
   const childName = child?.name ?? 'your child';
   const displayName = childName.length > 12 ? childName.slice(0, 12).trimEnd() + '…' : childName;
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', next => {
+      appStateRef.current = next;
+    });
+    // Check if there's a pending job from a previous session
+    AsyncStorage.getItem(PENDING_JOB_KEY).then(stored => {
+      if (!stored) return;
+      try {
+        const { jobId, childId } = JSON.parse(stored);
+        if (jobId && childId === child?.id) {
+          fadeTo(STEP_LOADING);
+          startPolling(jobId);
+        }
+      } catch {}
+    });
+    return () => {
+      sub.remove();
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   // Sequential stage reveal on loading
   useEffect(() => {
@@ -110,19 +141,19 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
     fadeTo(STEP_LOADING);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/child-growth-plan`, {
+      const res = await fetch(`${API_URL}/child-growth-plan/async`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           child: {
-            name:          child?.name,
-            age:           child?.age,
-            gender:        child?.gender,
-            grade:         child?.grade,
-            schooling:     child?.schooling,
-            strengths:     child?.strengths     ?? [],
-            temperaments:  child?.temperaments  ?? [],
-            interests:     child?.interests     ?? [],
+            name:         child?.name,
+            age:          child?.age,
+            gender:       child?.gender,
+            grade:        child?.grade,
+            schooling:    child?.schooling,
+            strengths:    child?.strengths     ?? [],
+            temperaments: child?.temperaments  ?? [],
+            interests:    child?.interests     ?? [],
           },
           issue,
           parentAnalysis: analysis,
@@ -130,33 +161,60 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
       });
 
       if (!res.ok) throw new Error(`Server error ${res.status}`);
-      const json = await res.json();
+      const { jobId } = await res.json();
 
-      if (json.safetyFlag) {
-        fadeTo(STEP_SAFETY);
-        return;
-      }
-
-      const growthArea = {
-        id:                `ga_${Date.now()}`,
-        title:             json.title             ?? 'Growth Area',
-        description:       json.description       ?? '',
-        islamicFoundation: json.islamicFoundation ?? '',
-        issue,
-        parentAnalysis:    analysis,
-        plan:              json.weeks             ?? json.plan ?? [],
-        dailyTips:         json.dailyTips         ?? [],
-        daysActive:        0,
-        createdAt:         new Date().toISOString(),
-      };
-
-      await addGrowthArea(child.id, growthArea);
-      setSavedArea(growthArea);
-      fadeTo(STEP_DONE);
+      jobIdRef.current = jobId;
+      await AsyncStorage.setItem(PENDING_JOB_KEY, JSON.stringify({ jobId, childId: child?.id }));
+      startPolling(jobId);
     } catch (e) {
       setError('Something went wrong. Please try again.');
       fadeTo(STEP_ANALYSIS);
     }
+  }
+
+  function startPolling(jobId) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from('growth_plan_jobs')
+          .select('status, plan, error')
+          .eq('id', jobId)
+          .single();
+
+        if (!data) return;
+
+        if (data.status === 'complete') {
+          clearInterval(pollRef.current);
+          AsyncStorage.removeItem(PENDING_JOB_KEY);
+          const json = data.plan;
+
+          if (json?.safetyFlag) { fadeTo(STEP_SAFETY); return; }
+
+          const growthArea = {
+            id:                `ga_${Date.now()}`,
+            title:             json.title             ?? 'Growth Area',
+            description:       json.description       ?? '',
+            islamicFoundation: json.islamicFoundation ?? '',
+            issue,
+            parentAnalysis:    analysis,
+            plan:              json.weeks             ?? json.plan ?? [],
+            dailyTips:         json.dailyTips         ?? [],
+            daysActive:        0,
+            createdAt:         new Date().toISOString(),
+          };
+
+          await addGrowthArea(child.id, growthArea);
+          setSavedArea(growthArea);
+          fadeTo(STEP_DONE);
+        } else if (data.status === 'failed') {
+          clearInterval(pollRef.current);
+          AsyncStorage.removeItem(PENDING_JOB_KEY);
+          setError('Generation failed. Please try again.');
+          fadeTo(STEP_ANALYSIS);
+        }
+      } catch {}
+    }, 4000);
   }
 
   function handleAddAnother() {
@@ -168,6 +226,15 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
   }
 
   function handleDone() {
+    slideAnim.setValue(800);
+    setStep(STEP_BRIDGE);
+    Animated.spring(slideAnim, {
+      toValue: 0, useNativeDriver: true,
+      tension: 68, friction: 12,
+    }).start();
+  }
+
+  function handleBridgeContinue() {
     navigation.replace('GrowthAreaPlan', { area: savedArea, child });
   }
 
@@ -181,7 +248,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
     const features = [
       { icon: 'chatbubble-ellipses-outline', text: 'You describe the issue in your own words' },
       { icon: 'bulb-outline',                text: "Share your insight into what's behind it" },
-      { icon: 'sparkles-outline',            text: 'AI builds a personalised 4-week plan with weekly habits and activities' },
+      { icon: 'sparkles-outline',            text: 'Tarbiyah builds a personalised 4-week plan with weekly habits and activities' },
     ];
 
     return (
@@ -229,6 +296,27 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           </TouchableOpacity>
         )}
       </View>
+    );
+  }
+
+  function renderBridge() {
+    return (
+      <Animated.View style={[styles.bridgeWrap, { transform: [{ translateY: slideAnim }] }]}>
+        <View style={styles.bridgeIconRing}>
+          <Ionicons name="apps" size={32} color="#4ADE80" />
+        </View>
+        <Text style={styles.bridgeTitle}>Your plan is ready</Text>
+        <Text style={styles.bridgeBody}>
+          What you're about to see is an overview of the full 4-week plan.
+        </Text>
+        <Text style={styles.bridgeBody}>
+          {displayName}'s Child Dashboard — found in the <Text style={{ color: '#4ADE80', fontWeight: '700' }}>Dashboards</Text> tab — will guide you through it week by week, surfacing the right habits, activities, and a daily coaching tip to keep you on track.
+        </Text>
+        <TouchableOpacity style={styles.bridgeBtn} onPress={handleBridgeContinue} activeOpacity={0.85}>
+          <Text style={styles.bridgeBtnText}>Got it!</Text>
+          <Ionicons name="arrow-forward" size={16} color="#1B3D2F" />
+        </TouchableOpacity>
+      </Animated.View>
     );
   }
 
@@ -356,7 +444,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
       <View style={styles.stepWrap}>
         <Text style={styles.stepTitle}>Your insight</Text>
         <Text style={styles.stepSub}>
-          What do you think is behind this? Share your understanding — it helps us tailor the plan to {displayName}.
+          What do you think is behind this? Share your understanding — it helps us tailor the plan to {displayName}. <Text style={{ color: 'rgba(255,255,255,0.35)' }}>Optional.</Text>
         </Text>
         {!!issue && (
           <View style={styles.reflectCard}>
@@ -409,7 +497,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           Keep the app open while your plan is being built
         </Animated.Text>
         <Animated.Text style={[styles.loadingKeepOpen, { opacity: keepOpenOpacity, marginTop: 6 }]}>
-          This usually takes 20–40 seconds
+          This usually takes 2–5 minutes
         </Animated.Text>
       </View>
     );
@@ -473,14 +561,14 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
 
   // ── Layout ────────────────────────────────────────────────────────────────────
 
-  const canAdvance = step === STEP_ISSUE ? issue.trim().length >= 10 : analysis.trim().length >= 10;
+  const canAdvance = step === STEP_ISSUE ? issue.trim().length >= 10 : true;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
         {/* Header */}
-        {step > STEP_INTRO && step !== STEP_SAFETY && step < STEP_LOADING && (
+        {step > STEP_INTRO && step !== STEP_SAFETY && step !== STEP_BRIDGE && step < STEP_LOADING && (
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backBtn}
@@ -508,6 +596,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
             {step === STEP_INTRO    && renderIntro()}
             {step === STEP_ISSUE    && renderIssue()}
             {step === STEP_SAFETY   && renderSafety()}
+            {step === STEP_BRIDGE   && renderBridge()}
             {step === STEP_ANALYSIS && renderAnalysis()}
             {step === STEP_LOADING  && renderLoading()}
             {step === STEP_DONE     && renderDone()}
@@ -515,7 +604,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
         </ScrollView>
 
         {/* Footer */}
-        {(step === STEP_ISSUE || step === STEP_ANALYSIS) && step !== STEP_INTRO && step !== STEP_SAFETY && (
+        {(step === STEP_ISSUE || step === STEP_ANALYSIS) && step !== STEP_INTRO && step !== STEP_SAFETY && step !== STEP_BRIDGE && (
           <View style={styles.footer}>
             <TouchableOpacity
               style={[styles.continueBtn, !canAdvance && styles.continueBtnDisabled]}
@@ -665,6 +754,32 @@ const styles = StyleSheet.create({
     paddingVertical: 16, marginTop: 4,
   },
   donePrimaryBtnText: { fontSize: 15, fontWeight: '800', color: '#1B3D2F' },
+
+  // Bridge screen
+  bridgeWrap: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 8, paddingTop: 20,
+  },
+  bridgeIconRing: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: 'rgba(74,222,128,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 28,
+  },
+  bridgeTitle: {
+    fontSize: 26, fontWeight: '800', color: '#FFFFFF',
+    textAlign: 'center', marginBottom: 20,
+  },
+  bridgeBody: {
+    fontSize: 15, color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center', lineHeight: 24, marginBottom: 14,
+  },
+  bridgeBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, backgroundColor: '#4ADE80', borderRadius: 14,
+    paddingVertical: 16, paddingHorizontal: 40, marginTop: 16,
+  },
+  bridgeBtnText: { fontSize: 16, fontWeight: '800', color: '#1B3D2F' },
 
   // Safety screen
   safetyWrap: { flex: 1, paddingTop: 32 },

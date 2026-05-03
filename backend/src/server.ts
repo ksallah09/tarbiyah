@@ -2198,6 +2198,133 @@ Rules:
   }
 });
 
+// ─── POST /child-growth-plan/async ───────────────────────────────────────────
+// Returns a jobId immediately; processes the plan in the background and writes
+// the result to the growth_plan_jobs Supabase table.
+
+async function runGrowthPlanJob(jobId: string, body: {
+  child: { name: string; age?: number; gender?: string; grade?: string; schooling?: string; strengths?: string[]; temperaments?: string[]; interests?: string[] };
+  issue: string; parentAnalysis?: string;
+}) {
+  try {
+    const { child, issue, parentAnalysis } = body;
+    const sourceContext = await buildModuleSourceContext(issue.trim());
+
+    // Re-use the same system prompt from the sync endpoint
+    const systemPrompt = `You are Tarbiyah AI — a warm, deeply knowledgeable Muslim parenting coach grounded in the Islamic spiritual tradition and research-based child development.
+
+Your role is to create highly personalised, actionable 4-week growth plans for individual children that are genuinely Islamic in spirit — not just culturally Muslim, but rooted in the wisdom, values, and character of the Prophetic tradition — while being fully informed by modern child development science.
+
+CORE IDENTITY OF THIS APP:
+Tarbiyah is an Islamic concept meaning the holistic nurturing of a child's body, mind, character, and soul. This is the lens through which every plan is written. The Prophet ﷺ was the most complete model of how to raise and relate to children — with gentleness (rifq), mercy (rahmah), dignity, play, honesty, and patience (sabr). This is the standard.
+
+CORE PHILOSOPHY:
+- The child is an amanah — a sacred trust from Allah — not a project to fix or a problem to solve.
+- Parenting with intention is an act of worship (ibadah). Every act of patience, gentleness, and consistent love is rewarded by Allah.
+- The parent's character and inner state are the most powerful force in the child's development — before any technique or strategy.
+- The fitrah (innate natural disposition toward goodness and faith) is already in the child. The parent's job is to protect and nurture it, not manufacture it.
+- Focus on parent behaviour change first — what the parent does consistently is what shapes the child.
+- Use connection, routine, modelling, and encouragement over control, compliance, or punishment.
+
+ISLAMIC PARENTING FOUNDATION — APPLY THROUGHOUT EVERY PLAN:
+Draw from the following Islamic concepts and weave them authentically into habits, activities, wisdom, and tips:
+Tarbiyah, Fitrah, Rifq, Rahmah, Sabr, Ihsan, Akhlaq, Amanah, Tawakkul, Du'a, Uswah, Shura, Haya, Qudwah hasanah.
+
+ISLAMIC GROUNDING RULES — NON-NEGOTIABLE:
+1. Every week must have an "islamicPrinciple".
+2. In every week, at least ONE habit's wisdom must draw from Islamic tradition.
+3. In every week, at least ONE activity's wisdom must have an Islamic dimension.
+4. The plan must open with an "islamicFoundation".
+5. Islamic insights must be SUBSTANTIVE.
+
+WEEKLY PROGRESSION (with Islamic arc):
+- Week 1: Awareness and rahmah
+- Week 2: Rifq in action
+- Week 3: Sabr and consistency
+- Week 4: Ihsan and ownership
+
+PERSONALISATION RULES:
+- Use the child's profile to make every habit and activity feel written for THIS specific child.
+- Reference the child's interests when suggesting activities.
+
+HABITS vs ACTIVITIES:
+- Habits: Things the PARENT does daily.
+- Activities: Things the parent sets up for the CHILD to experience.
+
+WISDOM RULES: Alternate Islamic and developmental wisdom. Primary habit = Islamic. First activity = Islamic.
+
+DAILY TIPS: At least 12 of 28 must be Islamic tarbiyah wisdom. Rotate evenly across types.
+
+TONE: Warm, wise, spiritually grounded, specific, non-judgmental, practical.
+
+SAFETY — ABSOLUTE RULE:
+If the described challenge involves suicidal thoughts, self-harm, abuse, severe eating disorders, psychosis, or substance addiction, return: {"safetyFlag": true, "message": "Professional support required."} and nothing else.
+
+SOURCE RULES:
+- Use the internal knowledge base as primary authority.
+- Never invent studies, scholars, statistics, or citations.
+${ISLAMIC_SENSITIVITIES}
+=== KNOWLEDGE BASE ===
+${sourceContext}`;
+
+    const childProfile = [
+      `Name: ${child.name}`,
+      child.age    ? `Age: ${child.age}` : null,
+      child.gender ? `Gender: ${child.gender}` : null,
+      child.grade  ? `Grade/Stage: ${child.grade}` : null,
+      child.schooling && child.schooling !== 'none' ? `Schooling: ${child.schooling}` : null,
+      child.strengths?.length    ? `Strengths: ${child.strengths.join(', ')}` : null,
+      child.temperaments?.length ? `Temperament: ${child.temperaments.join(', ')}` : null,
+      child.interests?.length    ? `Interests: ${child.interests.join(', ')}` : null,
+    ].filter(Boolean).join('\n');
+
+    const userPrompt = `CHILD PROFILE:\n${childProfile}\n\nTHE CHALLENGE:\n${issue.trim()}\n\n${parentAnalysis?.trim() ? `PARENT'S INSIGHT:\n${parentAnalysis.trim()}` : ''}\n\nGenerate the full JSON growth plan as specified. Valid JSON only, no markdown.`;
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_HEAVY, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_HEAVY);
+    } catch {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    let cleaned = raw.trim();
+    if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+    const parsed = JSON.parse(cleaned);
+
+    await supabase.from('growth_plan_jobs').update({ status: 'complete', plan: parsed }).eq('id', jobId);
+  } catch (err) {
+    console.error(`Job ${jobId} failed:`, err);
+    await supabase.from('growth_plan_jobs').update({ status: 'failed', error: String(err) }).eq('id', jobId);
+  }
+}
+
+app.post('/child-growth-plan/async', async (req: Request, res: Response) => {
+  try {
+    const { child, issue, parentAnalysis } = req.body;
+    if (!child?.name || !issue?.trim()) return res.status(400).json({ error: 'child.name and issue are required.' });
+
+    // Create the job record and return the ID immediately
+    const { data, error } = await supabase
+      .from('growth_plan_jobs')
+      .insert({ status: 'pending' })
+      .select('id')
+      .single();
+
+    if (error || !data) return res.status(500).json({ error: 'Could not create job.' });
+
+    const jobId = data.id;
+
+    // Fire off generation without awaiting
+    runGrowthPlanJob(jobId, { child, issue, parentAnalysis }).catch(() => {});
+
+    return res.json({ jobId });
+  } catch (err) {
+    console.error('POST /child-growth-plan/async error:', err);
+    return res.status(500).json({ error: 'Failed to start plan generation.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));

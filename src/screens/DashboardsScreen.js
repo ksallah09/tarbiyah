@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllChildProfiles, syncChildProfilesFromSupabase } from '../utils/childProfiles';
+import { logCompletion } from '../utils/childCompletions';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ function getCurrentWeekContent(area) {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-export default function DashboardsScreen({ navigation }) {
+export default function DashboardsScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [children, setChildren] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -70,14 +71,17 @@ export default function DashboardsScreen({ navigation }) {
   const [markedDone, setMarkedDone]                 = useState(new Set());
   const [expandedTimeHabits, setExpandedTimeHabits] = useState(new Set());
   const [activityPages, setActivityPages]           = useState({});
+  const [completionCounts, setCompletionCounts]     = useState({});
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
 
   useFocusEffect(useCallback(() => {
+    const requestedId = route?.params?.childId ?? null;
     getAllChildProfiles().then(profiles => {
       setChildren(profiles);
       setLoaded(true);
       setActiveChildId(prev => {
+        if (requestedId && profiles.find(c => c.id === requestedId)) return requestedId;
         if (prev && profiles.find(c => c.id === prev)) return prev;
         return profiles[0]?.id ?? null;
       });
@@ -86,12 +90,13 @@ export default function DashboardsScreen({ navigation }) {
       getAllChildProfiles().then(profiles => {
         setChildren(profiles);
         setActiveChildId(prev => {
+          if (requestedId && profiles.find(c => c.id === requestedId)) return requestedId;
           if (prev && profiles.find(c => c.id === prev)) return prev;
           return profiles[0]?.id ?? null;
         });
       })
     );
-  }, []));
+  }, [route?.params?.childId]));
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
   const displayName = child ? (child.name.length > 12 ? child.name.slice(0, 12).trimEnd() + '…' : child.name) : '';
@@ -139,6 +144,11 @@ export default function DashboardsScreen({ navigation }) {
     });
   };
 
+  const logOccurrence = (key) => {
+    setCompletionCounts(prev => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
+    logCompletion(key);
+  };
+
   const switchChild = (id) => {
     if (id === activeChildId) return;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -153,6 +163,7 @@ export default function DashboardsScreen({ navigation }) {
     setMarkedDone(new Set());
     setExpandedTimeHabits(new Set());
     setActivityPages({});
+    setCompletionCounts({});
   };
 
   if (loaded && children.length === 0) {
@@ -462,8 +473,10 @@ export default function DashboardsScreen({ navigation }) {
                       }}
                     >
                       {habits.map((habit, i) => {
-                        const key        = `hswipe_${area.id}_${i}`;
+                        const key      = `hswipe_${area.id}_${i}`;
+                        const doneKey  = `hdone_${area.id}_${i}`;
                         const wisdomOpen = expandedWisdom.has(key);
+                        const count    = completionCounts[doneKey] ?? 0;
                         return (
                           <View key={i} style={[styles.activitySwipeCard, { width: ACTIVITY_CARD_WIDTH, backgroundColor: '#F6FBF8', borderTopColor: '#D4EDE2' }]}>
                             <View style={styles.activityCardTop}>
@@ -472,19 +485,32 @@ export default function DashboardsScreen({ navigation }) {
                               </View>
                               <Text style={styles.activityCardText}>{habit.text}</Text>
                             </View>
-                            {habit.wisdom && (
-                              <>
+                            <View style={styles.cardActionRow}>
+                              {habit.wisdom ? (
                                 <TouchableOpacity style={styles.wisdomBtn} onPress={() => toggleWisdom(key)} activeOpacity={0.7}>
                                   <Ionicons name="book-outline" size={12} color="#2E7D62" />
                                   <Text style={styles.wisdomBtnText}>Wisdom behind this</Text>
                                   <Ionicons name={wisdomOpen ? 'chevron-up' : 'chevron-down'} size={12} color="#2E7D62" />
                                 </TouchableOpacity>
-                                {wisdomOpen && (
-                                  <View style={styles.wisdomPanel}>
-                                    <Text style={styles.wisdomText}>{habit.wisdom}</Text>
-                                  </View>
+                              ) : <View />}
+                              <View style={styles.didItWrap}>
+                                <TouchableOpacity
+                                  style={[styles.didItBtn, count > 0 && styles.didItBtnDoneHabit]}
+                                  onPress={() => logOccurrence(doneKey)}
+                                  activeOpacity={0.75}
+                                >
+                                  <Ionicons name="add" size={13} color="#FFF" />
+                                  <Text style={styles.didItText}>{count > 0 ? 'Did it again' : 'Did it today'}</Text>
+                                </TouchableOpacity>
+                                {count > 0 && (
+                                  <Text style={styles.didItCounter}>{count} today</Text>
                                 )}
-                              </>
+                              </View>
+                            </View>
+                            {wisdomOpen && habit.wisdom && (
+                              <View style={styles.wisdomPanel}>
+                                <Text style={styles.wisdomText}>{habit.wisdom}</Text>
+                              </View>
                             )}
                           </View>
                         );
@@ -537,7 +563,9 @@ export default function DashboardsScreen({ navigation }) {
                     >
                       {activities.map((activity, i) => {
                         const key      = `swipe_${area.id}_${i}`;
+                        const doneKey  = `adone_${area.id}_${i}`;
                         const wisdomOpen = expandedWisdom.has(key);
+                        const count    = completionCounts[doneKey] ?? 0;
                         return (
                           <View key={i} style={[styles.activitySwipeCard, { width: ACTIVITY_CARD_WIDTH }]}>
                             <View style={styles.activityCardTop}>
@@ -546,23 +574,32 @@ export default function DashboardsScreen({ navigation }) {
                               </View>
                               <Text style={styles.activityCardText}>{activity.text}</Text>
                             </View>
-                            {activity.wisdom && (
-                              <>
-                                <TouchableOpacity
-                                  style={styles.wisdomBtn}
-                                  onPress={() => toggleWisdom(key)}
-                                  activeOpacity={0.7}
-                                >
+                            <View style={styles.cardActionRow}>
+                              {activity.wisdom ? (
+                                <TouchableOpacity style={styles.wisdomBtn} onPress={() => toggleWisdom(key)} activeOpacity={0.7}>
                                   <Ionicons name="book-outline" size={12} color="#B45309" />
                                   <Text style={[styles.wisdomBtnText, { color: '#B45309' }]}>Wisdom behind this</Text>
                                   <Ionicons name={wisdomOpen ? 'chevron-up' : 'chevron-down'} size={12} color="#B45309" />
                                 </TouchableOpacity>
-                                {wisdomOpen && (
-                                  <View style={[styles.wisdomPanel, styles.wisdomPanelActivity]}>
-                                    <Text style={[styles.wisdomText, { color: '#92400E' }]}>{activity.wisdom}</Text>
-                                  </View>
+                              ) : <View />}
+                              <View style={styles.didItWrap}>
+                                <TouchableOpacity
+                                  style={[styles.didItBtn, styles.didItBtnDoneActivity]}
+                                  onPress={() => logOccurrence(doneKey)}
+                                  activeOpacity={0.75}
+                                >
+                                  <Ionicons name="add" size={13} color="#FFF" />
+                                  <Text style={styles.didItText}>{count > 0 ? 'Did it again' : 'Did it today'}</Text>
+                                </TouchableOpacity>
+                                {count > 0 && (
+                                  <Text style={[styles.didItCounter, { color: '#B45309' }]}>{count} today</Text>
                                 )}
-                              </>
+                              </View>
+                            </View>
+                            {wisdomOpen && activity.wisdom && (
+                              <View style={[styles.wisdomPanel, styles.wisdomPanelActivity]}>
+                                <Text style={[styles.wisdomText, { color: '#92400E' }]}>{activity.wisdom}</Text>
+                              </View>
                             )}
                           </View>
                         );
@@ -749,6 +786,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10,
   },
   activityCardText: { flex: 1, fontSize: 13, color: '#1A1A2E', lineHeight: 20 },
+  cardActionRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: 8,
+  },
+  didItBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#2E7D62', borderRadius: 100,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  didItBtnDoneHabit:    { backgroundColor: '#2E7D62' },
+  didItBtnDoneActivity: { backgroundColor: '#B45309' },
+  didItText:     { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+  didItDoneText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+  didItWrap:     { alignItems: 'flex-end', gap: 3 },
+  didItCounter:  { fontSize: 10, fontWeight: '700', color: '#2E7D62' },
+
   activityDots: {
     flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: 10,
   },

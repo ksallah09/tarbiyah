@@ -32,6 +32,8 @@ import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification } from '../utils/notifications';
 import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
+import { getAllChildProfiles } from '../utils/childProfiles';
+import { getWeekCompletions, getChildWeeklyCounts } from '../utils/childCompletions';
 
 
 const SCIENCE_IMAGES = [
@@ -141,6 +143,8 @@ export default function HomeScreen({ navigation }) {
   const [partnerSyncOn,     setPartnerSyncOn]     = useState(true);
   const [myMonthTotal,      setMyMonthTotal]      = useState(0);
   const [partnerMonthTotal, setPartnerMonthTotal] = useState(0);
+  const [children,        setChildren]        = useState([]);
+  const [weekCompletions, setWeekCompletions] = useState({});
   const [duaSharing, setDuaSharing] = useState(false);
   const duaShareCardRef = useRef(null);
   const insightIdsRef = useRef({ spiritual: null, scientific: null });
@@ -261,6 +265,8 @@ export default function HomeScreen({ navigation }) {
       getStreak('scientific').then(setSciStreak);
       getStreak('quran').then(setQuranStreak);
       isReadToday('quran', dailyAyah.reference).then(setAyahRead);
+      getAllChildProfiles().then(setChildren);
+      getWeekCompletions().then(setWeekCompletions);
 
       // Re-check insight read badges on every focus (e.g. returning from InsightDetail)
       const { spiritual: spirId, scientific: sciId } = insightIdsRef.current;
@@ -521,6 +527,55 @@ export default function HomeScreen({ navigation }) {
 
 
 
+              {/* CHILDREN'S PROGRESS THIS WEEK */}
+              {children.length > 0 && (
+                <>
+                  <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                    <Text style={styles.sectionTitle}>CHILDREN'S PROGRESS THIS WEEK</Text>
+                  </View>
+                  {children.map((child, idx) => {
+                    const hasAreas = (child.growthAreas ?? []).length > 0;
+                    const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
+                    return (
+                      <TouchableOpacity key={child.id} style={[styles.childProgressCard, idx > 0 && { marginTop: 8 }]} onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })} activeOpacity={0.82}>
+                        {/* Avatar + age underneath */}
+                        <View style={styles.childProgressAvatarWrap}>
+                          <View style={[styles.childProgressAvatar, { backgroundColor: child.color }]}>
+                            {child.photo
+                              ? <Image source={{ uri: child.photo }} style={styles.childProgressAvatarPhoto} />
+                              : <Text style={styles.childProgressInitial}>{child.name[0]}</Text>
+                            }
+                          </View>
+                          <Text style={styles.childProgressAge}>Age {child.age}</Text>
+                        </View>
+                        {/* Name */}
+                        <Text style={[styles.childProgressName, { flex: 1 }]}>{child.name}</Text>
+                        {/* Counts or empty */}
+                        {hasAreas ? (
+                          <View style={styles.childProgressCounts}>
+                            <View style={styles.childProgressCount}>
+                              <Text style={styles.childProgressNum}>{habits}</Text>
+                              <Text style={styles.childProgressLabel}>Habits{'\n'}Logged</Text>
+                            </View>
+                            <View style={styles.childProgressDivider} />
+                            <View style={styles.childProgressCount}>
+                              <Text style={[styles.childProgressNum, { color: '#B45309' }]}>{activities}</Text>
+                              <Text style={styles.childProgressLabel}>Activities{'\n'}Logged</Text>
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={styles.childProgressEmpty}>
+                            <Ionicons name="leaf-outline" size={13} color="#C3DDD6" />
+                            <Text style={styles.childProgressEmptyText}>No growth areas yet</Text>
+                          </View>
+                        )}
+                        <Ionicons name="chevron-forward" size={14} color="#D1D5DB" />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </>
+              )}
+
               {/* YOU'RE NOT ALONE — hidden, re-enable in future release */}
 
               {/* VERSES OF THE DAY */}
@@ -635,50 +690,6 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.streakCountSub}>day streak</Text>
                   </View>
                 ))}
-              </View>
-
-              {/* THIS WEEK */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>THIS WEEK</Text>
-              </View>
-
-              <View style={styles.streakCard}>
-                <View style={styles.streakHeaderRow}>
-                  <Ionicons name="moon" size={13} color="#2E7D62" />
-                  <Text style={[styles.streakLabel, { color: '#2E7D62' }]}>Spiritual</Text>
-                  <View style={styles.streakBadge}>
-                    <Ionicons name="flame" size={11} color="#2E7D62" />
-                    <Text style={[styles.streakBadgeNum, { color: '#2E7D62' }]}>{streak} day streak</Text>
-                  </View>
-                </View>
-                <Text style={styles.streakSubLabel}>Days you read a spiritual insight</Text>
-                <WeekRow days={spirReadWeek} color="#1B3D2F" todayColor="#D6EFE3" />
-              </View>
-
-              <View style={[styles.streakCard, { marginTop: 10 }]}>
-                <View style={styles.streakHeaderRow}>
-                  <Ionicons name="bulb-outline" size={13} color="#D4871A" />
-                  <Text style={[styles.streakLabel, { color: '#D4871A' }]}>Research</Text>
-                  <View style={styles.streakBadge}>
-                    <Ionicons name="flame" size={11} color="#D4871A" />
-                    <Text style={[styles.streakBadgeNum, { color: '#D4871A' }]}>{sciStreak} day streak</Text>
-                  </View>
-                </View>
-                <Text style={styles.streakSubLabel}>Days you read a scientific insight</Text>
-                <WeekRow days={sciReadWeek} color="#D4871A" todayColor="#FDE8C0" />
-              </View>
-
-              <View style={[styles.streakCard, { marginTop: 10 }]}>
-                <View style={styles.streakHeaderRow}>
-                  <Ionicons name="book-outline" size={13} color="#6B9FD4" />
-                  <Text style={[styles.streakLabel, { color: '#6B9FD4' }]}>Quran</Text>
-                  <View style={styles.streakBadge}>
-                    <Ionicons name="flame" size={11} color="#6B9FD4" />
-                    <Text style={[styles.streakBadgeNum, { color: '#6B9FD4' }]}>{quranStreak} day streak</Text>
-                  </View>
-                </View>
-                <Text style={styles.streakSubLabel}>Days you read the verses of the day</Text>
-                <WeekRow days={quranReadWeek} color="#1A3A6B" todayColor="#D0E4F7" />
               </View>
 
               {__DEV__ && (
@@ -1207,6 +1218,53 @@ const styles = StyleSheet.create({
   streakCountSub: { fontSize: 10, color: '#9CA3AF', fontWeight: '500' },
 
   // ── Streak card ──
+  // Children progress cards
+  childProgressCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12,
+    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
+    borderWidth: 1, borderColor: '#EEF0F2',
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  childProgressHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1,
+  },
+  childProgressAvatarWrap: { alignItems: 'center', gap: 3, flexShrink: 0 },
+  childProgressAvatar: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  childProgressAvatarPhoto: { width: 44, height: 44, borderRadius: 22 },
+  childProgressInitial: { fontSize: 17, fontWeight: '800', color: '#FFF' },
+  childProgressName: { fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
+  childProgressAge:  { fontSize: 10, color: '#9CA3AF', fontWeight: '500', textAlign: 'center' },
+  childProgressCounts: {
+    flexDirection: 'row', alignItems: 'center', gap: 16,
+  },
+  childProgressCount: {
+    alignItems: 'center', gap: 2,
+  },
+  childProgressCountIcon: {
+    width: 28, height: 28, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  childProgressNum: {
+    fontSize: 20, fontWeight: '800', color: '#2E7D62', lineHeight: 24,
+  },
+  childProgressLabel: {
+    fontSize: 10, color: '#9CA3AF', fontWeight: '500', textAlign: 'center', lineHeight: 13,
+  },
+  childProgressDivider: {
+    width: 1, height: 32, backgroundColor: '#F0F1F3',
+  },
+  childProgressEmpty: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1,
+  },
+  childProgressEmptyText: {
+    flex: 1, fontSize: 11, color: '#9CA3AF', lineHeight: 16,
+  },
+
   streakCard: {
     backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
