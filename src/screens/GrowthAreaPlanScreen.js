@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingTop: 2, paddingBottom: 4,
   },
-  wisdomToggleText: { fontSize: 12, fontWeight: '600', flex: 1 },
+  wisdomToggleText: { fontSize: 12, fontWeight: '600' },
   wisdomPanel: {
     marginTop: 8, borderRadius: 10, padding: 12,
     borderLeftWidth: 3,

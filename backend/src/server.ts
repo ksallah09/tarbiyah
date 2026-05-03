@@ -2226,6 +2226,7 @@ Generate a personalised 4-week growth plan rooted in Islamic tarbiyah and child 
 3. Carry genuine Islamic grounding — not surface-level mentions, but real tarbiyah wisdom.
 4. Be layered with child development insight alongside the Islamic foundation.
 5. Feel achievable for a real, busy Muslim parent.
+6. NEVER assume siblings, brothers, or sisters exist unless the child profile explicitly mentions them. Base all habits and activities solely on the child described.
 
 Respond with valid JSON only (no markdown):
 {
@@ -2426,6 +2427,7 @@ Generate a personalised 4-week growth plan rooted in Islamic tarbiyah and child 
 3. Carry genuine Islamic grounding — not surface-level mentions, but real tarbiyah wisdom.
 4. Be layered with child development insight alongside the Islamic foundation.
 5. Feel achievable for a real, busy Muslim parent.
+6. NEVER assume siblings, brothers, or sisters exist unless the child profile explicitly mentions them. Base all habits and activities solely on the child described.
 
 Respond with valid JSON only (no markdown):
 {

@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, Animated, Image, ImageBackground, ActivityIndicator,
-  Dimensions,
+  Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -12,7 +12,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAllChildProfiles, syncChildProfilesFromSupabase } from '../utils/childProfiles';
+import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile } from '../utils/childProfiles';
 import { logCompletion } from '../utils/childCompletions';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -72,6 +72,10 @@ export default function DashboardsScreen({ navigation, route }) {
   const [expandedTimeHabits, setExpandedTimeHabits] = useState(new Set());
   const [activityPages, setActivityPages]           = useState({});
   const [completionCounts, setCompletionCounts]     = useState({});
+  const [winModalVisible,      setWinModalVisible]      = useState(false);
+  const [incidentModalVisible, setIncidentModalVisible] = useState(false);
+  const [winText,      setWinText]      = useState('');
+  const [incidentText, setIncidentText] = useState('');
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
 
@@ -119,6 +123,45 @@ export default function DashboardsScreen({ navigation, route }) {
     const daysSince = Math.floor((Date.now() - new Date(activeArea.createdAt ?? Date.now()).getTime()) / 86400000);
     return tips[daysSince % tips.length] ?? null;
   })();
+
+  const wins     = child?.wins      ?? [];
+  const incidents = child?.incidents ?? [];
+
+  async function addWin() {
+    const text = winText.trim();
+    if (!text || !child) return;
+    const entry = { id: `w_${Date.now()}`, text, date: new Date().toISOString() };
+    const updated = [...wins, entry];
+    await updateChildProfile(child.id, { wins: updated });
+    setWinText('');
+    setWinModalVisible(false);
+    getAllChildProfiles().then(setChildren);
+  }
+
+  async function deleteWin(id) {
+    if (!child) return;
+    const updated = wins.filter(w => w.id !== id);
+    await updateChildProfile(child.id, { wins: updated });
+    getAllChildProfiles().then(setChildren);
+  }
+
+  async function addIncident() {
+    const text = incidentText.trim();
+    if (!text || !child) return;
+    const entry = { id: `i_${Date.now()}`, text, date: new Date().toISOString() };
+    const updated = [...incidents, entry];
+    await updateChildProfile(child.id, { incidents: updated });
+    setIncidentText('');
+    setIncidentModalVisible(false);
+    getAllChildProfiles().then(setChildren);
+  }
+
+  async function deleteIncident(id) {
+    if (!child) return;
+    const updated = incidents.filter(i => i.id !== id);
+    await updateChildProfile(child.id, { incidents: updated });
+    getAllChildProfiles().then(setChildren);
+  }
 
   const toggleExpand = (id) => {
     setExpandedAreas(prev => {
@@ -621,32 +664,82 @@ export default function DashboardsScreen({ navigation, route }) {
         {/* Wins */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>WINS THIS WEEK</Text>
-          <TouchableOpacity><Text style={styles.sectionLink}>+ Add</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setWinModalVisible(true)}><Text style={styles.sectionLink}>+ Add</Text></TouchableOpacity>
         </View>
-        {true ? (
+        {wins.length === 0 ? (
           <View style={styles.emptyPrompt}>
             <Ionicons name="star-outline" size={22} color="#F59E0B" />
             <View style={styles.emptyPromptText}>
               <Text style={styles.emptyPromptTitle}>Log a win</Text>
-              <Text style={styles.emptyPromptBody}>Noting moments of growth — however small — helps the app build a more accurate picture of {child.name} and tailor recommendations over time.</Text>
+              <Text style={styles.emptyPromptBody}>Noting moments of growth — however small — helps build a more accurate picture of {child.name}.</Text>
             </View>
           </View>
-        ) : null}
+        ) : wins.map(w => (
+          <View key={w.id} style={styles.entryCard}>
+            <Ionicons name="star" size={14} color="#F59E0B" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.entryText}>{w.text}</Text>
+              <Text style={styles.entryDate}>{new Date(w.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+            </View>
+            <TouchableOpacity onPress={() => Alert.alert('Delete win', 'Remove this entry?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteWin(w.id) }])}>
+              <Ionicons name="trash-outline" size={15} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+        ))}
 
         {/* Incidents */}
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionLabel}>INCIDENT REPORTS THIS WEEK</Text>
-          <TouchableOpacity><Text style={styles.sectionLink}>+ Log</Text></TouchableOpacity>
+          <Text style={styles.sectionLabel}>INCIDENT REPORTS</Text>
+          <TouchableOpacity onPress={() => setIncidentModalVisible(true)}><Text style={styles.sectionLink}>+ Log</Text></TouchableOpacity>
         </View>
-        {true ? (
+        {incidents.length === 0 ? (
           <View style={styles.emptyPrompt}>
             <Ionicons name="alert-circle-outline" size={22} color="#9CA3AF" />
             <View style={styles.emptyPromptText}>
               <Text style={styles.emptyPromptTitle}>Log a difficult moment</Text>
-              <Text style={styles.emptyPromptBody}>Incidents give the app context about recurring patterns. The more you log, the more personalised the coaching and action plans become for {child.name}.</Text>
+              <Text style={styles.emptyPromptBody}>Incidents give the app context about recurring patterns. The more you log, the more personalised the coaching becomes for {child.name}.</Text>
             </View>
           </View>
-        ) : null}
+        ) : incidents.map(inc => (
+          <View key={inc.id} style={styles.entryCard}>
+            <Ionicons name="alert-circle" size={14} color="#9CA3AF" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.entryText}>{inc.text}</Text>
+              <Text style={styles.entryDate}>{new Date(inc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+            </View>
+            <TouchableOpacity onPress={() => Alert.alert('Delete report', 'Remove this entry?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteIncident(inc.id) }])}>
+              <Ionicons name="trash-outline" size={15} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+        ))}
+
+        {/* Wins modal */}
+        <Modal visible={winModalVisible} transparent animationType="fade" onRequestClose={() => setWinModalVisible(false)}>
+          <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Log a win</Text>
+              <TextInput style={styles.modalInput} placeholder={`What went well with ${child?.name}?`} placeholderTextColor="#9CA3AF" value={winText} onChangeText={setWinText} multiline autoFocus />
+              <View style={styles.modalBtns}>
+                <TouchableOpacity style={styles.modalCancel} onPress={() => { setWinModalVisible(false); setWinText(''); }}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.modalSave} onPress={addWin}><Text style={styles.modalSaveText}>Save</Text></TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Incident modal */}
+        <Modal visible={incidentModalVisible} transparent animationType="fade" onRequestClose={() => setIncidentModalVisible(false)}>
+          <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Log a difficult moment</Text>
+              <TextInput style={styles.modalInput} placeholder={`What happened with ${child?.name}?`} placeholderTextColor="#9CA3AF" value={incidentText} onChangeText={setIncidentText} multiline autoFocus />
+              <View style={styles.modalBtns}>
+                <TouchableOpacity style={styles.modalCancel} onPress={() => { setIncidentModalVisible(false); setIncidentText(''); }}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.modalSave} onPress={addIncident}><Text style={styles.modalSaveText}>Save</Text></TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
 
         <View style={{ height: 40 }} />
         </>)}
@@ -998,4 +1091,26 @@ const styles = StyleSheet.create({
   emptyPromptText:  { flex: 1 },
   emptyPromptTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 4 },
   emptyPromptBody:  { fontSize: 12, color: '#9CA3AF', lineHeight: 18 },
+
+  entryCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, marginBottom: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  },
+  entryText: { fontSize: 13, color: '#1A1A2E', lineHeight: 19, marginBottom: 3 },
+  entryDate: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 16 },
+  modalInput: {
+    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12,
+    padding: 14, fontSize: 14, color: '#1A1A2E', minHeight: 100,
+    textAlignVertical: 'top', marginBottom: 16,
+  },
+  modalBtns: { flexDirection: 'row', gap: 10 },
+  modalCancel: { flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  modalCancelText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  modalSave: { flex: 1, backgroundColor: '#1B3D2F', borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  modalSaveText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 });

@@ -211,7 +211,6 @@ export default function ProgressScreen({ navigation }) {
               <View style={childStyles.agePill}>
                 <Text style={childStyles.ageText}>Age {child.age}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={12} color="#9CA3AF" style={{ marginTop: 6 }} />
             </TouchableOpacity>
           ))}
           <TouchableOpacity

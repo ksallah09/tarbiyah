@@ -569,3 +569,31 @@ export async function refreshDailyNotification() {
     await scheduleWeeklyShareNotification();
   } catch {}
 }
+
+// ─── Generation-complete notifications ───────────────────────────────────────
+
+export async function notifyGrowthPlanReady(childName) {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `${childName}'s growth plan is ready`,
+        body: 'Tap to view the 4-week plan and start today.',
+        sound: true,
+      },
+      trigger: null,
+    });
+  } catch {}
+}
+
+export async function notifyModuleReady(topic) {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Your module is ready',
+        body: `Your personalised module on "${topic}" is ready to explore.`,
+        sound: true,
+      },
+      trigger: null,
+    });
+  } catch {}
+}

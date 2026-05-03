@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
 import { saveModule } from '../utils/modules';
 import { supabase } from '../utils/supabase';
+import { notifyModuleReady } from '../utils/notifications';
 import { rs, hp } from '../utils/responsive';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
@@ -182,6 +183,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
             } catch {}
           }
 
+          notifyModuleReady(topic);
           setGenerating(false);
           prefetchLessonAudios(mod, 1, selectedVoice);
 

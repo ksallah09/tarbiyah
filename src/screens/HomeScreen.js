@@ -649,7 +649,7 @@ export default function HomeScreen({ navigation }) {
                           </View>
                         ))}
                         <View style={styles.homeLbDivider} />
-                        <TouchableOpacity style={styles.homeLbUnlockBtn} onPress={() => navigation.navigate('Tabs', { screen: 'Progress' })} activeOpacity={0.85}>
+                        <TouchableOpacity style={styles.homeLbUnlockBtn} onPress={() => navigation.navigate('FamilySync')} activeOpacity={0.85}>
                           <Ionicons name="people-outline" size={14} color="#1B3D2F" />
                           <Text style={styles.homeLbUnlockText}>Sync with your partner to see the leaderboard</Text>
                         </TouchableOpacity>

@@ -131,7 +131,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -232,8 +232,8 @@ export default function AddChildWizardScreen({ navigation, route }) {
         <View style={{ flex: 1, alignItems: 'center' }}>
           <ProgressDots total={TOTAL_STEPS} current={step} />
         </View>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.skipText}>{step >= 4 ? 'Skip' : ''}</Text>
+        <TouchableOpacity onPress={goNext} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} disabled={step !== 4}>
+          <Text style={styles.skipText}>{step === 4 ? 'Skip' : ''}</Text>
         </TouchableOpacity>
       </View>
 
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   customInput: {
     flex: 1, backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 14, color: '#FFFFFF',
+    fontSize: 14, lineHeight: 20, color: '#FFFFFF',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
   customAddBtn: {

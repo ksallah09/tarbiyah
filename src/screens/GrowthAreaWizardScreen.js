@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addGrowthArea } from '../utils/childProfiles';
 import { supabase } from '../utils/supabase';
+import { notifyGrowthPlanReady } from '../utils/notifications';
 
 const PENDING_JOB_KEY = 'tarbiyah_pending_growth_plan_job';
 
@@ -208,6 +209,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           await addGrowthArea(child.id, growthArea);
           setSavedArea(growthArea);
           setAreasSaved(n => n + 1);
+          notifyGrowthPlanReady(childName);
           fadeTo(STEP_DONE);
         } else if (data.status === 'failed') {
           clearInterval(pollRef.current);
@@ -434,7 +436,6 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           placeholderTextColor="rgba(255,255,255,0.3)"
           multiline
           textAlignVertical="top"
-          autoFocus
         />
         <Text style={styles.charHint}>{issue.length} characters</Text>
       </View>
@@ -462,7 +463,6 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           placeholderTextColor="rgba(255,255,255,0.3)"
           multiline
           textAlignVertical="top"
-          autoFocus
         />
         <Text style={styles.charHint}>{analysis.length} characters</Text>
         {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -496,7 +496,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
         <ActivityIndicator color="rgba(74,222,128,0.5)" style={{ marginTop: 32 }} />
 
         <Animated.Text style={[styles.loadingKeepOpen, { opacity: keepOpenOpacity }]}>
-          Keep the app open while your plan is being built
+          Feel free to do something else while your plan is being built
         </Animated.Text>
         <Animated.Text style={[styles.loadingKeepOpen, { opacity: keepOpenOpacity, marginTop: 6 }]}>
           This usually takes 2–5 minutes
