@@ -2280,6 +2280,19 @@ ${sourceContext}`;
 
     const userPrompt = `CHILD PROFILE:\n${childProfile}\n\nTHE CHALLENGE:\n${issue.trim()}\n\n${parentAnalysis?.trim() ? `PARENT'S INSIGHT:\n${parentAnalysis.trim()}` : ''}\n\nGenerate the full JSON growth plan as specified. Valid JSON only, no markdown.`;
 
+    function cleanJson(raw: string): string {
+      let s = raw.trim();
+      // Strip markdown fences
+      if (s.startsWith('```')) s = s.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '').trim();
+      // Strip any text before the first { (thinking preamble)
+      const start = s.indexOf('{');
+      if (start > 0) s = s.slice(start);
+      // Remove stray single-letter tokens Gemini thinking bleeds between array objects
+      // e.g.  "},\ne        {" → "},\n{"
+      s = s.replace(/,(\s*\n\s*)[a-zA-Z][ \t]+(?=\{)/g, ',\n');
+      return s;
+    }
+
     let raw: string;
     try {
       const model = getJsonModel(MODEL_HEAVY, systemPrompt);
@@ -2288,9 +2301,15 @@ ${sourceContext}`;
       raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
     }
 
-    let cleaned = raw.trim();
-    if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
-    const parsed = JSON.parse(cleaned);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cleanJson(raw));
+    } catch {
+      // Gemini returned malformed JSON — fall through to OpenAI
+      console.warn(`Job ${jobId}: JSON parse failed on Gemini output, retrying with OpenAI`);
+      const oaiRaw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+      parsed = JSON.parse(cleanJson(oaiRaw));
+    }
 
     await supabase.from('growth_plan_jobs').update({ status: 'complete', plan: parsed }).eq('id', jobId);
   } catch (err) {
