@@ -15,10 +15,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { AppState } from 'react-native';
 import { saveModule } from '../utils/modules';
+import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
+const PENDING_MODULE_JOB_KEY = 'tarbiyah_pending_module_job';
 
 const DHIKR_OPTIONS = [
   { arabic: 'أَسْتَغْفِرُ اللّٰهَ',      latin: 'Astaghfirullah',    meaning: 'I seek forgiveness from Allah'  },
@@ -79,8 +82,32 @@ export default function ModuleDetailScreen({ route, navigation }) {
     ]).start();
   }
 
-  const scrollRef = useRef(null);
-  const abortRef  = useRef(null);
+  const scrollRef    = useRef(null);
+  const pollRef      = useRef(null);
+  const appStateRef  = useRef(AppState.currentState);
+
+  // AppState listener + resume pending job on mount
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', next => { appStateRef.current = next; });
+
+    // Resume a pending job if the app was killed mid-generation for this topic
+    AsyncStorage.getItem(PENDING_MODULE_JOB_KEY).then(stored => {
+      if (!stored) return;
+      try {
+        const { jobId, savedTopic, savedVoice } = JSON.parse(stored);
+        if (jobId && savedTopic === topic) {
+          setGenerating(true);
+          if (savedVoice) setVoice(savedVoice);
+          startPolling(jobId, savedVoice);
+        }
+      } catch {}
+    });
+
+    return () => {
+      sub.remove();
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isNew) return;
@@ -91,37 +118,24 @@ export default function ModuleDetailScreen({ route, navigation }) {
     }
   }, []);
 
-  // Intercept back navigation while generating — abort the request cleanly
-  useEffect(() => {
-    if (!generating) return;
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      e.preventDefault();
-      abortRef.current?.abort();
-      navigation.dispatch(e.data.action);
-    });
-    return unsubscribe;
-  }, [generating, navigation]);
-
   async function generateModule(selectedVoice) {
     setGenerating(true);
     setError(null);
-    abortRef.current = new AbortController();
     try {
       const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
-      const profile = profileRaw ? JSON.parse(profileRaw) : {};
-      const focusRaw = await AsyncStorage.getItem('tarbiyah_focus_areas');
+      const profile    = profileRaw ? JSON.parse(profileRaw) : {};
+      const focusRaw   = await AsyncStorage.getItem('tarbiyah_focus_areas');
       const focusAreas = focusRaw ? JSON.parse(focusRaw) : [];
 
-      const res = await fetch(`${API_URL}/learn/generate`, {
+      const res = await fetch(`${API_URL}/learn/generate/async`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic,
-          childrenAges: profile.childrenAges ?? null,
+          childrenAges:    profile.childrenAges ?? null,
           focusAreas,
           familyStructure: profile.familyStructure ?? 'prefer_not_to_say',
         }),
-        signal: abortRef.current.signal,
       });
 
       if (!res.ok) {
@@ -129,47 +143,75 @@ export default function ModuleDetailScreen({ route, navigation }) {
         throw new Error(err.error ?? `Server error ${res.status}`);
       }
 
-      const mod = await res.json();
-      setModule(mod);
-      await saveModule(mod);
-
-      audiosLoadingRef.current = true;
-
-      const firstLesson = mod.lessons?.[0];
-      if (firstLesson) {
-        try {
-          const audioRes = await fetch(`${API_URL}/learn/audio/lesson`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ moduleId: mod.id, lesson: firstLesson, voice: selectedVoice }),
-          });
-          if (audioRes.ok) {
-            const { url } = await audioRes.json();
-            if (url) {
-              setLessonAudios(prev => ({ ...prev, [firstLesson.id]: url }));
-              mod = {
-                ...mod,
-                lessons: mod.lessons.map(l => l.id === firstLesson.id ? { ...l, audioUrl: url } : l),
-              };
-              setModule(mod);
-              await saveModule(mod);
-            }
-          }
-        } catch { /* silent — lesson is still readable */ }
-      }
-
-      setGenerating(false);
-      prefetchLessonAudios(mod, 1, selectedVoice);
-
+      const { jobId } = await res.json();
+      await AsyncStorage.setItem(PENDING_MODULE_JOB_KEY, JSON.stringify({ jobId, savedTopic: topic, savedVoice: selectedVoice }));
+      startPolling(jobId, selectedVoice);
     } catch (err) {
-      if (err.name === 'AbortError') return;
       setError(err.message ?? 'Something went wrong. Please try again.');
       setGenerating(false);
     }
   }
 
+  function startPolling(jobId, selectedVoice) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from('learn_module_jobs')
+          .select('status, module, error')
+          .eq('id', jobId)
+          .single();
+
+        if (!data) return;
+
+        if (data.status === 'complete') {
+          clearInterval(pollRef.current);
+          AsyncStorage.removeItem(PENDING_MODULE_JOB_KEY);
+          const mod = data.module;
+          setModule(mod);
+          await saveModule(mod);
+          audiosLoadingRef.current = true;
+
+          // Fetch audio for first lesson immediately, prefetch the rest
+          const firstLesson = mod.lessons?.[0];
+          if (firstLesson && selectedVoice) {
+            try {
+              const audioRes = await fetch(`${API_URL}/learn/audio/lesson`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ moduleId: mod.id, lesson: firstLesson, voice: selectedVoice }),
+              });
+              if (audioRes.ok) {
+                const { url } = await audioRes.json();
+                if (url) {
+                  setLessonAudios(prev => ({ ...prev, [firstLesson.id]: url }));
+                  const modWithAudio = {
+                    ...mod,
+                    lessons: mod.lessons.map(l => l.id === firstLesson.id ? { ...l, audioUrl: url } : l),
+                  };
+                  setModule(modWithAudio);
+                  await saveModule(modWithAudio);
+                }
+              }
+            } catch {}
+          }
+
+          setGenerating(false);
+          prefetchLessonAudios(mod, 1, selectedVoice);
+
+        } else if (data.status === 'failed') {
+          clearInterval(pollRef.current);
+          AsyncStorage.removeItem(PENDING_MODULE_JOB_KEY);
+          setError('Generation failed. Please try again.');
+          setGenerating(false);
+        }
+      } catch {}
+    }, 4000);
+  }
+
   function cancelGeneration() {
-    abortRef.current?.abort();
+    if (pollRef.current) clearInterval(pollRef.current);
+    AsyncStorage.removeItem(PENDING_MODULE_JOB_KEY);
     navigation.goBack();
   }
 
@@ -305,8 +347,8 @@ export default function ModuleDetailScreen({ route, navigation }) {
                   Your personalized module takes 1–3 minutes to prepare. Make dhikr while you wait.
                 </Text>
                 <View style={styles.keepOpenBanner}>
-                  <Ionicons name="warning" size={15} color="#F59E0B" />
-                  <Text style={styles.keepOpenText}>Please keep the app open until your module is ready</Text>
+                  <Ionicons name="checkmark-circle-outline" size={15} color="#4ADE80" />
+                  <Text style={styles.keepOpenText}>You can close the app — your module will be ready when you return</Text>
                 </View>
                 <Text style={styles.pickerChooseLabel}>Choose your dhikr</Text>
 
@@ -371,8 +413,8 @@ export default function ModuleDetailScreen({ route, navigation }) {
               {/* Bottom: cancel */}
               <View style={styles.tasbiBottom}>
                 <View style={styles.keepOpenBanner}>
-                  <Ionicons name="warning" size={15} color="#F59E0B" />
-                  <Text style={styles.keepOpenText}>Please keep the app open until your module is ready</Text>
+                  <Ionicons name="checkmark-circle-outline" size={15} color="#4ADE80" />
+                  <Text style={styles.keepOpenText}>You can close the app — your module will be ready when you return</Text>
                 </View>
                 <TouchableOpacity style={styles.cancelGenerationBtn} onPress={cancelGeneration} activeOpacity={0.7}>
                   <Text style={styles.cancelGenerationText}>Cancel</Text>

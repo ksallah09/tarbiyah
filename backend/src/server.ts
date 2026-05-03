@@ -479,6 +479,140 @@ app.post('/learn/generate', async (req: Request, res: Response) => {
   }
 });
 
+// ─── POST /learn/generate/async ──────────────────────────────────────────────
+// Returns a jobId immediately; processes the module in the background and writes
+// the result to the learn_module_jobs Supabase table.
+
+async function runLearnModuleJob(jobId: string, body: {
+  topic: string;
+  childrenAges?: string;
+  focusAreas?: string[];
+  familyStructure?: string;
+}) {
+  try {
+    const { topic, childrenAges, focusAreas, familyStructure } = body;
+
+    const sourceContext = await buildModuleSourceContext(topic);
+    const systemPrompt  = buildModuleSystemPrompt(sourceContext);
+
+    const familyNote = familyStructure === 'single_parent'
+      ? 'This parent is a single parent — do not assume a co-parent or spouse is present. Avoid advice like "discuss with your partner" or "take turns".'
+      : null;
+
+    const userPrompt = [
+      `Parent's topic: ${topic.trim()}`,
+      childrenAges  ? `Children's ages: ${childrenAges}` : null,
+      focusAreas?.length ? `Parent's focus areas: ${focusAreas.join(', ')}` : null,
+      familyNote,
+    ].filter(Boolean).join('\n');
+
+    function cleanJson(raw: string): string {
+      let s = raw.trim();
+      // Strip markdown fences
+      if (s.startsWith('```')) s = s.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '').trim();
+      // Strip any text before the first { (thinking preamble)
+      const start = s.indexOf('{');
+      if (start > 0) s = s.slice(start);
+      // Remove stray single-letter tokens Gemini thinking bleeds between array objects
+      s = s.replace(/,(\s*\n\s*)[a-zA-Z][ \t]+(?=\{)/g, ',\n');
+      return s;
+    }
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_HEAVY, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_HEAVY, systemPrompt);
+    } catch {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    let parsed: Omit<AppModule, 'id' | 'totalLessons' | 'completedLessons' | 'createdAt'>;
+    try {
+      parsed = JSON.parse(cleanJson(raw));
+    } catch {
+      console.warn(`Job ${jobId}: JSON parse failed on Gemini output, retrying with OpenAI`);
+      const oaiRaw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+      parsed = JSON.parse(cleanJson(oaiRaw));
+    }
+
+    const lessons: ModuleLesson[] = (parsed.lessons ?? []).map((l, i) => ({
+      id: i + 1,
+      title: l.title ?? `Lesson ${i + 1}`,
+      type: l.type ?? (i % 2 === 0 ? 'spiritual' : 'science'),
+      duration: l.duration ?? '5 min',
+      objective: l.objective ?? '',
+      whyItMatters: l.whyItMatters ?? '',
+      islamicGuidance: l.islamicGuidance ?? '',
+      researchInsight: l.researchInsight ?? '',
+      actionSteps: l.actionSteps ?? [],
+      whatToSay: l.whatToSay ?? [],
+      mistakesToAvoid: l.mistakesToAvoid ?? [],
+      reflectionQuestion: l.reflectionQuestion ?? '',
+      miniTakeaway: l.miniTakeaway ?? '',
+      completed: false,
+    }));
+
+    const module: AppModule = {
+      id: `mod_${Date.now()}`,
+      topic: topic.trim(),
+      title: parsed.title ?? 'Your Parenting Module',
+      issueSummary: parsed.issueSummary ?? '',
+      parentReframe: parsed.parentReframe ?? '',
+      rootCauses: parsed.rootCauses ?? [],
+      moduleGoal: parsed.moduleGoal ?? '',
+      lessons,
+      weeklyPriorities: parsed.weeklyPriorities ?? [],
+      weeklyHabits: parsed.weeklyHabits ?? [],
+      behaviorToReduce: parsed.behaviorToReduce ?? '',
+      relationshipAction: parsed.relationshipAction ?? '',
+      spiritualPractices: parsed.spiritualPractices ?? '',
+      progressSigns: parsed.progressSigns ?? [],
+      whenToSeekHelp: parsed.whenToSeekHelp ?? '',
+      finalEncouragement: parsed.finalEncouragement ?? '',
+      totalLessons: lessons.length,
+      completedLessons: 0,
+      createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    };
+
+    await supabase.from('learn_module_jobs').update({ status: 'complete', module }).eq('id', jobId);
+  } catch (err) {
+    console.error(`Job ${jobId} failed:`, err);
+    await supabase.from('learn_module_jobs').update({ status: 'failed', error: String(err) }).eq('id', jobId);
+  }
+}
+
+app.post('/learn/generate/async', async (req: Request, res: Response) => {
+  try {
+    const { topic, childrenAges, focusAreas, familyStructure } = req.body as {
+      topic: string;
+      childrenAges?: string;
+      focusAreas?: string[];
+      familyStructure?: string;
+    };
+
+    if (!topic?.trim()) {
+      return res.status(400).json({ error: 'Topic is required.' });
+    }
+
+    const { data, error } = await supabase
+      .from('learn_module_jobs')
+      .insert({ status: 'pending' })
+      .select('id')
+      .single();
+
+    if (error || !data) return res.status(500).json({ error: 'Could not create job.' });
+
+    const jobId = data.id;
+
+    runLearnModuleJob(jobId, { topic, childrenAges, focusAreas, familyStructure }).catch(() => {});
+
+    return res.json({ jobId });
+  } catch (err) {
+    console.error('POST /learn/generate/async error:', err);
+    return res.status(500).json({ error: 'Failed to start module generation.' });
+  }
+});
+
 // ─── POST /learn/audio/lesson ────────────────────────────────────────────────
 // Generates narration audio for a single lesson. Returns { url }.
 // Frontend calls this per-lesson in parallel so each player unlocks as it resolves.
