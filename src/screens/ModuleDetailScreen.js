@@ -50,6 +50,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
   const stage1Opacity   = useRef(new Animated.Value(0)).current;
   const stage2Opacity   = useRef(new Animated.Value(0)).current;
   const stage3Opacity   = useRef(new Animated.Value(0)).current;
+  const stage4Opacity   = useRef(new Animated.Value(0)).current;
   const keepOpenOpacity = useRef(new Animated.Value(0)).current;
 
   const scrollRef    = useRef(null);
@@ -90,7 +91,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     if (!generating) return;
-    [stage1Opacity, stage2Opacity, stage3Opacity, keepOpenOpacity].forEach(a => a.setValue(0));
+    [stage1Opacity, stage2Opacity, stage3Opacity, stage4Opacity, keepOpenOpacity].forEach(a => a.setValue(0));
     Animated.sequence([
       Animated.timing(stage1Opacity,   { toValue: 1, duration: 500, useNativeDriver: true }),
       Animated.delay(900),
@@ -156,9 +157,10 @@ export default function ModuleDetailScreen({ route, navigation }) {
           await saveModule(mod);
           audiosLoadingRef.current = true;
 
-          // Fetch audio for first lesson immediately, prefetch the rest
+          // Fetch audio for first lesson — show 4th stage while waiting
           const firstLesson = mod.lessons?.[0];
           if (firstLesson && selectedVoice) {
+            Animated.timing(stage4Opacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
             try {
               const audioRes = await fetch(`${API_URL}/learn/audio/lesson`, {
                 method: 'POST',
@@ -329,9 +331,10 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
               <View style={styles.loadingStages}>
                 {[
-                  { opacity: stage1Opacity, icon: 'moon-outline',   label: 'Drawing from Islamic scholarship' },
-                  { opacity: stage2Opacity, icon: 'flask-outline',  label: 'Consulting child development research' },
-                  { opacity: stage3Opacity, icon: 'person-outline', label: `Personalising for ${topic}` },
+                  { opacity: stage1Opacity, icon: 'moon-outline',    label: 'Drawing from Islamic scholarship' },
+                  { opacity: stage2Opacity, icon: 'flask-outline',   label: 'Consulting child development research' },
+                  { opacity: stage3Opacity, icon: 'person-outline',  label: `Personalising for ${topic}` },
+                  { opacity: stage4Opacity, icon: 'musical-note-outline', label: 'Preparing your audio narration' },
                 ].map(({ opacity, icon, label }, i) => (
                   <Animated.View key={i} style={[styles.loadingStageRow, { opacity }]}>
                     <View style={styles.loadingStageIcon}>
@@ -346,7 +349,7 @@ export default function ModuleDetailScreen({ route, navigation }) {
               <ActivityIndicator color="rgba(74,222,128,0.5)" style={{ marginTop: 32 }} />
 
               <Animated.Text style={[styles.loadingKeepOpen, { opacity: keepOpenOpacity }]}>
-                You can close the app — your module will be ready when you return
+                Feel free to do something else — your module will be ready when you return
               </Animated.Text>
               <Animated.Text style={[styles.loadingKeepOpen, { opacity: keepOpenOpacity, marginTop: 6 }]}>
                 This usually takes 2–5 minutes
