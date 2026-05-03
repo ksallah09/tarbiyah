@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
 import { AppState } from 'react-native';
 import { saveModule } from '../utils/modules';
 import { supabase } from '../utils/supabase';
@@ -23,13 +22,6 @@ import { rs, hp } from '../utils/responsive';
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 const PENDING_MODULE_JOB_KEY = 'tarbiyah_pending_module_job';
 
-const DHIKR_OPTIONS = [
-  { arabic: 'أَسْتَغْفِرُ اللّٰهَ',      latin: 'Astaghfirullah',    meaning: 'I seek forgiveness from Allah'  },
-  { arabic: 'سُبْحَانَ اللّٰهِ',          latin: 'SubhanAllah',       meaning: 'Glory be to Allah'              },
-  { arabic: 'الْحَمْدُ لِلّٰهِ',           latin: 'Alhamdulillah',     meaning: 'All praise is due to Allah'     },
-  { arabic: 'اللّٰهُ أَكْبَرُ',            latin: 'Allahu Akbar',      meaning: 'Allah is the Greatest'          },
-  { arabic: 'لَا إِلٰهَ إِلَّا اللّٰهُ', latin: 'La ilaha illa Allah', meaning: 'There is no god but Allah'     },
-];
 
 const LESSON_COLORS = {
   spiritual: { bg: ['#1B3D2F', '#2E5E45'], icon: 'moon',        label: 'Spiritual' },
@@ -42,9 +34,8 @@ export default function ModuleDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { topic, isNew, module: savedModule, voice: preselectedVoice } = route.params;
 
-  const [showSources, setShowSources]     = useState(false);
-  const [selectedDhikr, setSelectedDhikr] = useState(null);
-  const [generating, setGenerating]       = useState(false);
+  const [showSources, setShowSources] = useState(false);
+  const [generating, setGenerating]   = useState(false);
   const [error, setError]                 = useState(null);
   const [module, setModule]               = useState(savedModule ?? null);
   const [lessonAudios, setLessonAudios] = useState(() => {
@@ -53,34 +44,13 @@ export default function ModuleDetailScreen({ route, navigation }) {
     return map;
   });
   const audiosLoadingRef = useRef(false);
-  const [voice, setVoice]                       = useState(preselectedVoice ?? null);
-  const [showVoicePicker, setShowVoicePicker]   = useState(false);
+  const [voice, setVoice]                     = useState(preselectedVoice ?? null);
+  const [showVoicePicker, setShowVoicePicker] = useState(false);
 
-  // ── Tasbih ────────────────────────────────────────────────────────────────────
-  const [tasbiCount, setTasbiCount]   = useState(0);
-  const beadPulseScale   = useRef(new Animated.Value(1)).current;
-  const beadPulseOpacity = useRef(new Animated.Value(0)).current;
-
-  const activeDhikr = selectedDhikr ?? DHIKR_OPTIONS[0];
-  const displayNum  = tasbiCount;
-
-  function handleTasbiTap() {
-    const next = tasbiCount + 1;
-    setTasbiCount(next);
-    // Stronger haptic every 100 taps
-    if (next % 100 === 0) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    // Pulse ring
-    beadPulseScale.setValue(1);
-    beadPulseOpacity.setValue(0.55);
-    Animated.parallel([
-      Animated.timing(beadPulseScale,   { toValue: 1.9, duration: 500, useNativeDriver: true }),
-      Animated.timing(beadPulseOpacity, { toValue: 0,   duration: 500, useNativeDriver: true }),
-    ]).start();
-  }
+  const stage1Opacity   = useRef(new Animated.Value(0)).current;
+  const stage2Opacity   = useRef(new Animated.Value(0)).current;
+  const stage3Opacity   = useRef(new Animated.Value(0)).current;
+  const keepOpenOpacity = useRef(new Animated.Value(0)).current;
 
   const scrollRef    = useRef(null);
   const pollRef      = useRef(null);
@@ -117,6 +87,20 @@ export default function ModuleDetailScreen({ route, navigation }) {
       setShowVoicePicker(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!generating) return;
+    [stage1Opacity, stage2Opacity, stage3Opacity, keepOpenOpacity].forEach(a => a.setValue(0));
+    Animated.sequence([
+      Animated.timing(stage1Opacity,   { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.delay(900),
+      Animated.timing(stage2Opacity,   { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.delay(900),
+      Animated.timing(stage3Opacity,   { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.delay(600),
+      Animated.timing(keepOpenOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+    ]).start();
+  }, [generating]);
 
   async function generateModule(selectedVoice) {
     setGenerating(true);
@@ -338,90 +322,42 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
         <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
 
-          {/* ── Dhikr picker ── */}
-          {generating && !selectedDhikr && (
-            <LinearGradient colors={['#0D2419', '#1B3D2F', '#2A5240']} style={styles.tasbiScreen}>
-              <View style={styles.pickerContent}>
-                <Text style={styles.pickerTitle}>Dhikr While You Wait</Text>
-                <Text style={styles.pickerSubtitle}>
-                  Your personalized module takes 1–3 minutes to prepare. Make dhikr while you wait.
-                </Text>
-                <View style={styles.keepOpenBanner}>
-                  <Ionicons name="checkmark-circle-outline" size={15} color="#4ADE80" />
-                  <Text style={styles.keepOpenText}>You can close the app — your module will be ready when you return</Text>
-                </View>
-                <Text style={styles.pickerChooseLabel}>Choose your dhikr</Text>
+          {/* ── Generating state ── */}
+          {generating && (
+            <View style={styles.loadingWrap}>
+              <Text style={styles.loadingTitle}>Building your module</Text>
 
-                <View style={styles.pickerOptions}>
-                  {DHIKR_OPTIONS.map((d, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      style={styles.pickerOption}
-                      activeOpacity={0.8}
-                      onPress={() => setSelectedDhikr(d)}
-                    >
-                      <View style={styles.pickerOptionLeft}>
-                        <Text style={styles.pickerOptionArabic}>{d.arabic}</Text>
-                        <Text style={styles.pickerOptionLatin}>{d.latin}</Text>
-                        <Text style={styles.pickerOptionMeaning}>{d.meaning}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </LinearGradient>
-          )}
-
-          {/* ── Generating state — Tasbih ── */}
-          {generating && selectedDhikr && (
-            <LinearGradient colors={['#0D2419', '#1B3D2F', '#2A5240']} style={styles.tasbiScreen}>
-
-              {/* Top: preparing indicator */}
-              <View style={styles.tasbiPreparingRow}>
-                <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
-                <Text style={styles.tasbiPreparingText}>Preparing your module — make dhikr while you wait</Text>
+              <View style={styles.loadingStages}>
+                {[
+                  { opacity: stage1Opacity, icon: 'moon-outline',   label: 'Drawing from Islamic scholarship' },
+                  { opacity: stage2Opacity, icon: 'flask-outline',  label: 'Consulting child development research' },
+                  { opacity: stage3Opacity, icon: 'person-outline', label: `Personalising for ${topic}` },
+                ].map(({ opacity, icon, label }, i) => (
+                  <Animated.View key={i} style={[styles.loadingStageRow, { opacity }]}>
+                    <View style={styles.loadingStageIcon}>
+                      <Ionicons name={icon} size={16} color="#4ADE80" />
+                    </View>
+                    <Text style={styles.loadingStageText}>{label}</Text>
+                    <Ionicons name="checkmark-circle" size={16} color="#4ADE80" />
+                  </Animated.View>
+                ))}
               </View>
 
-              {/* Center: dhikr + bead */}
-              <View style={styles.tasbiCenter}>
-                <Text style={styles.tasbiArabic}>{activeDhikr.arabic}</Text>
-                <Text style={styles.tasbiLatin}>{activeDhikr.latin}</Text>
-                <Text style={styles.tasbiMeaning}>{activeDhikr.meaning}</Text>
+              <ActivityIndicator color="rgba(74,222,128,0.5)" style={{ marginTop: 32 }} />
 
-                {/* Bead */}
-                <Text style={styles.tapTitle}>Tap to count your dhikr</Text>
-                <TouchableOpacity
-                  style={styles.beadContainer}
-                  onPress={handleTasbiTap}
-                  activeOpacity={0.85}
-                >
-                  <Animated.View style={[
-                    styles.beadRing,
-                    { transform: [{ scale: beadPulseScale }], opacity: beadPulseOpacity },
-                  ]} />
-                  <View style={styles.bead}>
-                    <Text style={styles.beadCount}>{displayNum}</Text>
-                  </View>
-                </TouchableOpacity>
+              <Animated.Text style={[styles.loadingKeepOpen, { opacity: keepOpenOpacity }]}>
+                You can close the app — your module will be ready when you return
+              </Animated.Text>
+              <Animated.Text style={[styles.loadingKeepOpen, { opacity: keepOpenOpacity, marginTop: 6 }]}>
+                This usually takes 2–5 minutes
+              </Animated.Text>
 
-                {tasbiCount > 0 && (
-                  <Text style={styles.tasbiTotal}>{tasbiCount} total</Text>
-                )}
-              </View>
-
-              {/* Bottom: cancel */}
-              <View style={styles.tasbiBottom}>
-                <View style={styles.keepOpenBanner}>
-                  <Ionicons name="checkmark-circle-outline" size={15} color="#4ADE80" />
-                  <Text style={styles.keepOpenText}>You can close the app — your module will be ready when you return</Text>
-                </View>
+              <Animated.View style={{ opacity: keepOpenOpacity, marginTop: 24 }}>
                 <TouchableOpacity style={styles.cancelGenerationBtn} onPress={cancelGeneration} activeOpacity={0.7}>
                   <Text style={styles.cancelGenerationText}>Cancel</Text>
                 </TouchableOpacity>
-              </View>
-
-            </LinearGradient>
+              </Animated.View>
+            </View>
           )}
 
           {/* ── Error state ── */}
@@ -882,225 +818,39 @@ const styles = StyleSheet.create({
   },
   contentPad: { paddingHorizontal: hp, paddingTop: 24, paddingBottom: 36 },
 
-  // ── Dhikr picker ──
-  pickerContent: {
-    flex: 1,
-    paddingHorizontal: hp,
-    paddingTop: 40,
-    paddingBottom: 32,
+  // ── Loading (stage reveal) ──
+  loadingWrap: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 24, paddingTop: 20,
   },
-  pickerTitle: {
-    fontSize: rs(28),
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-    marginBottom: 14,
+  loadingTitle: {
+    fontSize: 24, fontWeight: '800', color: '#FFFFFF',
+    textAlign: 'center', marginBottom: 40,
   },
-  pickerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-    lineHeight: 22,
-    marginBottom: 12,
+  loadingStages: { width: '100%', gap: 16 },
+  loadingStageRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: 'rgba(74,222,128,0.07)',
+    borderRadius: 14, paddingHorizontal: 18, paddingVertical: 14,
+    borderWidth: 1, borderColor: 'rgba(74,222,128,0.15)',
   },
-  pickerKeepOpen: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  keepOpenBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(245,158,11,0.12)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)', alignSelf: 'stretch', marginBottom: 20 },
-  keepOpenText: { fontSize: 12, color: '#F59E0B', fontWeight: '600', flex: 1 },
-  pickerChooseLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: 'rgba(255,255,255,0.75)',
-    marginBottom: 14,
-  },
-  pickerOptions: {
-    gap: 10,
-  },
-  pickerOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  pickerOptionLeft: {
-    flex: 1,
-    gap: 3,
-  },
-  pickerOptionArabic: {
-    fontSize: rs(20),
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  pickerOptionLatin: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.75)',
-  },
-  pickerOptionMeaning: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
-  },
-
-  // ── Tasbih generating screen ──
-  tasbiScreen: {
-    flex: 1,
-  },
-  tasbiPreparingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingTop: 20,
-    paddingBottom: 4,
-  },
-  tasbiPreparingText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.45)',
-    letterSpacing: 0.3,
-  },
-  tasbiTop: {
-    alignItems: 'center',
-    paddingTop: 28,
-  },
-  tasbiIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 20,
-  },
-  tasbiPreparingText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
-    fontWeight: '500',
-  },
-  tasbiMessage: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginTop: 20,
-    paddingHorizontal: 28,
-  },
-  tasbiHint: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.28)',
-    marginTop: 8,
-    letterSpacing: 0.3,
-  },
-  tasbiCenter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tasbiArabic: {
-    fontSize: 34,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  tasbiLatin: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  tasbiMeaning: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
-    marginBottom: 36,
-    letterSpacing: 0.3,
-  },
-  tapTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.6)',
-    marginBottom: 20,
-    letterSpacing: 0.2,
-  },
-  beadContainer: {
-    width: 160, height: 160,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 28,
-  },
-  beadRing: {
-    position: 'absolute',
-    width: 160, height: 160,
-    borderRadius: 80,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.5)',
-  },
-  bead: {
-    width: 140, height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.18)',
+  loadingStageIcon: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: 'rgba(74,222,128,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
-  beadCount: {
-    fontSize: 56,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -2,
-  },
-  beadHint: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
-    fontWeight: '500',
-    marginTop: 4,
-    letterSpacing: 1,
-  },
-  tasbiDots: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14,
-  },
-  tasbiDot: {
-    width: 7, height: 7,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  tasbiDotActive: {
-    width: 22,
-    backgroundColor: '#FFFFFF',
-  },
-  tasbiTotal: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '500',
-  },
-  tasbiBottom: {
-    alignItems: 'center',
-    paddingBottom: 48,
-    paddingHorizontal: 20,
-    gap: 12,
+  loadingStageText: { flex: 1, fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+  loadingKeepOpen: {
+    fontSize: 12, color: 'rgba(255,255,255,0.35)',
+    textAlign: 'center', marginTop: 20, fontStyle: 'italic',
   },
   cancelGenerationBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 24, paddingVertical: 10,
+    borderRadius: 20, borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   cancelGenerationText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.45)',
   },
 
   // ── Module hero ──
