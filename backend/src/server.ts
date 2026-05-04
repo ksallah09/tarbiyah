@@ -737,11 +737,30 @@ Respond with JSON only (no markdown). Keep total response 300–500 words:
 
 app.post('/incident/coach', async (req: Request, res: Response) => {
   try {
-    const { incidentText, childAge, childName, focusAreas } = req.body as {
-      incidentText: string;
-      childAge?: string | number;
-      childName?: string;
-      focusAreas?: string[];
+    const {
+      incidentText,
+      childName,
+      childAge,
+      childGender,
+      childStage,
+      strengths,
+      temperaments,
+      specialNeeds,
+      growthAreas,
+      pastIncidents,
+      recentWins,
+    } = req.body as {
+      incidentText:  string;
+      childName?:    string;
+      childAge?:     string | number;
+      childGender?:  string;
+      childStage?:   string;
+      strengths?:    string[];
+      temperaments?: string[];
+      specialNeeds?: string[];
+      growthAreas?:  { title: string; description: string }[];
+      pastIncidents?: string[];
+      recentWins?:   string[];
     };
     if (!incidentText?.trim()) return res.status(400).json({ error: 'incidentText is required.' });
 
@@ -751,21 +770,47 @@ app.post('/incident/coach', async (req: Request, res: Response) => {
 
 SOURCE RULES: Use the knowledge base as your primary authority. If not directly covered, draw on sound Islamic tarbiyah principles and established child development knowledge. Never invent hadith, citations, or statistics.
 
-TONE: Warm, non-judgmental, wise, brief, specific. Never generic. Speak to this parent, this child, this moment.
+TONE: Warm, non-judgmental, wise, brief, specific. Never generic. Speak to this parent, this child, this moment. When the child profile includes special needs, strengths, or temperament, let that visibly shape your advice — do not give generic responses that ignore who this child actually is.
 
 === KNOWLEDGE BASE ===
 ${sourceContext}`;
 
-    const focusContext = focusAreas?.length ? `\nCurrent focus areas: ${focusAreas.join(', ')}` : '';
-    const userPrompt = `A parent just logged this incident about their child${childName ? ` (${childName})` : ''}${childAge ? `, age ${childAge}` : ''}:
+    const lines: string[] = [];
+    if (childName)               lines.push(`Name: ${childName}`);
+    if (childAge)                lines.push(`Age: ${childAge}`);
+    if (childGender)             lines.push(`Gender: ${childGender}`);
+    if (childStage)              lines.push(`School stage: ${childStage}`);
+    if (strengths?.length)       lines.push(`Strengths: ${strengths.join(', ')}`);
+    if (temperaments?.length)    lines.push(`Temperament: ${temperaments.join(', ')}`);
+    if (specialNeeds?.length)    lines.push(`Special needs / additional context: ${specialNeeds.join(', ')}`);
+    if (growthAreas?.length) {
+      lines.push(`Current growth areas being worked on:`);
+      growthAreas.forEach(a => lines.push(`  - ${a.title}${a.description ? `: ${a.description}` : ''}`));
+    }
+    if (recentWins?.length) {
+      lines.push(`Recent wins logged by parent:`);
+      recentWins.forEach(w => lines.push(`  - "${w}"`));
+    }
+    if (pastIncidents?.length) {
+      lines.push(`Past incidents logged (most recent first):`);
+      [...pastIncidents].reverse().forEach(i => lines.push(`  - "${i}"`));
+    }
 
-"${incidentText.trim()}"${focusContext}
+    const profileSection = lines.length
+      ? `\nCHILD PROFILE:\n${lines.join('\n')}\n`
+      : '';
+
+    const userPrompt = `A parent just logged this incident:
+
+"${incidentText.trim()}"
+${profileSection}
+Use the child profile above to make your coaching specific to this child — not generic. If there are past incidents, look for patterns and name them. If there are wins, acknowledge what is working. If there are special needs, let that shape your advice.
 
 Respond with JSON only — no markdown, no preamble:
 {
-  "acknowledgment": "1-2 sentences. Acknowledge what the parent experienced — name the difficulty without judgment. Make them feel seen, not shamed.",
-  "islamicAngle": "1-2 sentences. A specific Islamic principle, hadith wisdom, or Quranic angle that reframes or speaks directly to this moment. Must feel precise, not generic. No citations.",
-  "action": "1-2 sentences. One specific, concrete thing the parent can try right now or today. Explain briefly why it works for this child/situation."
+  "acknowledgment": "1-2 sentences. Acknowledge what the parent experienced — name the difficulty without judgment. If there are recurring patterns in the past incidents, name them gently. Make the parent feel seen, not shamed.",
+  "islamicAngle": "1-2 sentences. A specific Islamic principle, hadith wisdom, or Quranic angle that reframes or speaks directly to this moment and this child. Must feel precise, not generic. No citations.",
+  "action": "1-2 sentences. One specific, concrete thing this parent can try with this child right now or today — informed by their temperament, strengths, or growth areas. Explain briefly why it works."
 }`;
 
     function cleanJson(raw: string): string {

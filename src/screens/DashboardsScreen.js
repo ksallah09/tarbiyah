@@ -150,15 +150,35 @@ export default function DashboardsScreen({ navigation, route }) {
   async function fetchCoaching(entryId, text, currentChild) {
     setCoachingLoading(prev => new Set([...prev, entryId]));
     try {
-      const focusAreas = (currentChild?.growthAreas ?? []).slice(0, 3).map(a => a.title).filter(Boolean);
+      const growthAreas = (currentChild?.growthAreas ?? []).slice(0, 3).map(a => ({
+        title: a.title,
+        description: a.description ?? a.aiOverview ?? '',
+      })).filter(a => a.title);
+
+      const pastIncidents = (currentChild?.incidents ?? [])
+        .filter(i => i.id !== entryId)
+        .slice(-5)
+        .map(i => i.text);
+
+      const recentWins = (currentChild?.wins ?? [])
+        .slice(-3)
+        .map(w => w.text);
+
       const res = await fetch('https://tarbiyah-production.up.railway.app/incident/coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           incidentText: text,
-          childAge: currentChild?.age,
-          childName: currentChild?.name,
-          focusAreas,
+          childName:    currentChild?.name,
+          childAge:     currentChild?.age,
+          childGender:  currentChild?.gender,
+          childStage:   currentChild?.stage,
+          strengths:    currentChild?.strengths   ?? [],
+          temperaments: currentChild?.temperaments ?? [],
+          specialNeeds: currentChild?.specialNeeds ?? [],
+          growthAreas,
+          pastIncidents,
+          recentWins,
         }),
       });
       if (!res.ok) return;
