@@ -57,6 +57,8 @@ export default function OnboardingAccount({ navigation, route }) {
         reminderTime: data.reminderTime,
         familyStructure: data.familyStructure ?? 'prefer_not_to_say',
         language: 'English',
+        raisedIn:  data.raisedIn  ?? [],
+        raisingIn: data.raisingIn ?? null,
       })),
       userId && saveProfileToSupabase({
         userId,
@@ -71,6 +73,8 @@ export default function OnboardingAccount({ navigation, route }) {
         isWorkingParent:   data.isWorkingParent   ?? null,
         workHoursPerWeek:  data.workHoursPerWeek  ?? null,
         availability:      data.availability      ?? null,
+        raisedIn:          data.raisedIn          ?? [],
+        raisingIn:         data.raisingIn         ?? null,
       }),
     ].filter(Boolean));
   }

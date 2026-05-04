@@ -60,7 +60,7 @@ export default function OnboardingAvailability({ navigation, route }) {
   const canContinue   = totalSelected > 0;
 
   function handleNext() {
-    navigation.navigate('OnboardingFocusAreas', { ...data, availability: selected });
+    navigation.navigate('OnboardingCulture', { ...data, availability: selected });
   }
 
   // Layout math: screen width minus outer padding, card inner padding, label col, and 6 gaps
@@ -160,7 +160,7 @@ export default function OnboardingAvailability({ navigation, route }) {
 
             <TouchableOpacity
               style={styles.skipBtn}
-              onPress={() => navigation.navigate('OnboardingFocusAreas', { ...data, availability: {} })}
+              onPress={() => navigation.navigate('OnboardingCulture', { ...data, availability: {} })}
               activeOpacity={0.7}
             >
               <Text style={styles.skipText}>Skip for now</Text>
