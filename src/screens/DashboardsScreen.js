@@ -16,6 +16,61 @@ import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile 
 import { logCompletion } from '../utils/childCompletions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// ── Developmental phase data ──────────────────────────────────────────────────
+
+const DEV_PHASES = [
+  {
+    range: [3, 5],
+    emoji: '🧩',
+    phase: 'Foundation & Co-Regulation',
+    shift: 'From control → guiding & modeling',
+    keyInsight: 'My child cannot regulate themselves yet — they borrow my calm.',
+    developing: ['Language explosion', 'Emotional expression (but low control)', 'Imagination & pretend play', 'Early social skills'],
+    brainReality: 'Very limited self-regulation. Heavily dependent on the parent for co-regulation — your calm is their calm.',
+  },
+  {
+    range: [6, 8],
+    emoji: '🧱',
+    phase: 'Structure & Skill-Building',
+    shift: 'From constant supervision → consistent structure',
+    keyInsight: 'They understand rules — but still need help applying them consistently.',
+    developing: ['Rule-following', 'Basic impulse control', 'Forming friendships', 'Early sense of responsibility'],
+    brainReality: 'Executive function is emerging but still fragile. Repetition and predictable structure are what build new habits at this stage.',
+  },
+  {
+    range: [9, 11],
+    emoji: '🌱',
+    phase: 'Self-Management & Identity Seeds',
+    shift: 'From instruction → coaching & connection',
+    keyInsight: "This is the last window where your influence is high before the teenage shift begins.",
+    developing: ['Growing independence', 'Peer awareness & social comparison', 'Moral reasoning', 'Self-esteem formation'],
+    brainReality: 'Better emotional control — but still inconsistent. Increasingly sensitive to how they compare to peers. Connection matters more than correction here.',
+  },
+  {
+    range: [12, 14],
+    emoji: '⚡',
+    phase: 'Emotional Surge & Identity Formation',
+    shift: 'From authority → relationship & guidance',
+    keyInsight: 'Big reactions are normal — this is a brain transition phase, not a character flaw.',
+    developing: ['Strong, fast-moving emotions', 'Identity questions', 'Peer influence peak', 'Abstract thinking beginning'],
+    brainReality: "The emotional centre (amygdala) is highly active while the logical control system is still developing. They feel before they think — that's biology, not defiance.",
+  },
+  {
+    range: [15, 18],
+    emoji: '🧭',
+    phase: 'Autonomy & Decision-Making',
+    shift: 'From managing → mentoring',
+    keyInsight: 'They need trust, responsibility, and your guidance — not control.',
+    developing: ['Long-term thinking', 'Values and identity solidifying', 'Drive for independence', 'Risk evaluation (still maturing)'],
+    brainReality: 'Executive function is improving but still vulnerable to impulsive decisions under pressure. Relationship quality now determines how much influence you keep.',
+  },
+];
+
+function getDevPhase(age) {
+  if (!age || isNaN(age)) return null;
+  return DEV_PHASES.find(p => age >= p.range[0] && age <= p.range[1]) ?? null;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const CARD_SHADOW = {
@@ -73,6 +128,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const [expandedTimeHabits, setExpandedTimeHabits] = useState(new Set());
   const [activityPages, setActivityPages]           = useState({});
   const [completionCounts, setCompletionCounts]     = useState({});
+  const [phaseExpanded,        setPhaseExpanded]        = useState(false);
   const [winModalVisible,      setWinModalVisible]      = useState(false);
   const [incidentModalVisible, setIncidentModalVisible] = useState(false);
   const [winText,      setWinText]      = useState('');
@@ -254,6 +310,7 @@ export default function DashboardsScreen({ navigation, route }) {
     ]).start();
     setActiveChildId(id);
     setActiveAreaIndex(0);
+    setPhaseExpanded(false);
     setExpandedAreas(new Set());
     setExpandedWisdom(new Set());
     setMarkedDone(new Set());
@@ -429,6 +486,62 @@ export default function DashboardsScreen({ navigation, route }) {
 
         {/* White rounded sheet */}
         <View style={styles.sheet}><View style={styles.content}>
+
+        {/* ── Developmental phase card ── */}
+        {(() => {
+          const phase = getDevPhase(child.age);
+          if (!phase) return null;
+          return (
+            <TouchableOpacity
+              style={styles.phaseCard}
+              onPress={() => setPhaseExpanded(p => !p)}
+              activeOpacity={0.88}
+            >
+              <View style={styles.phaseTopRow}>
+                <View style={styles.phaseEmojiWrap}>
+                  <Text style={styles.phaseEmoji}>{phase.emoji}</Text>
+                </View>
+                <View style={styles.phaseTitleBlock}>
+                  <Text style={styles.phaseEyebrow}>DEVELOPMENTAL PHASE · AGE {child.age}</Text>
+                  <Text style={styles.phaseTitle}>{phase.phase}</Text>
+                </View>
+                <Ionicons
+                  name={phaseExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color="#2E7D62"
+                />
+              </View>
+
+              <View style={styles.phaseShiftRow}>
+                <Ionicons name="arrow-forward" size={12} color="#2E7D62" />
+                <Text style={styles.phaseShift}>{phase.shift}</Text>
+              </View>
+
+              <View style={styles.phaseInsightBox}>
+                <Text style={styles.phaseInsightText}>"{phase.keyInsight}"</Text>
+              </View>
+
+              {phaseExpanded && (
+                <View style={styles.phaseDetail}>
+                  <View style={styles.phaseDetailDivider} />
+
+                  <Text style={styles.phaseDetailLabel}>WHAT'S DEVELOPING</Text>
+                  <View style={styles.phaseDetailBullets}>
+                    {phase.developing.map((item, i) => (
+                      <View key={i} style={styles.phaseBulletRow}>
+                        <View style={styles.phaseBulletDot} />
+                        <Text style={styles.phaseBulletText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <Text style={styles.phaseDetailLabel}>BRAIN REALITY</Text>
+                  <Text style={styles.phaseBrainText}>{phase.brainReality}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })()}
 
         {/* ── Empty state — no growth areas ── */}
         {focusAreas.length === 0 && (
@@ -893,6 +1006,113 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 1, marginBottom: 8, marginTop: 16 },
   sectionLink:  { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
 
+
+  // Developmental phase card
+  phaseCard: {
+    backgroundColor: '#F0F7F4',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#C6E8D4',
+    ...CARD_SHADOW,
+  },
+  phaseTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  phaseEmojiWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#C6E8D4',
+  },
+  phaseEmoji: { fontSize: 20 },
+  phaseTitleBlock: { flex: 1 },
+  phaseEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2E7D62',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  phaseTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1A1A2E',
+  },
+  phaseShiftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#DDF0E6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  phaseShift: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1B4D3E',
+    flex: 1,
+  },
+  phaseInsightBox: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#2E7D62',
+    paddingLeft: 12,
+    paddingVertical: 2,
+  },
+  phaseInsightText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  phaseDetail: { marginTop: 4 },
+  phaseDetailDivider: {
+    height: 1,
+    backgroundColor: '#C6E8D4',
+    marginVertical: 14,
+  },
+  phaseDetailLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2E7D62',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  phaseDetailBullets: { gap: 6, marginBottom: 14 },
+  phaseBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  phaseBulletDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#2E7D62',
+    marginTop: 7,
+    flexShrink: 0,
+  },
+  phaseBulletText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 20,
+    flex: 1,
+  },
+  phaseBrainText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 20,
+  },
 
   // Focus card
   focusCard: {
