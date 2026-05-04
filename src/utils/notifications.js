@@ -29,25 +29,25 @@ const PROFILE_KEY          = 'tarbiyah_profile';
 
 // ─── Rotating message pool ────────────────────────────────────────────────────
 const FALLBACK_MESSAGES = [
-  { subtitle: "📖 Today's reminder might be exactly what you need.", body: "Open your daily parenting insights." },
-  { subtitle: "🌿 Guidance for a better parenting day.", body: "Your daily insights are ready." },
-  { subtitle: "🏡 Today's reminder is ready to strengthen your home.", body: "Open your daily parenting insights." },
-  { subtitle: "✨ A fresh perspective for your parenting journey.", body: "Open today's wisdom." },
-  { subtitle: "📖 Today's lesson may change how you approach the day.", body: "Your daily insights are ready." },
-  { subtitle: "🤲 Parenting is hard. Let today's reminder help.", body: "Open your daily parenting insights." },
-  { subtitle: "🌱 A little guidance for a big responsibility.", body: "Your daily insights are ready." },
-  { subtitle: "💛 Your family deserves intentional moments of learning.", body: "Read today's new insights." },
-  { subtitle: "🏡 A stronger home starts with small, consistent steps.", body: "Open today's parenting insights." },
-  { subtitle: "✨ Today's insight can help recenter your parenting.", body: "Read your daily parenting insights." },
-  { subtitle: "🌿 Take a moment for today's parenting reminder.", body: "Your daily wisdom is ready." },
-  { subtitle: "💡 Today's parenting insight is powerful.", body: "Open your daily insights." },
-  { subtitle: "🌱 A small reminder for a big journey.", body: "Your daily insights are ready." },
-  { subtitle: "📖 Your daily dose of parenting wisdom is here.", body: "Open today's insights." },
-  { subtitle: "🤲 Parent with wisdom — build your knowledge.", body: "Open today's parenting insights." },
-  { subtitle: "💭 Are you winning the moment but losing the child?", body: "Open today's insights." },
-  { subtitle: "🌿 Your children are a trust from Allah.", body: "Be the best parent you can be — open today's insights." },
-  { subtitle: "📖 A parenting reminder worth pausing for.", body: "Open your daily insights." },
-  { subtitle: "✨ Today's wisdom may help you see things differently.", body: "Your daily insights are ready." },
+  { title: "📖 Daily wisdom", body: "Today's reminder might be exactly what you need. Open your insights." },
+  { title: "🌿 Tarbiyah", body: "A little guidance for a better parenting day. Your insights are ready." },
+  { title: "🏡 Daily reminder", body: "Strengthen your home with today's parenting insight." },
+  { title: "✨ Fresh perspective", body: "A new angle on your parenting journey is waiting for you." },
+  { title: "📖 Today's lesson", body: "This one may change how you approach the rest of your day." },
+  { title: "🤲 Tarbiyah", body: "Parenting is hard. Let today's wisdom be a small help." },
+  { title: "🌱 Daily reminder", body: "A little guidance for a big responsibility. Your insights are ready." },
+  { title: "💛 Tarbiyah", body: "Your family deserves intentional moments. Today's insights are ready." },
+  { title: "🏡 Small steps", body: "A stronger home starts with consistency. Open today's parenting insight." },
+  { title: "✨ Tarbiyah", body: "Today's insight can help recenter your parenting. Take a moment." },
+  { title: "🌿 Daily wisdom", body: "Your daily parenting reminder is ready. Take a moment to read it." },
+  { title: "💡 Tarbiyah", body: "Today's parenting insight is ready for you. Open the app." },
+  { title: "🌱 Small reminder", body: "A small reminder for a big journey. Your daily insights are ready." },
+  { title: "📖 Tarbiyah", body: "Your daily dose of parenting wisdom is here. Open today's insights." },
+  { title: "🤲 Daily wisdom", body: "Parent with wisdom — your daily knowledge reminder is ready." },
+  { title: "💭 Tarbiyah", body: "Are you winning the moment but losing the child? Open today's insight." },
+  { title: "🌿 Daily reminder", body: "Your children are a trust from Allah. Be the best parent you can be." },
+  { title: "📖 Worth pausing for", body: "A parenting reminder worth your time is ready. Open the app." },
+  { title: "✨ Tarbiyah", body: "Today's wisdom may help you see things differently. Your insights await." },
 ];
 
 // Picks a message based on the day of the year so it rotates daily and is consistent
@@ -105,8 +105,7 @@ export async function scheduleDailyNotification(reminderTimeStr) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Tarbiyah',
-      subtitle: content.subtitle,
+      title: content.title,
       body: content.body,
       sound: true,
       data: { screen: 'Home' },
