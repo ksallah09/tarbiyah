@@ -293,11 +293,14 @@ export default function HomeScreen({ navigation }) {
           setAnimate(shouldAnimate);
         });
 
-      // Load photo from auth provider (Google provides avatar_url, Apple does not)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        const meta = session?.user?.user_metadata ?? {};
-        const url = meta.avatar_url || meta.picture || null;
-        if (url) setPhotoUrl(url);
+      // Load photo: local profile photo first, fall back to auth provider avatar
+      AsyncStorage.getItem('tarbiyah_profile_photo').then(local => {
+        if (local) { setPhotoUrl(local); return; }
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          const meta = session?.user?.user_metadata ?? {};
+          const url = meta.avatar_url || meta.picture || null;
+          if (url) setPhotoUrl(url);
+        });
       });
 
       loadDaily();

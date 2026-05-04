@@ -37,6 +37,9 @@ const CATEGORY_CONFIG = {
 function catConfig(cat) { return CATEGORY_CONFIG[cat] ?? { color: '#6B7280', icon: 'grid-outline' }; }
 import * as Notifications from 'expo-notifications';
 import { scheduleDailyNotification, cancelDailyNotification, requestNotificationPermission } from '../utils/notifications';
+import * as ImagePicker from 'expo-image-picker';
+
+const PROFILE_PHOTO_KEY = 'tarbiyah_profile_photo';
 
 const ITEM_HEIGHT = 48;
 const HOURS   = ['1','2','3','4','5','6','7','8','9','10','11','12'];
@@ -317,6 +320,7 @@ export default function ProfileScreen() {
   const [notifications,    setNotifications]    = useState(true);
   const [focusAreas,       setFocusAreas]       = useState([]);
   const [profileName,      setProfileName]      = useState('');
+  const [profilePhoto,     setProfilePhoto]     = useState(null);
   const [userEmail,        setUserEmail]        = useState('');
   const [reminderTime,     setReminderTime]     = useState('8:00 AM');
   const [language,         setLanguage]         = useState('English');
@@ -342,6 +346,8 @@ export default function ProfileScreen() {
     });
 
     getFocusAreas().then(setFocusAreas);
+
+    AsyncStorage.getItem(PROFILE_PHOTO_KEY).then(uri => { if (uri) setProfilePhoto(uri); });
 
     Promise.all([
       AsyncStorage.getItem('tarbiyah_profile'),
@@ -380,6 +386,55 @@ export default function ProfileScreen() {
       }
     });
   }, []);
+
+  async function pickProfilePhoto() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      setProfilePhoto(uri);
+      await AsyncStorage.setItem(PROFILE_PHOTO_KEY, uri);
+    }
+  }
+
+  async function takeProfilePhoto() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow camera access.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      setProfilePhoto(uri);
+      await AsyncStorage.setItem(PROFILE_PHOTO_KEY, uri);
+    }
+  }
+
+  function handleChangePhoto() {
+    Alert.alert('Profile Photo', 'Choose an option', [
+      { text: 'Choose from Library', onPress: pickProfilePhoto },
+      { text: 'Take a Photo',        onPress: takeProfilePhoto },
+      profilePhoto ? { text: 'Remove Photo', style: 'destructive', onPress: async () => {
+        setProfilePhoto(null);
+        await AsyncStorage.removeItem(PROFILE_PHOTO_KEY);
+      }} : null,
+      { text: 'Cancel', style: 'cancel' },
+    ].filter(Boolean));
+  }
 
   async function saveProfile(patch) {
     const current = { name: profileName, reminderTime, language, notifications, familyStructure };
@@ -704,9 +759,17 @@ export default function ProfileScreen() {
         ) : (
         <>
         <View style={styles.profileCard}>
-          <View style={styles.profileAvatarCircle}>
-            <Text style={styles.profileAvatarText}>{profileName.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}</Text>
-          </View>
+          <TouchableOpacity onPress={handleChangePhoto} activeOpacity={0.85} style={styles.profileAvatarWrap}>
+            <View style={styles.profileAvatarCircle}>
+              {profilePhoto
+                ? <Image source={{ uri: profilePhoto }} style={styles.profileAvatarPhoto} />
+                : <Text style={styles.profileAvatarText}>{profileName ? profileName.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() : '?'}</Text>
+              }
+            </View>
+            <View style={styles.profileCameraBadge}>
+              <Ionicons name="camera" size={11} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{profileName}</Text>
             {userEmail ? <Text style={styles.profileEmail}>{userEmail}</Text> : null}
@@ -1000,11 +1063,20 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
+  profileAvatarWrap: { position: 'relative' },
   profileAvatarCircle: {
     width: 54, height: 54, borderRadius: 27,
     backgroundColor: '#1B3D2F', alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
+  profileAvatarPhoto: { width: 54, height: 54, borderRadius: 27 },
   profileAvatarText: { fontSize: 19, fontWeight: '700', color: '#FFF' },
+  profileCameraBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#2E7D62', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#FFFFFF',
+  },
   profileInfo: { flex: 1 },
   profileName: { fontSize: 17, fontWeight: '700', color: '#1C1C1E', marginBottom: 2 },
   profileEmail: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
