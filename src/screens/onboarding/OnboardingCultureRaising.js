@@ -153,7 +153,6 @@ export default function OnboardingCultureRaising({ navigation, route }) {
             activeOpacity={0.85}
           >
             <Text style={styles.nextBtnText}>Continue</Text>
-            <Ionicons name="chevron-forward" size={18} color="#1B3D2F" />
           </TouchableOpacity>
         </View>
       )}
