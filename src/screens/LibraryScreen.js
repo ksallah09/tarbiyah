@@ -142,7 +142,7 @@ function ResourceThumb({ uri, accentColor, cardStyle, accentStyle, onHide }) {
 
 export default function LibraryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState('resources');
+  const [activeTab, setActiveTab] = useState('local');
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const swipeHintX = useRef(new Animated.Value(0)).current;
   const swipeHintOpacity = useRef(new Animated.Value(0)).current;
@@ -315,6 +315,7 @@ export default function LibraryScreen({ navigation }) {
       supabase.auth.getSession().then(({ data }) => {
         setCurrentUserId(data?.session?.user?.id ?? null);
       });
+      loadLocalData();
       fetchResources();
       fetchMyPosts();
       fetchDuas();
@@ -2113,8 +2114,8 @@ const lcStyles = StyleSheet.create({
   emptyEmoji:  { fontSize: 48, marginBottom: 16 },
   emptyTitle:  { fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 8, textAlign: 'center' },
   emptySub:    { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 21 },
-  pillRow:     { paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
-  pill:        { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 100, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  pillRow:     { paddingHorizontal: 20, paddingVertical: 10, gap: 8, alignItems: 'center', height: 52 },
+  pill:        { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 100, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', alignSelf: 'center' },
   pillActive:  { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
   pillText:    { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   pillTextActive: { color: '#FFFFFF' },
