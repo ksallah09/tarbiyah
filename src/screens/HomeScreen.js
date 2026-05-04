@@ -571,36 +571,47 @@ export default function HomeScreen({ navigation }) {
                   const hasAreas = (child.growthAreas ?? []).length > 0;
                   const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
                   return (
-                    <TouchableOpacity key={child.id} style={[styles.childProgressCard, { borderLeftColor: child.color }, idx > 0 && { marginTop: 8 }]} onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })} activeOpacity={0.82}>
-                      <View style={styles.childProgressAvatarWrap}>
-                        <View style={[styles.childProgressAvatar, { backgroundColor: child.color }]}>
+                    <TouchableOpacity
+                      key={child.id}
+                      style={[styles.childProgressCard, idx > 0 && { marginTop: 10 }]}
+                      onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })}
+                      activeOpacity={0.85}
+                    >
+                      {/* Dark header zone */}
+                      <View style={[styles.cpHeader, { backgroundColor: child.color }]}>
+                        <View style={styles.cpAvatarCircle}>
                           {child.photo
-                            ? <Image source={{ uri: child.photo }} style={styles.childProgressAvatarPhoto} />
-                            : <Text style={styles.childProgressInitial}>{child.name[0]}</Text>
+                            ? <Image source={{ uri: child.photo }} style={styles.cpAvatarPhoto} />
+                            : <Text style={styles.cpAvatarInitial}>{child.name[0]}</Text>
                           }
                         </View>
-                        <Text style={styles.childProgressAge}>Age {child.age}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cpName}>{child.name}</Text>
+                          <Text style={styles.cpAge}>Age {child.age}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.5)" />
                       </View>
-                      <Text style={[styles.childProgressName, { flex: 1 }]}>{child.name}</Text>
-                      {hasAreas ? (
-                        <View style={styles.childProgressCounts}>
-                          <View style={styles.childProgressCount}>
-                            <Text style={[styles.childProgressNum, { color: child.color }]}>{habits}</Text>
-                            <Text style={styles.childProgressLabel}>Habits{'\n'}Logged</Text>
+                      {/* White body zone */}
+                      <View style={styles.cpBody}>
+                        {hasAreas ? (
+                          <>
+                            <View style={styles.cpStat}>
+                              <Text style={[styles.cpStatNum, { color: child.color }]}>{habits}</Text>
+                              <Text style={styles.cpStatLabel}>Habits Logged</Text>
+                            </View>
+                            <View style={styles.cpDivider} />
+                            <View style={styles.cpStat}>
+                              <Text style={[styles.cpStatNum, { color: '#B45309' }]}>{activities}</Text>
+                              <Text style={styles.cpStatLabel}>Activities Logged</Text>
+                            </View>
+                          </>
+                        ) : (
+                          <View style={styles.cpEmpty}>
+                            <Ionicons name="leaf-outline" size={13} color="#C3DDD6" />
+                            <Text style={styles.cpEmptyText}>Add a growth area to start tracking</Text>
                           </View>
-                          <View style={styles.childProgressDivider} />
-                          <View style={styles.childProgressCount}>
-                            <Text style={[styles.childProgressNum, { color: '#B45309' }]}>{activities}</Text>
-                            <Text style={styles.childProgressLabel}>Activities{'\n'}Logged</Text>
-                          </View>
-                        </View>
-                      ) : (
-                        <View style={styles.childProgressEmpty}>
-                          <Ionicons name="leaf-outline" size={13} color="#C3DDD6" />
-                          <Text style={styles.childProgressEmptyText}>No growth areas yet</Text>
-                        </View>
-                      )}
-                      <Ionicons name="chevron-forward" size={14} color="#D1D5DB" />
+                        )}
+                      </View>
                     </TouchableOpacity>
                   );
                 })
@@ -1359,53 +1370,36 @@ const styles = StyleSheet.create({
   streakCountSub: { fontSize: 10, color: '#9CA3AF', fontWeight: '500' },
 
   // ── Streak card ──
-  // Children progress cards
+  // Children progress cards — two-tone
   childProgressCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12,
-    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
-    borderWidth: 1, borderColor: '#EEF0F2',
-    borderLeftWidth: 4,
+    borderRadius: 18, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.09, shadowRadius: 10, elevation: 4,
+  },
+  cpHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 14, paddingVertical: 13,
   },
-  childProgressHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1,
-  },
-  childProgressAvatarWrap: { alignItems: 'center', gap: 3, flexShrink: 0 },
-  childProgressAvatar: {
-    width: 44, height: 44, borderRadius: 22,
+  cpAvatarCircle: {
+    width: 44, height: 44, borderRadius: 22, overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
   },
-  childProgressAvatarPhoto: { width: 44, height: 44, borderRadius: 22 },
-  childProgressInitial: { fontSize: 17, fontWeight: '800', color: '#FFF' },
-  childProgressName: { fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
-  childProgressAge:  { fontSize: 10, color: '#9CA3AF', fontWeight: '500', textAlign: 'center' },
-  childProgressCounts: {
-    flexDirection: 'row', alignItems: 'center', gap: 16,
+  cpAvatarPhoto:   { width: 44, height: 44, borderRadius: 22 },
+  cpAvatarInitial: { fontSize: 18, fontWeight: '800', color: '#FFF' },
+  cpName: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', marginBottom: 1 },
+  cpAge:  { fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
+  cpBody: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 14,
   },
-  childProgressCount: {
-    alignItems: 'center', gap: 2,
-  },
-  childProgressCountIcon: {
-    width: 28, height: 28, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  childProgressNum: {
-    fontSize: 20, fontWeight: '800', color: '#2E7D62', lineHeight: 24,
-  },
-  childProgressLabel: {
-    fontSize: 10, color: '#9CA3AF', fontWeight: '500', textAlign: 'center', lineHeight: 13,
-  },
-  childProgressDivider: {
-    width: 1, height: 32, backgroundColor: '#F0F1F3',
-  },
-  childProgressEmpty: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1,
-  },
-  childProgressEmptyText: {
-    flex: 1, fontSize: 11, color: '#9CA3AF', lineHeight: 16,
-  },
+  cpStat:       { flex: 1, alignItems: 'center' },
+  cpStatNum:    { fontSize: 22, fontWeight: '800', lineHeight: 26 },
+  cpStatLabel:  { fontSize: 10, color: '#9CA3AF', fontWeight: '500', marginTop: 2 },
+  cpDivider:    { width: 1, height: 36, backgroundColor: '#F0F1F3' },
+  cpEmpty:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  cpEmptyText:  { fontSize: 12, color: '#9CA3AF', flex: 1 },
 
   streakCard: {
     backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
