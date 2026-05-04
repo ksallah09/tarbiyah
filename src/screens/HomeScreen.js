@@ -578,7 +578,7 @@ export default function HomeScreen({ navigation }) {
                       activeOpacity={0.85}
                     >
                       {/* Dark header zone */}
-                      <View style={[styles.cpHeader, { backgroundColor: child.color }]}>
+                      <View style={[styles.cpHeader, { backgroundColor: '#1B3D2F' }]}>
                         <View style={styles.cpAvatarCircle}>
                           {child.photo
                             ? <Image source={{ uri: child.photo }} style={styles.cpAvatarPhoto} />
@@ -596,12 +596,12 @@ export default function HomeScreen({ navigation }) {
                         {hasAreas ? (
                           <>
                             <View style={styles.cpStat}>
-                              <Text style={[styles.cpStatNum, { color: child.color }]}>{habits}</Text>
+                              <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{habits}</Text>
                               <Text style={styles.cpStatLabel}>Habits Logged</Text>
                             </View>
                             <View style={styles.cpDivider} />
                             <View style={styles.cpStat}>
-                              <Text style={[styles.cpStatNum, { color: '#B45309' }]}>{activities}</Text>
+                              <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{activities}</Text>
                               <Text style={styles.cpStatLabel}>Activities Logged</Text>
                             </View>
                           </>
