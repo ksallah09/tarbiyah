@@ -8,7 +8,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
+let Location = null;
+try { Location = require('expo-location'); } catch {}
 import TypewriterText from '../../components/TypewriterText';
 import ProgressDots from './ProgressDots';
 
@@ -74,6 +75,7 @@ export default function OnboardingCommunity({ navigation, route }) {
   useEffect(() => {
     (async () => {
       try {
+        if (!Location) { setApiError('Location unavailable — search by name above.'); setLocLoading(false); return; }
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });

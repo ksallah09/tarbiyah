@@ -30,7 +30,8 @@ import {
   fetchLocalEvents, fetchUpcomingForFamily, submitEvent,
   verifyEvent, getMyVerdict, loadCommunities, loadChildrenAges,
 } from '../utils/communityEvents';
-import * as Location from 'expo-location';
+let Location = null;
+try { Location = require('expo-location'); } catch {}
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 

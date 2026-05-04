@@ -16,7 +16,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import * as Location from 'expo-location';
+let Location = null;
+try { Location = require('expo-location'); } catch {}
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -580,6 +581,7 @@ function CommunitiesModal({ visible, selected, onConfirm, onClose }) {
 
   async function loadNearby() {
     setLocLoading(true);
+    if (!Location) { setLocLoading(false); return; }
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
