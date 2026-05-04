@@ -335,13 +335,16 @@ export default function App() {
   const notifResponseListener         = useRef(null);
   useFonts({ Amiri_400Regular, Amiri_700Bold });
 
-  function handleNotifNavigation({ screen } = {}) {
+  function handleNotifNavigation({ screen, childId } = {}) {
     if (screen === 'Family') {
       navigationRef.current?.navigate('Tabs', { screen: 'Family' });
     } else if (screen === 'Community') {
       navigationRef.current?.navigate('Tabs', { screen: 'Community' });
     } else if (screen === 'Dashboards') {
-      navigationRef.current?.navigate('Tabs', { screen: 'Dashboards' });
+      navigationRef.current?.navigate('Tabs', {
+        screen: 'Dashboards',
+        params: childId ? { childId } : undefined,
+      });
     } else if (screen === 'Learn') {
       navigationRef.current?.navigate('Tabs', { screen: 'Learn' });
     } else {
