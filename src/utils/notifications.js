@@ -690,9 +690,10 @@ export async function scheduleChildHabitNotifications() {
       // C: rotate child by day index
       const child = children[idx % children.length];
       const habit = getCurrentWeekHabit(child);
-      const habitText = habit?.text
-        ? truncateToSentence(habit.text)
-        : `Check ${child.name}'s habit for today in the app.`;
+      const habitBody = habit?.text
+        ? truncateToSentence(habit.text, 80)
+        : `Check ${child.name}'s habit for today.`;
+      const habitText = `${habitBody} Open Tarbiyah to see more habits.`;
 
       for (const slot of slots) {
         const hour  = SLOT_HOUR[slot];
@@ -718,9 +719,10 @@ export async function scheduleChildHabitNotifications() {
     // D: Friday 3pm — weekly activity preview, rotating child assigned to Friday
     const fridayChild = children[DAY_META.fri.idx % children.length];
     const activity    = getCurrentWeekActivity(fridayChild);
-    const activityText = activity?.text
-      ? `This week: ${truncateToSentence(activity.text, 105)}`
-      : `This week's activity for ${fridayChild.name} is ready — open the app to explore.`;
+    const activityBody = activity?.text
+      ? `This week: ${truncateToSentence(activity.text, 80)}`
+      : `This week's activity for ${fridayChild.name} is ready.`;
+    const activityText = `${activityBody} Open Tarbiyah to see more activities.`;
 
     const activityId = await Notifications.scheduleNotificationAsync({
       content: {
