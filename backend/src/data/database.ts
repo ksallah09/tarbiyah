@@ -265,7 +265,8 @@ export async function pickInsight(
   category: 'spiritual' | 'science',
   userId: string | null,
   focusAreas: string[] = [],
-  childrenAgeGroups: string[] = []
+  childrenAgeGroups: string[] = [],
+  familyStructure: string = 'prefer_not_to_say'
 ): Promise<InsightOutput | null> {
   const [seen, pool] = await Promise.all([
     userId ? getDeliveredInsightIds(userId) : Promise.resolve([]),
@@ -286,14 +287,21 @@ export async function pickInsight(
   // Insights with these tags are excluded entirely for users who haven't selected them.
   const OPT_IN_TAGS = new Set(['special-needs']);
 
+  // Tags that are excluded entirely for certain family structures.
+  // single_parent: never show insights whose primary application requires a spouse/partner.
+  const SINGLE_PARENT_EXCLUDE_TAGS = new Set(['marriage']);
+  const isSingleParent = familyStructure === 'single_parent';
+
   const seenSet = new Set(seen);
   const unread = pool.filter(i => !seenSet.has(i.id));
   const allCandidates = unread.length > 0 ? unread : pool; // reset if all seen
 
-  // Exclude opt-in-only insights for users who haven't selected the matching focus area
-  const filtered = allCandidates.filter(
-    i => !i.tags.some(t => OPT_IN_TAGS.has(t) && !focusAreas.includes(t))
-  );
+  // Apply both opt-in and family-structure exclusions
+  const filtered = allCandidates.filter(i => {
+    if (i.tags.some(t => OPT_IN_TAGS.has(t) && !focusAreas.includes(t))) return false;
+    if (isSingleParent && i.tags.some(t => SINGLE_PARENT_EXCLUDE_TAGS.has(t))) return false;
+    return true;
+  });
   const candidates = filtered.length > 0 ? filtered : allCandidates;
 
   // Count how many insights the user has already seen from each source.

@@ -218,10 +218,12 @@ export default function HomeScreen({ navigation }) {
         const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
         const profile = profileRaw ? JSON.parse(profileRaw) : {};
         const childrenAges = profile.childrenAges ?? [];
+        const familyStructure = profile.familyStructure ?? 'prefer_not_to_say';
 
         const query = new URLSearchParams();
         if (focusAreas.length) query.set('focusAreas', focusAreas.join(','));
         if (childrenAges.length) query.set('childrenAges', childrenAges.join(','));
+        if (familyStructure) query.set('familyStructure', familyStructure);
         const params = query.toString() ? '?' + query.toString() : '';
         res = await fetch(`${API_URL}/daily${params}`, {
           headers: { Authorization: `Bearer ${token}` },

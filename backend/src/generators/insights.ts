@@ -311,6 +311,8 @@ const VALID_TAGS: Set<InsightTag> = new Set([
   'anger', 'gratitude', 'tarbiyah', 'character', 'knowledge', 'love',
   'boundaries', 'faith', 'prayer', 'identity', 'attachment', 'play',
   'kindness', 'forgiveness', 'special-needs',
+  // Content-restriction tags — used to exclude insights for certain family structures
+  'marriage',
 ]);
 
 function validateTags(

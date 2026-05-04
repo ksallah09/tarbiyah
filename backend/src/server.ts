@@ -185,10 +185,13 @@ app.get('/daily', requireAuth, async (req: AuthRequest, res: Response) => {
     const childrenAgeGroups = req.query.childrenAges
       ? String(req.query.childrenAges).split(',').map(s => s.trim()).filter(Boolean)
       : [];
+    const familyStructure = req.query.familyStructure
+      ? String(req.query.familyStructure)
+      : 'prefer_not_to_say';
 
     const [spiritualInsight, scienceInsight] = await Promise.all([
-      pickInsight('spiritual', userId, focusAreas, childrenAgeGroups),
-      pickInsight('science', userId, focusAreas, childrenAgeGroups),
+      pickInsight('spiritual', userId, focusAreas, childrenAgeGroups, familyStructure),
+      pickInsight('science', userId, focusAreas, childrenAgeGroups, familyStructure),
     ]);
 
     if (!spiritualInsight || !scienceInsight) {
