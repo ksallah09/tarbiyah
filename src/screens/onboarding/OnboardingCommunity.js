@@ -111,7 +111,7 @@ export default function OnboardingCommunity({ navigation, route }) {
   const displayResults = query.trim() ? results : nearby;
 
   return (
-    <LinearGradient colors={['#0D2419', '#1B3D2F', '#2A5240']} style={styles.flex}>
+    <LinearGradient colors={['#1B3D2F', '#0D2419']} style={styles.flex}>
       <StatusBar style="light" />
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   skipBtn: { padding: 4 },
   skipText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.45)' },
   content: { paddingHorizontal: 24, paddingTop: 20 },
-  title: { fontSize: 30, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5, marginBottom: 14, lineHeight: 38 },
+  title: { fontSize: 34, fontWeight: '700', color: '#FFFFFF', lineHeight: 44, marginBottom: 14 },
   sub: { fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 22, marginBottom: 24 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.4)', letterSpacing: 1.2, marginBottom: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
