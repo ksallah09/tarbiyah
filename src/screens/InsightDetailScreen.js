@@ -15,7 +15,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { captureRef } from 'react-native-view-shot';
+let captureRef = null;
+try { captureRef = require('react-native-view-shot').captureRef; } catch {}
 import * as Sharing from 'expo-sharing';
 import { saveInsight, unsaveInsight, isInsightSaved } from '../utils/savedInsights';
 import { markAsRead, isReadToday } from '../utils/readInsights';
@@ -71,6 +72,7 @@ export default function InsightDetailScreen({ route, navigation }) {
     if (sharing) return;
     setSharing(true);
     try {
+      if (!captureRef) { Alert.alert('Sharing unavailable', 'Please rebuild the app to enable image sharing.'); setSharing(false); return; }
       const uri = await captureRef(shareCardRef, { format: 'jpg', quality: 0.95 });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -168,15 +170,8 @@ export default function InsightDetailScreen({ route, navigation }) {
         {/* ── Action step ── */}
         {insight.actionStep && (
           <>
-            <View style={[styles.goalRow, { borderLeftWidth: 3, borderLeftColor: accentColor, paddingHorizontal: 12 }]}>
-              <View style={styles.goalContent}>
-                <View style={styles.goalMeta}>
-                  <Ionicons name={goalIcon} size={12} color={accentColor} />
-                  <Text style={[styles.goalMetaLabel, { color: accentColor }]}>{goalLabel}</Text>
-                </View>
-                <Text style={styles.goalText}>{insight.actionStep}</Text>
-              </View>
-            </View>
+            <Text style={[styles.sectionLabel, { color: accentColor }]}>{goalLabel.toUpperCase()}</Text>
+            <Text style={styles.bodyText}>{insight.actionStep}</Text>
             <View style={styles.divider} />
           </>
         )}
