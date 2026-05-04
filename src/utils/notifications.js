@@ -702,7 +702,7 @@ export async function scheduleChildHabitNotifications() {
 
         const id = await Notifications.scheduleNotificationAsync({
           content: {
-            title: `${emoji} ${child.name} · Today's habit`,
+            title: `${emoji} ${child.name} · Growth Habit`,
             body: habitText,
             sound: true,
             data: { screen: 'Dashboards', childId: child.id },
