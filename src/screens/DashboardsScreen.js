@@ -650,7 +650,7 @@ export default function DashboardsScreen({ navigation, route }) {
             <Text style={styles.sectionLabel}>THIS WEEK</Text>
 
             {/* ── Habits — 1 primary per area, expandable ── */}
-            <View style={[styles.weekBlock, { backgroundColor: '#EDF7F2' }]}>
+            <View style={[styles.weekBlock, { backgroundColor: '#EDF7F2', borderColor: '#8ECFB8' }]}>
               <View style={styles.weekBlockHeaderHabit}>
                 <View style={styles.weekBlockIconHabit}>
                   <Ionicons name="repeat-outline" size={15} color="#1B4D3E" />
@@ -739,7 +739,7 @@ export default function DashboardsScreen({ navigation, route }) {
             </View>
 
             {/* ── Activities — swipeable cards per area ── */}
-            <View style={[styles.weekBlock, { marginBottom: 4, backgroundColor: '#FEF8EE' }]}>
+            <View style={[styles.weekBlock, { marginBottom: 4, backgroundColor: '#FEF8EE', borderColor: '#DDB96A' }]}>
               <View style={styles.weekBlockHeaderActivity}>
                 <View style={styles.weekBlockIconActivity}>
                   <Ionicons name="color-palette-outline" size={15} color="#92400E" />
