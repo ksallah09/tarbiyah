@@ -38,6 +38,7 @@ function catConfig(cat) { return CATEGORY_CONFIG[cat] ?? { color: '#6B7280', ico
 import * as Notifications from 'expo-notifications';
 import { scheduleDailyNotification, cancelDailyNotification, requestNotificationPermission } from '../utils/notifications';
 import * as ImagePicker from 'expo-image-picker';
+import { uploadPhoto } from '../utils/uploadPhoto';
 
 const PROFILE_PHOTO_KEY = 'tarbiyah_profile_photo';
 
@@ -399,9 +400,7 @@ export default function ProfileScreen() {
       quality: 0.8,
     });
     if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setProfilePhoto(uri);
-      await AsyncStorage.setItem(PROFILE_PHOTO_KEY, uri);
+      await saveProfilePhoto(result.assets[0].uri);
     }
   }
 
@@ -411,14 +410,21 @@ export default function ProfileScreen() {
       Alert.alert('Permission needed', 'Please allow camera access.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-
-      quality: 0.8,
-    });
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
     if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setProfilePhoto(uri);
-      await AsyncStorage.setItem(PROFILE_PHOTO_KEY, uri);
+      await saveProfilePhoto(result.assets[0].uri);
+    }
+  }
+
+  async function saveProfilePhoto(localUri) {
+    setProfilePhoto(localUri); // show immediately
+    try {
+      const userId = userIdRef.current ?? `user_${Date.now()}`;
+      const publicUrl = await uploadPhoto(localUri, `profiles/${userId}.jpg`);
+      setProfilePhoto(publicUrl);
+      await AsyncStorage.setItem(PROFILE_PHOTO_KEY, publicUrl);
+    } catch {
+      await AsyncStorage.setItem(PROFILE_PHOTO_KEY, localUri); // fallback to local
     }
   }
 

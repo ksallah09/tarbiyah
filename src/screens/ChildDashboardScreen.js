@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { getChildProfile, updateChildProfile, deleteChildProfile } from '../utils/childProfiles';
+import { uploadPhoto } from '../utils/uploadPhoto';
 
 // ── Option lists (same as wizard) ─────────────────────────────────────────────
 
@@ -336,7 +337,9 @@ export default function ChildDashboardScreen({ navigation, route }) {
       quality: 0.8,
     });
     if (!result.canceled) {
-      const profile = await updateChildProfile(child.id, { photo: result.assets[0].uri });
+      const localUri = result.assets[0].uri;
+      const photoUrl = await uploadPhoto(localUri, `children/${child.id}.jpg`).catch(() => localUri);
+      const profile = await updateChildProfile(child.id, { photo: photoUrl });
       if (profile) setChildData(profile);
     }
   }

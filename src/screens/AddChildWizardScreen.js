@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import { saveChildProfile } from '../utils/childProfiles';
+import { uploadPhoto } from '../utils/uploadPhoto';
 
 const TOTAL_STEPS = 9;
 
@@ -167,6 +168,11 @@ export default function AddChildWizardScreen({ navigation, route }) {
   async function handleFinish() {
     setSaving(true);
     try {
+      let photoUrl = photo;
+      if (photo && photo.startsWith('file://')) {
+        const childId = existingChild?.id ?? `child_${Date.now()}`;
+        photoUrl = await uploadPhoto(photo, `children/${childId}.jpg`).catch(() => photo);
+      }
       const profile = {
         ...(isEdit ? existingChild : {}),
         name: name.trim(),
@@ -174,7 +180,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
         gender,
         stage,
         schooling,
-        photo,
+        photo: photoUrl,
         strengths,
         temperaments,
         interests,
