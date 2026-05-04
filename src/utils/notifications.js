@@ -691,8 +691,8 @@ export async function scheduleChildHabitNotifications() {
       const child = children[idx % children.length];
       const habit = getCurrentWeekHabit(child);
       const habitBody = habit?.text
-        ? truncateToSentence(habit.text, 80)
-        : `Check ${child.name}'s habit for today.`;
+        ? `This week: ${truncateToSentence(habit.text, 80)}`
+        : `This week: Check ${child.name}'s habit for today.`;
       const habitText = `${habitBody} Open Tarbiyah to see more habits.`;
 
       for (const slot of slots) {
