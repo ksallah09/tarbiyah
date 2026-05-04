@@ -21,14 +21,14 @@ const COUNTRIES = [
   'Other',
 ];
 
-export default function OnboardingCulture({ navigation, route }) {
+export default function OnboardingCultureRaising({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const data   = route.params ?? {};
 
-  const [raisedIn,       setRaisedIn]       = useState([]);
-  const [query,          setQuery]          = useState('');
-  const [otherText,      setOtherText]      = useState('');
-  const [ready,          setReady]          = useState(false);
+  const [raisingIn,  setRaisingIn]  = useState(null);
+  const [query,      setQuery]      = useState('');
+  const [otherText,  setOtherText]  = useState('');
+  const [ready,      setReady]      = useState(false);
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
   function handleComplete() {
@@ -36,21 +36,15 @@ export default function OnboardingCulture({ navigation, route }) {
     Animated.timing(contentOpacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
   }
 
-  function toggle(country) {
-    setRaisedIn(prev =>
-      prev.includes(country) ? prev.filter(c => c !== country) : [...prev, country]
-    );
-  }
-
   function handleNext() {
-    const finalRaisedIn = raisedIn.map(c =>
-      c === 'Other' && otherText.trim() ? otherText.trim() : c
-    );
-    navigation.navigate('OnboardingCultureRaising', { ...data, raisedIn: finalRaisedIn });
+    const finalRaisingIn = raisingIn === 'Other' && otherText.trim()
+      ? otherText.trim()
+      : raisingIn;
+    navigation.navigate('OnboardingCommunity', { ...data, raisingIn: finalRaisingIn });
   }
 
   function handleSkip() {
-    navigation.navigate('OnboardingCultureRaising', { ...data, raisedIn: [] });
+    navigation.navigate('OnboardingCommunity', { ...data, raisingIn: null });
   }
 
   const filtered = query.trim()
@@ -64,7 +58,7 @@ export default function OnboardingCulture({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
-        <ProgressDots current={7} total={11} />
+        <ProgressDots current={8} total={11} />
         <TouchableOpacity onPress={handleSkip} style={styles.skipBtn}>
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
@@ -77,23 +71,25 @@ export default function OnboardingCulture({ navigation, route }) {
         showsVerticalScrollIndicator={false}
       >
         <TypewriterText
-          lines={['Where were\nyou raised?']}
+          lines={['Where are you\nraising your children?']}
           charDelay={28}
           style={styles.title}
           onComplete={handleComplete}
         />
 
         <Animated.View style={{ opacity: contentOpacity }}>
-          <Text style={styles.sub}>Select all that apply.</Text>
+          <Text style={styles.sub}>Select one.</Text>
 
-          {raisedIn.length > 0 && (
+          {raisingIn && (
             <View style={styles.chipRow}>
-              {raisedIn.map(c => (
-                <TouchableOpacity key={c} style={styles.selectedChip} onPress={() => toggle(c)} activeOpacity={0.75}>
-                  <Text style={styles.selectedChipText}>{c}</Text>
-                  <Ionicons name="close" size={12} color="#FFFFFF" />
-                </TouchableOpacity>
-              ))}
+              <TouchableOpacity
+                style={styles.selectedChip}
+                onPress={() => { setRaisingIn(null); setOtherText(''); }}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.selectedChipText}>{raisingIn}</Text>
+                <Ionicons name="close" size={12} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
           )}
 
@@ -116,12 +112,12 @@ export default function OnboardingCulture({ navigation, route }) {
 
           <View style={styles.chipRow}>
             {filtered.map(c => {
-              const active = raisedIn.includes(c);
+              const active = raisingIn === c;
               return (
                 <TouchableOpacity
                   key={c}
                   style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => toggle(c)}
+                  onPress={() => { setRaisingIn(c); setOtherText(''); }}
                   activeOpacity={0.75}
                 >
                   {active && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
@@ -131,7 +127,7 @@ export default function OnboardingCulture({ navigation, route }) {
             })}
           </View>
 
-          {raisedIn.includes('Other') && (
+          {raisingIn === 'Other' && (
             <View style={styles.otherInputRow}>
               <Ionicons name="pencil-outline" size={15} color="rgba(255,255,255,0.5)" />
               <TextInput
@@ -151,7 +147,7 @@ export default function OnboardingCulture({ navigation, route }) {
       {ready && (
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <TouchableOpacity
-            style={[styles.nextBtn, !raisedIn.length && styles.nextBtnMuted]}
+            style={[styles.nextBtn, !raisingIn && styles.nextBtnMuted]}
             onPress={handleNext}
             activeOpacity={0.85}
           >

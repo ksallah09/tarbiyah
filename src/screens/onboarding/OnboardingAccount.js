@@ -236,7 +236,7 @@ export default function OnboardingAccount({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <ProgressDots current={10} total={10} />
+          <ProgressDots current={11} total={11} />
 
           <View style={styles.textWrap}>
             <TypewriterText

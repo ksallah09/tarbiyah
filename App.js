@@ -44,6 +44,7 @@ import OnboardingParentRole      from './src/screens/onboarding/OnboardingParent
 import OnboardingWorkHours       from './src/screens/onboarding/OnboardingWorkHours';
 import OnboardingAvailability    from './src/screens/onboarding/OnboardingAvailability';
 import OnboardingCulture         from './src/screens/onboarding/OnboardingCulture';
+import OnboardingCultureRaising from './src/screens/onboarding/OnboardingCultureRaising';
 import OnboardingCommunity      from './src/screens/onboarding/OnboardingCommunity';
 import OnboardingFocusAreas      from './src/screens/onboarding/OnboardingFocusAreas';
 import OnboardingReminder        from './src/screens/onboarding/OnboardingReminder';
@@ -314,6 +315,7 @@ function OnboardingStack() {
       <Stack.Screen name="OnboardingWorkHours"        component={OnboardingWorkHours} />
       <Stack.Screen name="OnboardingAvailability"     component={OnboardingAvailability} />
       <Stack.Screen name="OnboardingCulture"           component={OnboardingCulture} />
+      <Stack.Screen name="OnboardingCultureRaising"   component={OnboardingCultureRaising} />
       <Stack.Screen name="OnboardingCommunity"         component={OnboardingCommunity} />
       <Stack.Screen name="OnboardingFocusAreas"       component={OnboardingFocusAreas} />
       <Stack.Screen name="OnboardingReminder"   component={OnboardingReminder} />

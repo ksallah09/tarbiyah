@@ -117,7 +117,7 @@ export default function OnboardingCommunity({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
-        <ProgressDots current={8} total={10} />
+        <ProgressDots current={9} total={11} />
         <TouchableOpacity onPress={handleSkip} style={styles.skipBtn}>
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
