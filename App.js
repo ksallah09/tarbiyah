@@ -11,6 +11,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Amiri_400Regular, Amiri_700Bold } from '@expo-google-fonts/amiri';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -380,7 +381,19 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') setOnboarded(false);
+      if (event === 'SIGNED_OUT') {
+        // Clear per-device caches so a new account gets fresh content
+        AsyncStorage.multiRemove([
+          'tarbiyah_daily_cache',
+          'tarbiyah_partner_cache',
+          'tarbiyah_profile_photo',
+        ]).catch(() => {});
+        setOnboarded(false);
+      }
+      if (event === 'SIGNED_IN') {
+        // Clear stale cache from any previous account session
+        AsyncStorage.removeItem('tarbiyah_daily_cache').catch(() => {});
+      }
       // Background token refresh failed — clear stale session and send to sign-in
       if (event === 'TOKEN_REFRESH_FAILED' || (event === 'TOKEN_REFRESHED' && !session)) {
         signOut().then(() => setOnboarded(false));
