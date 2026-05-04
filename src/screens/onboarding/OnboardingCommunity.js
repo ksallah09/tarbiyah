@@ -16,12 +16,16 @@ const PLACES_KEY = 'AIzaSyAAzZUrCRvsauWBVNUnIf9HgH-CR8ub4Ig';
 const SEARCH_TYPES = 'mosque|islamic_center';
 
 async function fetchNearby(lat, lng) {
-  const url =
-    `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
-    `?location=${lat},${lng}&radius=15000&keyword=mosque+islamic+center&key=${PLACES_KEY}`;
-  const res  = await fetch(url);
-  const json = await res.json();
-  return (json.results ?? []).map(normPlace);
+  // Two passes: type=mosque for proper mosques, then keyword fallback for Islamic centres
+  const base = `https://maps.googleapis.com/maps/api/place/nearbysearch/json`;
+  const [r1, r2] = await Promise.all([
+    fetch(`${base}?location=${lat},${lng}&radius=20000&type=mosque&key=${PLACES_KEY}`).then(r => r.json()),
+    fetch(`${base}?location=${lat},${lng}&radius=20000&keyword=islamic+centre+masjid&key=${PLACES_KEY}`).then(r => r.json()),
+  ]);
+  const seen = new Set();
+  return [...(r1.results ?? []), ...(r2.results ?? [])]
+    .filter(p => { if (seen.has(p.place_id)) return false; seen.add(p.place_id); return true; })
+    .map(normPlace);
 }
 
 async function fetchSearch(query) {
@@ -245,7 +249,6 @@ export default function OnboardingCommunity({ navigation, route }) {
             <Text style={styles.nextBtnText}>
               {selected.length > 0 ? `Continue with ${selected.length} selected` : 'Continue'}
             </Text>
-            <Ionicons name="chevron-forward" size={18} color="#1B3D2F" />
           </TouchableOpacity>
         </View>
       )}
@@ -304,10 +307,9 @@ const styles = StyleSheet.create({
   placeAddress: { fontSize: 12, color: 'rgba(255,255,255,0.4)' },
   footer: { paddingHorizontal: 24, paddingTop: 12 },
   nextBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#D4A843', borderRadius: 100,
-    paddingVertical: 16, paddingHorizontal: 32,
+    backgroundColor: '#FFFFFF', borderRadius: 16,
+    paddingVertical: 16, alignItems: 'center',
   },
-  nextBtnMuted: { opacity: 0.7 },
+  nextBtnMuted: { opacity: 0.3 },
   nextBtnText: { fontSize: 16, fontWeight: '700', color: '#1B3D2F' },
 });
