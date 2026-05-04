@@ -132,8 +132,6 @@ export default function AddChildWizardScreen({ navigation, route }) {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
       quality: 0.8,
     });
     if (!result.canceled) setPhoto(result.assets[0].uri);
@@ -146,8 +144,6 @@ export default function AddChildWizardScreen({ navigation, route }) {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
       quality: 0.8,
     });
     if (!result.canceled) setPhoto(result.assets[0].uri);

@@ -395,8 +395,7 @@ export default function ProfileScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
+
       quality: 0.8,
     });
     if (!result.canceled) {
@@ -413,8 +412,7 @@ export default function ProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
+
       quality: 0.8,
     });
     if (!result.canceled) {
