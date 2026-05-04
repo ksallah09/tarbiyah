@@ -583,7 +583,9 @@ export default function DashboardsScreen({ navigation, route }) {
         {focusAreas.length > 0 && (<>
         <View style={[styles.focusCard, { borderColor: child.color + '55', backgroundColor: child.colorLight }]}>
           <View style={styles.focusTopRow}>
-            <Ionicons name="radio-button-on" size={13} color={child.color} />
+            <View style={styles.powerDotOuter}>
+              <View style={styles.powerDotInner} />
+            </View>
             <Text style={[styles.focusEyebrow, { color: child.color }]}>CURRENT GROWTH AREAS</Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('ChildDashboard', { child })}
@@ -1122,7 +1124,18 @@ const styles = StyleSheet.create({
     borderRadius: 20, padding: 16, marginBottom: 4,
     ...CARD_SHADOW, borderWidth: 1,
   },
-  focusTopRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  focusTopRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  powerDotOuter: {
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: 'rgba(46,125,98,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  powerDotInner: {
+    width: 7, height: 7, borderRadius: 4,
+    backgroundColor: '#2E7D62',
+    shadowColor: '#2E7D62', shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9, shadowRadius: 4,
+  },
   focusEyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, flex: 1 },
   focusSubRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   focusSubText: { fontSize: 12, fontWeight: '400', flex: 1, lineHeight: 17 },
