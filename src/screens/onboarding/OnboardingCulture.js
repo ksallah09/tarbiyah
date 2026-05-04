@@ -25,10 +25,12 @@ export default function OnboardingCulture({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const data   = route.params ?? {};
 
-  const [raisedIn,    setRaisedIn]    = useState([]);
-  const [raisingIn,   setRaisingIn]   = useState(null);
-  const [raisedQuery, setRaisedQuery] = useState('');
-  const [raisingQuery,setRaisingQuery]= useState('');
+  const [raisedIn,       setRaisedIn]       = useState([]);
+  const [raisingIn,      setRaisingIn]      = useState(null);
+  const [raisedQuery,    setRaisedQuery]    = useState('');
+  const [raisingQuery,   setRaisingQuery]   = useState('');
+  const [otherRaisedText, setOtherRaisedText] = useState('');
+  const [otherRaisingText,setOtherRaisingText]= useState('');
   const [ready, setReady] = useState(false);
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
@@ -44,10 +46,16 @@ export default function OnboardingCulture({ navigation, route }) {
   }
 
   function handleNext() {
+    const finalRaisedIn = raisedIn.map(c =>
+      c === 'Other' && otherRaisedText.trim() ? otherRaisedText.trim() : c
+    );
+    const finalRaisingIn = raisingIn === 'Other' && otherRaisingText.trim()
+      ? otherRaisingText.trim()
+      : raisingIn;
     navigation.navigate('OnboardingCommunity', {
       ...data,
-      raisedIn,
-      raisingIn,
+      raisedIn:  finalRaisedIn,
+      raisingIn: finalRaisingIn,
     });
   }
 
@@ -144,6 +152,21 @@ export default function OnboardingCulture({ navigation, route }) {
             })}
           </View>
 
+          {raisedIn.includes('Other') && (
+            <View style={styles.otherInputRow}>
+              <Ionicons name="pencil-outline" size={15} color="rgba(255,255,255,0.5)" />
+              <TextInput
+                style={styles.otherInput}
+                placeholder="Type your country…"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={otherRaisedText}
+                onChangeText={setOtherRaisedText}
+                returnKeyType="done"
+                autoFocus
+              />
+            </View>
+          )}
+
           {/* ── Where are you raising your children ── */}
           <Text style={[styles.sectionLabel, { marginTop: 28 }]}>WHERE ARE YOU RAISING YOUR CHILDREN?</Text>
           <Text style={styles.sectionSub}>Select one.</Text>
@@ -183,7 +206,7 @@ export default function OnboardingCulture({ navigation, route }) {
                 <TouchableOpacity
                   key={c}
                   style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setRaisingIn(c)}
+                  onPress={() => { setRaisingIn(c); setOtherRaisingText(''); }}
                   activeOpacity={0.75}
                 >
                   {active && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
@@ -192,6 +215,21 @@ export default function OnboardingCulture({ navigation, route }) {
               );
             })}
           </View>
+
+          {raisingIn === 'Other' && (
+            <View style={styles.otherInputRow}>
+              <Ionicons name="pencil-outline" size={15} color="rgba(255,255,255,0.5)" />
+              <TextInput
+                style={styles.otherInput}
+                placeholder="Type your country…"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={otherRaisingText}
+                onChangeText={setOtherRaisingText}
+                returnKeyType="done"
+                autoFocus
+              />
+            </View>
+          )}
         </Animated.View>
       </ScrollView>
 
@@ -247,6 +285,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#2E7D62', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6,
   },
   selectedChipText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+  otherInputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    marginBottom: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  otherInput: { flex: 1, fontSize: 14, color: '#FFFFFF' },
   footer: { paddingHorizontal: 24, paddingTop: 12 },
   nextBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
