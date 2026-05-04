@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
-  ScrollView, TextInput, KeyboardAvoidingView, Platform,
+  ScrollView, TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,11 +64,6 @@ export default function OnboardingCultureRaising({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
@@ -162,7 +157,6 @@ export default function OnboardingCultureRaising({ navigation, route }) {
           </TouchableOpacity>
         </View>
       )}
-      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
@@ -209,10 +203,9 @@ const styles = StyleSheet.create({
   otherInput: { flex: 1, fontSize: 14, color: '#FFFFFF' },
   footer: { paddingHorizontal: 24, paddingTop: 12 },
   nextBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#D4A843', borderRadius: 100,
-    paddingVertical: 16, paddingHorizontal: 32,
+    backgroundColor: '#FFFFFF', borderRadius: 16,
+    paddingVertical: 16, alignItems: 'center',
   },
-  nextBtnMuted: { opacity: 0.7 },
+  nextBtnMuted: { opacity: 0.3 },
   nextBtnText: { fontSize: 16, fontWeight: '700', color: '#1B3D2F' },
 });
