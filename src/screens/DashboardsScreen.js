@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile } from '../utils/childProfiles';
 import { logCompletion } from '../utils/childCompletions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -150,6 +151,10 @@ export default function DashboardsScreen({ navigation, route }) {
   async function fetchCoaching(entryId, text, currentChild) {
     setCoachingLoading(prev => new Set([...prev, entryId]));
     try {
+      const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
+      const profile = profileRaw ? JSON.parse(profileRaw) : {};
+      const familyStructure = profile.familyStructure ?? 'prefer_not_to_say';
+
       const growthAreas = (currentChild?.growthAreas ?? []).slice(0, 3).map(a => ({
         title: a.title,
         description: a.description ?? a.aiOverview ?? '',
@@ -179,6 +184,7 @@ export default function DashboardsScreen({ navigation, route }) {
           growthAreas,
           pastIncidents,
           recentWins,
+          familyStructure,
         }),
       });
       if (!res.ok) return;

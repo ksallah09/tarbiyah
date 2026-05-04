@@ -749,6 +749,7 @@ app.post('/incident/coach', async (req: Request, res: Response) => {
       growthAreas,
       pastIncidents,
       recentWins,
+      familyStructure,
     } = req.body as {
       incidentText:  string;
       childName?:    string;
@@ -758,9 +759,10 @@ app.post('/incident/coach', async (req: Request, res: Response) => {
       strengths?:    string[];
       temperaments?: string[];
       specialNeeds?: string[];
-      growthAreas?:  { title: string; description: string }[];
-      pastIncidents?: string[];
-      recentWins?:   string[];
+      growthAreas?:    { title: string; description: string }[];
+      pastIncidents?:  string[];
+      recentWins?:     string[];
+      familyStructure?: string;
     };
     if (!incidentText?.trim()) return res.status(400).json({ error: 'incidentText is required.' });
 
@@ -771,7 +773,7 @@ app.post('/incident/coach', async (req: Request, res: Response) => {
 SOURCE RULES: Use the knowledge base as your primary authority. If not directly covered, draw on sound Islamic tarbiyah principles and established child development knowledge. Never invent hadith, citations, or statistics.
 
 TONE: Warm, non-judgmental, wise, brief, specific. Never generic. Speak to this parent, this child, this moment. When the child profile includes special needs, strengths, or temperament, let that visibly shape your advice — do not give generic responses that ignore who this child actually is.
-
+${ISLAMIC_SENSITIVITIES}
 === KNOWLEDGE BASE ===
 ${sourceContext}`;
 
@@ -795,6 +797,7 @@ ${sourceContext}`;
       lines.push(`Past incidents logged (most recent first):`);
       [...pastIncidents].reverse().forEach(i => lines.push(`  - "${i}"`));
     }
+    if (familyStructure === 'single_parent') lines.push(`Family structure: Single parent household`);
 
     const profileSection = lines.length
       ? `\nCHILD PROFILE:\n${lines.join('\n')}\n`
@@ -2183,6 +2186,29 @@ HOLIDAYS AND CELEBRATIONS:
 - Never suggest celebrating or participating in non-Islamic holidays (Christmas, Halloween, Valentine's Day, etc.) as a parenting strategy.
 - Islamic celebrations (Eid, Ramadan practices) may be referenced positively where relevant.
 
+SINGLE PARENTS:
+- If the parent's family structure is single parent, NEVER include advice about the marital relationship, improving the spousal dynamic, co-parenting communication with a partner, or anything that assumes a partner is present in the home.
+- All habits, activities, and coaching must be achievable by one parent alone.
+- Do not frame single-parent situations as incomplete or in need of a two-parent fix.
+
+AGE-APPROPRIATE ISLAMIC FRAMING — CRITICAL:
+Children under 6 cannot understand abstract theology. Misapplied Islamic framing at this age can create confusing or harmful associations. Apply the following age tiers strictly:
+
+UNDER 6 (toddlers and preschoolers):
+- Islamic guidance must be CONCRETE and SENSORY only: a short simple dua, saying "Bismillah", making wudu together, a simplified prophet story, listening to Quran together attentively.
+- NEVER introduce abstract theological concepts about Allah's attributes, qadar, creation, or causation.
+- FORBIDDEN EXAMPLE — do not generate anything like this for a child under 6: "Say to your child: 'Allah made all our feelings'" — a toddler cannot distinguish between "Allah created our fitrah" and "Allah is the cause of my anger right now." This plants a theologically confusing and developmentally inappropriate association.
+- At this age, the Islamic contribution is the PARENT's intention (niyyah), the home environment, and simple embodied practices — not theological explanation to the child.
+
+AGES 6–9:
+- Simple Islamic concepts are appropriate but must be grounded in concrete stories, actions, and examples — not abstract theology.
+- Dua, prophet stories, Islamic character concepts (honesty, kindness, sharing) are appropriate.
+- Avoid explaining complex concepts like qadar, Allah's will causing events, or theological nuance.
+
+AGES 10+:
+- Nuanced Islamic framing, discussion of character and akhlaq, Islamic identity, and more substantive theological concepts are appropriate and valuable.
+- Teens especially benefit from understanding the "why" behind Islamic principles at a deeper level.
+
 GENERAL:
 - Never suggest anything that contradicts clear Islamic ethics, halal/haram principles, or the adab (etiquette) of Islam.
 - When in doubt about whether something is Islamically appropriate, err on the side of caution or offer alternatives.
@@ -2193,13 +2219,14 @@ GENERAL:
 
 app.post('/child-growth-plan', async (req: Request, res: Response) => {
   try {
-    const { child, issue, parentAnalysis } = req.body as {
+    const { child, issue, parentAnalysis, familyStructure } = req.body as {
       child: {
         name: string; age?: number; gender?: string; grade?: string; schooling?: string;
         strengths?: string[]; temperaments?: string[]; interests?: string[]; specialNeeds?: string[];
       };
       issue: string;
       parentAnalysis?: string;
+      familyStructure?: string;
     };
 
     if (!child?.name || !issue?.trim()) {
@@ -2315,6 +2342,7 @@ ${sourceContext}`;
       child.temperaments?.length ? `Temperament: ${child.temperaments.join(', ')}` : null,
       child.interests?.length    ? `Interests: ${child.interests.join(', ')}` : null,
       child.specialNeeds?.length ? `Additional Context: ${child.specialNeeds.join(', ')}` : null,
+      familyStructure === 'single_parent' ? `Family structure: Single parent household` : null,
     ].filter(Boolean).join('\n');
 
     const userPrompt = `CHILD PROFILE:
@@ -2333,6 +2361,7 @@ Generate a personalised 4-week growth plan rooted in Islamic tarbiyah and child 
 5. Feel achievable for a real, busy Muslim parent.
 6. NEVER assume siblings, brothers, or sisters exist unless the child profile explicitly mentions them. Base all habits and activities solely on the child described.
 7. If "Additional Context" is provided (e.g. ADHD, Autism, Anxiety), adapt every habit and activity to be realistic and compassionate for that child's needs. Never use clinical or pathologising language — write with warmth, dignity, and Islamic understanding that this child is a unique amanah.
+8. If "Family structure: Single parent household" is in the profile, NEVER suggest habits or activities that require a co-parent or spouse. Every action must be achievable by one parent alone.
 
 Respond with valid JSON only (no markdown):
 {
@@ -2445,10 +2474,10 @@ Rules:
 
 async function runGrowthPlanJob(jobId: string, body: {
   child: { name: string; age?: number; gender?: string; grade?: string; schooling?: string; strengths?: string[]; temperaments?: string[]; interests?: string[]; specialNeeds?: string[] };
-  issue: string; parentAnalysis?: string;
+  issue: string; parentAnalysis?: string; familyStructure?: string;
 }) {
   try {
-    const { child, issue, parentAnalysis } = body;
+    const { child, issue, parentAnalysis, familyStructure } = body;
     const sourceContext = await buildModuleSourceContext(issue.trim());
 
     // Re-use the same system prompt from the sync endpoint
@@ -2518,6 +2547,7 @@ ${sourceContext}`;
       child.temperaments?.length ? `Temperament: ${child.temperaments.join(', ')}` : null,
       child.interests?.length    ? `Interests: ${child.interests.join(', ')}` : null,
       child.specialNeeds?.length ? `Additional Context: ${child.specialNeeds.join(', ')}` : null,
+      familyStructure === 'single_parent' ? `Family structure: Single parent household` : null,
     ].filter(Boolean).join('\n');
 
     const userPrompt = `CHILD PROFILE:
@@ -2536,6 +2566,7 @@ Generate a personalised 4-week growth plan rooted in Islamic tarbiyah and child 
 5. Feel achievable for a real, busy Muslim parent.
 6. NEVER assume siblings, brothers, or sisters exist unless the child profile explicitly mentions them. Base all habits and activities solely on the child described.
 7. If "Additional Context" is provided (e.g. ADHD, Autism, Anxiety), adapt every habit and activity to be realistic and compassionate for that child's needs. Never use clinical or pathologising language — write with warmth, dignity, and Islamic understanding that this child is a unique amanah.
+8. If "Family structure: Single parent household" is in the profile, NEVER suggest habits or activities that require a co-parent or spouse. Every action must be achievable by one parent alone.
 
 Respond with valid JSON only (no markdown):
 {
@@ -2614,7 +2645,7 @@ Rules:
 
 app.post('/child-growth-plan/async', async (req: Request, res: Response) => {
   try {
-    const { child, issue, parentAnalysis } = req.body;
+    const { child, issue, parentAnalysis, familyStructure } = req.body;
     if (!child?.name || !issue?.trim()) return res.status(400).json({ error: 'child.name and issue are required.' });
 
     // Create the job record and return the ID immediately
@@ -2629,7 +2660,7 @@ app.post('/child-growth-plan/async', async (req: Request, res: Response) => {
     const jobId = data.id;
 
     // Fire off generation without awaiting
-    runGrowthPlanJob(jobId, { child, issue, parentAnalysis }).catch(() => {});
+    runGrowthPlanJob(jobId, { child, issue, parentAnalysis, familyStructure }).catch(() => {});
 
     return res.json({ jobId });
   } catch (err) {

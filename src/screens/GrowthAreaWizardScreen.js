@@ -143,6 +143,10 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
     fadeTo(STEP_LOADING);
     setError('');
     try {
+      const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
+      const profile = profileRaw ? JSON.parse(profileRaw) : {};
+      const familyStructure = profile.familyStructure ?? 'prefer_not_to_say';
+
       const res = await fetch(`${API_URL}/child-growth-plan/async`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -160,6 +164,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           },
           issue,
           parentAnalysis: analysis,
+          familyStructure,
         }),
       });
 
