@@ -513,7 +513,6 @@ export default function DashboardsScreen({ navigation, route }) {
               </View>
 
               <View style={styles.phaseShiftRow}>
-                <Ionicons name="arrow-forward" size={12} color="#2E7D62" />
                 <Text style={styles.phaseShift}>{phase.shift}</Text>
               </View>
 
