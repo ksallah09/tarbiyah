@@ -693,7 +693,7 @@ export async function scheduleChildHabitNotifications() {
       const habitBody = habit?.text
         ? `This week: ${truncateToSentence(habit.text, 80)}`
         : `This week: Check ${child.name}'s habit for today.`;
-      const habitText = `${habitBody} Open Tarbiyah to see more habits.`;
+      const habitText = `${habitBody} Open Tarbiyah to see more.`;
 
       for (const slot of slots) {
         const hour  = SLOT_HOUR[slot];
@@ -722,7 +722,7 @@ export async function scheduleChildHabitNotifications() {
     const activityBody = activity?.text
       ? `This week: ${truncateToSentence(activity.text, 80)}`
       : `This week's activity for ${fridayChild.name} is ready.`;
-    const activityText = `${activityBody} Open Tarbiyah to see more activities.`;
+    const activityText = `${activityBody} Open Tarbiyah to see more.`;
 
     const activityId = await Notifications.scheduleNotificationAsync({
       content: {
