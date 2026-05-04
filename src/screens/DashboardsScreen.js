@@ -56,13 +56,22 @@ const DEV_PHASES = [
     brainReality: "The emotional centre (amygdala) is highly active while the logical control system is still developing. They feel before they think — that's biology, not defiance.",
   },
   {
-    range: [15, 18],
+    range: [15, 17],
     emoji: '🧭',
     phase: 'Autonomy & Decision-Making',
     shift: 'From managing → mentoring',
     keyInsight: 'They need trust, responsibility, and your guidance — not control.',
     developing: ['Long-term thinking', 'Values and identity solidifying', 'Drive for independence', 'Risk evaluation (still maturing)'],
     brainReality: 'Executive function is improving but still vulnerable to impulsive decisions under pressure. Relationship quality now determines how much influence you keep.',
+  },
+  {
+    range: [18, 25],
+    emoji: '🧩',
+    phase: 'Identity Consolidation & Life Direction',
+    shift: 'From guidance → consultation',
+    keyInsight: 'My child is now building their identity — and needs room, but also support.',
+    developing: ['Identity (Who am I really?)', 'Beliefs and values (often re-evaluated)', 'Career direction & purpose', 'Relationships and marriage readiness', 'Financial and emotional independence'],
+    brainReality: 'The prefrontal cortex is still developing — impulse control and long-term planning are improving but not yet fully stable. Risk-taking can still occur, especially in social contexts. You are no longer a manager or enforcer — you are an advisor, safe space, and anchor.',
   },
 ];
 
