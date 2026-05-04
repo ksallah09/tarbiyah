@@ -10,7 +10,13 @@ import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import { saveChildProfile } from '../utils/childProfiles';
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
+
+const SPECIAL_NEEDS_OPTIONS = [
+  'ADHD', 'Autism / ASD', 'Down Syndrome', 'Dyslexia',
+  'Anxiety', 'Sensory Differences', 'Speech / Language Delay',
+  'Learning Differences', 'Physical Disability', 'Gifted / Advanced Learner',
+];
 
 const STRENGTHS_OPTIONS = [
   'Empathetic', 'Creative', 'Curious', 'Kind', 'Confident',
@@ -92,8 +98,10 @@ export default function AddChildWizardScreen({ navigation, route }) {
   const [photo, setPhoto]             = useState(existingChild?.photo ?? null);
   const [strengths, setStrengths]     = useState(existingChild?.strengths ?? []);
   const [temperaments, setTemperaments] = useState(existingChild?.temperaments ?? []);
-  const [interests, setInterests]     = useState(existingChild?.interests ?? []);
+  const [interests, setInterests]         = useState(existingChild?.interests ?? []);
+  const [specialNeeds, setSpecialNeeds]   = useState(existingChild?.specialNeeds ?? []);
   const [customInterest, setCustomInterest] = useState('');
+  const [customNeed, setCustomNeed]         = useState('');
 
   const scrollRef = useRef(null);
 
@@ -170,6 +178,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
         strengths,
         temperaments,
         interests,
+        specialNeeds,
       };
       const saved = isEdit
         ? await import('../utils/childProfiles').then(m => m.updateChildProfile(existingChild.id, profile))
@@ -192,6 +201,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
     true,                            // 5: strengths (optional)
     true,                            // 6: temperament (optional)
     true,                            // 7: interests (optional)
+    true,                            // 8: additional context (optional)
   ][step];
 
   const stepTitles = [
@@ -203,6 +213,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
     `What are ${name || 'your child'}'s strengths?`,
     `How would you describe ${name || 'your child'}?`,
     `What are ${name || 'your child'}'s interests?`,
+    `Any additional context about ${name || 'your child'}?`,
   ];
 
   const stepSubs = [
@@ -214,6 +225,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
     'Choose any that apply. These help personalise coaching.',
     'Select traits that describe how they are wired.',
     'Interests help us suggest relatable activities.',
+    `Every child is unique. Sharing this helps us tailor advice and activities more specifically for ${name || 'your child'}. Completely optional — this stays private.`,
   ];
 
   return (
@@ -228,8 +240,8 @@ export default function AddChildWizardScreen({ navigation, route }) {
         <View style={{ flex: 1, alignItems: 'center' }}>
           <ProgressDots total={TOTAL_STEPS} current={step} />
         </View>
-        <TouchableOpacity onPress={goNext} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} disabled={step !== 4}>
-          <Text style={styles.skipText}>{step === 4 ? 'Skip' : ''}</Text>
+        <TouchableOpacity onPress={goNext} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} disabled={step !== 4 && step !== 8}>
+          <Text style={styles.skipText}>{step === 4 || step === 8 ? 'Skip' : ''}</Text>
         </TouchableOpacity>
       </View>
 
@@ -437,6 +449,49 @@ export default function AddChildWizardScreen({ navigation, route }) {
                 <View key={custom} style={styles.customChip}>
                   <Text style={styles.customChipText}>{custom}</Text>
                   <TouchableOpacity onPress={() => setInterests(prev => prev.filter(i => i !== custom))}>
+                    <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.5)" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </>
+          )}
+
+          {/* ── Step 8: Additional Context / Special Needs ── */}
+          {step === 8 && (
+            <>
+              <ChipSelector
+                options={SPECIAL_NEEDS_OPTIONS}
+                selected={specialNeeds}
+                onToggle={item => toggleItem(specialNeeds, setSpecialNeeds, item)}
+                color="#1B4D3E"
+                bg="#E6F4ED"
+              />
+              <View style={styles.customRow}>
+                <TextInput
+                  style={styles.customInput}
+                  placeholder="Add your own…"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={customNeed}
+                  onChangeText={setCustomNeed}
+                  onSubmitEditing={() => {
+                    const t = customNeed.trim();
+                    if (t && !specialNeeds.includes(t)) setSpecialNeeds(prev => [...prev, t]);
+                    setCustomNeed('');
+                  }}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity style={styles.customAddBtn} onPress={() => {
+                  const t = customNeed.trim();
+                  if (t && !specialNeeds.includes(t)) setSpecialNeeds(prev => [...prev, t]);
+                  setCustomNeed('');
+                }}>
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+              {specialNeeds.filter(n => !SPECIAL_NEEDS_OPTIONS.includes(n)).map(custom => (
+                <View key={custom} style={styles.customChip}>
+                  <Text style={styles.customChipText}>{custom}</Text>
+                  <TouchableOpacity onPress={() => setSpecialNeeds(prev => prev.filter(n => n !== custom))}>
                     <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.5)" />
                   </TouchableOpacity>
                 </View>

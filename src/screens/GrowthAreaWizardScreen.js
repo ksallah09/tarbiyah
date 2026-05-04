@@ -156,6 +156,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
             strengths:    child?.strengths     ?? [],
             temperaments: child?.temperaments  ?? [],
             interests:    child?.interests     ?? [],
+            specialNeeds: child?.specialNeeds  ?? [],
           },
           issue,
           parentAnalysis: analysis,

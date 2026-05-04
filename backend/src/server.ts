@@ -2092,7 +2092,7 @@ app.post('/child-growth-plan', async (req: Request, res: Response) => {
     const { child, issue, parentAnalysis } = req.body as {
       child: {
         name: string; age?: number; gender?: string; grade?: string; schooling?: string;
-        strengths?: string[]; temperaments?: string[]; interests?: string[];
+        strengths?: string[]; temperaments?: string[]; interests?: string[]; specialNeeds?: string[];
       };
       issue: string;
       parentAnalysis?: string;
@@ -2210,6 +2210,7 @@ ${sourceContext}`;
       child.strengths?.length    ? `Strengths: ${child.strengths.join(', ')}` : null,
       child.temperaments?.length ? `Temperament: ${child.temperaments.join(', ')}` : null,
       child.interests?.length    ? `Interests: ${child.interests.join(', ')}` : null,
+      child.specialNeeds?.length ? `Additional Context: ${child.specialNeeds.join(', ')}` : null,
     ].filter(Boolean).join('\n');
 
     const userPrompt = `CHILD PROFILE:
@@ -2227,6 +2228,7 @@ Generate a personalised 4-week growth plan rooted in Islamic tarbiyah and child 
 4. Be layered with child development insight alongside the Islamic foundation.
 5. Feel achievable for a real, busy Muslim parent.
 6. NEVER assume siblings, brothers, or sisters exist unless the child profile explicitly mentions them. Base all habits and activities solely on the child described.
+7. If "Additional Context" is provided (e.g. ADHD, Autism, Anxiety), adapt every habit and activity to be realistic and compassionate for that child's needs. Never use clinical or pathologising language — write with warmth, dignity, and Islamic understanding that this child is a unique amanah.
 
 Respond with valid JSON only (no markdown):
 {
@@ -2338,7 +2340,7 @@ Rules:
 // the result to the growth_plan_jobs Supabase table.
 
 async function runGrowthPlanJob(jobId: string, body: {
-  child: { name: string; age?: number; gender?: string; grade?: string; schooling?: string; strengths?: string[]; temperaments?: string[]; interests?: string[] };
+  child: { name: string; age?: number; gender?: string; grade?: string; schooling?: string; strengths?: string[]; temperaments?: string[]; interests?: string[]; specialNeeds?: string[] };
   issue: string; parentAnalysis?: string;
 }) {
   try {
@@ -2411,6 +2413,7 @@ ${sourceContext}`;
       child.strengths?.length    ? `Strengths: ${child.strengths.join(', ')}` : null,
       child.temperaments?.length ? `Temperament: ${child.temperaments.join(', ')}` : null,
       child.interests?.length    ? `Interests: ${child.interests.join(', ')}` : null,
+      child.specialNeeds?.length ? `Additional Context: ${child.specialNeeds.join(', ')}` : null,
     ].filter(Boolean).join('\n');
 
     const userPrompt = `CHILD PROFILE:
@@ -2428,6 +2431,7 @@ Generate a personalised 4-week growth plan rooted in Islamic tarbiyah and child 
 4. Be layered with child development insight alongside the Islamic foundation.
 5. Feel achievable for a real, busy Muslim parent.
 6. NEVER assume siblings, brothers, or sisters exist unless the child profile explicitly mentions them. Base all habits and activities solely on the child described.
+7. If "Additional Context" is provided (e.g. ADHD, Autism, Anxiety), adapt every habit and activity to be realistic and compassionate for that child's needs. Never use clinical or pathologising language — write with warmth, dignity, and Islamic understanding that this child is a unique amanah.
 
 Respond with valid JSON only (no markdown):
 {
