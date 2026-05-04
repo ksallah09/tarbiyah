@@ -7,7 +7,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import * as ImagePicker from 'expo-image-picker';
+let ImagePicker = null;
+try { ImagePicker = require('expo-image-picker'); } catch {}
 import { saveChildProfile } from '../utils/childProfiles';
 import { uploadPhoto } from '../utils/uploadPhoto';
 
@@ -134,6 +135,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
   }
 
   async function pickPhoto() {
+    if (!ImagePicker) { Alert.alert('Unavailable', 'Please rebuild the app to enable photo selection.'); return; }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow access to your photo library.');
@@ -147,6 +149,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
   }
 
   async function takePhoto() {
+    if (!ImagePicker) { Alert.alert('Unavailable', 'Please rebuild the app to enable camera access.'); return; }
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow camera access.');

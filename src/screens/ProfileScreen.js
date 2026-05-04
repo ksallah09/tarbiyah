@@ -42,7 +42,8 @@ const CATEGORY_CONFIG = {
 function catConfig(cat) { return CATEGORY_CONFIG[cat] ?? { color: '#6B7280', icon: 'grid-outline' }; }
 import * as Notifications from 'expo-notifications';
 import { scheduleDailyNotification, cancelDailyNotification, requestNotificationPermission } from '../utils/notifications';
-import * as ImagePicker from 'expo-image-picker';
+let ImagePicker = null;
+try { ImagePicker = require('expo-image-picker'); } catch {}
 import { uploadPhoto } from '../utils/uploadPhoto';
 
 const PROFILE_PHOTO_KEY = 'tarbiyah_profile_photo';
@@ -832,6 +833,7 @@ export default function ProfileScreen() {
   }, []);
 
   async function pickProfilePhoto() {
+    if (!ImagePicker) { Alert.alert('Unavailable', 'Please rebuild the app to enable photo selection.'); return; }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow access to your photo library.');
@@ -848,6 +850,7 @@ export default function ProfileScreen() {
   }
 
   async function takeProfilePhoto() {
+    if (!ImagePicker) { Alert.alert('Unavailable', 'Please rebuild the app to enable camera access.'); return; }
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow camera access.');
