@@ -15,11 +15,12 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.tarbiyah.parenting",
       "usesAppleSignIn": true,
-      "buildNumber": "6",
+      "buildNumber": "9",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "UIBackgroundModes": ["audio"],
+        "NSPhotoLibraryUsageDescription": "Tarbiyah uses your photo library to set profile and child photos.",
+        "NSCameraUsageDescription": "Tarbiyah uses your camera to take profile and child photos.",
+        "NSPhotoLibraryAddUsageDescription": "Tarbiyah saves photos to your library."
       },
       "splash": {
         "backgroundColor": "#1B3D2F"
@@ -37,6 +38,10 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      ["expo-image-picker", {
+        "photosPermission": "Tarbiyah uses your photo library to set profile and child photos.",
+        "cameraPermission": "Tarbiyah uses your camera to take profile and child photos."
+      }],
       "expo-secure-store",
       "expo-web-browser",
       "expo-apple-authentication",
