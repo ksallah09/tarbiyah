@@ -58,6 +58,18 @@ export default function OnboardingAvailability({ navigation, route }) {
 
   const totalSelected = Object.values(selected).flat().length;
   const canContinue   = totalSelected > 0;
+  const allCount      = DAYS.length * SLOTS.length;
+  const allSelected   = totalSelected === allCount;
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelected({});
+    } else {
+      const all = {};
+      DAYS.forEach(d => { all[d.key] = SLOTS.map(s => s.key); });
+      setSelected(all);
+    }
+  }
 
   function handleNext() {
     navigation.navigate('OnboardingFocusAreas', { ...data, availability: selected });
@@ -90,7 +102,12 @@ export default function OnboardingAvailability({ navigation, route }) {
           </View>
 
           <Animated.View style={[styles.body, { opacity: contentOpacity }]}>
-            <Text style={styles.helper}>Tap the times you're typically with the kids.</Text>
+            <View style={styles.helperRow}>
+              <Text style={styles.helper}>Tap the times you're typically with the kids.</Text>
+              <TouchableOpacity onPress={toggleSelectAll} activeOpacity={0.7} style={styles.selectAllBtn}>
+                <Text style={styles.selectAllText}>{allSelected ? 'Clear all' : 'Select all'}</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Calendar grid */}
             <View style={styles.calendarWrap}>
@@ -181,7 +198,10 @@ const styles = StyleSheet.create({
   textWrap:  { marginBottom: 8 },
   question:  { fontSize: 34, fontWeight: '700', color: '#FFFFFF', lineHeight: 44 },
   body:      { gap: 0 },
-  helper:    { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 24, lineHeight: 20 },
+  helperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
+  helper:    { fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 20, flex: 1 },
+  selectAllBtn: { paddingLeft: 12 },
+  selectAllText: { fontSize: 13, fontWeight: '600', color: '#4ADE80' },
 
   // Calendar
   calendarWrap: {
