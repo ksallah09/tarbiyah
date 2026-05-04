@@ -1392,7 +1392,7 @@ const styles = StyleSheet.create({
   cpAge:  { fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
   cpBody: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 14,
+    backgroundColor: '#F0F7F4', paddingHorizontal: 14, paddingVertical: 14,
   },
   cpStat:       { flex: 1, alignItems: 'center' },
   cpStatNum:    { fontSize: 22, fontWeight: '800', lineHeight: 26 },
