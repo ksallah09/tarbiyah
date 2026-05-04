@@ -16,12 +16,16 @@ const PLACES_KEY = 'AIzaSyAAzZUrCRvsauWBVNUnIf9HgH-CR8ub4Ig';
 const SEARCH_TYPES = 'mosque|islamic_center';
 
 async function fetchNearby(lat, lng) {
-  // Two passes: type=mosque for proper mosques, then keyword fallback for Islamic centres
   const base = `https://maps.googleapis.com/maps/api/place/nearbysearch/json`;
   const [r1, r2] = await Promise.all([
     fetch(`${base}?location=${lat},${lng}&radius=20000&type=mosque&key=${PLACES_KEY}`).then(r => r.json()),
     fetch(`${base}?location=${lat},${lng}&radius=20000&keyword=islamic+centre+masjid&key=${PLACES_KEY}`).then(r => r.json()),
   ]);
+  console.log('[Places nearby type=mosque]', r1.status, 'count:', r1.results?.length);
+  console.log('[Places nearby keyword]', r2.status, 'count:', r2.results?.length);
+  if (r1.status !== 'OK' && r1.status !== 'ZERO_RESULTS') {
+    console.warn('[Places error]', r1.error_message ?? r1.status);
+  }
   const seen = new Set();
   return [...(r1.results ?? []), ...(r2.results ?? [])]
     .filter(p => { if (seen.has(p.place_id)) return false; seen.add(p.place_id); return true; })
@@ -34,6 +38,7 @@ async function fetchSearch(query) {
     `?query=${encodeURIComponent(query + ' mosque islamic center')}&key=${PLACES_KEY}`;
   const res  = await fetch(url);
   const json = await res.json();
+  console.log('[Places text search]', json.status, 'count:', json.results?.length, json.error_message ?? '');
   return (json.results ?? []).map(normPlace);
 }
 
@@ -56,6 +61,7 @@ export default function OnboardingCommunity({ navigation, route }) {
   const [nearby,       setNearby]       = useState([]);
   const [searching,    setSearching]    = useState(false);
   const [locLoading,   setLocLoading]   = useState(true);
+  const [apiError,     setApiError]     = useState('');
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const searchTimer    = useRef(null);
 
@@ -72,8 +78,14 @@ export default function OnboardingCommunity({ navigation, route }) {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           const places = await fetchNearby(loc.coords.latitude, loc.coords.longitude);
           setNearby(places);
+          if (places.length === 0) setApiError('No mosques found nearby — try searching by name.');
+        } else {
+          setApiError('Location access denied — search by name above.');
         }
-      } catch {}
+      } catch (e) {
+        console.warn('[Community location error]', e);
+        setApiError('Could not get location — search by name above.');
+      }
       setLocLoading(false);
     })();
   }, []);
@@ -199,9 +211,9 @@ export default function OnboardingCommunity({ navigation, route }) {
           {/* Results list */}
           {!locLoading && !searching && displayResults.length === 0 && (
             <Text style={styles.emptyText}>
-              {query.trim()
+              {apiError || (query.trim()
                 ? 'No results found. Try a different search.'
-                : 'No mosques found nearby. Try searching by name.'}
+                : 'No mosques found nearby. Try searching by name.')}
             </Text>
           )}
 
