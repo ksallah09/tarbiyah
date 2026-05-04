@@ -53,6 +53,37 @@ const API_URL   = 'https://tarbiyah-production.up.railway.app';
 const CACHE_KEY = 'tarbiyah_daily_cache';
 
 
+// ── Circular arc progress (no SVG) ───────────────────────────────────────────
+function ArcProgress({ size = 68, strokeWidth = 3.5, progress = 0, color = '#1B3D2F' }) {
+  const half = size / 2;
+  const pct  = Math.min(Math.max(progress, 0), 1);
+  const rightDeg = Math.min(pct, 0.5) * 360;
+  const leftDeg  = pct > 0.5 ? (pct - 0.5) * 360 : 0;
+  return (
+    <View style={{ width: size, height: size }}>
+      {/* track */}
+      <View style={{ position: 'absolute', width: size, height: size, borderRadius: half,
+        borderWidth: strokeWidth, borderColor: color + '22' }} />
+      {/* right half */}
+      <View style={{ position: 'absolute', width: half, height: size, right: 0, overflow: 'hidden' }}>
+        <View style={{ width: size, height: size, borderRadius: half,
+          borderWidth: strokeWidth, borderColor: color,
+          borderLeftColor: 'transparent', borderBottomColor: rightDeg < 180 ? 'transparent' : color,
+          transform: [{ rotate: `${rightDeg}deg` }] }} />
+      </View>
+      {/* left half — only visible when > 50% */}
+      {pct > 0.5 && (
+        <View style={{ position: 'absolute', width: half, height: size, left: 0, overflow: 'hidden' }}>
+          <View style={{ position: 'absolute', right: 0, width: size, height: size, borderRadius: half,
+            borderWidth: strokeWidth, borderColor: color,
+            borderRightColor: 'transparent', borderTopColor: 'transparent',
+            transform: [{ rotate: `${leftDeg}deg` }] }} />
+        </View>
+      )}
+    </View>
+  );
+}
+
 function getMotivationText(done, total) {
   if (done === 0 || total === 0) return null;
   if (done >= total) return 'Alhamdulillah! All done';
@@ -570,36 +601,49 @@ export default function HomeScreen({ navigation }) {
                 children.map((child, idx) => {
                   const hasAreas = (child.growthAreas ?? []).length > 0;
                   const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
+                  const total = habits + activities;
+                  const weeklyTarget = (child.growthAreas?.length ?? 0) * 7;
+                  const arc = weeklyTarget > 0 ? Math.min(total / weeklyTarget, 1) : 0;
                   return (
-                    <TouchableOpacity key={child.id} style={[styles.childProgressCard, idx > 0 && { marginTop: 8 }]} onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })} activeOpacity={0.82}>
-                      <View style={styles.childProgressAvatarWrap}>
-                        <View style={[styles.childProgressAvatar, { backgroundColor: child.color }]}>
+                    <TouchableOpacity key={child.id} style={[styles.childProgressCard, idx > 0 && { marginTop: 10 }]} onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })} activeOpacity={0.82}>
+                      {/* Arc avatar */}
+                      <View style={styles.childArcWrap}>
+                        <ArcProgress size={68} strokeWidth={3.5} progress={arc} color={child.color} />
+                        <View style={[styles.childArcAvatar, { backgroundColor: child.color }]}>
                           {child.photo
-                            ? <Image source={{ uri: child.photo }} style={styles.childProgressAvatarPhoto} />
-                            : <Text style={styles.childProgressInitial}>{child.name[0]}</Text>
+                            ? <Image source={{ uri: child.photo }} style={styles.childArcPhoto} />
+                            : <Text style={styles.childArcInitial}>{child.name[0]}</Text>
                           }
                         </View>
-                        <Text style={styles.childProgressAge}>Age {child.age}</Text>
                       </View>
-                      <Text style={[styles.childProgressName, { flex: 1 }]}>{child.name}</Text>
-                      {hasAreas ? (
-                        <View style={styles.childProgressCounts}>
-                          <View style={styles.childProgressCount}>
-                            <Text style={styles.childProgressNum}>{habits}</Text>
-                            <Text style={styles.childProgressLabel}>Habits{'\n'}Logged</Text>
-                          </View>
-                          <View style={styles.childProgressDivider} />
-                          <View style={styles.childProgressCount}>
-                            <Text style={[styles.childProgressNum, { color: '#B45309' }]}>{activities}</Text>
-                            <Text style={styles.childProgressLabel}>Activities{'\n'}Logged</Text>
-                          </View>
+                      {/* Info */}
+                      <View style={styles.childArcInfo}>
+                        <View style={styles.childArcNameRow}>
+                          <Text style={styles.childArcName}>{child.name}</Text>
+                          <Text style={styles.childArcAge}>Age {child.age}</Text>
                         </View>
-                      ) : (
-                        <View style={styles.childProgressEmpty}>
-                          <Ionicons name="leaf-outline" size={13} color="#C3DDD6" />
-                          <Text style={styles.childProgressEmptyText}>No growth areas yet</Text>
-                        </View>
-                      )}
+                        {hasAreas ? (
+                          <View style={styles.childArcStats}>
+                            <View style={styles.childArcStat}>
+                              <Text style={[styles.childArcStatNum, { color: child.color }]}>{habits}</Text>
+                              <Text style={styles.childArcStatLabel}>Habits</Text>
+                            </View>
+                            <View style={styles.childArcDot} />
+                            <View style={styles.childArcStat}>
+                              <Text style={[styles.childArcStatNum, { color: '#B45309' }]}>{activities}</Text>
+                              <Text style={styles.childArcStatLabel}>Activities</Text>
+                            </View>
+                            {weeklyTarget > 0 && (
+                              <>
+                                <View style={styles.childArcDot} />
+                                <Text style={styles.childArcPct}>{Math.round(arc * 100)}%</Text>
+                              </>
+                            )}
+                          </View>
+                        ) : (
+                          <Text style={styles.childArcEmpty}>No growth areas yet</Text>
+                        )}
+                      </View>
                       <Ionicons name="chevron-forward" size={14} color="#D1D5DB" />
                     </TouchableOpacity>
                   );
@@ -1358,53 +1402,34 @@ const styles = StyleSheet.create({
   },
   streakCountSub: { fontSize: 10, color: '#9CA3AF', fontWeight: '500' },
 
-  // ── Streak card ──
-  // Children progress cards
+  // ── Child progress arc cards ──
   childProgressCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12,
-    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
+    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
+    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
     borderWidth: 1, borderColor: '#EEF0F2',
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
   },
-  childProgressHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1,
+  childArcWrap: { position: 'relative', width: 68, height: 68, alignItems: 'center', justifyContent: 'center' },
+  childArcAvatar: {
+    position: 'absolute', width: 54, height: 54, borderRadius: 27,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  childProgressAvatarWrap: { alignItems: 'center', gap: 3, flexShrink: 0 },
-  childProgressAvatar: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  childProgressAvatarPhoto: { width: 44, height: 44, borderRadius: 22 },
-  childProgressInitial: { fontSize: 17, fontWeight: '800', color: '#FFF' },
-  childProgressName: { fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
-  childProgressAge:  { fontSize: 10, color: '#9CA3AF', fontWeight: '500', textAlign: 'center' },
-  childProgressCounts: {
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-  },
-  childProgressCount: {
-    alignItems: 'center', gap: 2,
-  },
-  childProgressCountIcon: {
-    width: 28, height: 28, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  childProgressNum: {
-    fontSize: 20, fontWeight: '800', color: '#2E7D62', lineHeight: 24,
-  },
-  childProgressLabel: {
-    fontSize: 10, color: '#9CA3AF', fontWeight: '500', textAlign: 'center', lineHeight: 13,
-  },
-  childProgressDivider: {
-    width: 1, height: 32, backgroundColor: '#F0F1F3',
-  },
-  childProgressEmpty: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1,
-  },
-  childProgressEmptyText: {
-    flex: 1, fontSize: 11, color: '#9CA3AF', lineHeight: 16,
-  },
+  childArcPhoto: { width: 54, height: 54, borderRadius: 27 },
+  childArcInitial: { fontSize: 20, fontWeight: '800', color: '#FFF' },
+  childArcInfo: { flex: 1 },
+  childArcNameRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 6 },
+  childArcName: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
+  childArcAge:  { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
+  childArcStats: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  childArcStat:  { alignItems: 'center' },
+  childArcStatNum: { fontSize: 18, fontWeight: '800', lineHeight: 22 },
+  childArcStatLabel: { fontSize: 10, color: '#9CA3AF', fontWeight: '500', marginTop: 1 },
+  childArcDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#E5E7EB', marginBottom: 8 },
+  childArcPct: { fontSize: 12, fontWeight: '700', color: '#9CA3AF' },
+  childArcEmpty: { fontSize: 12, color: '#C3DDD6', fontWeight: '500' },
+  childProgressEmpty: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  childProgressEmptyText: { flex: 1, fontSize: 11, color: '#9CA3AF', lineHeight: 16 },
 
   streakCard: {
     backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
