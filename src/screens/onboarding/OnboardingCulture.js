@@ -44,7 +44,7 @@ export default function OnboardingCulture({ navigation, route }) {
   }
 
   function handleNext() {
-    navigation.navigate('OnboardingReminder', {
+    navigation.navigate('OnboardingCommunity', {
       ...data,
       raisedIn,
       raisingIn,
@@ -52,7 +52,7 @@ export default function OnboardingCulture({ navigation, route }) {
   }
 
   function handleSkip() {
-    navigation.navigate('OnboardingReminder', { ...data, raisedIn: [], raisingIn: null });
+    navigation.navigate('OnboardingCommunity', { ...data, raisedIn: [], raisingIn: null });
   }
 
   const filteredRaised  = raisedQuery.trim()
@@ -69,7 +69,7 @@ export default function OnboardingCulture({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
-        <ProgressDots current={7} total={9} />
+        <ProgressDots current={7} total={10} />
         <TouchableOpacity onPress={handleSkip} style={styles.skipBtn}>
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>

@@ -57,8 +57,9 @@ export default function OnboardingAccount({ navigation, route }) {
         reminderTime: data.reminderTime,
         familyStructure: data.familyStructure ?? 'prefer_not_to_say',
         language: 'English',
-        raisedIn:  data.raisedIn  ?? [],
-        raisingIn: data.raisingIn ?? null,
+        raisedIn:    data.raisedIn    ?? [],
+        raisingIn:   data.raisingIn   ?? null,
+        communities: data.communities ?? [],
       })),
       userId && saveProfileToSupabase({
         userId,
@@ -235,7 +236,7 @@ export default function OnboardingAccount({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <ProgressDots current={8} total={9} />
+          <ProgressDots current={10} total={10} />
 
           <View style={styles.textWrap}>
             <TypewriterText
