@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
-  ScrollView, TextInput,
+  ScrollView, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -70,11 +70,17 @@ export default function OnboardingCulture({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets
       >
         <TypewriterText
           lines={['Where were\nyou raised?']}
@@ -160,6 +166,7 @@ export default function OnboardingCulture({ navigation, route }) {
           </TouchableOpacity>
         </View>
       )}
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
