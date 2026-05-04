@@ -30,10 +30,17 @@ const INTEREST_OPTIONS = [
   'Superheroes', 'Dance', 'Swimming', 'Cycling', 'Building',
 ];
 
+const SPECIAL_NEEDS_OPTIONS = [
+  'ADHD', 'Autism / ASD', 'Down Syndrome', 'Dyslexia',
+  'Anxiety', 'Sensory Differences', 'Speech / Language Delay',
+  'Learning Differences', 'Physical Disability', 'Gifted / Advanced Learner',
+];
+
 const FIELD_CONFIG = {
-  strengths:    { title: "Strengths",    options: STRENGTHS_OPTIONS,    color: '#B45309', bg: '#FEF3E7', allowCustom: false },
-  temperaments: { title: "Temperament",  options: TEMPERAMENT_OPTIONS,  color: '#1B4D3E', bg: '#E6F4ED', allowCustom: false },
-  interests:    { title: "Interests",    options: INTEREST_OPTIONS,     color: '#1B4D3E', bg: '#E6F4ED', allowCustom: true  },
+  strengths:    { title: "Strengths",           options: STRENGTHS_OPTIONS,     color: '#B45309', bg: '#FEF3E7', allowCustom: false },
+  temperaments: { title: "Temperament",         options: TEMPERAMENT_OPTIONS,   color: '#1B4D3E', bg: '#E6F4ED', allowCustom: false },
+  interests:    { title: "Interests",           options: INTEREST_OPTIONS,      color: '#1B4D3E', bg: '#E6F4ED', allowCustom: true  },
+  specialNeeds: { title: "Additional Context",  options: SPECIAL_NEEDS_OPTIONS, color: '#1B4D3E', bg: '#E6F4ED', allowCustom: true  },
 };
 
 const GRADE_OPTIONS = [
@@ -526,6 +533,31 @@ export default function ChildDashboardScreen({ navigation, route }) {
             <Text style={styles.noneText}>None added yet</Text>
           )}
           <TouchableOpacity style={styles.addChip} onPress={() => setEditField('interests')}>
+            <Ionicons name="add" size={13} color="#9CA3AF" />
+            <Text style={styles.addChipText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Additional Context ── */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionLabel}>ADDITIONAL CONTEXT</Text>
+          <TouchableOpacity onPress={() => setEditField('specialNeeds')}>
+            <Text style={styles.sectionLink}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.sectionSub}>
+          Any additional needs or considerations. Stays private and helps personalise advice for {child.name}.
+        </Text>
+        <View style={styles.chipCard}>
+          {(child.specialNeeds ?? []).map(item => (
+            <View key={item} style={styles.interestChip}>
+              <Text style={styles.interestChipText}>{item}</Text>
+            </View>
+          ))}
+          {(child.specialNeeds ?? []).length === 0 && (
+            <Text style={styles.noneText}>None added</Text>
+          )}
+          <TouchableOpacity style={styles.addChip} onPress={() => setEditField('specialNeeds')}>
             <Ionicons name="add" size={13} color="#9CA3AF" />
             <Text style={styles.addChipText}>Add</Text>
           </TouchableOpacity>
