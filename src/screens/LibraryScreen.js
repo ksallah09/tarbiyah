@@ -2120,7 +2120,7 @@ const lcStyles = StyleSheet.create({
   pillText:    { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   pillTextActive: { color: '#FFFFFF' },
   scroll:      { paddingHorizontal: 20, paddingTop: 4 },
-  sectionLabel:{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, marginBottom: 10, marginTop: 8 },
+  sectionLabel:{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, marginBottom: 10, marginTop: 8, textAlign: 'center' },
   emptySection:{ alignItems: 'center', paddingVertical: 32, gap: 10 },
   emptySectionText: { fontSize: 14, color: '#9CA3AF', textAlign: 'center' },
   fab:         { position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1B3D2F', borderRadius: 100, paddingHorizontal: 20, paddingVertical: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
