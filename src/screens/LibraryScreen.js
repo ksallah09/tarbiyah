@@ -26,6 +26,11 @@ import { getSavedInsights, unsaveInsight } from '../utils/savedInsights';
 import { getSavedResources, saveResource, unsaveResource } from '../utils/savedResources';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../utils/supabase';
+import {
+  fetchLocalEvents, fetchUpcomingForFamily, submitEvent,
+  verifyEvent, getMyVerdict, loadCommunities, loadChildrenAges,
+} from '../utils/communityEvents';
+import * as Location from 'expo-location';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
@@ -157,6 +162,17 @@ export default function LibraryScreen({ navigation }) {
   const [mySavedIds, setMySavedIds]           = useState(new Set());
   const [currentUserId, setCurrentUserId]     = useState(null);
   const [hiddenThumbs, setHiddenThumbs]       = useState(new Set());
+
+  // ── Local community ──
+  const [communities,       setCommunities]       = useState([]);
+  const [localEvents,       setLocalEvents]       = useState([]);
+  const [upcomingEvents,    setUpcomingEvents]    = useState([]);
+  const [localLoading,      setLocalLoading]      = useState(false);
+  const [activeCirle,       setActiveCircle]      = useState('all');
+  const [showSubmitModal,   setShowSubmitModal]   = useState(false);
+  const [showVerifyModal,   setShowVerifyModal]   = useState(null); // event object
+  const [myVerdicts,        setMyVerdicts]        = useState({});   // eventId → verdict
+  const [childrenAges,      setChildrenAges]      = useState([]);
 
   // ── New activity dots ──
   const [showDuaDot,  setShowDuaDot]  = useState(false);
@@ -311,6 +327,29 @@ export default function LibraryScreen({ navigation }) {
     if (isFirstFocus.current) { isFirstFocus.current = false; return; }
     fetchResources();
   }, [activeCategory, activeAge]);
+
+  useEffect(() => {
+    if (activeTab !== 'local') return;
+    loadLocalData();
+  }, [activeTab]);
+
+  async function loadLocalData() {
+    setLocalLoading(true);
+    try {
+      const [comms, ages] = await Promise.all([loadCommunities(), loadChildrenAges()]);
+      setCommunities(comms);
+      setChildrenAges(ages);
+      if (!comms.length) { setLocalLoading(false); return; }
+      const placeIds = comms.map(c => c.placeId);
+      const [all, upcoming] = await Promise.all([
+        fetchLocalEvents(placeIds),
+        fetchUpcomingForFamily(placeIds, ages),
+      ]);
+      setLocalEvents(all);
+      setUpcomingEvents(upcoming);
+    } catch (e) { console.warn('[local events]', e); }
+    setLocalLoading(false);
+  }
 
   useEffect(() => {
     const url = submitUrl.trim();
@@ -763,6 +802,7 @@ export default function LibraryScreen({ navigation }) {
           contentContainerStyle={styles.tabRow}
         >
           {[
+            { key: 'local',     label: 'Local',      dot: false },
             { key: 'resources', label: 'Resources',  dot: false },
             { key: 'dua',       label: "Du'a Board", dot: showDuaDot },
             { key: 'wins',      label: 'Wins',        dot: showWinsDot },
@@ -940,6 +980,21 @@ export default function LibraryScreen({ navigation }) {
               />
             )}
           </>
+        ) : activeTab === 'local' ? (
+          // ─── LOCAL COMMUNITY ──────────────────────────────────────────────
+          <LocalCommunityTab
+            communities={communities}
+            localEvents={localEvents}
+            upcomingEvents={upcomingEvents}
+            loading={localLoading}
+            activeCircle={activeCirle}
+            onCircleChange={setActiveCircle}
+            myVerdicts={myVerdicts}
+            currentUserId={currentUserId}
+            onVerify={(ev) => setShowVerifyModal(ev)}
+            onPostPress={() => setShowSubmitModal(true)}
+            onRefresh={loadLocalData}
+          />
         ) : activeTab === 'dua' ? (
           // ─── DU'A BOARD ───────────────────────────────────────────────────
           <>
@@ -1673,9 +1728,462 @@ export default function LibraryScreen({ navigation }) {
           </Animated.View>
         </Animated.View>
       )}
+
+      {/* ── Submit event modal ── */}
+      <SubmitEventModal
+        visible={showSubmitModal}
+        communities={communities}
+        currentUserId={currentUserId}
+        onClose={() => setShowSubmitModal(false)}
+        onSubmitted={() => { setShowSubmitModal(false); loadLocalData(); }}
+      />
+
+      {/* ── Verify event modal ── */}
+      <VerifyEventModal
+        visible={!!showVerifyModal}
+        event={showVerifyModal}
+        currentUserId={currentUserId}
+        myVerdict={myVerdicts[showVerifyModal?.id] ?? null}
+        onClose={() => setShowVerifyModal(null)}
+        onVerified={async (verdict) => {
+          if (!showVerifyModal || !currentUserId) return;
+          await verifyEvent(showVerifyModal.id, currentUserId, verdict);
+          setMyVerdicts(prev => ({ ...prev, [showVerifyModal.id]: verdict }));
+          setShowVerifyModal(null);
+          loadLocalData();
+        }}
+      />
     </SafeAreaView>
   );
 }
+
+// ─── Trust badge config ───────────────────────────────────────────────────────
+const TRUST_CONFIG = {
+  tarbiyah:            { icon: '✅', label: 'Verified by Tarbiyah',       color: '#2E7D62', bg: '#EDF7F2' },
+  official:            { icon: '🏢', label: 'Official Organisation Post', color: '#1D4ED8', bg: '#EFF6FF' },
+  community_confirmed: { icon: '👥', label: 'Community Confirmed',        color: '#D4871A', bg: '#FDF3E3' },
+  community:           { icon: '⚠️', label: 'Community Submitted',        color: '#9CA3AF', bg: '#F3F4F6' },
+};
+
+const EVENT_CATEGORIES = ['general','halaqah','youth','family','announcement','program','class'];
+
+// ─── LocalCommunityTab ────────────────────────────────────────────────────────
+function LocalCommunityTab({ communities, localEvents, upcomingEvents, loading, activeCircle, onCircleChange, myVerdicts, currentUserId, onVerify, onPostPress, onRefresh }) {
+  const insets = useSafeAreaInsets();
+
+  const circles = [{ placeId: 'all', name: 'All' }, ...communities];
+
+  const filteredAll = activeCircle === 'all'
+    ? localEvents
+    : localEvents.filter(ev => ev.place_id === activeCircle);
+
+  const filteredUpcoming = activeCircle === 'all'
+    ? upcomingEvents
+    : upcomingEvents.filter(ev => ev.place_id === activeCircle);
+
+  if (loading) return (
+    <View style={lcStyles.center}><ActivityIndicator size="large" color="#1B3D2F" /></View>
+  );
+
+  if (!communities.length) return (
+    <View style={lcStyles.emptyWrap}>
+      <Text style={lcStyles.emptyEmoji}>🕌</Text>
+      <Text style={lcStyles.emptyTitle}>No communities added yet</Text>
+      <Text style={lcStyles.emptySub}>Go to your profile and add your mosque or Islamic organisation to see local events here.</Text>
+    </View>
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* Circle pills */}
+      {communities.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={lcStyles.pillRow}>
+          {circles.map(c => {
+            const active = activeCircle === c.placeId;
+            return (
+              <TouchableOpacity
+                key={c.placeId}
+                style={[lcStyles.pill, active && lcStyles.pillActive]}
+                onPress={() => onCircleChange(c.placeId)}
+                activeOpacity={0.75}
+              >
+                <Text style={[lcStyles.pillText, active && lcStyles.pillTextActive]}>{c.name}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[lcStyles.scroll, { paddingBottom: insets.bottom + 100 }]}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} tintColor="#1B3D2F" />}
+      >
+        {/* Upcoming for your family */}
+        {filteredUpcoming.length > 0 && (
+          <>
+            <Text style={lcStyles.sectionLabel}>UPCOMING FOR YOUR FAMILY</Text>
+            {filteredUpcoming.map(ev => (
+              <EventCard key={ev.id} event={ev} myVerdict={myVerdicts[ev.id]} onVerify={onVerify} />
+            ))}
+          </>
+        )}
+
+        {/* All local events */}
+        <Text style={lcStyles.sectionLabel}>
+          {activeCircle === 'all' ? 'ALL LOCAL EVENTS' : communities.find(c => c.placeId === activeCircle)?.name?.toUpperCase() ?? 'LOCAL EVENTS'}
+        </Text>
+        {filteredAll.length === 0 ? (
+          <View style={lcStyles.emptySection}>
+            <Ionicons name="calendar-outline" size={32} color="#D1D5DB" />
+            <Text style={lcStyles.emptySectionText}>No events yet. Be the first to post one.</Text>
+          </View>
+        ) : filteredAll.map(ev => (
+          <EventCard key={ev.id} event={ev} myVerdict={myVerdicts[ev.id]} onVerify={onVerify} />
+        ))}
+      </ScrollView>
+
+      {/* Floating post button */}
+      <TouchableOpacity
+        style={[lcStyles.fab, { bottom: insets.bottom + 20 }]}
+        onPress={onPostPress}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={22} color="#FFFFFF" />
+        <Text style={lcStyles.fabText}>Post an Event</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─── EventCard ────────────────────────────────────────────────────────────────
+function EventCard({ event: ev, myVerdict, onVerify }) {
+  const trust = TRUST_CONFIG[ev.trust_level] ?? TRUST_CONFIG.community;
+  const isUnverified = ev.trust_level === 'community';
+  const isCommunityConfirmed = ev.trust_level === 'community_confirmed';
+  const dateStr = ev.event_date
+    ? new Date(ev.event_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    : null;
+
+  return (
+    <View style={ecStyles.card}>
+      {/* Trust badge */}
+      <View style={[ecStyles.badge, { backgroundColor: trust.bg }]}>
+        <Text style={ecStyles.badgeIcon}>{trust.icon}</Text>
+        <Text style={[ecStyles.badgeLabel, { color: trust.color }]}>{trust.label}</Text>
+      </View>
+
+      {/* Event info */}
+      <Text style={ecStyles.title}>{ev.title}</Text>
+      {ev.description ? <Text style={ecStyles.desc}>{ev.description}</Text> : null}
+
+      <View style={ecStyles.metaRow}>
+        {dateStr && (
+          <View style={ecStyles.metaItem}>
+            <Ionicons name="calendar-outline" size={13} color="#6B7280" />
+            <Text style={ecStyles.metaText}>{dateStr}{ev.event_time ? ` · ${ev.event_time}` : ''}</Text>
+          </View>
+        )}
+        {ev.location && (
+          <View style={ecStyles.metaItem}>
+            <Ionicons name="location-outline" size={13} color="#6B7280" />
+            <Text style={ecStyles.metaText}>{ev.location}</Text>
+          </View>
+        )}
+        <View style={[ecStyles.categoryChip]}>
+          <Text style={ecStyles.categoryText}>{ev.category}</Text>
+        </View>
+      </View>
+
+      {/* Unverified warning */}
+      {isUnverified && (
+        <View style={ecStyles.warningBox}>
+          <Text style={ecStyles.warningTitle}>⚠️ Not yet verified — confirm before attending</Text>
+          {(ev.org_phone || ev.org_website || ev.org_address) && (
+            <View style={ecStyles.contactBlock}>
+              <Text style={ecStyles.contactOrg}>{ev.org_name}</Text>
+              {ev.org_address && <Text style={ecStyles.contactLine}>📍 {ev.org_address}</Text>}
+              {ev.org_phone && (
+                <TouchableOpacity onPress={() => Linking.openURL(`tel:${ev.org_phone}`)}>
+                  <Text style={ecStyles.contactLink}>📞 {ev.org_phone}</Text>
+                </TouchableOpacity>
+              )}
+              {ev.org_website && (
+                <TouchableOpacity onPress={() => Linking.openURL(ev.org_website)}>
+                  <Text style={ecStyles.contactLink}>🌐 Visit website</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Community confirmed softer note */}
+      {isCommunityConfirmed && (
+        <View style={ecStyles.confirmedBox}>
+          <Text style={ecStyles.confirmedText}>👥 Verified by {ev.verify_count} community member{ev.verify_count !== 1 ? 's' : ''} — always confirm before attending</Text>
+        </View>
+      )}
+
+      {/* Verify row */}
+      {(isUnverified || isCommunityConfirmed) && (
+        <TouchableOpacity
+          style={[ecStyles.verifyBtn, myVerdict && ecStyles.verifyBtnDone]}
+          onPress={() => onVerify(ev)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name={myVerdict ? 'checkmark-circle' : 'shield-checkmark-outline'} size={14} color={myVerdict ? '#2E7D62' : '#6B7280'} />
+          <Text style={[ecStyles.verifyBtnText, myVerdict && { color: '#2E7D62' }]}>
+            {myVerdict === 'confirmed' ? 'You confirmed this'
+              : myVerdict === 'attended' ? 'You attended this'
+              : myVerdict === 'incorrect' ? 'You flagged this as incorrect'
+              : 'Help verify this event'}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+// ─── SubmitEventModal ─────────────────────────────────────────────────────────
+function SubmitEventModal({ visible, communities, currentUserId, onClose, onSubmitted }) {
+  const [title,       setTitle]       = useState('');
+  const [description, setDescription] = useState('');
+  const [date,        setDate]        = useState('');
+  const [time,        setTime]        = useState('');
+  const [location,    setLocation]    = useState('');
+  const [category,    setCategory]    = useState('general');
+  const [selectedOrg, setSelectedOrg] = useState(null);
+  const [submitting,  setSubmitting]  = useState(false);
+  const [error,       setError]       = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setTitle(''); setDescription(''); setDate(''); setTime('');
+      setLocation(''); setCategory('general'); setError('');
+      setSelectedOrg(communities.length === 1 ? communities[0] : null);
+    }
+  }, [visible]);
+
+  async function handleSubmit() {
+    if (!title.trim()) { setError('Please add a title.'); return; }
+    if (!selectedOrg)  { setError('Please select which mosque this event is for.'); return; }
+    setSubmitting(true);
+    setError('');
+    try {
+      await submitEvent({
+        placeId:     selectedOrg.placeId,
+        orgName:     selectedOrg.name,
+        title:       title.trim(),
+        description: description.trim() || null,
+        eventDate:   date.trim() || null,
+        eventTime:   time.trim() || null,
+        location:    location.trim() || null,
+        category,
+        postedBy:    currentUserId,
+      });
+      onSubmitted();
+    } catch (e) {
+      setError('Could not post event. Please try again.');
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <TouchableOpacity style={smStyles.overlay} activeOpacity={1} onPress={onClose} />
+        <View style={smStyles.sheet}>
+          <View style={smStyles.handle} />
+          <Text style={smStyles.title}>Post an Event</Text>
+
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Mosque selector */}
+            {communities.length > 1 && (
+              <>
+                <Text style={smStyles.label}>MOSQUE / ORGANISATION</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 14 }}>
+                  {communities.map(c => (
+                    <TouchableOpacity
+                      key={c.placeId}
+                      style={[smStyles.orgPill, selectedOrg?.placeId === c.placeId && smStyles.orgPillActive]}
+                      onPress={() => setSelectedOrg(c)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[smStyles.orgPillText, selectedOrg?.placeId === c.placeId && smStyles.orgPillTextActive]} numberOfLines={1}>{c.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            {communities.length === 1 && (
+              <View style={smStyles.singleOrg}>
+                <Ionicons name="business-outline" size={14} color="#2E7D62" />
+                <Text style={smStyles.singleOrgText}>Posting to: {communities[0].name}</Text>
+              </View>
+            )}
+
+            <Text style={smStyles.label}>EVENT TITLE *</Text>
+            <TextInput style={smStyles.input} value={title} onChangeText={setTitle} placeholder="e.g. Youth Halaqa — Every Friday" placeholderTextColor="#9CA3AF" />
+
+            <Text style={smStyles.label}>DESCRIPTION</Text>
+            <TextInput style={[smStyles.input, smStyles.inputMulti]} value={description} onChangeText={setDescription} placeholder="What is this event about?" placeholderTextColor="#9CA3AF" multiline />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={smStyles.label}>DATE</Text>
+                <TextInput style={smStyles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#9CA3AF" keyboardType="numbers-and-punctuation" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={smStyles.label}>TIME</Text>
+                <TextInput style={smStyles.input} value={time} onChangeText={setTime} placeholder="7:00 PM" placeholderTextColor="#9CA3AF" />
+              </View>
+            </View>
+
+            <Text style={smStyles.label}>LOCATION</Text>
+            <TextInput style={smStyles.input} value={location} onChangeText={setLocation} placeholder="At the mosque / address" placeholderTextColor="#9CA3AF" />
+
+            <Text style={smStyles.label}>CATEGORY</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
+              {EVENT_CATEGORIES.map(cat => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[smStyles.catChip, category === cat && smStyles.catChipActive]}
+                  onPress={() => setCategory(cat)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[smStyles.catChipText, category === cat && smStyles.catChipTextActive]}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {error ? <Text style={smStyles.error}>{error}</Text> : null}
+
+            <TouchableOpacity style={smStyles.submitBtn} onPress={handleSubmit} activeOpacity={0.85} disabled={submitting}>
+              {submitting
+                ? <ActivityIndicator color="#FFF" />
+                : <Text style={smStyles.submitBtnText}>Post to {selectedOrg?.name ?? 'Community'}</Text>
+              }
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── VerifyEventModal ─────────────────────────────────────────────────────────
+function VerifyEventModal({ visible, event: ev, currentUserId, myVerdict, onClose, onVerified }) {
+  if (!ev) return null;
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={vmStyles.overlay} activeOpacity={1} onPress={onClose} />
+      <View style={vmStyles.sheet}>
+        <View style={vmStyles.handle} />
+        <Text style={vmStyles.title}>Help verify this event</Text>
+        <Text style={vmStyles.sub}>{ev.title}</Text>
+
+        {[
+          { verdict: 'confirmed', icon: 'call-outline',       label: 'I confirmed with the masjid' },
+          { verdict: 'attended',  icon: 'checkmark-circle-outline', label: 'I attended — details were correct' },
+          { verdict: 'incorrect', icon: 'close-circle-outline', label: 'This info is incorrect', danger: true },
+        ].map(opt => (
+          <TouchableOpacity
+            key={opt.verdict}
+            style={[vmStyles.option, myVerdict === opt.verdict && vmStyles.optionActive, opt.danger && vmStyles.optionDanger]}
+            onPress={() => onVerified(opt.verdict)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={opt.icon} size={18} color={opt.danger ? '#DC2626' : myVerdict === opt.verdict ? '#2E7D62' : '#374151'} />
+            <Text style={[vmStyles.optionText, opt.danger && { color: '#DC2626' }]}>{opt.label}</Text>
+            {myVerdict === opt.verdict && <Ionicons name="checkmark" size={16} color="#2E7D62" />}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Local component styles ───────────────────────────────────────────────────
+
+const lcStyles = StyleSheet.create({
+  center:      { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingTop: 60 },
+  emptyEmoji:  { fontSize: 48, marginBottom: 16 },
+  emptyTitle:  { fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 8, textAlign: 'center' },
+  emptySub:    { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 21 },
+  pillRow:     { paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
+  pill:        { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 100, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  pillActive:  { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
+  pillText:    { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  pillTextActive: { color: '#FFFFFF' },
+  scroll:      { paddingHorizontal: 20, paddingTop: 4 },
+  sectionLabel:{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, marginBottom: 10, marginTop: 8 },
+  emptySection:{ alignItems: 'center', paddingVertical: 32, gap: 10 },
+  emptySectionText: { fontSize: 14, color: '#9CA3AF', textAlign: 'center' },
+  fab:         { position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1B3D2F', borderRadius: 100, paddingHorizontal: 20, paddingVertical: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
+  fabText:     { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+});
+
+const ecStyles = StyleSheet.create({
+  card:         { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  badge:        { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 10 },
+  badgeIcon:    { fontSize: 12 },
+  badgeLabel:   { fontSize: 11, fontWeight: '700' },
+  title:        { fontSize: 16, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
+  desc:         { fontSize: 13, color: '#6B7280', lineHeight: 19, marginBottom: 8 },
+  metaRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  metaItem:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText:     { fontSize: 12, color: '#6B7280' },
+  categoryChip: { backgroundColor: '#F3F4F6', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3 },
+  categoryText: { fontSize: 11, fontWeight: '600', color: '#6B7280' },
+  warningBox:   { backgroundColor: '#FEF9F0', borderRadius: 10, padding: 12, borderLeftWidth: 3, borderLeftColor: '#F59E0B', marginBottom: 10 },
+  warningTitle: { fontSize: 12, fontWeight: '700', color: '#92400E', marginBottom: 8 },
+  contactBlock: { gap: 4 },
+  contactOrg:   { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 2 },
+  contactLine:  { fontSize: 12, color: '#6B7280' },
+  contactLink:  { fontSize: 12, color: '#2E7D62', fontWeight: '600' },
+  confirmedBox: { backgroundColor: '#FDF3E3', borderRadius: 10, padding: 10, marginBottom: 10 },
+  confirmedText:{ fontSize: 12, color: '#92400E' },
+  verifyBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6', marginTop: 4 },
+  verifyBtnDone:{ opacity: 0.7 },
+  verifyBtnText:{ fontSize: 13, fontWeight: '600', color: '#6B7280' },
+});
+
+const smStyles = StyleSheet.create({
+  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet:     { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, maxHeight: '90%' },
+  handle:    { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
+  title:     { fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 16 },
+  label:     { fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, marginBottom: 6 },
+  input:     { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: '#1A1A2E', marginBottom: 14 },
+  inputMulti:{ minHeight: 80, textAlignVertical: 'top' },
+  orgPill:   { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  orgPillActive: { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
+  orgPillText:   { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  orgPillTextActive: { color: '#FFF' },
+  singleOrg: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EDF7F2', borderRadius: 10, padding: 10, marginBottom: 14 },
+  singleOrgText: { fontSize: 13, color: '#2E7D62', fontWeight: '600' },
+  catChip:   { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 100, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  catChipActive: { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
+  catChipText:   { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  catChipTextActive: { color: '#FFF' },
+  error:     { fontSize: 13, color: '#DC2626', marginBottom: 12 },
+  submitBtn: { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
+  submitBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
+});
+
+const vmStyles = StyleSheet.create({
+  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet:    { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  handle:   { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
+  title:    { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
+  sub:      { fontSize: 13, color: '#6B7280', marginBottom: 20 },
+  option:   { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  optionActive: { backgroundColor: '#F0F7F4' },
+  optionDanger: {},
+  optionText:   { flex: 1, fontSize: 15, color: '#374151', fontWeight: '500' },
+});
 
 const styles = StyleSheet.create({
   loadingOverlay: {
