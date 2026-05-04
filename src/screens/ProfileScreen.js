@@ -12,7 +12,11 @@ import {
   FlatList,
   TextInput,
   Image,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -46,6 +50,27 @@ const ITEM_HEIGHT = 48;
 const HOURS   = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 const MINUTES = ['00','05','10','15','20','25','30','35','40','45','50','55'];
 const PERIODS = ['AM','PM'];
+
+const PLACES_KEY = 'AIzaSyAAzZUrCRvsauWBVNUnIf9HgH-CR8ub4Ig';
+
+const COUNTRIES = [
+  'Afghanistan','Algeria','Australia','Bahrain','Bangladesh','Bosnia & Herzegovina',
+  'Canada','Egypt','Ethiopia','France','Germany','Ghana','India','Indonesia',
+  'Iran','Iraq','Jordan','Kazakhstan','Kenya','Kuwait','Lebanon','Libya',
+  'Malaysia','Mali','Mauritania','Morocco','Netherlands','Niger','Nigeria',
+  'Oman','Pakistan','Palestine','Philippines','Qatar','Saudi Arabia','Senegal',
+  'Somalia','South Africa','Sudan','Sweden','Syria','Tanzania','Tunisia',
+  'Turkey','UAE','Uganda','United Kingdom','United States','Uzbekistan','Yemen',
+  'Other',
+];
+
+const HOUR_RANGES = [
+  { value: 'under-20', label: 'Under 20 hrs',  sub: 'Part-time' },
+  { value: '20-30',    label: '20 – 30 hrs',   sub: 'Part-time' },
+  { value: '30-40',    label: '30 – 40 hrs',   sub: 'Full-time' },
+  { value: '40-50',    label: '40 – 50 hrs',   sub: 'Full-time' },
+  { value: '50-plus',  label: '50+ hrs',        sub: 'Long hours' },
+];
 
 const COUNTS = ['1', '2', '3', '4', '5+'];
 const CHILD_AGE_GROUPS = [
@@ -284,6 +309,281 @@ function SettingsCard({ children }) {
   return <View style={styles.settingsCard}>{children}</View>;
 }
 
+// ── Country picker modal ──────────────────────────────────────────────────────
+function CountryPickerModal({ visible, title, multiSelect, selected, onConfirm, onClose }) {
+  const [local,     setLocal]     = useState([]);
+  const [query,     setQuery]     = useState('');
+  const [otherText, setOtherText] = useState('');
+
+  useEffect(() => { if (visible) { setLocal(selected); setQuery(''); setOtherText(''); } }, [visible]);
+
+  function toggle(c) {
+    if (multiSelect) {
+      setLocal(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+    } else {
+      setLocal(prev => prev[0] === c ? [] : [c]);
+    }
+  }
+
+  function handleConfirm() {
+    const result = local.map(c => c === 'Other' && otherText.trim() ? otherText.trim() : c);
+    onConfirm(result);
+  }
+
+  const filtered = query.trim()
+    ? COUNTRIES.filter(c => c.toLowerCase().includes(query.toLowerCase()))
+    : COUNTRIES;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <TouchableOpacity style={cpStyles.overlay} activeOpacity={1} onPress={onClose} />
+        <View style={cpStyles.sheet}>
+          <View style={cpStyles.handle} />
+          <Text style={cpStyles.title}>{title}</Text>
+
+          {local.length > 0 && (
+            <View style={cpStyles.chipRow}>
+              {local.map(c => (
+                <TouchableOpacity key={c} style={cpStyles.selectedChip} onPress={() => toggle(c)} activeOpacity={0.75}>
+                  <Text style={cpStyles.selectedChipText}>{c}</Text>
+                  <Ionicons name="close" size={11} color="#FFF" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <View style={cpStyles.searchRow}>
+            <Ionicons name="search-outline" size={15} color="#9CA3AF" />
+            <TextInput
+              style={cpStyles.searchInput}
+              placeholder="Search country…"
+              placeholderTextColor="#9CA3AF"
+              value={query}
+              onChangeText={setQuery}
+              returnKeyType="done"
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery('')}>
+                <Ionicons name="close-circle" size={15} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 280 }}>
+            <View style={cpStyles.chipRow}>
+              {filtered.map(c => {
+                const active = local.includes(c);
+                return (
+                  <TouchableOpacity
+                    key={c}
+                    style={[cpStyles.chip, active && cpStyles.chipActive]}
+                    onPress={() => toggle(c)}
+                    activeOpacity={0.75}
+                  >
+                    {active && <Ionicons name="checkmark" size={11} color="#FFF" />}
+                    <Text style={[cpStyles.chipText, active && cpStyles.chipTextActive]}>{c}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {local.includes('Other') && (
+              <View style={cpStyles.otherRow}>
+                <Ionicons name="pencil-outline" size={14} color="#6B7280" />
+                <TextInput
+                  style={cpStyles.otherInput}
+                  placeholder="Type your country…"
+                  placeholderTextColor="#9CA3AF"
+                  value={otherText}
+                  onChangeText={setOtherText}
+                  returnKeyType="done"
+                />
+              </View>
+            )}
+          </ScrollView>
+
+          <TouchableOpacity style={cpStyles.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
+            <Text style={cpStyles.confirmBtnText}>Save</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const cpStyles = StyleSheet.create({
+  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: {
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 36,
+  },
+  handle:    { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
+  title:     { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 16 },
+  chipRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  selectedChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#2E7D62', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5 },
+  selectedChipText: { fontSize: 12, fontWeight: '600', color: '#FFF' },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 12 },
+  searchInput: { flex: 1, fontSize: 14, color: '#1A1A2E' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F3F4F6', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#E5E7EB' },
+  chipActive: { backgroundColor: '#2E7D62', borderColor: '#2E7D62' },
+  chipText:   { fontSize: 13, color: '#374151', fontWeight: '500' },
+  chipTextActive: { color: '#FFF', fontWeight: '700' },
+  otherRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 4, marginBottom: 8 },
+  otherInput: { flex: 1, fontSize: 14, color: '#1A1A2E' },
+  confirmBtn: { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
+  confirmBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+});
+
+// ── Communities modal ─────────────────────────────────────────────────────────
+function CommunitiesModal({ visible, selected, onConfirm, onClose }) {
+  const [local,      setLocal]      = useState([]);
+  const [query,      setQuery]      = useState('');
+  const [results,    setResults]    = useState([]);
+  const [nearby,     setNearby]     = useState([]);
+  const [searching,  setSearching]  = useState(false);
+  const [locLoading, setLocLoading] = useState(false);
+  const searchTimer = useRef(null);
+
+  useEffect(() => {
+    if (visible) {
+      setLocal(selected);
+      setQuery('');
+      setResults([]);
+      loadNearby();
+    }
+  }, [visible]);
+
+  async function loadNearby() {
+    setLocLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const { lat, lng } = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+        const base = `https://maps.googleapis.com/maps/api/place/nearbysearch/json`;
+        const [r1, r2] = await Promise.all([
+          fetch(`${base}?location=${lat},${lng}&radius=20000&type=mosque&key=${PLACES_KEY}`).then(r => r.json()),
+          fetch(`${base}?location=${lat},${lng}&radius=20000&keyword=islamic+centre+masjid&key=${PLACES_KEY}`).then(r => r.json()),
+        ]);
+        const seen = new Set();
+        const places = [...(r1.results ?? []), ...(r2.results ?? [])]
+          .filter(p => { if (seen.has(p.place_id)) return false; seen.add(p.place_id); return true; })
+          .map(p => ({ placeId: p.place_id, name: p.name, address: p.vicinity ?? p.formatted_address ?? '' }));
+        setNearby(places);
+      }
+    } catch {}
+    setLocLoading(false);
+  }
+
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); return; }
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' mosque islamic center')}&key=${PLACES_KEY}`;
+        const json = await fetch(url).then(r => r.json());
+        setResults((json.results ?? []).map(p => ({ placeId: p.place_id, name: p.name, address: p.formatted_address ?? '' })));
+      } catch {}
+      setSearching(false);
+    }, 500);
+    return () => clearTimeout(searchTimer.current);
+  }, [query]);
+
+  function toggle(place) {
+    setLocal(prev => prev.find(p => p.placeId === place.placeId)
+      ? prev.filter(p => p.placeId !== place.placeId)
+      : [...prev, place]);
+  }
+
+  const display = query.trim() ? results : nearby;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <TouchableOpacity style={cmStyles.overlay} activeOpacity={1} onPress={onClose} />
+        <View style={cmStyles.sheet}>
+          <View style={cmStyles.handle} />
+          <Text style={cmStyles.title}>My Community</Text>
+
+          {local.length > 0 && (
+            <View style={cmStyles.chipRow}>
+              {local.map(p => (
+                <TouchableOpacity key={p.placeId} style={cmStyles.selectedChip} onPress={() => toggle(p)} activeOpacity={0.75}>
+                  <Text style={cmStyles.selectedChipText} numberOfLines={1}>{p.name}</Text>
+                  <Ionicons name="close" size={11} color="#FFF" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <View style={cmStyles.searchRow}>
+            <Ionicons name="search-outline" size={15} color="#9CA3AF" />
+            <TextInput
+              style={cmStyles.searchInput}
+              placeholder="Search by name or city…"
+              placeholderTextColor="#9CA3AF"
+              value={query}
+              onChangeText={setQuery}
+              returnKeyType="search"
+            />
+            {query.length > 0 && <TouchableOpacity onPress={() => setQuery('')}><Ionicons name="close-circle" size={15} color="#9CA3AF" /></TouchableOpacity>}
+          </View>
+
+          <Text style={cmStyles.label}>{query.trim() ? 'RESULTS' : 'NEAR YOU'}</Text>
+
+          {(locLoading || searching) && (
+            <View style={cmStyles.loadingRow}>
+              <ActivityIndicator size="small" color="#2E7D62" />
+              <Text style={cmStyles.loadingText}>{searching ? 'Searching…' : 'Finding nearby mosques…'}</Text>
+            </View>
+          )}
+
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 240 }}>
+            {!locLoading && !searching && display.map(place => {
+              const active = local.some(p => p.placeId === place.placeId);
+              return (
+                <TouchableOpacity key={place.placeId} style={[cmStyles.placeRow, active && cmStyles.placeRowActive]} onPress={() => toggle(place)} activeOpacity={0.75}>
+                  <Ionicons name={active ? 'checkmark-circle' : 'business-outline'} size={18} color={active ? '#2E7D62' : '#9CA3AF'} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[cmStyles.placeName, active && { color: '#1B3D2F', fontWeight: '700' }]} numberOfLines={1}>{place.name}</Text>
+                    {place.address ? <Text style={cmStyles.placeAddr} numberOfLines={1}>{place.address}</Text> : null}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <TouchableOpacity style={cmStyles.confirmBtn} onPress={() => onConfirm(local)} activeOpacity={0.85}>
+            <Text style={cmStyles.confirmBtnText}>{local.length > 0 ? `Save ${local.length} selected` : 'Save'}</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const cmStyles = StyleSheet.create({
+  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet:    { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
+  handle:   { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
+  title:    { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 16 },
+  chipRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  selectedChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#2E7D62', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5, maxWidth: 180 },
+  selectedChipText: { fontSize: 12, fontWeight: '600', color: '#FFF', flexShrink: 1 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 10 },
+  searchInput: { flex: 1, fontSize: 14, color: '#1A1A2E' },
+  label:    { fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, marginBottom: 8 },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  loadingText: { fontSize: 13, color: '#9CA3AF' },
+  placeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  placeRowActive: { backgroundColor: '#F0F7F4' },
+  placeName: { fontSize: 14, color: '#1A1A2E', fontWeight: '500' },
+  placeAddr: { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  confirmBtn: { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
+  confirmBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+});
+
 function SettingRow({ icon, iconBg, iconColor, title, subtitle, value, onPress, rightEl, last, disabled }) {
   return (
     <>
@@ -326,10 +626,19 @@ export default function ProfileScreen() {
   const [reminderTime,     setReminderTime]     = useState('8:00 AM');
   const [language,         setLanguage]         = useState('English');
   const [familyStructure,  setFamilyStructure]  = useState('prefer_not_to_say');
-  const [showTimePicker,     setShowTimePicker]     = useState(false);
-  const [showChildrenEditor, setShowChildrenEditor] = useState(false);
-  const [childrenCount,      setChildrenCount]      = useState(null);
-  const [childrenAges,       setChildrenAges]       = useState([]);
+  const [showTimePicker,       setShowTimePicker]       = useState(false);
+  const [showChildrenEditor,   setShowChildrenEditor]   = useState(false);
+  const [childrenCount,        setChildrenCount]        = useState(null);
+  const [childrenAges,         setChildrenAges]         = useState([]);
+  const [raisedIn,             setRaisedIn]             = useState([]);
+  const [raisingIn,            setRaisingIn]            = useState(null);
+  const [communities,          setCommunities]          = useState([]);
+  const [isWorkingParent,      setIsWorkingParent]      = useState(null);
+  const [workHoursPerWeek,     setWorkHoursPerWeek]     = useState(null);
+  const [showCultureRaisedModal,  setShowCultureRaisedModal]  = useState(false);
+  const [showCultureRaisingModal, setShowCultureRaisingModal] = useState(false);
+  const [showCommunitiesModal,    setShowCommunitiesModal]    = useState(false);
+  const [showWorkModal,           setShowWorkModal]           = useState(false);
   const userIdRef = useRef(null);
 
   useFocusEffect(useCallback(() => {
@@ -361,6 +670,11 @@ export default function ProfileScreen() {
         if (localProfile.language)                    setLanguage(localProfile.language);
         if (localProfile.familyStructure)             setFamilyStructure(localProfile.familyStructure);
         if (localProfile.notifications !== undefined) setNotifications(localProfile.notifications);
+        if (localProfile.raisedIn)                    setRaisedIn(localProfile.raisedIn);
+        if (localProfile.raisingIn)                   setRaisingIn(localProfile.raisingIn);
+        if (localProfile.communities)                 setCommunities(localProfile.communities);
+        if (localProfile.isWorkingParent !== undefined) setIsWorkingParent(localProfile.isWorkingParent);
+        if (localProfile.workHoursPerWeek)            setWorkHoursPerWeek(localProfile.workHoursPerWeek);
       }
       if (onboardingRaw) {
         localOnboarding = JSON.parse(onboardingRaw);
@@ -441,20 +755,33 @@ export default function ProfileScreen() {
   }
 
   async function saveProfile(patch) {
-    const current = { name: profileName, reminderTime, language, notifications, familyStructure };
-    const updated = { ...current, ...patch };
+    // Read full current profile so no fields are lost on each save
+    const raw = await AsyncStorage.getItem('tarbiyah_profile');
+    const existing = raw ? JSON.parse(raw) : {};
+    const updated = { ...existing, ...patch };
     await AsyncStorage.setItem('tarbiyah_profile', JSON.stringify(updated));
-    if (updated.familyStructure !== familyStructure) setFamilyStructure(updated.familyStructure);
+    // Sync local state for fields that may have changed
+    if (patch.familyStructure  !== undefined) setFamilyStructure(patch.familyStructure);
+    if (patch.raisedIn         !== undefined) setRaisedIn(patch.raisedIn);
+    if (patch.raisingIn        !== undefined) setRaisingIn(patch.raisingIn);
+    if (patch.communities      !== undefined) setCommunities(patch.communities);
+    if (patch.isWorkingParent  !== undefined) setIsWorkingParent(patch.isWorkingParent);
+    if (patch.workHoursPerWeek !== undefined) setWorkHoursPerWeek(patch.workHoursPerWeek);
     if (userIdRef.current) {
       saveProfileToSupabase({
-        userId:          userIdRef.current,
-        name:            updated.name,
-        childrenCount:   childrenCount,
-        childrenAges:    childrenAges,
-        reminderTime:    updated.reminderTime,
-        focusAreas:      focusAreas,
-        familyStructure: updated.familyStructure ?? 'prefer_not_to_say',
-        language:        updated.language ?? 'English',
+        userId:           userIdRef.current,
+        name:             updated.name,
+        childrenCount:    childrenCount,
+        childrenAges:     childrenAges,
+        reminderTime:     updated.reminderTime,
+        focusAreas:       focusAreas,
+        familyStructure:  updated.familyStructure ?? 'prefer_not_to_say',
+        language:         updated.language ?? 'English',
+        raisedIn:         updated.raisedIn    ?? [],
+        raisingIn:        updated.raisingIn   ?? null,
+        communities:      updated.communities ?? [],
+        isWorkingParent:  updated.isWorkingParent  ?? null,
+        workHoursPerWeek: updated.workHoursPerWeek ?? null,
       });
     }
   }
@@ -835,6 +1162,86 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* ── Cultural Background ── */}
+        <Text style={styles.sectionTitle}>CULTURAL BACKGROUND</Text>
+        <View style={styles.sectionBlock}>
+          <SettingsCard>
+            <SettingRow
+              icon="earth-outline"
+              iconBg="#E8F5EF"
+              iconColor="#2E7D62"
+              title="Where you were raised"
+              value={raisedIn.length > 0 ? raisedIn.join(', ') : 'Not set'}
+              onPress={() => setShowCultureRaisedModal(true)}
+            />
+            <SettingRow
+              icon="home-outline"
+              iconBg="#E8F5EF"
+              iconColor="#2E7D62"
+              title="Where you're raising your children"
+              value={raisingIn ?? 'Not set'}
+              onPress={() => setShowCultureRaisingModal(true)}
+              last
+            />
+          </SettingsCard>
+        </View>
+
+        {/* ── My Community ── */}
+        <Text style={styles.sectionTitle}>MY COMMUNITY</Text>
+        <View style={styles.sectionBlock}>
+          <TouchableOpacity style={styles.communityCard} onPress={() => setShowCommunitiesModal(true)} activeOpacity={0.85}>
+            {communities.length === 0 ? (
+              <Text style={styles.communityEmpty}>No mosques or organisations added yet. Tap to add.</Text>
+            ) : (
+              <View style={styles.communityChips}>
+                {communities.map(c => (
+                  <View key={c.placeId ?? c.name} style={styles.communityChip}>
+                    <Ionicons name="business-outline" size={12} color="#2E7D62" />
+                    <Text style={styles.communityChipText} numberOfLines={1}>{c.name}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            <Ionicons name="pencil-outline" size={15} color="#2E7D62" style={{ marginTop: 8 }} />
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Work Details ── */}
+        <Text style={styles.sectionTitle}>WORK & AVAILABILITY</Text>
+        <View style={styles.sectionBlock}>
+          <SettingsCard>
+            <SettingRow
+              icon="briefcase-outline"
+              iconBg="#FDF3E3"
+              iconColor="#D4871A"
+              title="Working parent"
+              value={isWorkingParent === true ? 'Yes' : isWorkingParent === false ? 'No' : 'Not set'}
+              onPress={() => Alert.alert('Working Parent', 'Are you currently a working parent?', [
+                { text: 'Yes', onPress: () => saveProfile({ isWorkingParent: true }) },
+                { text: 'No',  onPress: () => saveProfile({ isWorkingParent: false }) },
+                { text: 'Cancel', style: 'cancel' },
+              ])}
+            />
+            <SettingRow
+              icon="time-outline"
+              iconBg="#FDF3E3"
+              iconColor="#D4871A"
+              title="Hours worked per week"
+              value={workHoursPerWeek
+                ? HOUR_RANGES.find(h => h.value === workHoursPerWeek)?.label ?? workHoursPerWeek
+                : 'Not set'}
+              onPress={() => Alert.alert('Hours Per Week', 'How many hours do you work per week?',
+                [...HOUR_RANGES.map(h => ({
+                  text: `${h.label} — ${h.sub}`,
+                  onPress: () => saveProfile({ workHoursPerWeek: h.value }),
+                })),
+                { text: 'Cancel', style: 'cancel' }]
+              )}
+              last
+            />
+          </SettingsCard>
+        </View>
+
         {/* ── Preferences ── */}
         <Text style={styles.sectionTitle}>PREFERENCES</Text>
         <View style={styles.sectionBlock}>
@@ -968,6 +1375,34 @@ export default function ProfileScreen() {
         onClose={() => setShowChildrenEditor(false)}
         onConfirm={handleSaveChildren}
       />
+
+      {/* ── Cultural background — raised in ── */}
+      <CountryPickerModal
+        visible={showCultureRaisedModal}
+        title="Where were you raised?"
+        multiSelect
+        selected={raisedIn}
+        onConfirm={val => { saveProfile({ raisedIn: val }); setShowCultureRaisedModal(false); }}
+        onClose={() => setShowCultureRaisedModal(false)}
+      />
+
+      {/* ── Cultural background — raising in ── */}
+      <CountryPickerModal
+        visible={showCultureRaisingModal}
+        title="Where are you raising your children?"
+        multiSelect={false}
+        selected={raisingIn ? [raisingIn] : []}
+        onConfirm={val => { saveProfile({ raisingIn: val[0] ?? null }); setShowCultureRaisingModal(false); }}
+        onClose={() => setShowCultureRaisingModal(false)}
+      />
+
+      {/* ── Communities ── */}
+      <CommunitiesModal
+        visible={showCommunitiesModal}
+        selected={communities}
+        onConfirm={val => { saveProfile({ communities: val }); setShowCommunitiesModal(false); }}
+        onClose={() => setShowCommunitiesModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -1059,6 +1494,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3, marginBottom: 10,
   },
   sectionBlock: { marginBottom: 24 },
+  communityCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14,
+    borderWidth: 1, borderColor: '#E5E7EB',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
+  communityEmpty: { fontSize: 13, color: '#9CA3AF', lineHeight: 19 },
+  communityChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  communityChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 6,
+  },
+  communityChipText: { fontSize: 13, color: '#2E7D62', fontWeight: '600' },
 
   // ── Profile card ──
   profileCard: {
