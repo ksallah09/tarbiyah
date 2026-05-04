@@ -650,7 +650,7 @@ export default function DashboardsScreen({ navigation, route }) {
             <Text style={styles.sectionLabel}>THIS WEEK</Text>
 
             {/* ── Habits — 1 primary per area, expandable ── */}
-            <View style={styles.weekBlock}>
+            <View style={[styles.weekBlock, { backgroundColor: '#EDF7F2' }]}>
               <View style={styles.weekBlockHeaderHabit}>
                 <View style={styles.weekBlockIconHabit}>
                   <Ionicons name="repeat-outline" size={15} color="#1B4D3E" />
@@ -667,7 +667,7 @@ export default function DashboardsScreen({ navigation, route }) {
                 if (!habits.length) return null;
                 const currentPage = activityPages[`h_${area.id}`] ?? 0;
                 return (
-                  <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingBottom: 4, marginBottom: 4 }]}>
+                  <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#C6E8D4', paddingBottom: 4, marginBottom: 4 }]}>
                     {focusAreas.length > 1 && (
                       <View style={styles.habitAreaLabel}>
                         <View style={[styles.habitAreaDot, { backgroundColor: child.color }]} />
@@ -690,7 +690,7 @@ export default function DashboardsScreen({ navigation, route }) {
                         const wisdomOpen = expandedWisdom.has(key);
                         const count    = completionCounts[doneKey] ?? 0;
                         return (
-                          <View key={i} style={[styles.activitySwipeCard, { width: ACTIVITY_CARD_WIDTH, backgroundColor: '#F6FBF8', borderTopColor: '#D4EDE2' }]}>
+                          <View key={i} style={[styles.activitySwipeCard, { width: ACTIVITY_CARD_WIDTH, backgroundColor: '#EDF7F2', borderTopColor: '#C6E8D4' }]}>
                             <View style={styles.activityCardTop}>
                               <View style={[styles.weekNumBadgeDefault, styles.weekNumBadge]}>
                                 <Text style={[styles.weekNumText, { color: '#2E7D62' }]}>{i + 1}</Text>
@@ -739,7 +739,7 @@ export default function DashboardsScreen({ navigation, route }) {
             </View>
 
             {/* ── Activities — swipeable cards per area ── */}
-            <View style={[styles.weekBlock, { marginBottom: 4 }]}>
+            <View style={[styles.weekBlock, { marginBottom: 4, backgroundColor: '#FEF8EE' }]}>
               <View style={styles.weekBlockHeaderActivity}>
                 <View style={styles.weekBlockIconActivity}>
                   <Ionicons name="color-palette-outline" size={15} color="#92400E" />
@@ -756,7 +756,7 @@ export default function DashboardsScreen({ navigation, route }) {
                 const currentPage = activityPages[area.id] ?? 0;
                 const isLastArea  = areaIdx === focusAreas.length - 1;
                 return (
-                  <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingBottom: 12, marginBottom: 4 }]}>
+                  <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#F5DFB8', paddingBottom: 12, marginBottom: 4 }]}>
                     {focusAreas.length > 1 && (
                       <View style={styles.habitAreaLabel}>
                         <View style={[styles.habitAreaDot, { backgroundColor: '#B45309' }]} />
@@ -1177,7 +1177,7 @@ const styles = StyleSheet.create({
 
   // Swipeable activity cards
   activitySwipeCard: {
-    backgroundColor: '#FFFBF4',
+    backgroundColor: '#FEF8EE',
     borderRadius: 0, padding: 16,
     borderTopWidth: 1, borderTopColor: '#F5DFB8',
   },
