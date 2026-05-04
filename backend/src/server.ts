@@ -733,6 +733,65 @@ Respond with JSON only (no markdown). Keep total response 300–500 words:
   }
 });
 
+// ─── POST /incident/coach ─────────────────────────────────────────────────────
+
+app.post('/incident/coach', async (req: Request, res: Response) => {
+  try {
+    const { incidentText, childAge, childName, focusAreas } = req.body as {
+      incidentText: string;
+      childAge?: string | number;
+      childName?: string;
+      focusAreas?: string[];
+    };
+    if (!incidentText?.trim()) return res.status(400).json({ error: 'incidentText is required.' });
+
+    const sourceContext = await buildModuleSourceContext(incidentText.trim());
+
+    const systemPrompt = `You are Tarbiyah AI, a wise and compassionate Muslim parenting coach. A parent has just logged a difficult parenting moment. Give them brief, grounded, practical coaching — rooted in Islamic wisdom and the knowledge base below.
+
+SOURCE RULES: Use the knowledge base as your primary authority. If not directly covered, draw on sound Islamic tarbiyah principles and established child development knowledge. Never invent hadith, citations, or statistics.
+
+TONE: Warm, non-judgmental, wise, brief, specific. Never generic. Speak to this parent, this child, this moment.
+
+=== KNOWLEDGE BASE ===
+${sourceContext}`;
+
+    const focusContext = focusAreas?.length ? `\nCurrent focus areas: ${focusAreas.join(', ')}` : '';
+    const userPrompt = `A parent just logged this incident about their child${childName ? ` (${childName})` : ''}${childAge ? `, age ${childAge}` : ''}:
+
+"${incidentText.trim()}"${focusContext}
+
+Respond with JSON only — no markdown, no preamble:
+{
+  "acknowledgment": "1-2 sentences. Acknowledge what the parent experienced — name the difficulty without judgment. Make them feel seen, not shamed.",
+  "islamicAngle": "1-2 sentences. A specific Islamic principle, hadith wisdom, or Quranic angle that reframes or speaks directly to this moment. Must feel precise, not generic. No citations.",
+  "action": "1-2 sentences. One specific, concrete thing the parent can try right now or today. Explain briefly why it works for this child/situation."
+}`;
+
+    function cleanJson(raw: string): string {
+      let s = raw.trim();
+      if (s.startsWith('```')) s = s.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '').trim();
+      const start = s.indexOf('{');
+      if (start > 0) s = s.slice(start);
+      return s;
+    }
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_FAST, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    } catch {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    const parsed = JSON.parse(cleanJson(raw));
+    return res.json(parsed);
+  } catch (err) {
+    console.error('POST /incident/coach error:', err);
+    return res.status(500).json({ error: 'Failed to generate coaching.' });
+  }
+});
+
 // ─── GET /trending/challenges ─────────────────────────────────────────────────
 
 const CHALLENGE_CATEGORIES = [

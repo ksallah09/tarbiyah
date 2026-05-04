@@ -76,6 +76,8 @@ export default function DashboardsScreen({ navigation, route }) {
   const [incidentModalVisible, setIncidentModalVisible] = useState(false);
   const [winText,      setWinText]      = useState('');
   const [incidentText, setIncidentText] = useState('');
+  const [coachingResponses, setCoachingResponses] = useState({});
+  const [coachingLoading,   setCoachingLoading]   = useState(new Set());
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
 
@@ -145,6 +147,30 @@ export default function DashboardsScreen({ navigation, route }) {
     getAllChildProfiles().then(setChildren);
   }
 
+  async function fetchCoaching(entryId, text, currentChild) {
+    setCoachingLoading(prev => new Set([...prev, entryId]));
+    try {
+      const focusAreas = (currentChild?.growthAreas ?? []).slice(0, 3).map(a => a.title).filter(Boolean);
+      const res = await fetch('https://tarbiyah-production.up.railway.app/incident/coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          incidentText: text,
+          childAge: currentChild?.age,
+          childName: currentChild?.name,
+          focusAreas,
+        }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setCoachingResponses(prev => ({ ...prev, [entryId]: data }));
+    } catch {
+      // silently skip — coaching is supplemental
+    } finally {
+      setCoachingLoading(prev => { const next = new Set(prev); next.delete(entryId); return next; });
+    }
+  }
+
   async function addIncident() {
     const text = incidentText.trim();
     if (!text || !child) return;
@@ -154,6 +180,7 @@ export default function DashboardsScreen({ navigation, route }) {
     setIncidentText('');
     setIncidentModalVisible(false);
     getAllChildProfiles().then(setChildren);
+    fetchCoaching(entry.id, text, child);
   }
 
   async function deleteIncident(id) {
@@ -700,18 +727,48 @@ export default function DashboardsScreen({ navigation, route }) {
               <Text style={styles.emptyPromptBody}>Incidents give the app context about recurring patterns. The more you log, the more personalised the coaching becomes for {child.name}.</Text>
             </View>
           </View>
-        ) : incidents.map(inc => (
-          <View key={inc.id} style={styles.entryCard}>
-            <Ionicons name="alert-circle" size={14} color="#9CA3AF" style={{ marginTop: 2 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.entryText}>{inc.text}</Text>
-              <Text style={styles.entryDate}>{new Date(inc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+        ) : incidents.map(inc => {
+          const coaching = coachingResponses[inc.id];
+          const loading  = coachingLoading.has(inc.id);
+          return (
+            <View key={inc.id}>
+              <View style={styles.entryCard}>
+                <Ionicons name="alert-circle" size={14} color="#9CA3AF" style={{ marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.entryText}>{inc.text}</Text>
+                  <Text style={styles.entryDate}>{new Date(inc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+                </View>
+                <TouchableOpacity onPress={() => Alert.alert('Delete report', 'Remove this entry?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteIncident(inc.id) }])}>
+                  <Ionicons name="trash-outline" size={15} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+              {loading && (
+                <View style={[styles.coachingCard, { alignItems: 'center' }]}>
+                  <ActivityIndicator size="small" color="#2E7D62" />
+                  <Text style={styles.coachingLoadingText}>Getting coaching response…</Text>
+                </View>
+              )}
+              {!loading && coaching && (
+                <View style={[styles.coachingCard, { flexDirection: 'column' }]}>
+                  <View style={styles.coachingHeader}>
+                    <Ionicons name="sparkles" size={13} color="#2E7D62" />
+                    <Text style={styles.coachingHeaderText}>TARBIYAH COACHING</Text>
+                  </View>
+                  <Text style={styles.coachingAck}>{coaching.acknowledgment}</Text>
+                  <View style={styles.coachingDivider} />
+                  <View style={styles.coachingRow}>
+                    <Ionicons name="moon-outline" size={13} color="#2E7D62" style={{ marginTop: 2 }} />
+                    <Text style={styles.coachingBody}>{coaching.islamicAngle}</Text>
+                  </View>
+                  <View style={[styles.coachingRow, { marginBottom: 0 }]}>
+                    <Ionicons name="arrow-forward-circle-outline" size={13} color="#2E7D62" style={{ marginTop: 2 }} />
+                    <Text style={styles.coachingBody}>{coaching.action}</Text>
+                  </View>
+                </View>
+              )}
             </View>
-            <TouchableOpacity onPress={() => Alert.alert('Delete report', 'Remove this entry?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteIncident(inc.id) }])}>
-              <Ionicons name="trash-outline" size={15} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
-        ))}
+          );
+        })}
 
         {/* Wins modal */}
         <Modal visible={winModalVisible} transparent animationType="fade" onRequestClose={() => setWinModalVisible(false)}>
@@ -1099,6 +1156,25 @@ const styles = StyleSheet.create({
   },
   entryText: { fontSize: 13, color: '#1A1A2E', lineHeight: 19, marginBottom: 3 },
   entryDate: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
+
+  coachingCard: {
+    backgroundColor: '#EDF7F2',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: -4,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#C6E8D4',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  coachingLoadingText: { fontSize: 12, color: '#2E7D62', fontWeight: '500', marginLeft: 10 },
+  coachingHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  coachingHeaderText: { fontSize: 10, fontWeight: '800', color: '#2E7D62', letterSpacing: 1 },
+  coachingAck: { fontSize: 13, color: '#1B4D3E', lineHeight: 20, marginBottom: 10 },
+  coachingDivider: { height: 1, backgroundColor: '#C6E8D4', marginBottom: 10 },
+  coachingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+  coachingBody: { flex: 1, fontSize: 12, color: '#1B4D3E', lineHeight: 19 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
