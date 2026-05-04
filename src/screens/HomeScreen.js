@@ -612,12 +612,12 @@ export default function HomeScreen({ navigation }) {
                         <View style={styles.cpStats}>
                           <View style={styles.cpStatItem}>
                             <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{habits}</Text>
-                            <Text style={styles.cpStatLabel}>Habits</Text>
+                            <Text style={styles.cpStatLabel}>Habits Done</Text>
                           </View>
                           <View style={styles.cpStatDivider} />
                           <View style={styles.cpStatItem}>
                             <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{activities}</Text>
-                            <Text style={styles.cpStatLabel}>Activities</Text>
+                            <Text style={styles.cpStatLabel}>Activities Done</Text>
                           </View>
                         </View>
                       ) : (
