@@ -29,7 +29,7 @@ import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { saveGoalsForDate } from '../utils/goalHistory';
 import TypewriterText from '../components/TypewriterText';
 import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
-import { refreshDailyNotification } from '../utils/notifications';
+import { refreshDailyNotification, scheduleChildHabitNotifications } from '../utils/notifications';
 import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
 import { getAllChildProfiles } from '../utils/childProfiles';
@@ -239,6 +239,7 @@ export default function HomeScreen({ navigation }) {
         setImgIndex(Math.floor(Date.now() / 86_400_000));
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(dataWithLocalDate));
         await refreshDailyNotification();
+        scheduleChildHabitNotifications().catch(() => {});
         saveGoalsForDate(data.date, data.actionGoals ?? []);
       }
     } catch {

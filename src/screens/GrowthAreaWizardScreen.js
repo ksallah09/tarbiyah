@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addGrowthArea } from '../utils/childProfiles';
 import { supabase } from '../utils/supabase';
-import { notifyGrowthPlanReady } from '../utils/notifications';
+import { notifyGrowthPlanReady, scheduleChildHabitNotifications } from '../utils/notifications';
 
 const PENDING_JOB_KEY = 'tarbiyah_pending_growth_plan_job';
 
@@ -216,6 +216,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           setSavedArea(growthArea);
           setAreasSaved(n => n + 1);
           notifyGrowthPlanReady(childName);
+          scheduleChildHabitNotifications().catch(() => {});
           fadeTo(STEP_DONE);
         } else if (data.status === 'failed') {
           clearInterval(pollRef.current);

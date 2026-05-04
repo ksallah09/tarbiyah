@@ -598,3 +598,143 @@ export async function notifyModuleReady(topic) {
     });
   } catch {}
 }
+
+// ─── Child habit & activity notifications (B + C + D) ─────────────────────────
+
+const HABIT_NOTIF_IDS_KEY    = 'tarbiyah_habit_notif_ids';
+const ACTIVITY_NOTIF_IDS_KEY = 'tarbiyah_activity_notif_ids';
+const CHILD_PROFILES_KEY     = 'tarbiyah_child_profiles';
+
+// Expo calendar trigger weekday: 1=Sun 2=Mon 3=Tue 4=Wed 5=Thu 6=Fri 7=Sat
+const DAY_META = {
+  sun: { weekday: 1, idx: 0 },
+  mon: { weekday: 2, idx: 1 },
+  tue: { weekday: 3, idx: 2 },
+  wed: { weekday: 4, idx: 3 },
+  thu: { weekday: 5, idx: 4 },
+  fri: { weekday: 6, idx: 5 },
+  sat: { weekday: 7, idx: 6 },
+};
+
+const SLOT_HOUR  = { morning: 9,  afternoon: 14, evening: 18 };
+const SLOT_EMOJI = { morning: '🌅', afternoon: '☀️', evening: '🌙' };
+
+function getCurrentWeekHabit(child) {
+  const area = (child?.growthAreas ?? [])[0];
+  if (!area?.plan?.length) return null;
+  const daysSince = Math.floor(
+    (Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000
+  );
+  const weekIdx = Math.min(Math.floor(daysSince / 7), area.plan.length - 1);
+  return area.plan[Math.max(0, weekIdx)]?.habits?.[0] ?? null;
+}
+
+function getCurrentWeekActivity(child) {
+  const area = (child?.growthAreas ?? [])[0];
+  if (!area?.plan?.length) return null;
+  const daysSince = Math.floor(
+    (Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000
+  );
+  const weekIdx = Math.min(Math.floor(daysSince / 7), area.plan.length - 1);
+  return area.plan[Math.max(0, weekIdx)]?.activities?.[0] ?? null;
+}
+
+function truncateToSentence(text, maxLen = 110) {
+  if (!text || text.length <= maxLen) return text ?? '';
+  const cut = text.slice(0, maxLen);
+  const boundary = Math.max(cut.lastIndexOf('.'), cut.lastIndexOf(','), cut.lastIndexOf(' '));
+  return boundary > maxLen * 0.6 ? cut.slice(0, boundary).trimEnd() + '…' : cut.trimEnd() + '…';
+}
+
+async function cancelByKey(key) {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return;
+    const ids = JSON.parse(raw);
+    await Promise.all(ids.map(id =>
+      Notifications.cancelScheduledNotificationAsync(id).catch(() => {})
+    ));
+    await AsyncStorage.removeItem(key);
+  } catch {}
+}
+
+export async function scheduleChildHabitNotifications() {
+  try {
+    const granted = await requestNotificationPermission();
+    if (!granted) return;
+
+    const [profileRaw, childrenRaw] = await Promise.all([
+      AsyncStorage.getItem(PROFILE_KEY),
+      AsyncStorage.getItem(CHILD_PROFILES_KEY),
+    ]);
+
+    const profile      = profileRaw  ? JSON.parse(profileRaw)  : {};
+    const children     = childrenRaw ? JSON.parse(childrenRaw) : [];
+    const availability = profile.availability ?? {};
+
+    if (profile.notifications === false) return;
+
+    await cancelByKey(HABIT_NOTIF_IDS_KEY);
+    await cancelByKey(ACTIVITY_NOTIF_IDS_KEY);
+
+    if (!children.length) return;
+
+    const habitIds = [];
+
+    // B + C: for each day the parent is available, schedule per-slot habit notifications
+    // rotating through children by day index
+    for (const [dayKey, { weekday, idx }] of Object.entries(DAY_META)) {
+      const slots = availability[dayKey] ?? [];
+      if (!slots.length) continue;
+
+      // C: rotate child by day index
+      const child = children[idx % children.length];
+      const habit = getCurrentWeekHabit(child);
+      const habitText = habit?.text
+        ? truncateToSentence(habit.text)
+        : `Check ${child.name}'s habit for today in the app.`;
+
+      for (const slot of slots) {
+        const hour  = SLOT_HOUR[slot];
+        const emoji = SLOT_EMOJI[slot];
+        if (!hour) continue;
+
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `${emoji} ${child.name} · Today's habit`,
+            body: habitText,
+            sound: true,
+            data: { screen: 'Dashboards', childId: child.id },
+            android: { channelId: 'default' },
+          },
+          trigger: { type: 'calendar', repeats: true, weekday, hour, minute: 0 },
+        });
+        habitIds.push(id);
+      }
+    }
+
+    await AsyncStorage.setItem(HABIT_NOTIF_IDS_KEY, JSON.stringify(habitIds));
+
+    // D: Friday 3pm — weekly activity preview, rotating child assigned to Friday
+    const fridayChild = children[DAY_META.fri.idx % children.length];
+    const activity    = getCurrentWeekActivity(fridayChild);
+    const activityText = activity?.text
+      ? `This week: ${truncateToSentence(activity.text, 105)}`
+      : `This week's activity for ${fridayChild.name} is ready — open the app to explore.`;
+
+    const activityId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `🎯 Weekend activity · ${fridayChild.name}`,
+        body: activityText,
+        sound: true,
+        data: { screen: 'Dashboards', childId: fridayChild.id },
+        android: { channelId: 'default' },
+      },
+      trigger: { type: 'calendar', repeats: true, weekday: 6, hour: 15, minute: 0 },
+    });
+
+    await AsyncStorage.setItem(ACTIVITY_NOTIF_IDS_KEY, JSON.stringify([activityId]));
+  } catch (err) {
+    console.error('scheduleChildHabitNotifications error:', err);
+  }
+}
