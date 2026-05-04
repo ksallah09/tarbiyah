@@ -571,15 +571,9 @@ export default function HomeScreen({ navigation }) {
                   const hasAreas = (child.growthAreas ?? []).length > 0;
                   const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
                   return (
-                    <TouchableOpacity
-                      key={child.id}
-                      style={[styles.childProgressCard, { backgroundColor: child.color }, idx > 0 && { marginTop: 10 }]}
-                      onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })}
-                      activeOpacity={0.85}
-                    >
-                      {/* Avatar + age */}
+                    <TouchableOpacity key={child.id} style={[styles.childProgressCard, { borderLeftColor: child.color }, idx > 0 && { marginTop: 8 }]} onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })} activeOpacity={0.82}>
                       <View style={styles.childProgressAvatarWrap}>
-                        <View style={styles.childProgressAvatar}>
+                        <View style={[styles.childProgressAvatar, { backgroundColor: child.color }]}>
                           {child.photo
                             ? <Image source={{ uri: child.photo }} style={styles.childProgressAvatarPhoto} />
                             : <Text style={styles.childProgressInitial}>{child.name[0]}</Text>
@@ -587,28 +581,26 @@ export default function HomeScreen({ navigation }) {
                         </View>
                         <Text style={styles.childProgressAge}>Age {child.age}</Text>
                       </View>
-                      {/* Name */}
                       <Text style={[styles.childProgressName, { flex: 1 }]}>{child.name}</Text>
-                      {/* Stats */}
                       {hasAreas ? (
                         <View style={styles.childProgressCounts}>
                           <View style={styles.childProgressCount}>
-                            <Text style={styles.childProgressNum}>{habits}</Text>
+                            <Text style={[styles.childProgressNum, { color: child.color }]}>{habits}</Text>
                             <Text style={styles.childProgressLabel}>Habits{'\n'}Logged</Text>
                           </View>
                           <View style={styles.childProgressDivider} />
                           <View style={styles.childProgressCount}>
-                            <Text style={styles.childProgressNum}>{activities}</Text>
+                            <Text style={[styles.childProgressNum, { color: '#B45309' }]}>{activities}</Text>
                             <Text style={styles.childProgressLabel}>Activities{'\n'}Logged</Text>
                           </View>
                         </View>
                       ) : (
                         <View style={styles.childProgressEmpty}>
-                          <Ionicons name="leaf-outline" size={13} color="rgba(255,255,255,0.4)" />
+                          <Ionicons name="leaf-outline" size={13} color="#C3DDD6" />
                           <Text style={styles.childProgressEmptyText}>No growth areas yet</Text>
                         </View>
                       )}
-                      <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
+                      <Ionicons name="chevron-forward" size={14} color="#D1D5DB" />
                     </TouchableOpacity>
                   );
                 })
@@ -1369,41 +1361,50 @@ const styles = StyleSheet.create({
   // ── Streak card ──
   // Children progress cards
   childProgressCard: {
-    borderRadius: 18, padding: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12,
+    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
+    borderWidth: 1, borderColor: '#EEF0F2',
+    borderLeftWidth: 4,
     flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  childProgressHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1,
   },
   childProgressAvatarWrap: { alignItems: 'center', gap: 3, flexShrink: 0 },
   childProgressAvatar: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)',
   },
-  childProgressAvatarPhoto: { width: 46, height: 46, borderRadius: 23 },
-  childProgressInitial: { fontSize: 18, fontWeight: '800', color: '#FFF' },
-  childProgressName: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-  childProgressAge:  { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '500', textAlign: 'center' },
+  childProgressAvatarPhoto: { width: 44, height: 44, borderRadius: 22 },
+  childProgressInitial: { fontSize: 17, fontWeight: '800', color: '#FFF' },
+  childProgressName: { fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
+  childProgressAge:  { fontSize: 10, color: '#9CA3AF', fontWeight: '500', textAlign: 'center' },
   childProgressCounts: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 16,
   },
-  childProgressCount: { alignItems: 'center', gap: 1 },
+  childProgressCount: {
+    alignItems: 'center', gap: 2,
+  },
+  childProgressCountIcon: {
+    width: 28, height: 28, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
   childProgressNum: {
-    fontSize: 20, fontWeight: '800', color: '#FFFFFF', lineHeight: 24,
+    fontSize: 20, fontWeight: '800', color: '#2E7D62', lineHeight: 24,
   },
   childProgressLabel: {
-    fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '500', textAlign: 'center', lineHeight: 13,
+    fontSize: 10, color: '#9CA3AF', fontWeight: '500', textAlign: 'center', lineHeight: 13,
   },
   childProgressDivider: {
-    width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 1, height: 32, backgroundColor: '#F0F1F3',
   },
   childProgressEmpty: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1,
   },
   childProgressEmptyText: {
-    fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 16,
+    flex: 1, fontSize: 11, color: '#9CA3AF', lineHeight: 16,
   },
 
   streakCard: {
