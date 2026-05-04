@@ -32,7 +32,7 @@ export default function OnboardingFocusAreas({ navigation, route }) {
 
   function handleNext() {
     if (selected.length === 0) return;
-    navigation.navigate('OnboardingReminder', { ...data, focusAreas: selected });
+    navigation.navigate('OnboardingCulture', { ...data, focusAreas: selected });
   }
 
   return (

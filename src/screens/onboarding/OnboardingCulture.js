@@ -44,7 +44,7 @@ export default function OnboardingCulture({ navigation, route }) {
   }
 
   function handleNext() {
-    navigation.navigate('OnboardingFocusAreas', {
+    navigation.navigate('OnboardingReminder', {
       ...data,
       raisedIn,
       raisingIn,
@@ -52,7 +52,7 @@ export default function OnboardingCulture({ navigation, route }) {
   }
 
   function handleSkip() {
-    navigation.navigate('OnboardingFocusAreas', { ...data, raisedIn: [], raisingIn: null });
+    navigation.navigate('OnboardingReminder', { ...data, raisedIn: [], raisingIn: null });
   }
 
   const filteredRaised  = raisedQuery.trim()

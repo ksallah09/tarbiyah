@@ -60,7 +60,7 @@ export default function OnboardingAvailability({ navigation, route }) {
   const canContinue   = totalSelected > 0;
 
   function handleNext() {
-    navigation.navigate('OnboardingCulture', { ...data, availability: selected });
+    navigation.navigate('OnboardingFocusAreas', { ...data, availability: selected });
   }
 
   // Layout math: screen width minus outer padding, card inner padding, label col, and 6 gaps
