@@ -309,6 +309,131 @@ function SettingsCard({ children }) {
   return <View style={styles.settingsCard}>{children}</View>;
 }
 
+// ── Availability modal ────────────────────────────────────────────────────────
+const AV_DAYS  = [
+  { key: 'mon', label: 'Mon' }, { key: 'tue', label: 'Tue' },
+  { key: 'wed', label: 'Wed' }, { key: 'thu', label: 'Thu' },
+  { key: 'fri', label: 'Fri' }, { key: 'sat', label: 'Sat' },
+  { key: 'sun', label: 'Sun' },
+];
+const AV_SLOTS = [
+  { key: 'morning',   label: 'Morning',   icon: 'sunny-outline' },
+  { key: 'afternoon', label: 'Afternoon', icon: 'partly-sunny-outline' },
+  { key: 'evening',   label: 'Evening',   icon: 'moon-outline' },
+];
+
+function AvailabilityModal({ visible, value, onConfirm, onClose }) {
+  const [local, setLocal] = useState({});
+  const { width } = require('react-native').Dimensions.get('window');
+
+  useEffect(() => { if (visible) setLocal(value ?? {}); }, [visible]);
+
+  function toggle(dayKey, slotKey) {
+    setLocal(prev => {
+      const cur = prev[dayKey] ?? [];
+      const next = cur.includes(slotKey) ? cur.filter(s => s !== slotKey) : [...cur, slotKey];
+      return { ...prev, [dayKey]: next };
+    });
+  }
+
+  function selectAll() {
+    const all = {};
+    AV_DAYS.forEach(d => { all[d.key] = AV_SLOTS.map(s => s.key); });
+    setLocal(all);
+  }
+
+  function clearAll() { setLocal({}); }
+
+  const totalSelected = Object.values(local).flat().length;
+  const allSelected   = totalSelected === AV_DAYS.length * AV_SLOTS.length;
+
+  const LABEL_COL = 56;
+  const GAP       = 4;
+  const cellSize  = Math.floor((width - 48 - 32 - LABEL_COL - GAP * 6) / 7);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={avStyles.overlay} activeOpacity={1} onPress={onClose} />
+      <View style={avStyles.sheet}>
+        <View style={avStyles.handle} />
+        <View style={avStyles.titleRow}>
+          <Text style={avStyles.title}>Time with your kids</Text>
+          <TouchableOpacity onPress={allSelected ? clearAll : selectAll} activeOpacity={0.7}>
+            <Text style={avStyles.selectAll}>{allSelected ? 'Clear all' : 'Select all'}</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={avStyles.hint}>Tap the times you're typically with the kids.</Text>
+
+        {/* Header row */}
+        <View style={avStyles.headerRow}>
+          <View style={{ width: LABEL_COL }} />
+          {AV_DAYS.map(d => (
+            <View key={d.key} style={[avStyles.dayHeader, { width: cellSize }]}>
+              <Text style={avStyles.dayLabel}>{d.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Slot rows */}
+        {AV_SLOTS.map(slot => (
+          <View key={slot.key} style={avStyles.slotRow}>
+            <View style={[avStyles.slotLabelWrap, { width: LABEL_COL }]}>
+              <Ionicons name={slot.icon} size={12} color="#6B7280" />
+              <Text style={avStyles.slotLabel}>{slot.label}</Text>
+            </View>
+            {AV_DAYS.map(d => {
+              const active = (local[d.key] ?? []).includes(slot.key);
+              return (
+                <TouchableOpacity
+                  key={d.key}
+                  style={[avStyles.cell, { width: cellSize, height: cellSize }, active && avStyles.cellActive]}
+                  onPress={() => toggle(d.key, slot.key)}
+                  activeOpacity={0.7}
+                >
+                  {active && <Ionicons name="checkmark" size={11} color="#FFF" />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
+
+        {totalSelected > 0 && (
+          <Text style={avStyles.summary}>{totalSelected} slot{totalSelected !== 1 ? 's' : ''} selected</Text>
+        )}
+
+        <TouchableOpacity style={avStyles.confirmBtn} onPress={() => onConfirm(local)} activeOpacity={0.85}>
+          <Text style={avStyles.confirmBtnText}>Save</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
+const avStyles = StyleSheet.create({
+  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet:    { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
+  handle:   { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  title:    { fontSize: 17, fontWeight: '700', color: '#1A1A2E' },
+  selectAll:{ fontSize: 13, fontWeight: '600', color: '#2E7D62' },
+  hint:     { fontSize: 12, color: '#9CA3AF', marginBottom: 16 },
+  headerRow:{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  dayHeader:{ alignItems: 'center' },
+  dayLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF' },
+  slotRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  slotLabelWrap: { flexDirection: 'column', alignItems: 'flex-start', gap: 2 },
+  slotLabel:{ fontSize: 9, fontWeight: '600', color: '#9CA3AF' },
+  cell: {
+    borderRadius: 6, backgroundColor: '#F3F4F6',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  cellActive: { backgroundColor: '#2E7D62', borderColor: '#2E7D62' },
+  summary:  { fontSize: 13, color: '#2E7D62', fontWeight: '600', marginTop: 12, marginBottom: 4 },
+  confirmBtn: { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
+  confirmBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+});
+
 // ── Country picker modal ──────────────────────────────────────────────────────
 function CountryPickerModal({ visible, title, multiSelect, selected, onConfirm, onClose }) {
   const [local,     setLocal]     = useState([]);
@@ -635,10 +760,11 @@ export default function ProfileScreen() {
   const [communities,          setCommunities]          = useState([]);
   const [isWorkingParent,      setIsWorkingParent]      = useState(null);
   const [workHoursPerWeek,     setWorkHoursPerWeek]     = useState(null);
+  const [availability,           setAvailability]           = useState({});
   const [showCultureRaisedModal,  setShowCultureRaisedModal]  = useState(false);
   const [showCultureRaisingModal, setShowCultureRaisingModal] = useState(false);
   const [showCommunitiesModal,    setShowCommunitiesModal]    = useState(false);
-  const [showWorkModal,           setShowWorkModal]           = useState(false);
+  const [showAvailabilityModal,   setShowAvailabilityModal]   = useState(false);
   const userIdRef = useRef(null);
 
   useFocusEffect(useCallback(() => {
@@ -675,6 +801,7 @@ export default function ProfileScreen() {
         if (localProfile.communities)                 setCommunities(localProfile.communities);
         if (localProfile.isWorkingParent !== undefined) setIsWorkingParent(localProfile.isWorkingParent);
         if (localProfile.workHoursPerWeek)            setWorkHoursPerWeek(localProfile.workHoursPerWeek);
+        if (localProfile.availability)                setAvailability(localProfile.availability);
       }
       if (onboardingRaw) {
         localOnboarding = JSON.parse(onboardingRaw);
@@ -767,6 +894,7 @@ export default function ProfileScreen() {
     if (patch.communities      !== undefined) setCommunities(patch.communities);
     if (patch.isWorkingParent  !== undefined) setIsWorkingParent(patch.isWorkingParent);
     if (patch.workHoursPerWeek !== undefined) setWorkHoursPerWeek(patch.workHoursPerWeek);
+    if (patch.availability     !== undefined) setAvailability(patch.availability);
     if (userIdRef.current) {
       saveProfileToSupabase({
         userId:           userIdRef.current,
@@ -777,11 +905,12 @@ export default function ProfileScreen() {
         focusAreas:       focusAreas,
         familyStructure:  updated.familyStructure ?? 'prefer_not_to_say',
         language:         updated.language ?? 'English',
-        raisedIn:         updated.raisedIn    ?? [],
-        raisingIn:        updated.raisingIn   ?? null,
-        communities:      updated.communities ?? [],
+        raisedIn:         updated.raisedIn         ?? [],
+        raisingIn:        updated.raisingIn        ?? null,
+        communities:      updated.communities      ?? [],
         isWorkingParent:  updated.isWorkingParent  ?? null,
         workHoursPerWeek: updated.workHoursPerWeek ?? null,
+        availability:     updated.availability     ?? null,
       });
     }
   }
@@ -1224,19 +1353,31 @@ export default function ProfileScreen() {
             />
             <SettingRow
               icon="time-outline"
-              iconBg="#FDF3E3"
-              iconColor="#D4871A"
+              iconBg={isWorkingParent === false ? '#F3F4F6' : '#FDF3E3'}
+              iconColor={isWorkingParent === false ? '#D1D5DB' : '#D4871A'}
               title="Hours worked per week"
-              value={workHoursPerWeek
+              value={isWorkingParent === false ? 'N/A' : workHoursPerWeek
                 ? HOUR_RANGES.find(h => h.value === workHoursPerWeek)?.label ?? workHoursPerWeek
                 : 'Not set'}
-              onPress={() => Alert.alert('Hours Per Week', 'How many hours do you work per week?',
+              onPress={isWorkingParent === false ? null : () => Alert.alert('Hours Per Week', 'How many hours do you work per week?',
                 [...HOUR_RANGES.map(h => ({
                   text: `${h.label} — ${h.sub}`,
                   onPress: () => saveProfile({ workHoursPerWeek: h.value }),
                 })),
                 { text: 'Cancel', style: 'cancel' }]
               )}
+              disabled={isWorkingParent === false}
+            />
+            <SettingRow
+              icon="calendar-outline"
+              iconBg="#FDF3E3"
+              iconColor="#D4871A"
+              title="Time with your kids"
+              value={(() => {
+                const slots = Object.values(availability ?? {}).flat();
+                return slots.length > 0 ? `${slots.length} slot${slots.length !== 1 ? 's' : ''} selected` : 'Not set';
+              })()}
+              onPress={() => setShowAvailabilityModal(true)}
               last
             />
           </SettingsCard>
@@ -1402,6 +1543,14 @@ export default function ProfileScreen() {
         selected={communities}
         onConfirm={val => { saveProfile({ communities: val }); setShowCommunitiesModal(false); }}
         onClose={() => setShowCommunitiesModal(false)}
+      />
+
+      {/* ── Availability ── */}
+      <AvailabilityModal
+        visible={showAvailabilityModal}
+        value={availability}
+        onConfirm={val => { saveProfile({ availability: val }); setShowAvailabilityModal(false); }}
+        onClose={() => setShowAvailabilityModal(false)}
       />
     </SafeAreaView>
   );

@@ -7,6 +7,7 @@ export async function saveProfileToSupabase({
   userId, name, childrenCount, childrenAges, reminderTime,
   focusAreas, familyStructure, language,
   parentRole, isWorkingParent, workHoursPerWeek, availability,
+  raisedIn, raisingIn, communities,
 }) {
   const { error } = await supabase
     .from('profiles')
@@ -23,6 +24,9 @@ export async function saveProfileToSupabase({
       is_working_parent:    isWorkingParent     ?? null,
       work_hours_per_week:  workHoursPerWeek    ?? null,
       availability:         availability        ?? null,
+      raised_in:            raisedIn            ?? [],
+      raising_in:           raisingIn           ?? null,
+      communities:          communities         ?? [],
     }, { onConflict: 'user_id' });
   return error;
 }
@@ -48,6 +52,9 @@ export async function syncProfileFromSupabase(userId) {
       isWorkingParent:   data.is_working_parent  ?? null,
       workHoursPerWeek:  data.work_hours_per_week ?? null,
       availability:      data.availability       ?? null,
+      raisedIn:          data.raised_in          ?? [],
+      raisingIn:         data.raising_in         ?? null,
+      communities:       data.communities        ?? [],
     })),
     saveOnboardingData({
       name:          data.name,
