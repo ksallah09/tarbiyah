@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 let captureRef = null;
 try { captureRef = require('react-native-view-shot').captureRef; } catch {}
-import * as Sharing from 'expo-sharing';
+let Sharing = null;
+try { Sharing = require('expo-sharing'); } catch {}
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const TIP_CARD_WIDTH = SCREEN_WIDTH - 80; // 20 left inset + 12 gap + 48 peek
@@ -165,7 +166,7 @@ export default function HomeScreen({ navigation }) {
     try {
       if (!captureRef) { Alert.alert('Sharing unavailable', 'Please rebuild the app to enable image sharing.'); setDuaSharing(false); return; }
       const uri = await captureRef(duaShareCardRef, { format: 'jpg', quality: 0.95 });
-      const canShare = await Sharing.isAvailableAsync();
+      const canShare = Sharing && await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(uri, { mimeType: 'image/jpeg', dialogTitle: 'Share Dua' });
       } else {

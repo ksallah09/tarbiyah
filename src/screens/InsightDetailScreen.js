@@ -17,7 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 let captureRef = null;
 try { captureRef = require('react-native-view-shot').captureRef; } catch {}
-import * as Sharing from 'expo-sharing';
+let Sharing = null;
+try { Sharing = require('expo-sharing'); } catch {}
 import { saveInsight, unsaveInsight, isInsightSaved } from '../utils/savedInsights';
 import { markAsRead, isReadToday } from '../utils/readInsights';
 import { rs, hp } from '../utils/responsive';
@@ -74,7 +75,7 @@ export default function InsightDetailScreen({ route, navigation }) {
     try {
       if (!captureRef) { Alert.alert('Sharing unavailable', 'Please rebuild the app to enable image sharing.'); setSharing(false); return; }
       const uri = await captureRef(shareCardRef, { format: 'jpg', quality: 0.95 });
-      const canShare = await Sharing.isAvailableAsync();
+      const canShare = Sharing && await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(uri, { mimeType: 'image/jpeg', dialogTitle: 'Share Insight' });
       } else {
