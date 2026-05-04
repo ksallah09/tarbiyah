@@ -1373,8 +1373,9 @@ const styles = StyleSheet.create({
   // Children progress cards — two-tone
   childProgressCard: {
     borderRadius: 18, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09, shadowRadius: 10, elevation: 4,
+    borderWidth: 1, borderColor: '#E2EDE9',
+    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1, shadowRadius: 10, elevation: 4,
   },
   cpHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -1392,7 +1393,7 @@ const styles = StyleSheet.create({
   cpAge:  { fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
   cpBody: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F0F7F4', paddingHorizontal: 14, paddingVertical: 14,
+    backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 14,
   },
   cpStat:       { flex: 1, alignItems: 'center' },
   cpStatNum:    { fontSize: 22, fontWeight: '800', lineHeight: 26 },
