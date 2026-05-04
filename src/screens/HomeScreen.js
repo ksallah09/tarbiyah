@@ -558,70 +558,77 @@ export default function HomeScreen({ navigation }) {
               <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
                 <Text style={styles.sectionTitle}>CHILDREN'S PROGRESS THIS WEEK</Text>
               </View>
-              {children.length === 0 ? (
-                <View style={styles.childEmptyCard}>
-                  <View style={styles.childEmptyTop}>
+
+              <View style={styles.cpCard}>
+                {/* Card header */}
+                <View style={styles.cpCardHeader}>
+                  <View style={styles.powerDotOuter}>
+                    <View style={styles.powerDotInner} />
+                  </View>
+                  <Text style={styles.cpCardHeaderText}>This Week's Overview</Text>
+                </View>
+
+                {children.length === 0 ? (
+                  <View style={styles.cpCardEmpty}>
                     <View style={styles.childEmptyIconWrap}>
-                      <Ionicons name="people-outline" size={24} color="#1B3D2F" />
+                      <Ionicons name="people-outline" size={22} color="#1B3D2F" />
                     </View>
                     <Text style={styles.childEmptyLabel}>Add your children</Text>
                     <Text style={styles.childEmptySub}>Track habits, activities, and growth — all in one place.</Text>
+                    <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('AddChildWizard')} activeOpacity={0.75}>
+                      <Ionicons name="add-circle-outline" size={15} color="#1B3D2F" />
+                      <Text style={styles.childEmptyBtnText}>Add a Child</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('AddChildWizard')} activeOpacity={0.75}>
-                    <Ionicons name="add-circle-outline" size={16} color="#1B3D2F" />
-                    <Text style={styles.childEmptyBtnText}>Add a Child</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                children.map((child, idx) => {
+                ) : children.map((child, idx) => {
                   const hasAreas = (child.growthAreas ?? []).length > 0;
                   const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
+                  const isLast = idx === children.length - 1;
                   return (
                     <TouchableOpacity
                       key={child.id}
-                      style={[styles.childProgressCard, idx > 0 && { marginTop: 10 }]}
+                      style={[styles.cpRow, !isLast && styles.cpRowBorder]}
                       onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })}
-                      activeOpacity={0.85}
+                      activeOpacity={0.75}
                     >
-                      {/* Dark header zone */}
-                      <View style={[styles.cpHeader, { backgroundColor: '#1B3D2F' }]}>
-                        <View style={styles.cpAvatarCircle}>
-                          {child.photo
-                            ? <Image source={{ uri: child.photo }} style={styles.cpAvatarPhoto} />
-                            : <Text style={styles.cpAvatarInitial}>{child.name[0]}</Text>
-                          }
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.cpName}>{child.name}</Text>
-                          <Text style={styles.cpAge}>Age {child.age}</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.5)" />
+                      {/* Avatar */}
+                      <View style={[styles.cpAvatar, { backgroundColor: child.color }]}>
+                        {child.photo
+                          ? <Image source={{ uri: child.photo }} style={styles.cpAvatarPhoto} />
+                          : <Text style={styles.cpAvatarInitial}>{child.name[0]}</Text>
+                        }
                       </View>
-                      {/* White body zone */}
-                      <View style={styles.cpBody}>
-                        {hasAreas ? (
-                          <>
-                            <View style={styles.cpStat}>
-                              <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{habits}</Text>
-                              <Text style={styles.cpStatLabel}>Habits Logged</Text>
-                            </View>
-                            <View style={styles.cpDivider} />
-                            <View style={styles.cpStat}>
-                              <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{activities}</Text>
-                              <Text style={styles.cpStatLabel}>Activities Logged</Text>
-                            </View>
-                          </>
-                        ) : (
-                          <View style={styles.cpEmpty}>
-                            <Ionicons name="leaf-outline" size={13} color="#C3DDD6" />
-                            <Text style={styles.cpEmptyText}>Add a growth area to start tracking</Text>
+
+                      {/* Name + age */}
+                      <View style={styles.cpInfo}>
+                        <Text style={styles.cpName}>{child.name}</Text>
+                        <View style={styles.cpAgePill}>
+                          <Text style={styles.cpAgeText}>Age {child.age}</Text>
+                        </View>
+                      </View>
+
+                      {/* Stats */}
+                      {hasAreas ? (
+                        <View style={styles.cpStats}>
+                          <View style={styles.cpStatItem}>
+                            <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{habits}</Text>
+                            <Text style={styles.cpStatLabel}>Habits</Text>
                           </View>
-                        )}
-                      </View>
+                          <View style={styles.cpStatDivider} />
+                          <View style={styles.cpStatItem}>
+                            <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{activities}</Text>
+                            <Text style={styles.cpStatLabel}>Activities</Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <Text style={styles.cpNoAreas}>No growth area yet</Text>
+                      )}
+
+                      <Ionicons name="chevron-forward" size={13} color="#C3DDD6" />
                     </TouchableOpacity>
                   );
-                })
-              )}
+                })}
+              </View>
 
               {/* MONTHLY LEADERBOARD — only when partner sync is on */}
               {partnerSyncOn && (() => {
@@ -1375,38 +1382,44 @@ const styles = StyleSheet.create({
   },
   streakCountSub: { fontSize: 10, color: '#9CA3AF', fontWeight: '500' },
 
-  // ── Streak card ──
-  // Children progress cards — two-tone
-  childProgressCard: {
-    borderRadius: 18, overflow: 'hidden',
+  // ── Children progress unified card ──
+  cpCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 18,
     borderWidth: 1, borderColor: '#E2EDE9',
     shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1, shadowRadius: 10, elevation: 4,
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
+    overflow: 'hidden',
   },
-  cpHeader: {
+  cpCardHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderBottomWidth: 1, borderBottomColor: '#F0F4F2',
+    backgroundColor: '#F8FCFA',
+  },
+  cpCardHeaderText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+  cpCardEmpty: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 20, gap: 6 },
+  cpRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 13,
+    paddingHorizontal: 16, paddingVertical: 14,
   },
-  cpAvatarCircle: {
-    width: 44, height: 44, borderRadius: 22, overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  cpRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  cpAvatar: {
+    width: 46, height: 46, borderRadius: 23,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+    flexShrink: 0,
   },
-  cpAvatarPhoto:   { width: 44, height: 44, borderRadius: 22 },
-  cpAvatarInitial: { fontSize: 18, fontWeight: '800', color: '#FFF' },
-  cpName: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', marginBottom: 1 },
-  cpAge:  { fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
-  cpBody: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 14,
-  },
-  cpStat:       { flex: 1, alignItems: 'center' },
-  cpStatNum:    { fontSize: 22, fontWeight: '800', lineHeight: 26 },
-  cpStatLabel:  { fontSize: 10, color: '#9CA3AF', fontWeight: '500', marginTop: 2 },
-  cpDivider:    { width: 1, height: 36, backgroundColor: '#F0F1F3' },
-  cpEmpty:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  cpEmptyText:  { fontSize: 12, color: '#9CA3AF', flex: 1 },
+  cpAvatarPhoto:   { width: 46, height: 46, borderRadius: 23 },
+  cpAvatarInitial: { fontSize: 19, fontWeight: '800', color: '#FFF' },
+  cpInfo:    { flex: 1 },
+  cpName:    { fontSize: 15, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
+  cpAgePill: { alignSelf: 'flex-start', backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 2 },
+  cpAgeText: { fontSize: 11, fontWeight: '600', color: '#2E7D62' },
+  cpStats:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cpStatItem:    { alignItems: 'center' },
+  cpStatNum:     { fontSize: 20, fontWeight: '800', lineHeight: 24 },
+  cpStatLabel:   { fontSize: 9, color: '#9CA3AF', fontWeight: '600', letterSpacing: 0.3, marginTop: 1 },
+  cpStatDivider: { width: 1, height: 28, backgroundColor: '#E5E7EB' },
+  cpNoAreas:     { fontSize: 11, color: '#C3DDD6', fontWeight: '500', flex: 1, textAlign: 'right' },
 
   streakCard: {
     backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
