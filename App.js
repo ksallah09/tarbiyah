@@ -337,6 +337,10 @@ export default function App() {
       navigationRef.current?.navigate('Tabs', { screen: 'Family' });
     } else if (screen === 'Community') {
       navigationRef.current?.navigate('Tabs', { screen: 'Community' });
+    } else if (screen === 'Dashboards') {
+      navigationRef.current?.navigate('Tabs', { screen: 'Dashboards' });
+    } else if (screen === 'Learn') {
+      navigationRef.current?.navigate('Tabs', { screen: 'Learn' });
     } else {
       navigationRef.current?.navigate('Tabs', { screen: 'Home' });
     }

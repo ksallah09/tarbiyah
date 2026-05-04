@@ -577,8 +577,9 @@ export async function notifyGrowthPlanReady(childName) {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: `${childName}'s growth plan is ready`,
-        body: 'Tap to view the 4-week plan and start today.',
+        body: 'Tap to view the plan and start today.',
         sound: true,
+        data: { screen: 'Dashboards' },
       },
       trigger: null,
     });
@@ -592,6 +593,7 @@ export async function notifyModuleReady(topic) {
         title: 'Your module is ready',
         body: `Your personalised module on "${topic}" is ready to explore.`,
         sound: true,
+        data: { screen: 'Learn' },
       },
       trigger: null,
     });
