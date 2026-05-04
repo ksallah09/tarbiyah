@@ -730,10 +730,15 @@ export default function DashboardsScreen({ navigation, route }) {
                         );
                       })}
                     </ScrollView>
-                    <View style={styles.activityDots}>
-                      {habits.map((_, i) => (
-                        <View key={i} style={[styles.activityDot, i === currentPage && { ...styles.activityDotActive, backgroundColor: '#2E7D62' }]} />
-                      ))}
+                    <View style={styles.activityDotsWrap}>
+                      <View style={styles.activityDots}>
+                        {habits.map((_, i) => (
+                          <View key={i} style={[styles.activityDot, i === currentPage && { ...styles.activityDotActive, backgroundColor: '#2E7D62' }]} />
+                        ))}
+                      </View>
+                      {habits.length > 1 && (
+                        <Text style={styles.swipeHint}>swipe for more</Text>
+                      )}
                     </View>
                   </View>
                 );
@@ -820,10 +825,15 @@ export default function DashboardsScreen({ navigation, route }) {
                       })}
                     </ScrollView>
                     {/* Pagination dots */}
-                    <View style={styles.activityDots}>
-                      {activities.map((_, i) => (
-                        <View key={i} style={[styles.activityDot, i === currentPage && styles.activityDotActive]} />
-                      ))}
+                    <View style={styles.activityDotsWrap}>
+                      <View style={styles.activityDots}>
+                        {activities.map((_, i) => (
+                          <View key={i} style={[styles.activityDot, i === currentPage && styles.activityDotActive]} />
+                        ))}
+                      </View>
+                      {activities.length > 1 && (
+                        <Text style={[styles.swipeHint, { color: '#B45309' }]}>swipe for more</Text>
+                      )}
                     </View>
                   </View>
                 );
@@ -1214,13 +1224,17 @@ const styles = StyleSheet.create({
   didItWrap:     { alignItems: 'flex-end', gap: 3 },
   didItCounter:  { fontSize: 10, fontWeight: '700', color: '#2E7D62' },
 
+  activityDotsWrap: {
+    alignItems: 'center', paddingVertical: 8, gap: 4,
+  },
   activityDots: {
-    flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: 10,
+    flexDirection: 'row', justifyContent: 'center', gap: 6,
   },
   activityDot: {
     width: 6, height: 6, borderRadius: 3, backgroundColor: '#E5E7EB',
   },
   activityDotActive: { backgroundColor: '#B45309', width: 16 },
+  swipeHint: { fontSize: 10, color: '#2E7D62', fontWeight: '500', letterSpacing: 0.3 },
 
   // This Week cards
   weekBlock: {
