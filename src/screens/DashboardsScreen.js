@@ -584,12 +584,7 @@ export default function DashboardsScreen({ navigation, route }) {
         <View style={[styles.focusCard, { borderColor: child.color + '55', backgroundColor: child.colorLight }]}>
           <View style={styles.focusTopRow}>
             <Ionicons name="radio-button-on" size={13} color={child.color} />
-            <Text style={[styles.focusEyebrow, { color: child.color }]}>CURRENT FOCUS AREAS</Text>
-          </View>
-          <View style={styles.focusSubRow}>
-            <Text style={[styles.focusSubText, { color: child.color + 'AA' }]}>
-              Based on growth areas in {child.name}'s profile.
-            </Text>
+            <Text style={[styles.focusEyebrow, { color: child.color }]}>CURRENT GROWTH AREAS</Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('ChildDashboard', { child })}
               activeOpacity={0.7}
