@@ -46,7 +46,6 @@ export default function ModuleDetailScreen({ route, navigation }) {
   });
   const audiosLoadingRef = useRef(false);
   const [voice, setVoice]                     = useState(preselectedVoice ?? null);
-  const [showVoicePicker, setShowVoicePicker] = useState(false);
 
   const stage1Opacity   = useRef(new Animated.Value(0)).current;
   const stage2Opacity   = useRef(new Animated.Value(0)).current;
@@ -83,11 +82,9 @@ export default function ModuleDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     if (!isNew) return;
-    if (preselectedVoice) {
-      generateModule(preselectedVoice);
-    } else {
-      setShowVoicePicker(true);
-    }
+    const selectedVoice = preselectedVoice ?? 'onyx';
+    setVoice(selectedVoice);
+    generateModule(selectedVoice);
   }, []);
 
   useEffect(() => {
@@ -262,54 +259,6 @@ export default function ModuleDetailScreen({ route, navigation }) {
       <StatusBar style="light" />
 
       {/* ── Voice picker modal ── */}
-      <Modal visible={showVoicePicker} transparent animationType="fade">
-        <View style={styles.voiceModalBackdrop}>
-          <View style={styles.voiceModal}>
-            <Text style={styles.voiceModalTitle}>Choose Your Narrator</Text>
-            <Text style={styles.voiceModalSubtitle}>Your narrator will read each lesson aloud so you can listen hands-free. Choose the voice that feels most comfortable for you.</Text>
-
-            <TouchableOpacity
-              style={styles.voiceOption}
-              activeOpacity={0.8}
-              onPress={() => {
-                setVoice('shimmer');
-                setShowVoicePicker(false);
-                setGenerating(true);
-                generateModule('shimmer');
-              }}
-            >
-              <View style={[styles.voiceOptionIcon, { backgroundColor: '#E8F5EF' }]}>
-                <Ionicons name="mic" size={22} color="#2E7D62" />
-              </View>
-              <View style={styles.voiceOptionText}>
-                <Text style={styles.voiceOptionName}>Female Voice</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.voiceOption}
-              activeOpacity={0.8}
-              onPress={() => {
-                setVoice('onyx');
-                setShowVoicePicker(false);
-                setGenerating(true);
-                generateModule('onyx');
-              }}
-            >
-              <View style={[styles.voiceOptionIcon, { backgroundColor: '#EEF2FF' }]}>
-                <Ionicons name="mic" size={22} color="#4F46E5" />
-              </View>
-              <View style={styles.voiceOptionText}>
-                <Text style={styles.voiceOptionName}>Male Voice</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.voiceCancelBtn} onPress={() => { setShowVoicePicker(false); navigation.goBack(); }}>
-              <Text style={styles.voiceCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       <SafeAreaView style={styles.safe} edges={[]}>
 
