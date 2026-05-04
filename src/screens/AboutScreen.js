@@ -46,11 +46,13 @@ const ISLAMIC_SOURCES = [
 ];
 
 const RESEARCH_SOURCES = [
-  { name: 'Child Mind Institute',             role: 'Child & teen mental health, behaviour & development' },
-  { name: 'CDC',                              role: 'Centers for Disease Control — child development milestones' },
-  { name: 'UC Davis Health',                  role: 'Clinical parenting & child development guidance' },
-  { name: 'NIH / NICHD',                      role: 'Research-based parenting across developmental stages' },
-  { name: 'American Academy of Pediatrics',   role: 'Clinical guidance on child health & development' },
+  { name: 'Child Mind Institute',                        role: 'Child & teen mental health, behaviour & development' },
+  { name: 'CDC',                                         role: 'Centers for Disease Control — child development milestones' },
+  { name: 'UC Davis Health',                             role: 'Clinical parenting & child development guidance' },
+  { name: 'NIH / NICHD',                                 role: 'Research-based parenting across developmental stages' },
+  { name: 'American Academy of Pediatrics',              role: 'Clinical guidance on child health & development' },
+  { name: 'National Institute of Mental Health (NIMH)',  role: 'Adolescent brain development — emotional reactivity vs decision-making systems' },
+  { name: 'Center on the Developing Child at Harvard',   role: 'Executive function development, co-regulation → self-regulation progression, brain maturation timeline' },
 ];
 
 function SourcesCard() {
