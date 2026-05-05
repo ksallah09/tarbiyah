@@ -2782,7 +2782,7 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
   try {
     const { data: cached } = await supabase
       .from('mosque_profiles')
-      .select('facebook_url, instagram_url, last_scraped_at')
+      .select('facebook_url, instagram_url, website, last_scraped_at')
       .eq('place_id', placeId)
       .maybeSingle();
 
@@ -2791,7 +2791,7 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
       existingIg = cached.instagram_url ?? null;
       const ageMs = Date.now() - new Date(cached.last_scraped_at).getTime();
       const ttl = (existingFb || existingIg) ? 7 * 86400000 : 86400000;
-      if (!force && ageMs < ttl) return res.json({ facebook: existingFb, instagram: existingIg });
+      if (!force && ageMs < ttl) return res.json({ facebook: existingFb, instagram: existingIg, website: cached.website ?? null });
     }
   } catch {}
 
@@ -2839,7 +2839,7 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
     }, { onConflict: 'place_id' });
   } catch {}
 
-  return res.json({ facebook, instagram });
+  return res.json({ facebook, instagram, website });
 });
 
 // ─── GET /health ──────────────────────────────────────────────────────────────
