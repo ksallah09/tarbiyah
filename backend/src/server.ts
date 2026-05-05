@@ -2676,11 +2676,109 @@ app.post('/child-growth-plan/async', async (req: Request, res: Response) => {
 
 const PLACES_API_KEY = 'AIzaSyAAzZUrCRvsauWBVNUnIf9HgH-CR8ub4Ig';
 
+const FB_EXCLUDE = /\/(sharer|share\.php|login|dialog|photo|video|tr[/?]|help|legal|policies|watch|notes|marketplace|gaming|live|ads|business|developers)(\/?$|\/?[?#])/i;
+const IG_EXCLUDE = /\/(p|reel|reels|tv|stories|explore|accounts|directory)\//i;
+
+function cleanFb(raw: string): string | null {
+  const url = raw.split('?')[0].split('#')[0].replace(/\/$/, '');
+  const handle = url.split('/').pop() ?? '';
+  if (FB_EXCLUDE.test(url) || handle.length < 3) return null;
+  return url;
+}
+function cleanIg(raw: string): string | null {
+  const url = raw.split('?')[0].split('#')[0].replace(/\/$/, '');
+  const handle = url.split('/').pop() ?? '';
+  if (IG_EXCLUDE.test(url) || handle.length < 3) return null;
+  return url;
+}
+
+function extractSocials(html: string): { facebook: string | null; instagram: string | null } {
+  let facebook: string | null = null;
+  let instagram: string | null = null;
+
+  // ── 1. JSON-LD sameAs (highest confidence — emitted by WordPress/Squarespace/Wix automatically) ──
+  for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const parsed = JSON.parse(m[1]) as any;
+      const nodes = [parsed, ...(Array.isArray(parsed['@graph']) ? parsed['@graph'] : [])];
+      for (const node of nodes) {
+        const sameAs: string[] = Array.isArray(node.sameAs) ? node.sameAs
+          : typeof node.sameAs === 'string' ? [node.sameAs] : [];
+        for (const url of sameAs) {
+          if (!facebook && /(?:facebook|fb)\.com/i.test(url)) facebook = cleanFb(url);
+          if (!instagram && /instagram\.com/i.test(url)) instagram = cleanIg(url);
+        }
+      }
+    } catch {}
+    if (facebook && instagram) return { facebook, instagram };
+  }
+
+  // ── 2. <meta> tags ──
+  for (const m of html.matchAll(/<meta[^>]+(?:content|value)=["']([^"']*(?:facebook|instagram)[^"']*)["'][^>]*>/gi)) {
+    const content = m[1];
+    if (!facebook && /(?:facebook|fb)\.com/i.test(content)) {
+      const match = content.match(/https?:\/\/(?:www\.)?(?:facebook|fb)\.com\/[^\s"'<>]+/i);
+      if (match) facebook = cleanFb(match[0]);
+    }
+    if (!instagram && /instagram\.com/i.test(content)) {
+      const match = content.match(/https?:\/\/(?:www\.)?instagram\.com\/[^\s"'<>]+/i);
+      if (match) instagram = cleanIg(match[0]);
+    }
+    if (facebook && instagram) return { facebook, instagram };
+  }
+
+  // ── 3. <script> tag content (JSON config blobs, JS variables) ──
+  for (const m of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
+    const src = m[1];
+    if (!facebook) {
+      for (const fm of src.matchAll(/https?:\/\/(?:www\.)?(?:facebook|fb)\.com\/([a-zA-Z0-9._%-]+)/g)) {
+        const c = cleanFb(fm[0]); if (c) { facebook = c; break; }
+      }
+    }
+    if (!instagram) {
+      for (const im of src.matchAll(/https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)/g)) {
+        const c = cleanIg(im[0]); if (c) { instagram = c; break; }
+      }
+    }
+    if (facebook && instagram) return { facebook, instagram };
+  }
+
+  // ── 4. Full HTML scan (href, data-*, plain text) ──
+  if (!facebook) {
+    for (const m of html.matchAll(/https?:\/\/(?:www\.)?(?:facebook|fb)\.com\/([a-zA-Z0-9._%-]+(?:\/[a-zA-Z0-9._%-]+)*)/g)) {
+      const c = cleanFb(m[0]); if (c) { facebook = c; break; }
+    }
+  }
+  if (!instagram) {
+    for (const m of html.matchAll(/https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)/g)) {
+      const c = cleanIg(m[0]); if (c) { instagram = c; break; }
+    }
+  }
+
+  return { facebook, instagram };
+}
+
+async function fetchPage(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Tarbiyah/1.0)' },
+      signal: AbortSignal.timeout(6000),
+      redirect: 'follow',
+    });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch { return null; }
+}
+
 app.get('/mosque/social-links', async (req: Request, res: Response) => {
   const placeId = req.query.placeId as string | undefined;
   if (!placeId) return res.status(400).json({ error: 'placeId is required' });
 
-  // Return cached result if fresh (< 7 days)
+  const force = req.query.force === 'true';
+
+  // Cache check — 7 day TTL if links exist, 24h if not (retry sooner on misses)
+  let existingFb: string | null = null;
+  let existingIg: string | null = null;
   try {
     const { data: cached } = await supabase
       .from('mosque_profiles')
@@ -2689,10 +2787,11 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
       .maybeSingle();
 
     if (cached?.last_scraped_at) {
+      existingFb = cached.facebook_url ?? null;
+      existingIg = cached.instagram_url ?? null;
       const ageMs = Date.now() - new Date(cached.last_scraped_at).getTime();
-      if (ageMs < 7 * 24 * 60 * 60 * 1000) {
-        return res.json({ facebook: cached.facebook_url ?? null, instagram: cached.instagram_url ?? null });
-      }
+      const ttl = (existingFb || existingIg) ? 7 * 86400000 : 86400000;
+      if (!force && ageMs < ttl) return res.json({ facebook: existingFb, instagram: existingIg });
     }
   } catch {}
 
@@ -2708,26 +2807,28 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
   let instagram: string | null = null;
 
   if (website) {
-    try {
-      const siteRes = await fetch(website, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Tarbiyah/1.0)' },
-        signal: AbortSignal.timeout(8000),
-      });
-      const html = await siteRes.text();
+    const base = website.replace(/\/$/, '');
 
-      const FB_EXCLUDE = /\/(sharer|share\.php|login|dialog|photo|video|tr\?|help|legal|policies|watch|notes|marketplace|gaming|live)(\/?$|\/?[?#])/;
-      for (const m of html.matchAll(/https?:\/\/(?:www\.)?(?:facebook|fb)\.com\/([a-zA-Z0-9._%-]+(?:\/[a-zA-Z0-9._%-]+)*)/g)) {
-        const url = m[0].split('?')[0].replace(/\/$/, '');
-        if (!FB_EXCLUDE.test(url) && m[1]?.length > 2) { facebook = url; break; }
-      }
+    // Try homepage first
+    const homeHtml = await fetchPage(base);
+    if (homeHtml) ({ facebook, instagram } = extractSocials(homeHtml));
 
-      const IG_EXCLUDE = /\/(p|reel|reels|tv|stories|explore|accounts|directory)\//;
-      for (const m of html.matchAll(/https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)/g)) {
-        const url = m[0].split('?')[0].replace(/\/$/, '');
-        if (!IG_EXCLUDE.test(url) && m[1]?.length > 2) { instagram = url; break; }
+    // If still missing either, try /contact and /about subpages
+    if (!facebook || !instagram) {
+      for (const path of ['/contact', '/about', '/contact-us', '/about-us']) {
+        if (facebook && instagram) break;
+        const html = await fetchPage(base + path);
+        if (!html) continue;
+        const { facebook: f, instagram: ig } = extractSocials(html);
+        if (!facebook) facebook = f;
+        if (!instagram) instagram = ig;
       }
-    } catch {}
+    }
   }
+
+  // Preserve existing user-submitted URLs if scraping found nothing new
+  if (!facebook) facebook = existingFb;
+  if (!instagram) instagram = existingIg;
 
   // Cache result
   try {
