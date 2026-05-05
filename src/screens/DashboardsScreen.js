@@ -271,7 +271,7 @@ export default function DashboardsScreen({ navigation, route }) {
     setIncidentText('');
     setIncidentModalVisible(false);
     getAllChildProfiles().then(setChildren);
-    fetchCoaching(entry.id, text, child);
+    // fetchCoaching(entry.id, text, child); // disabled — reserved for future release
   }
 
   async function deleteIncident(id) {
