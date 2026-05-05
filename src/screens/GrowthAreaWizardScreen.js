@@ -506,7 +506,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           Feel free to do something else while your plan is being built
         </Animated.Text>
         <Animated.Text style={[styles.loadingKeepOpen, { opacity: keepOpenOpacity, marginTop: 6 }]}>
-          This usually takes 2–5 minutes
+          This usually takes 1–2 minutes
         </Animated.Text>
       </View>
     );
