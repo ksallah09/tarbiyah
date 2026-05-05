@@ -2672,6 +2672,75 @@ app.post('/child-growth-plan/async', async (req: Request, res: Response) => {
   }
 });
 
+// ─── GET /mosque/social-links ─────────────────────────────────────────────────
+
+const PLACES_API_KEY = 'AIzaSyAAzZUrCRvsauWBVNUnIf9HgH-CR8ub4Ig';
+
+app.get('/mosque/social-links', async (req: Request, res: Response) => {
+  const placeId = req.query.placeId as string | undefined;
+  if (!placeId) return res.status(400).json({ error: 'placeId is required' });
+
+  // Return cached result if fresh (< 7 days)
+  try {
+    const { data: cached } = await supabase
+      .from('mosque_profiles')
+      .select('facebook_url, instagram_url, last_scraped_at')
+      .eq('place_id', placeId)
+      .maybeSingle();
+
+    if (cached?.last_scraped_at) {
+      const ageMs = Date.now() - new Date(cached.last_scraped_at).getTime();
+      if (ageMs < 7 * 24 * 60 * 60 * 1000) {
+        return res.json({ facebook: cached.facebook_url ?? null, instagram: cached.instagram_url ?? null });
+      }
+    }
+  } catch {}
+
+  // Resolve website from Google Places
+  let website: string | null = null;
+  try {
+    const placesUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=website,name&key=${PLACES_API_KEY}`;
+    const placesJson = await fetch(placesUrl).then(r => r.json()) as any;
+    if (placesJson.status === 'OK') website = placesJson.result?.website ?? null;
+  } catch {}
+
+  let facebook: string | null = null;
+  let instagram: string | null = null;
+
+  if (website) {
+    try {
+      const siteRes = await fetch(website, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Tarbiyah/1.0)' },
+        signal: AbortSignal.timeout(8000),
+      });
+      const html = await siteRes.text();
+
+      const FB_EXCLUDE = /\/(sharer|share\.php|login|dialog|photo|video|tr\?|help|legal|policies|watch|notes|marketplace|gaming|live)(\/?$|\/?[?#])/;
+      for (const m of html.matchAll(/https?:\/\/(?:www\.)?(?:facebook|fb)\.com\/([a-zA-Z0-9._%-]+(?:\/[a-zA-Z0-9._%-]+)*)/g)) {
+        const url = m[0].split('?')[0].replace(/\/$/, '');
+        if (!FB_EXCLUDE.test(url) && m[1]?.length > 2) { facebook = url; break; }
+      }
+
+      const IG_EXCLUDE = /\/(p|reel|reels|tv|stories|explore|accounts|directory)\//;
+      for (const m of html.matchAll(/https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)/g)) {
+        const url = m[0].split('?')[0].replace(/\/$/, '');
+        if (!IG_EXCLUDE.test(url) && m[1]?.length > 2) { instagram = url; break; }
+      }
+    } catch {}
+  }
+
+  // Cache result
+  try {
+    await supabase.from('mosque_profiles').upsert({
+      place_id: placeId, website,
+      facebook_url: facebook, instagram_url: instagram,
+      last_scraped_at: new Date().toISOString(),
+    }, { onConflict: 'place_id' });
+  } catch {}
+
+  return res.json({ facebook, instagram });
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));
