@@ -746,7 +746,8 @@ export default function ProfileScreen() {
   const [libQuery,       setLibQuery]       = useState('');
   const [libActiveTopic, setLibActiveTopic] = useState('All');
   const [hiddenThumbs,   setHiddenThumbs]   = useState(new Set());
-  const [notifications,    setNotifications]    = useState(true);
+  const [notifications,           setNotifications]           = useState(true);
+  const [communityNotifications,  setCommunityNotifications]  = useState(true);
   const [focusAreas,       setFocusAreas]       = useState([]);
   const [profileName,      setProfileName]      = useState('');
   const [profilePhoto,     setProfilePhoto]     = useState(null);
@@ -799,6 +800,9 @@ export default function ProfileScreen() {
         if (localProfile.language)                    setLanguage(localProfile.language);
         if (localProfile.familyStructure)             setFamilyStructure(localProfile.familyStructure);
         if (localProfile.notifications !== undefined) setNotifications(localProfile.notifications);
+        AsyncStorage.getItem('tarbiyah_community_notifications').then(val => {
+          setCommunityNotifications(val === null ? true : val === 'true');
+        });
         if (localProfile.raisedIn)                    setRaisedIn(localProfile.raisedIn);
         if (localProfile.raisingIn)                   setRaisingIn(localProfile.raisingIn);
         if (localProfile.communities)                 setCommunities(localProfile.communities);
@@ -869,8 +873,11 @@ export default function ProfileScreen() {
       const publicUrl = await uploadPhoto(localUri, `profiles/${userId}.jpg`);
       setProfilePhoto(publicUrl);
       await AsyncStorage.setItem(PROFILE_PHOTO_KEY, publicUrl);
+      // Persist URL to Supabase so it survives app reinstalls/rebuilds
+      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('user_id', userId);
     } catch {
-      await AsyncStorage.setItem(PROFILE_PHOTO_KEY, localUri); // fallback to local
+      // Don't fall back to local URI — it won't survive a rebuild
+      console.warn('[saveProfilePhoto] upload failed');
     }
   }
 
@@ -1457,6 +1464,25 @@ export default function ProfileScreen() {
                   }}
                   trackColor={{ false: '#E8EAED', true: '#34C759' }}
                   thumbColor={notifications ? '#1B3D2F' : '#FFF'}
+                  ios_backgroundColor="#E8EAED"
+                />
+              }
+            />
+            <SettingRow
+              icon="people-outline"
+              iconBg="#EDF7F2"
+              iconColor="#2E7D62"
+              title="Community Notifications"
+              subtitle="Dot badge when new requests or posts arrive"
+              rightEl={
+                <Switch
+                  value={communityNotifications}
+                  onValueChange={val => {
+                    setCommunityNotifications(val);
+                    AsyncStorage.setItem('tarbiyah_community_notifications', String(val));
+                  }}
+                  trackColor={{ false: '#E8EAED', true: '#34C759' }}
+                  thumbColor={communityNotifications ? '#1B3D2F' : '#FFF'}
                   ios_backgroundColor="#E8EAED"
                 />
               }

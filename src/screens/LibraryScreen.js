@@ -17,6 +17,7 @@ import {
   Image,
   Animated,
   Dimensions,
+  Switch,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,18 +28,20 @@ import { getSavedResources, saveResource, unsaveResource } from '../utils/savedR
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../utils/supabase';
 import {
-  fetchLocalEvents, fetchUpcomingForFamily, submitEvent,
-  verifyEvent, getMyVerdict, loadCommunities, loadChildrenAges,
+  loadCommunities,
+  fetchMosqueSocialLinks, saveMosqueSocialLinks,
 } from '../utils/communityEvents';
 let Location = null;
 try { Location = require('expo-location'); } catch {}
+let WebView = null;
+try { WebView = require('react-native-webview').WebView; } catch {}
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
 
-const CATEGORIES = ['All', 'Lecture/Video', 'Article/Book', 'Activity/Printable', 'Duas & Adhkar', 'Podcast', 'Other'];
+const CATEGORIES = ['All', 'Video', 'Article/Book', 'Activity/Printable', 'Duas & Adhkar', 'Podcast', 'Other'];
 
 const CATEGORY_CONFIG = {
-  'Lecture/Video':      { color: '#2E7D62', icon: 'play-circle-outline' },
+  'Video':      { color: '#2E7D62', icon: 'play-circle-outline' },
   'Article/Book':       { color: '#D4871A', icon: 'book-outline' },
   'Activity/Printable': { color: '#7C3AED', icon: 'color-palette-outline' },
   'Duas & Adhkar':      { color: '#0D9488', icon: 'sparkles' },
@@ -142,7 +145,7 @@ function ResourceThumb({ uri, accentColor, cardStyle, accentStyle, onHide }) {
 
 export default function LibraryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState('local');
+  const [activeTab, setActiveTab] = useState('resources');
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const swipeHintX = useRef(new Animated.Value(0)).current;
   const swipeHintOpacity = useRef(new Animated.Value(0)).current;
@@ -166,18 +169,44 @@ export default function LibraryScreen({ navigation }) {
 
   // ── Local community ──
   const [communities,       setCommunities]       = useState([]);
-  const [localEvents,       setLocalEvents]       = useState([]);
-  const [upcomingEvents,    setUpcomingEvents]    = useState([]);
   const [localLoading,      setLocalLoading]      = useState(false);
-  const [activeCirle,       setActiveCircle]      = useState('all');
-  const [showSubmitModal,   setShowSubmitModal]   = useState(false);
-  const [showVerifyModal,   setShowVerifyModal]   = useState(null); // event object
-  const [myVerdicts,        setMyVerdicts]        = useState({});   // eventId → verdict
-  const [childrenAges,      setChildrenAges]      = useState([]);
+  const [activeCirle,       setActiveCircle]      = useState(null);
+  const [mosqueSocial,      setMosqueSocial]      = useState({});
 
   // ── New activity dots ──
-  const [showDuaDot,  setShowDuaDot]  = useState(false);
-  const [showWinsDot, setShowWinsDot] = useState(false);
+  const [showDuaDot,      setShowDuaDot]      = useState(false);
+  const [showWinsDot,     setShowWinsDot]     = useState(false);
+  const [showRequestsDot, setShowRequestsDot] = useState(false);
+
+  // ── Community notifications ──
+  const [communityNotif, setCommunityNotif] = useState(true);
+  const [showCommSplash,  setShowCommSplash]  = useState(false);
+
+  // ── Resource Requests ──
+  const [requests,           setRequests]           = useState([]);
+  const [requestsLoading,    setRequestsLoading]    = useState(false);
+  const [requestsRefreshing, setRequestsRefreshing] = useState(false);
+  const [showPostRequest,    setShowPostRequest]     = useState(false);
+  const [reqTitle,           setReqTitle]           = useState('');
+  const [reqDesc,            setReqDesc]            = useState('');
+  const [reqSubmitting,      setReqSubmitting]       = useState(false);
+  const [reqError,           setReqError]           = useState('');
+  const [reqSuccess,         setReqSuccess]         = useState(false);
+  const [requestDetail,      setRequestDetail]      = useState(null);
+  const [requestReplies,     setRequestReplies]     = useState([]);
+  const [repliesLoading,     setRepliesLoading]     = useState(false);
+  const [myReplyReactions,   setMyReplyReactions]   = useState({});
+  const [showReplyForm,      setShowReplyForm]      = useState(false);
+  const [replyUrl,           setReplyUrl]           = useState('');
+  const [replyTitle,         setReplyTitle]         = useState('');
+  const [replyCategory,      setReplyCategory]      = useState('Video');
+  const [replyComment,       setReplyComment]       = useState('');
+  const [replySubmitting,    setReplySubmitting]    = useState(false);
+  const [replyError,         setReplyError]         = useState('');
+  const [replyFetchingMeta,  setReplyFetchingMeta]  = useState(false);
+  const [warnTarget,         setWarnTarget]         = useState(null);
+  const [warnText,           setWarnText]           = useState('');
+  const replyMetaDebounce = useRef(null);
 
   // ── Loading overlay ──
   const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -292,7 +321,7 @@ export default function LibraryScreen({ navigation }) {
   const [submitUrl, setSubmitUrl]       = useState('');
   const [submitTitle, setSubmitTitle]   = useState('');
   const [submitDesc, setSubmitDesc]     = useState('');
-  const [submitCategory, setSubmitCategory] = useState('Lecture/Video');
+  const [submitCategory, setSubmitCategory] = useState('Video');
   const [submitAge, setSubmitAge]       = useState('All Ages');
   const [submitWhy, setSubmitWhy]       = useState('');
   const [submitTags, setSubmitTags]     = useState([]);
@@ -315,11 +344,18 @@ export default function LibraryScreen({ navigation }) {
       supabase.auth.getSession().then(({ data }) => {
         setCurrentUserId(data?.session?.user?.id ?? null);
       });
+      // Load community notification preference
+      AsyncStorage.getItem('tarbiyah_community_notifications').then(val => {
+        setCommunityNotif(val === null ? true : val === 'true');
+      });
+      // Show the community splash every visit
+      setShowCommSplash(true);
       loadLocalData();
       fetchResources();
       fetchMyPosts();
       fetchDuas();
       fetchWins();
+      fetchRequests();
     }, [])
   );
 
@@ -335,21 +371,25 @@ export default function LibraryScreen({ navigation }) {
     loadLocalData();
   }, [activeTab]);
 
+  // Fetch social links when a specific mosque is selected
+  useEffect(() => {
+    if (!activeCirle) return;
+    if (mosqueSocial[activeCirle] !== undefined) return;
+    setMosqueSocial(prev => ({ ...prev, [activeCirle]: null })); // mark as in-flight
+    fetchMosqueSocialLinks(activeCirle).then(links => {
+      setMosqueSocial(prev => ({ ...prev, [activeCirle]: links }));
+    });
+  }, [activeCirle]);
+
   async function loadLocalData() {
     setLocalLoading(true);
     try {
-      const [comms, ages] = await Promise.all([loadCommunities(), loadChildrenAges()]);
+      const comms = await loadCommunities();
       setCommunities(comms);
-      setChildrenAges(ages);
-      if (!comms.length) { setLocalLoading(false); return; }
-      const placeIds = comms.map(c => c.placeId);
-      const [all, upcoming] = await Promise.all([
-        fetchLocalEvents(placeIds),
-        fetchUpcomingForFamily(placeIds, ages),
-      ]);
-      setLocalEvents(all);
-      setUpcomingEvents(upcoming);
-    } catch (e) { console.warn('[local events]', e); }
+      if (comms.length > 0) {
+        setActiveCircle(prev => prev ?? comms[0].placeId);
+      }
+    } catch (e) { console.warn('[local]', e); }
     setLocalLoading(false);
   }
 
@@ -370,6 +410,22 @@ export default function LibraryScreen({ navigation }) {
     }, 600);
     return () => clearTimeout(metaDebounceRef.current);
   }, [submitUrl]);
+
+  useEffect(() => {
+    const url = replyUrl.trim();
+    if (!url.startsWith('http')) return;
+    clearTimeout(replyMetaDebounce.current);
+    replyMetaDebounce.current = setTimeout(async () => {
+      setReplyFetchingMeta(true);
+      try {
+        const res = await fetch(`${API_URL}/community/metadata?url=${encodeURIComponent(url)}`);
+        const { title } = await res.json();
+        if (title) setReplyTitle(prev => prev || title);
+      } catch {}
+      finally { setReplyFetchingMeta(false); }
+    }, 600);
+    return () => clearTimeout(replyMetaDebounce.current);
+  }, [replyUrl]);
 
   async function fetchResources(isPullRefresh = false) {
     // Load cache instantly on first load (not pull-to-refresh)
@@ -499,6 +555,119 @@ export default function LibraryScreen({ navigation }) {
       setWinsLoading(false);
       setWinsRefreshing(false);
     }
+  }
+
+  async function fetchRequests(isPullRefresh = false) {
+    isPullRefresh ? setRequestsRefreshing(true) : setRequestsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/community/requests`);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      setRequests(list);
+      if (list.length > 0) {
+        const newest = list[0].created_at;
+        const lastVisited = await AsyncStorage.getItem('tarbiyah_last_visited_requests');
+        setShowRequestsDot(!lastVisited || newest > lastVisited);
+      }
+    } catch {} finally {
+      setRequestsLoading(false);
+      setRequestsRefreshing(false);
+    }
+  }
+
+  async function handlePostRequest() {
+    if (!reqTitle.trim() || !reqDesc.trim()) { setReqError('Please fill in both fields.'); return; }
+    setReqSubmitting(true); setReqError('');
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const profile = await AsyncStorage.getItem('tarbiyah_profile');
+      const displayName = profile ? (JSON.parse(profile).name ?? 'Parent') : 'Parent';
+      const res = await fetch(`${API_URL}/community/requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: reqTitle.trim(), description: reqDesc.trim(), displayName }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setReqError(data.error ?? 'Could not submit. Please try again.'); return; }
+      setReqSuccess(true);
+      setRequests(prev => [data, ...prev]);
+    } catch { setReqError('Something went wrong. Please try again.'); }
+    finally { setReqSubmitting(false); }
+  }
+
+  async function openRequestDetail(request) {
+    setRequestDetail(request);
+    setRepliesLoading(true);
+    try {
+      const [repRes, myRes] = await Promise.all([
+        fetch(`${API_URL}/community/requests/${request.id}/replies`),
+        (async () => {
+          const { data: session } = await supabase.auth.getSession();
+          const token = session?.session?.access_token;
+          if (!token) return null;
+          return fetch(`${API_URL}/community/requests/replies/my-reactions`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        })(),
+      ]);
+      const replies = await repRes.json();
+      setRequestReplies(Array.isArray(replies) ? replies : []);
+      if (myRes) {
+        const myData = await myRes.json();
+        const map = {};
+        (Array.isArray(myData) ? myData : []).forEach(r => { map[r.reply_id] = r.type; });
+        setMyReplyReactions(map);
+      }
+    } catch {} finally { setRepliesLoading(false); }
+  }
+
+  async function handleSubmitReply() {
+    if (!replyUrl.trim()) { setReplyError('URL is required.'); return; }
+    setReplySubmitting(true); setReplyError('');
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const profile = await AsyncStorage.getItem('tarbiyah_profile');
+      const displayName = profile ? (JSON.parse(profile).name ?? 'Parent') : 'Parent';
+      const res = await fetch(`${API_URL}/community/requests/${requestDetail.id}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ url: replyUrl.trim(), title: replyTitle.trim(), category: replyCategory, comment: replyComment.trim(), displayName }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setReplyError(data.error ?? 'Could not submit.'); return; }
+      setRequestReplies(prev => [...prev, data]);
+      setRequests(prev => prev.map(r => r.id === requestDetail.id ? { ...r, reply_count: (r.reply_count ?? 0) + 1 } : r));
+      setRequestDetail(prev => ({ ...prev, reply_count: (prev.reply_count ?? 0) + 1 }));
+      setShowReplyForm(false);
+      setReplyUrl(''); setReplyTitle(''); setReplyCategory('Video'); setReplyComment(''); setReplyError('');
+    } catch { setReplyError('Something went wrong.'); }
+    finally { setReplySubmitting(false); }
+  }
+
+  async function handleReplyReact(reply, type, warnComment) {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) return;
+    const prev = myReplyReactions[reply.id];
+    const toggling = prev === type;
+    setMyReplyReactions(cur => ({ ...cur, [reply.id]: toggling ? null : type }));
+    setRequestReplies(list => list.map(r => {
+      if (r.id !== reply.id) return r;
+      let agree = r.agree_count ?? 0;
+      let warn = r.warn_count ?? 0;
+      if (prev === 'agree') agree--; else if (prev === 'warn') warn--;
+      if (!toggling) { if (type === 'agree') agree++; else warn++; }
+      return { ...r, agree_count: agree, warn_count: warn };
+    }));
+    try {
+      await fetch(`${API_URL}/community/requests/replies/${reply.id}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type, warnComment }),
+      });
+    } catch {}
   }
 
   async function handleDuaReact(dua, type) {
@@ -639,7 +808,7 @@ export default function LibraryScreen({ navigation }) {
     setSubmitUrl(resource.url ?? '');
     setSubmitTitle(resource.title ?? '');
     setSubmitDesc(resource.description ?? '');
-    setSubmitCategory(resource.category ?? 'Lecture/Video');
+    setSubmitCategory(resource.category ?? 'Video');
     setSubmitAge(resource.age_range ?? 'All Ages');
     setSubmitWhy(resource.why_helped ?? '');
     setSubmitTags([]);
@@ -759,7 +928,7 @@ export default function LibraryScreen({ navigation }) {
     setSubmitUrl('');
     setSubmitTitle('');
     setSubmitDesc('');
-    setSubmitCategory('Lecture/Video');
+    setSubmitCategory('Video');
     setSubmitAge('All Ages');
     setSubmitWhy('');
     setSubmitTags([]);
@@ -804,8 +973,9 @@ export default function LibraryScreen({ navigation }) {
           contentContainerStyle={styles.tabRow}
         >
           {[
-            { key: 'local',     label: 'Local',      dot: false },
             { key: 'resources', label: 'Resources',  dot: false },
+            { key: 'requests',  label: 'Requests',   dot: showRequestsDot && communityNotif },
+            { key: 'local',     label: 'Local',      dot: false },
             { key: 'dua',       label: "Du'a Board", dot: showDuaDot },
             { key: 'wins',      label: 'Wins',        dot: showWinsDot },
             { key: 'myposts',   label: 'My Posts',   dot: false },
@@ -823,6 +993,9 @@ export default function LibraryScreen({ navigation }) {
                   } else if (tab.key === 'wins') {
                     setShowWinsDot(false);
                     AsyncStorage.setItem('tarbiyah_last_visited_wins', new Date().toISOString());
+                  } else if (tab.key === 'requests') {
+                    setShowRequestsDot(false);
+                    AsyncStorage.setItem('tarbiyah_last_visited_requests', new Date().toISOString());
                   }
                 }}
                 activeOpacity={0.75}
@@ -836,6 +1009,21 @@ export default function LibraryScreen({ navigation }) {
             );
           })}
         </ScrollView>
+        {activeTab === 'local' ? (
+          <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingTop: 2, paddingBottom: 4 }}>
+            <Text style={styles.tabSubtitleMain}>Connect your family to the community</Text>
+            <Text style={styles.tabSubtitleSub}>Browse your community's pages for events, classes, and activities</Text>
+          </View>
+        ) : (
+          <Text style={styles.tabSubtitle}>
+            {activeTab === 'resources' ? 'Curated resources shared by Muslim parents' :
+             activeTab === 'requests'  ? 'Ask the community for a resource' :
+             activeTab === 'dua'       ? "Make du'a for families in your community" :
+             activeTab === 'wins'      ? 'Celebrate the small victories of parenting' :
+             activeTab === 'myposts'   ? "Resources and posts you've shared" :
+             ''}
+          </Text>
+        )}
       </View>
 
       <View style={styles.sheet}>
@@ -986,17 +1174,76 @@ export default function LibraryScreen({ navigation }) {
           // ─── LOCAL COMMUNITY ──────────────────────────────────────────────
           <LocalCommunityTab
             communities={communities}
-            localEvents={localEvents}
-            upcomingEvents={upcomingEvents}
             loading={localLoading}
             activeCircle={activeCirle}
             onCircleChange={setActiveCircle}
-            myVerdicts={myVerdicts}
-            currentUserId={currentUserId}
-            onVerify={(ev) => setShowVerifyModal(ev)}
-            onPostPress={() => setShowSubmitModal(true)}
             onRefresh={loadLocalData}
+            mosqueSocial={mosqueSocial}
+            onGoToProfile={() => navigation.navigate('Profile')}
+            onSaveSocial={async (placeId, fb, ig) => {
+              await saveMosqueSocialLinks(placeId, fb, ig);
+              setMosqueSocial(prev => ({ ...prev, [placeId]: { facebook: fb, instagram: ig } }));
+            }}
+            onRetrySearch={async (placeId) => {
+              setMosqueSocial(prev => ({ ...prev, [placeId]: null }));
+              const links = await fetchMosqueSocialLinks(placeId, { force: true });
+              setMosqueSocial(prev => ({ ...prev, [placeId]: links }));
+            }}
           />
+        ) : activeTab === 'requests' ? (
+          // ─── RESOURCE REQUESTS ────────────────────────────────────────────
+          <>
+            {requestsLoading ? (
+              <View style={styles.empty}><ActivityIndicator size="large" color="#1B3D2F" /></View>
+            ) : requests.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={{ fontSize: 36, marginBottom: 8 }}>🙋</Text>
+                <Text style={styles.emptyTitle}>No requests yet</Text>
+                <Text style={styles.emptyBody}>Be the first to ask the community for a helpful resource.</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={requests}
+                keyExtractor={item => item.id}
+                contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 100 }]}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={requestsRefreshing} onRefresh={() => fetchRequests(true)} tintColor="#1B3D2F" />}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={reqStyles.card}
+                    activeOpacity={0.8}
+                    onPress={() => openRequestDetail(item)}
+                  >
+                    <View style={reqStyles.cardAccent} />
+                    <View style={reqStyles.cardBody}>
+                      <View style={reqStyles.cardTop}>
+                        <View style={reqStyles.avatarWrap}>
+                          <Text style={{ fontSize: 14 }}>🙋</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={reqStyles.cardAuthor}>{item.display_name ?? 'Parent'}</Text>
+                          <Text style={reqStyles.cardTime}>{timeAgo(item.created_at)}</Text>
+                        </View>
+                        {(item.reply_count ?? 0) > 0 && (
+                          <View style={reqStyles.replyBadge}>
+                            <Ionicons name="chatbubble-outline" size={12} color="#2E7D62" />
+                            <Text style={reqStyles.replyBadgeText}>{item.reply_count}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={reqStyles.cardTitle}>{item.title}</Text>
+                      <Text style={reqStyles.cardDesc} numberOfLines={2}>{item.description}</Text>
+                      <Text style={reqStyles.tapHint}>Tap to see replies →</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+            <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 20 }]} onPress={() => setShowPostRequest(true)} activeOpacity={0.85}>
+              <Ionicons name="add" size={22} color="#FFFFFF" />
+              <Text style={styles.fabText}>Ask for a Resource</Text>
+            </TouchableOpacity>
+          </>
         ) : activeTab === 'dua' ? (
           // ─── DU'A BOARD ───────────────────────────────────────────────────
           <>
@@ -1574,6 +1821,312 @@ export default function LibraryScreen({ navigation }) {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ── Community Splash ── */}
+      <Modal visible={showCommSplash} animationType="fade" transparent>
+        <View style={reqStyles.splashOverlay}>
+          <View style={reqStyles.splashSheet}>
+            <View style={reqStyles.splashIconRow}>
+              <Text style={{ fontSize: 32 }}>🕌</Text>
+            </View>
+            <Text style={reqStyles.splashTitle}>Community</Text>
+            <Text style={reqStyles.splashBody}>
+              Share resources, ask questions, make du'a for one another, and connect with your local mosque — all in one place.
+            </Text>
+            <View style={reqStyles.splashToggleRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={reqStyles.splashToggleLabel}>Community notifications</Text>
+                <Text style={reqStyles.splashToggleSub}>Show a dot when new requests or posts arrive</Text>
+              </View>
+              <Switch
+                value={communityNotif}
+                onValueChange={val => {
+                  setCommunityNotif(val);
+                  AsyncStorage.setItem('tarbiyah_community_notifications', String(val));
+                }}
+                trackColor={{ false: '#E8EAED', true: '#34C759' }}
+                thumbColor={communityNotif ? '#1B3D2F' : '#FFF'}
+                ios_backgroundColor="#E8EAED"
+              />
+            </View>
+            <TouchableOpacity style={reqStyles.splashBtn} onPress={() => setShowCommSplash(false)} activeOpacity={0.85}>
+              <Text style={reqStyles.splashBtnText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Post Request Modal ── */}
+      <Modal visible={showPostRequest} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <SafeAreaView style={styles.modalSafe} edges={['top']}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Ask for a Resource</Text>
+              <TouchableOpacity onPress={() => { setShowPostRequest(false); setReqTitle(''); setReqDesc(''); setReqError(''); setReqSuccess(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={22} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            {reqSuccess ? (
+              <View style={styles.successState}>
+                <View style={styles.successIcon}>
+                  <Ionicons name="checkmark-circle" size={56} color="#2E7D62" />
+                </View>
+                <Text style={styles.successTitle}>Request posted!</Text>
+                <Text style={styles.successBody}>Your question is live. The community will be able to suggest resources that might help.</Text>
+                <TouchableOpacity style={styles.successBtn} onPress={() => { setShowPostRequest(false); setReqTitle(''); setReqDesc(''); setReqSuccess(false); }}>
+                  <Text style={styles.successBtnText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <Text style={styles.fieldLabel}>What do you need? *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g. Videos on how to explain prayer to a 5-year-old"
+                  value={reqTitle}
+                  onChangeText={setReqTitle}
+                  maxLength={120}
+                />
+                <Text style={styles.fieldLabel}>Tell us more *</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  placeholder="Share any extra context — age of your child, what you've already tried, etc."
+                  value={reqDesc}
+                  onChangeText={setReqDesc}
+                  multiline
+                  numberOfLines={4}
+                  maxLength={500}
+                />
+                {reqError ? <Text style={styles.submitError}>{reqError}</Text> : null}
+                <TouchableOpacity
+                  style={[styles.submitBtn, reqSubmitting && { opacity: 0.7 }]}
+                  onPress={handlePostRequest}
+                  disabled={reqSubmitting}
+                  activeOpacity={0.85}
+                >
+                  {reqSubmitting
+                    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                        <Text style={styles.submitBtnText}>Reviewing…</Text>
+                      </View>
+                    : <Text style={styles.submitBtnText}>Post Request</Text>
+                  }
+                </TouchableOpacity>
+                <Text style={styles.submitNote}>Requests are reviewed to keep the community safe and on-topic.</Text>
+                <View style={{ height: 32 }} />
+              </ScrollView>
+            )}
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Request Detail Modal ── */}
+      <Modal visible={!!requestDetail} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={styles.modalSafe} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { flex: 1 }]} numberOfLines={1}>{requestDetail?.title ?? ''}</Text>
+            <TouchableOpacity onPress={() => { setRequestDetail(null); setRequestReplies([]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={22} color="#374151" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+            {/* Original request */}
+            <View style={reqStyles.detailRequest}>
+              <Text style={reqStyles.detailAuthor}>{requestDetail?.display_name ?? 'Parent'} · {timeAgo(requestDetail?.created_at)}</Text>
+              <Text style={reqStyles.detailTitle}>{requestDetail?.title}</Text>
+              <Text style={reqStyles.detailDesc}>{requestDetail?.description}</Text>
+            </View>
+
+            <Text style={reqStyles.repliesHeader}>
+              {requestReplies.length > 0 ? `${requestReplies.length} suggestion${requestReplies.length !== 1 ? 's' : ''}` : 'No suggestions yet'}
+            </Text>
+
+            {repliesLoading ? (
+              <View style={{ padding: 32, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#1B3D2F" />
+              </View>
+            ) : requestReplies.length === 0 ? (
+              <View style={reqStyles.repliesEmpty}>
+                <Text style={{ fontSize: 36, marginBottom: 8 }}>📚</Text>
+                <Text style={reqStyles.repliesEmptyText}>Be the first to suggest a resource</Text>
+              </View>
+            ) : (
+              requestReplies.map(reply => {
+                const myReaction = myReplyReactions[reply.id];
+                return (
+                  <View key={reply.id} style={reqStyles.replyCard}>
+                    <View style={reqStyles.replyCardTop}>
+                      <Text style={reqStyles.replyAuthor}>{reply.display_name ?? 'Parent'}</Text>
+                      <Text style={reqStyles.replyTime}>{timeAgo(reply.created_at)}</Text>
+                    </View>
+                    {reply.category ? (
+                      <View style={reqStyles.replyCatChip}>
+                        <Text style={reqStyles.replyCatText}>{reply.category}</Text>
+                      </View>
+                    ) : null}
+                    {reply.title ? <Text style={reqStyles.replyTitle}>{reply.title}</Text> : null}
+                    <Text style={reqStyles.replyUrl} numberOfLines={1}>{reply.url}</Text>
+                    {reply.comment ? <Text style={reqStyles.replyComment}>{reply.comment}</Text> : null}
+                    <View style={reqStyles.replyActions}>
+                      <TouchableOpacity
+                        style={[reqStyles.replyActionBtn, myReaction === 'agree' && reqStyles.replyActionBtnAgree]}
+                        onPress={() => handleReplyReact(reply, 'agree')}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="thumbs-up-outline" size={14} color={myReaction === 'agree' ? '#FFFFFF' : '#2E7D62'} />
+                        <Text style={[reqStyles.replyActionText, myReaction === 'agree' && { color: '#FFFFFF' }]}>
+                          {reply.agree_count > 0 ? `${reply.agree_count} Agree` : 'Agree'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[reqStyles.replyActionBtn, myReaction === 'warn' && reqStyles.replyActionBtnWarn]}
+                        onPress={() => {
+                          if (myReaction === 'warn') { handleReplyReact(reply, 'warn'); return; }
+                          setWarnTarget(reply); setWarnText('');
+                        }}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="warning-outline" size={14} color={myReaction === 'warn' ? '#FFFFFF' : '#D97706'} />
+                        <Text style={[reqStyles.replyActionText, { color: myReaction === 'warn' ? '#FFFFFF' : '#D97706' }]}>
+                          {reply.warn_count > 0 ? `${reply.warn_count} Warn` : 'Warn'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={reqStyles.replyActionBtn}
+                        onPress={() => { saveResource({ id: reply.id, url: reply.url, title: reply.title ?? reply.url, category: reply.category ?? 'Other', _kind: 'resource' }); }}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="bookmark-outline" size={14} color="#6B7280" />
+                        <Text style={[reqStyles.replyActionText, { color: '#6B7280' }]}>Save</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={reqStyles.replyActionBtn}
+                        onPress={() => Linking.openURL(reply.url)}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="open-outline" size={14} color="#6B7280" />
+                        <Text style={[reqStyles.replyActionText, { color: '#6B7280' }]}>Open</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+          <View style={reqStyles.detailFabWrap}>
+            <TouchableOpacity
+              style={reqStyles.detailFab}
+              onPress={() => setShowReplyForm(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="link-outline" size={18} color="#FFFFFF" />
+              <Text style={reqStyles.detailFabText}>Share a Resource</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Reply Form Modal ── */}
+      <Modal visible={showReplyForm} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <SafeAreaView style={styles.modalSafe} edges={['top']}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Share a Resource</Text>
+              <TouchableOpacity onPress={() => { setShowReplyForm(false); setReplyUrl(''); setReplyTitle(''); setReplyCategory('Video'); setReplyComment(''); setReplyError(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={22} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Resource Link *</Text>
+                {replyFetchingMeta && <ActivityIndicator size="small" color="#1B3D2F" />}
+              </View>
+              <TextInput
+                style={styles.textInput}
+                placeholder="https://..."
+                value={replyUrl}
+                onChangeText={setReplyUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+              <Text style={styles.fieldLabel}>Title</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Auto-filled from the link"
+                value={replyTitle}
+                onChangeText={setReplyTitle}
+              />
+              <Text style={styles.fieldLabel}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ marginBottom: 16 }}>
+                {CATEGORIES.filter(c => c !== 'All').map(cat => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.filterChip, replyCategory === cat && styles.filterChipActive]}
+                    onPress={() => setReplyCategory(cat)}
+                  >
+                    <Text style={[styles.filterChipText, replyCategory === cat && styles.filterChipTextActive]}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Text style={styles.fieldLabel}>Why does this help? <Text style={styles.fieldLabelOptional}>(optional)</Text></Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                placeholder="Share a brief note for the person who asked..."
+                value={replyComment}
+                onChangeText={setReplyComment}
+                multiline
+                numberOfLines={3}
+                maxLength={280}
+              />
+              {replyError ? <Text style={styles.submitError}>{replyError}</Text> : null}
+              <TouchableOpacity
+                style={[styles.submitBtn, replySubmitting && { opacity: 0.7 }]}
+                onPress={handleSubmitReply}
+                disabled={replySubmitting}
+                activeOpacity={0.85}
+              >
+                {replySubmitting
+                  ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <Text style={styles.submitBtnText}>Sharing…</Text>
+                    </View>
+                  : <Text style={styles.submitBtnText}>Share Resource</Text>
+                }
+              </TouchableOpacity>
+              <View style={{ height: 32 }} />
+            </ScrollView>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Warn Modal ── */}
+      <Modal visible={!!warnTarget} animationType="fade" transparent>
+        <View style={reqStyles.splashOverlay}>
+          <View style={reqStyles.warnSheet}>
+            <Text style={reqStyles.warnTitle}>Add a warning</Text>
+            <Text style={reqStyles.warnSub}>What's your concern? Keep it brief.</Text>
+            <TextInput
+              style={[styles.textInput, { marginTop: 12, marginBottom: 4 }]}
+              placeholder="e.g. Contains music, not age-appropriate..."
+              value={warnText}
+              onChangeText={setWarnText}
+              maxLength={120}
+            />
+            <View style={reqStyles.warnActions}>
+              <TouchableOpacity style={reqStyles.warnCancel} onPress={() => setWarnTarget(null)} activeOpacity={0.75}>
+                <Text style={reqStyles.warnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={reqStyles.warnConfirm}
+                onPress={() => { handleReplyReact(warnTarget, 'warn', warnText); setWarnTarget(null); setWarnText(''); }}
+                activeOpacity={0.85}
+              >
+                <Text style={reqStyles.warnConfirmText}>Submit Warning</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Du'a Submit Modal ── */}
       <Modal visible={showDuaSubmit} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -1731,30 +2284,6 @@ export default function LibraryScreen({ navigation }) {
         </Animated.View>
       )}
 
-      {/* ── Submit event modal ── */}
-      <SubmitEventModal
-        visible={showSubmitModal}
-        communities={communities}
-        currentUserId={currentUserId}
-        onClose={() => setShowSubmitModal(false)}
-        onSubmitted={() => { setShowSubmitModal(false); loadLocalData(); }}
-      />
-
-      {/* ── Verify event modal ── */}
-      <VerifyEventModal
-        visible={!!showVerifyModal}
-        event={showVerifyModal}
-        currentUserId={currentUserId}
-        myVerdict={myVerdicts[showVerifyModal?.id] ?? null}
-        onClose={() => setShowVerifyModal(null)}
-        onVerified={async (verdict) => {
-          if (!showVerifyModal || !currentUserId) return;
-          await verifyEvent(showVerifyModal.id, currentUserId, verdict);
-          setMyVerdicts(prev => ({ ...prev, [showVerifyModal.id]: verdict }));
-          setShowVerifyModal(null);
-          loadLocalData();
-        }}
-      />
     </SafeAreaView>
   );
 }
@@ -1770,18 +2299,51 @@ const TRUST_CONFIG = {
 const EVENT_CATEGORIES = ['general','halaqah','youth','family','announcement','program','class'];
 
 // ─── LocalCommunityTab ────────────────────────────────────────────────────────
-function LocalCommunityTab({ communities, localEvents, upcomingEvents, loading, activeCircle, onCircleChange, myVerdicts, currentUserId, onVerify, onPostPress, onRefresh }) {
+function LocalCommunityTab({ communities, loading, activeCircle, onCircleChange, onRefresh, mosqueSocial, onGoToProfile, onSaveSocial, onRetrySearch }) {
   const insets = useSafeAreaInsets();
+  const [webLoadFailed, setWebLoadFailed] = useState(false);
+  const [webLoading, setWebLoading] = useState(true);
+  const [showManual, setShowManual] = useState(false);
+  const [manualFb, setManualFb] = useState('');
+  const [manualIg, setManualIg] = useState('');
+  const [savingManual, setSavingManual] = useState(false);
+  const [manualError, setManualError] = useState('');
 
-  const circles = [{ placeId: 'all', name: 'All' }, ...communities];
+  const activeMosque = communities.find(c => c.placeId === activeCircle) ?? communities[0];
 
-  const filteredAll = activeCircle === 'all'
-    ? localEvents
-    : localEvents.filter(ev => ev.place_id === activeCircle);
+  // Reset webview loading state when mosque changes
+  useEffect(() => { setShowManual(false); setWebLoadFailed(false); setWebLoading(true); }, [activeMosque?.placeId]);
 
-  const filteredUpcoming = activeCircle === 'all'
-    ? upcomingEvents
-    : upcomingEvents.filter(ev => ev.place_id === activeCircle);
+  // Fallback: hide spinner after 8s in case onLoadEnd never fires
+  useEffect(() => {
+    if (!webLoading) return;
+    const t = setTimeout(() => setWebLoading(false), 3000);
+    return () => clearTimeout(t);
+  }, [webLoading]);
+
+  const social = activeMosque ? mosqueSocial?.[activeMosque.placeId] : undefined;
+  const hasFb  = !!social?.facebook;
+  const hasIg  = !!social?.instagram;
+  const socialFetched = social !== undefined && social !== null;
+  const noLinks = socialFetched && !hasFb && !hasIg;
+  const websiteUrl = social?.website ?? null;
+  const webviewUrl = social?.eventsUrl ?? websiteUrl;
+
+  async function handleSaveManual() {
+    const fb = manualFb.trim();
+    const ig = manualIg.trim();
+    if (!fb && !ig) { setManualError('Enter at least one URL.'); return; }
+    if (fb && !fb.includes('facebook.com')) { setManualError('Facebook URL must contain facebook.com'); return; }
+    if (ig && !ig.includes('instagram.com')) { setManualError('Instagram URL must contain instagram.com'); return; }
+    setManualError('');
+    setSavingManual(true);
+    try {
+      await onSaveSocial(activeMosque.placeId, fb || null, ig || null);
+      setManualFb(''); setManualIg('');
+      setShowManual(false);
+    } catch { setManualError('Could not save. Please try again.'); }
+    setSavingManual(false);
+  }
 
   if (loading) return (
     <View style={lcStyles.center}><ActivityIndicator size="large" color="#1B3D2F" /></View>
@@ -1790,18 +2352,24 @@ function LocalCommunityTab({ communities, localEvents, upcomingEvents, loading, 
   if (!communities.length) return (
     <View style={lcStyles.emptyWrap}>
       <Text style={lcStyles.emptyEmoji}>🕌</Text>
-      <Text style={lcStyles.emptyTitle}>No communities added yet</Text>
-      <Text style={lcStyles.emptySub}>Go to your profile and add your mosque or Islamic organisation to see local events here.</Text>
+      <Text style={lcStyles.emptyTitle}>Connect to your community</Text>
+      <Text style={lcStyles.emptySub}>
+        The Prophet ﷺ said: "The believer to another believer is like a building, each part strengthening the other."{'\n\n'}Your local mosque is where your family belongs. Add yours to stay connected to events, programmes, and the people raising their children alongside you.
+      </Text>
+      <TouchableOpacity style={lcStyles.emptyBtn} onPress={onGoToProfile} activeOpacity={0.85}>
+        <Ionicons name="person-circle-outline" size={18} color="#FFFFFF" />
+        <Text style={lcStyles.emptyBtnText}>Go to Profile</Text>
+      </TouchableOpacity>
     </View>
   );
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Circle pills */}
+      {/* ── Mosque pills (only if multiple) ── */}
       {communities.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={lcStyles.pillRow}>
-          {circles.map(c => {
-            const active = activeCircle === c.placeId;
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={lcStyles.pillScroll} contentContainerStyle={lcStyles.pillRow}>
+          {communities.map(c => {
+            const active = (activeCircle ?? communities[0].placeId) === c.placeId;
             return (
               <TouchableOpacity
                 key={c.placeId}
@@ -1816,44 +2384,149 @@ function LocalCommunityTab({ communities, localEvents, upcomingEvents, loading, 
         </ScrollView>
       )}
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[lcStyles.scroll, { paddingBottom: insets.bottom + 100 }]}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} tintColor="#1B3D2F" />}
-      >
-        {/* Upcoming for your family */}
-        {filteredUpcoming.length > 0 && (
-          <>
-            <Text style={lcStyles.sectionLabel}>UPCOMING FOR YOUR FAMILY</Text>
-            {filteredUpcoming.map(ev => (
-              <EventCard key={ev.id} event={ev} myVerdict={myVerdicts[ev.id]} onVerify={onVerify} />
-            ))}
-          </>
+      {/* ── Social banner ── */}
+      <View style={lcStyles.banner}>
+        {/* Left: context message */}
+        <View style={lcStyles.bannerLeft}>
+          <Text style={lcStyles.bannerLabel}>🔗 CONNECT</Text>
+          <Text style={lcStyles.bannerMsg}>
+            {noLinks
+              ? "We couldn't find their Facebook or Instagram pages."
+              : 'Events and activities are often posted on socials'}
+          </Text>
+        </View>
+
+        {/* Right: social buttons or states */}
+        <View style={lcStyles.bannerRight}>
+          {social === null && (
+            <ActivityIndicator size="small" color="#1B3D2F" />
+          )}
+          {(hasFb || hasIg) && (
+            <View style={lcStyles.bannerBtns}>
+              {hasFb && (
+                <TouchableOpacity style={[lcStyles.socialBtn, lcStyles.fbBtn]} onPress={() => Linking.openURL(social.facebook)} activeOpacity={0.8}>
+                  <Ionicons name="logo-facebook" size={15} color="#fff" />
+                  <Text style={lcStyles.socialBtnText}>Facebook</Text>
+                </TouchableOpacity>
+              )}
+              {hasIg && (
+                <TouchableOpacity style={[lcStyles.socialBtn, lcStyles.igBtn]} onPress={() => Linking.openURL(social.instagram)} activeOpacity={0.8}>
+                  <Ionicons name="logo-instagram" size={15} color="#fff" />
+                  <Text style={lcStyles.socialBtnText}>Instagram</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          {noLinks && (
+            <View style={lcStyles.noLinksCol}>
+              <View style={lcStyles.noLinksActions}>
+                <TouchableOpacity style={lcStyles.retryBtn} onPress={() => onRetrySearch(activeMosque.placeId)} activeOpacity={0.7}>
+                  <Ionicons name="refresh-outline" size={12} color="#2E7D62" />
+                  <Text style={lcStyles.retryBtnText}>Search again</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={lcStyles.retryBtn} onPress={() => setShowManual(true)} activeOpacity={0.7}>
+                  <Ionicons name="add-circle-outline" size={12} color="#2E7D62" />
+                  <Text style={lcStyles.retryBtnText}>Add</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* ── Manual entry sheet (slides in when no links + user taps Add pages) ── */}
+      {showManual && (
+        <View style={lcStyles.manualSheet}>
+          <Text style={lcStyles.manualTitle}>Add social pages</Text>
+          <TextInput style={lcStyles.socialInput} value={manualFb} onChangeText={setManualFb}
+            placeholder="Facebook page URL" placeholderTextColor="#9CA3AF"
+            autoCapitalize="none" keyboardType="url" />
+          <TextInput style={lcStyles.socialInput} value={manualIg} onChangeText={setManualIg}
+            placeholder="Instagram page URL" placeholderTextColor="#9CA3AF"
+            autoCapitalize="none" keyboardType="url" />
+          {!!manualError && <Text style={lcStyles.socialError}>{manualError}</Text>}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity style={[lcStyles.socialSaveBtn, { flex: 1, backgroundColor: '#E5E7EB' }]} onPress={() => setShowManual(false)} activeOpacity={0.8}>
+              <Text style={[lcStyles.socialSaveBtnText, { color: '#374151' }]}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[lcStyles.socialSaveBtn, { flex: 1 }, savingManual && { opacity: 0.6 }]} onPress={handleSaveManual} disabled={savingManual} activeOpacity={0.85}>
+              {savingManual ? <ActivityIndicator size="small" color="#fff" /> : <Text style={lcStyles.socialSaveBtnText}>Save</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── WebView area ── */}
+      <View style={{ flex: 1 }}>
+        {/* Loading social data */}
+        {social === null && (
+          <View style={lcStyles.center}>
+            <ActivityIndicator size="large" color="#1B3D2F" />
+          </View>
         )}
 
-        {/* All local events */}
-        <Text style={lcStyles.sectionLabel}>
-          {activeCircle === 'all' ? 'ALL LOCAL EVENTS' : communities.find(c => c.placeId === activeCircle)?.name?.toUpperCase() ?? 'LOCAL EVENTS'}
-        </Text>
-        {filteredAll.length === 0 ? (
-          <View style={lcStyles.emptySection}>
-            <Ionicons name="calendar-outline" size={32} color="#D1D5DB" />
-            <Text style={lcStyles.emptySectionText}>No events yet. Be the first to post one.</Text>
+        {/* No website found */}
+        {socialFetched && !websiteUrl && (
+          <View style={lcStyles.center}>
+            <Ionicons name="globe-outline" size={36} color="#D1D5DB" />
+            <Text style={lcStyles.noWebsiteText}>No website found for this mosque</Text>
           </View>
-        ) : filteredAll.map(ev => (
-          <EventCard key={ev.id} event={ev} myVerdict={myVerdicts[ev.id]} onVerify={onVerify} />
-        ))}
-      </ScrollView>
+        )}
 
-      {/* Floating post button */}
-      <TouchableOpacity
-        style={[lcStyles.fab, { bottom: insets.bottom + 20 }]}
-        onPress={onPostPress}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="add" size={22} color="#FFFFFF" />
-        <Text style={lcStyles.fabText}>Post an Event</Text>
-      </TouchableOpacity>
+        {/* WebView — shown immediately */}
+        {webviewUrl && WebView && !webLoadFailed && (() => {
+          const secureUrl = webviewUrl.replace(/^http:\/\//i, 'https://');
+          return (
+            <View style={{ flex: 1 }}>
+              <WebView
+                key={secureUrl}
+                source={{ uri: secureUrl }}
+                style={{ flex: 1 }}
+                onLoadEnd={() => setWebLoading(false)}
+                onError={() => { setWebLoading(false); setWebLoadFailed(true); }}
+                onHttpError={() => { setWebLoading(false); setWebLoadFailed(true); }}
+              />
+              {webLoading && (
+                <View style={lcStyles.webSpinnerOverlay}>
+                  <ActivityIndicator size="large" color="#1B3D2F" />
+                  <Text style={lcStyles.webLoadingTitle}>
+                    Connecting to "{activeMosque?.name}"
+                  </Text>
+                  <Text style={lcStyles.webLoadingSubtext}>
+                    Some mosque connections take a moment to load
+                  </Text>
+                </View>
+              )}
+            </View>
+          );
+        })()}
+
+        {/* Load failure — offer to open in Safari */}
+        {webviewUrl && webLoadFailed && (
+          <View style={lcStyles.center}>
+            <Ionicons name="globe-outline" size={36} color="#D1D5DB" />
+            <Text style={lcStyles.noWebsiteText}>This site couldn't load in-app.</Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL(webviewUrl ?? websiteUrl)}
+              activeOpacity={0.8}
+              style={[lcStyles.openWebBtn, { marginTop: 16 }]}
+            >
+              <Ionicons name="open-outline" size={16} color="#1B3D2F" />
+              <Text style={lcStyles.openWebBtnText}>Open in Safari</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* WebView not available fallback */}
+        {webviewUrl && !WebView && (
+          <View style={lcStyles.center}>
+            <TouchableOpacity onPress={() => Linking.openURL(webviewUrl)} activeOpacity={0.8} style={lcStyles.openWebBtn}>
+              <Ionicons name="globe-outline" size={18} color="#1B3D2F" />
+              <Text style={lcStyles.openWebBtnText}>Open website</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -2109,22 +2782,117 @@ function VerifyEventModal({ visible, event: ev, currentUserId, myVerdict, onClos
 // ─── Local component styles ───────────────────────────────────────────────────
 
 const lcStyles = StyleSheet.create({
-  center:      { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingTop: 60 },
-  emptyEmoji:  { fontSize: 48, marginBottom: 16 },
-  emptyTitle:  { fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 8, textAlign: 'center' },
-  emptySub:    { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 21 },
-  pillRow:     { paddingHorizontal: 20, paddingVertical: 10, gap: 8, alignItems: 'center', height: 52 },
-  pill:        { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 100, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', alignSelf: 'center' },
-  pillActive:  { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
-  pillText:    { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  center:         { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyWrap:      { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  emptyEmoji:     { fontSize: 48, marginBottom: 16 },
+  emptyTitle:     { fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 8, textAlign: 'center' },
+  emptySub:       { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 21, marginBottom: 24 },
+  emptyBtn:       { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1B3D2F', borderRadius: 14, paddingHorizontal: 24, paddingVertical: 14 },
+  emptyBtnText:   { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  pillScroll:     { height: 48, flexGrow: 0 },
+  pillRow:        { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
+  pill:           { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 100, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  pillActive:     { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
+  pillText:       { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   pillTextActive: { color: '#FFFFFF' },
-  scroll:      { paddingHorizontal: 20, paddingTop: 4 },
-  sectionLabel:{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, marginBottom: 10, marginTop: 8, textAlign: 'center' },
-  emptySection:{ alignItems: 'center', paddingVertical: 32, gap: 10 },
-  emptySectionText: { fontSize: 14, color: '#9CA3AF', textAlign: 'center' },
-  fab:         { position: 'absolute', right: 20, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1B3D2F', borderRadius: 100, paddingHorizontal: 20, paddingVertical: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
-  fabText:     { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  // Banner
+  banner:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F0F2F4', gap: 12 },
+  bannerLeft:     { flex: 1 },
+  bannerLabel:    { fontSize: 9, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, marginBottom: 3 },
+  bannerMsg:      { fontSize: 12, color: '#374151', fontWeight: '500', lineHeight: 17 },
+  bannerRight:    { alignItems: 'flex-end' },
+  bannerBtns:     { flexDirection: 'row', gap: 8 },
+  noLinksCol:     { alignItems: 'flex-end', gap: 5 },
+  noLinksText:    { fontSize: 11, color: '#9CA3AF', fontStyle: 'italic' },
+  noLinksActions: { flexDirection: 'row', gap: 12 },
+  infoOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  infoCard:       { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, width: '100%' },
+  infoCardTitle:  { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 12 },
+  infoCardBody:   { fontSize: 14, color: '#4B5563', lineHeight: 22, marginBottom: 20 },
+  infoCardBtn:    { backgroundColor: '#1B3D2F', borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  infoCardBtnText:{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  socialBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  fbBtn:          { backgroundColor: '#1877F2' },
+  igBtn:          { backgroundColor: '#C13584' },
+  socialBtnText:  { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  retryBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  retryBtnText:   { fontSize: 12, color: '#2E7D62', fontWeight: '600' },
+  // Manual entry
+  manualSheet:    { backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', padding: 16, gap: 10 },
+  manualTitle:    { fontSize: 14, fontWeight: '700', color: '#1A1A2E', marginBottom: 2 },
+  socialInput:    { backgroundColor: '#FFFFFF', borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 14, paddingVertical: 10, fontSize: 13, color: '#1A1A2E' },
+  socialError:    { fontSize: 12, color: '#DC2626' },
+  socialSaveBtn:     { backgroundColor: '#1B3D2F', borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  socialSaveBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  // WebView
+  webSpinnerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#F9FAFB', alignItems: 'center', justifyContent: 'center' },
+  webLoadingText:    { marginTop: 12, fontSize: 14, color: '#6B7280' },
+  webLoadingTitle:   { marginTop: 14, fontSize: 15, fontWeight: '600', color: '#1A1A2E', textAlign: 'center', paddingHorizontal: 32 },
+  webLoadingSubtext: { marginTop: 6, fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingHorizontal: 40 },
+  noWebsiteText:  { fontSize: 14, color: '#9CA3AF', textAlign: 'center', paddingHorizontal: 32, marginTop: 12 },
+  openWebBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#1B3D2F', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12 },
+  openWebBtnText: { fontSize: 15, fontWeight: '600', color: '#1B3D2F' },
+});
+
+const reqStyles = StyleSheet.create({
+  // Request cards
+  card:            { backgroundColor: '#FFFFFF', borderRadius: 16, marginHorizontal: 16, marginBottom: 12, flexDirection: 'row', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  cardAccent:      { width: 4, backgroundColor: '#2E7D62' },
+  cardBody:        { flex: 1, padding: 14 },
+  cardTop:         { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  avatarWrap:      { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
+  cardAuthor:      { fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
+  cardTime:        { fontSize: 11, color: '#9CA3AF' },
+  replyBadge:      { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#EDF7F2', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
+  replyBadgeText:  { fontSize: 12, fontWeight: '700', color: '#2E7D62' },
+  cardTitle:       { fontSize: 15, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
+  cardDesc:        { fontSize: 13, color: '#6B7280', lineHeight: 19, marginBottom: 8 },
+  tapHint:         { fontSize: 12, color: '#9CA3AF' },
+  // Detail modal
+  detailRequest:   { backgroundColor: '#F0F9F5', borderRadius: 14, margin: 16, padding: 16 },
+  detailAuthor:    { fontSize: 12, color: '#6B7280', marginBottom: 6 },
+  detailTitle:     { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 6 },
+  detailDesc:      { fontSize: 14, color: '#374151', lineHeight: 20 },
+  repliesHeader:   { fontSize: 13, fontWeight: '700', color: '#6B7280', marginHorizontal: 16, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  repliesEmpty:    { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 32 },
+  repliesEmptyText:{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginTop: 4 },
+  replyCard:       { backgroundColor: '#FFFFFF', borderRadius: 14, marginHorizontal: 16, marginBottom: 10, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
+  replyCardTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  replyAuthor:     { fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
+  replyTime:       { fontSize: 11, color: '#9CA3AF' },
+  replyCatChip:    { alignSelf: 'flex-start', backgroundColor: '#EDF7F2', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 6 },
+  replyCatText:    { fontSize: 11, fontWeight: '600', color: '#2E7D62' },
+  replyTitle:      { fontSize: 14, fontWeight: '700', color: '#1A1A2E', marginBottom: 2 },
+  replyUrl:        { fontSize: 12, color: '#6B7280', marginBottom: 6 },
+  replyComment:    { fontSize: 13, color: '#374151', fontStyle: 'italic', marginBottom: 10, lineHeight: 18 },
+  replyActions:    { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  replyActionBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#E5E7EB' },
+  replyActionBtnAgree: { backgroundColor: '#2E7D62', borderColor: '#2E7D62' },
+  replyActionBtnWarn:  { backgroundColor: '#D97706', borderColor: '#D97706' },
+  replyActionText: { fontSize: 12, fontWeight: '600', color: '#374151' },
+  detailFabWrap:   { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: 'transparent' },
+  detailFab:       { backgroundColor: '#1B3D2F', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6 },
+  detailFabText:   { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  // Community splash
+  splashOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  splashSheet:     { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, paddingBottom: 40 },
+  splashIconRow:   { alignItems: 'center', marginBottom: 10 },
+  splashTitle:     { fontSize: 22, fontWeight: '800', color: '#1A1A2E', textAlign: 'center', marginBottom: 8 },
+  splashBody:      { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 21, marginBottom: 24 },
+  splashToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F9FAFB', borderRadius: 14, padding: 14, marginBottom: 20 },
+  splashToggleLabel:{ fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
+  splashToggleSub: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+  splashBtn:       { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  splashBtnText:   { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  // Warn modal
+  warnSheet:       { backgroundColor: '#FFFFFF', borderRadius: 20, margin: 24, padding: 24 },
+  warnTitle:       { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
+  warnSub:         { fontSize: 13, color: '#6B7280' },
+  warnActions:     { flexDirection: 'row', gap: 10, marginTop: 16 },
+  warnCancel:      { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
+  warnCancelText:  { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  warnConfirm:     { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: '#D97706' },
+  warnConfirmText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 });
 
 const ecStyles = StyleSheet.create({
@@ -2227,13 +2995,39 @@ const styles = StyleSheet.create({
   },
   safe: { flex: 1, backgroundColor: '#F5F6F8' },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '40%', backgroundColor: '#1B3D2F' },
-  sheet: { flex: 1, backgroundColor: '#F5F6F8', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  sheet: { flex: 1, backgroundColor: '#F5F6F8', overflow: 'hidden' },
 
   // ── Tab bar ──
   // ── Header tab switcher ──
   tabHeader: {
     backgroundColor: '#1B3D2F',
-    paddingBottom: 16,
+    paddingBottom: 12,
+  },
+  tabSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 2,
+    paddingBottom: 4,
+    letterSpacing: 0.1,
+  },
+  tabSubtitleMain: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+    letterSpacing: 0.1,
+    marginBottom: 3,
+  },
+  tabSubtitleSub: {
+    fontSize: 11,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center',
+    letterSpacing: 0.1,
+    lineHeight: 16,
   },
   tabRow: {
     paddingHorizontal: 20, gap: 28, alignItems: 'center',
@@ -2249,7 +3043,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF', fontWeight: '700',
   },
   tabBtnUnderline: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
+    position: 'absolute', bottom: 10, left: 0, right: 0,
     height: 3, borderRadius: 2, backgroundColor: '#FFFFFF',
   },
   tabNewDot: {

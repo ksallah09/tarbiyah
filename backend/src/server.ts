@@ -2904,6 +2904,196 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
   return res.json({ facebook, instagram, website, eventsUrl });
 });
 
+// ─── Resource Requests ────────────────────────────────────────────────────────
+
+async function moderateRequest(
+  title: string, description: string
+): Promise<{ approved: boolean; reason: string }> {
+  const systemPrompt = 'You are a content moderator for Tarbiyah, an Islamic parenting app for Muslim families.';
+  const prompt = `Review this community resource request from a Muslim parent:
+Title: ${title}
+Description: ${description}
+
+APPROVE if:
+- Asking for parenting, child development, family life, or Islamic education resources
+- Islamically appropriate and relevant to Muslim family life
+- A genuine question (not spam or advertising)
+
+REJECT only if clearly:
+- Contains haram, inappropriate, or offensive content
+- Completely unrelated to parenting or family
+- Spam or advertising
+
+When in doubt, APPROVE.
+Respond with JSON only — no markdown: { "approved": boolean, "reason": string }`;
+
+  function parse(text: string): { approved: boolean; reason: string } {
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const r = JSON.parse(cleaned);
+    if (typeof r.approved !== 'boolean') throw new Error('bad shape');
+    return r;
+  }
+
+  try {
+    const model = getJsonModel(MODEL_FAST, systemPrompt);
+    const text = await generateWithRetry(model, prompt, MODEL_FAST);
+    return parse(text);
+  } catch {}
+
+  try {
+    const text = await generateJsonWithOpenAI(systemPrompt, prompt);
+    return parse(text);
+  } catch {}
+
+  return { approved: true, reason: 'AI review unavailable — auto-approved.' };
+}
+
+// GET /community/requests
+app.get('/community/requests', async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('resource_requests')
+      .select('*')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return res.json(data ?? []);
+  } catch (err) {
+    console.error('GET /community/requests error:', err);
+    return res.status(500).json({ error: 'Failed to fetch requests.' });
+  }
+});
+
+// POST /community/requests
+app.post('/community/requests', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { title, description, displayName } = req.body;
+    if (!title?.trim() || !description?.trim()) {
+      return res.status(400).json({ error: 'Title and description are required.' });
+    }
+
+    const moderation = await moderateRequest(title.trim(), description.trim());
+    if (!moderation.approved) {
+      return res.status(422).json({ error: moderation.reason ?? 'This request could not be approved.' });
+    }
+
+    const { data, error } = await supabase.from('resource_requests').insert({
+      user_id: req.userId,
+      display_name: displayName ?? 'Parent',
+      title: title.trim(),
+      description: description.trim(),
+      status: 'approved',
+    }).select().single();
+    if (error) throw error;
+
+    return res.status(201).json(data);
+  } catch (err) {
+    console.error('POST /community/requests error:', err);
+    return res.status(500).json({ error: 'Failed to submit request.' });
+  }
+});
+
+// GET /community/requests/:id/replies
+app.get('/community/requests/:id/replies', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('resource_request_replies')
+      .select('*')
+      .eq('request_id', req.params.id)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return res.json(data ?? []);
+  } catch (err) {
+    console.error('GET /community/requests/:id/replies error:', err);
+    return res.status(500).json({ error: 'Failed to fetch replies.' });
+  }
+});
+
+// POST /community/requests/:id/replies
+app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { url, title, category, comment, displayName } = req.body;
+    if (!url?.trim()) return res.status(400).json({ error: 'URL is required.' });
+
+    const { data, error } = await supabase.from('resource_request_replies').insert({
+      request_id: req.params.id,
+      user_id: req.userId,
+      display_name: displayName ?? 'Parent',
+      url: url.trim(),
+      title: title?.trim() ?? '',
+      category: category ?? null,
+      comment: comment?.trim() ?? null,
+    }).select().single();
+    if (error) throw error;
+
+    // Increment reply_count on the request
+    await supabase.rpc('increment_request_reply_count', { request_id: req.params.id });
+
+    return res.status(201).json(data);
+  } catch (err) {
+    console.error('POST /community/requests/:id/replies error:', err);
+    return res.status(500).json({ error: 'Failed to submit reply.' });
+  }
+});
+
+// POST /community/requests/replies/:replyId/react
+app.post('/community/requests/replies/:replyId/react', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { type, warnComment } = req.body; // type: 'agree' | 'warn'
+    if (!['agree', 'warn'].includes(type)) return res.status(400).json({ error: 'Invalid reaction type.' });
+
+    const { data: existing } = await supabase
+      .from('resource_reply_reactions')
+      .select('id, type')
+      .eq('reply_id', req.params.replyId)
+      .eq('user_id', req.userId!)
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.type === type) {
+        // Toggle off
+        await supabase.from('resource_reply_reactions').delete().eq('id', existing.id);
+        await supabase.rpc('decrement_reply_reaction', { reply_id: req.params.replyId, reaction_type: type });
+        return res.json({ toggled: false });
+      } else {
+        // Switch type
+        await supabase.from('resource_reply_reactions').update({ type, warn_comment: warnComment ?? null }).eq('id', existing.id);
+        await supabase.rpc('decrement_reply_reaction', { reply_id: req.params.replyId, reaction_type: existing.type });
+        await supabase.rpc('increment_reply_reaction', { reply_id: req.params.replyId, reaction_type: type });
+        return res.json({ toggled: true, type });
+      }
+    }
+
+    await supabase.from('resource_reply_reactions').insert({
+      reply_id: req.params.replyId,
+      user_id: req.userId,
+      type,
+      warn_comment: warnComment ?? null,
+    });
+    await supabase.rpc('increment_reply_reaction', { reply_id: req.params.replyId, reaction_type: type });
+
+    return res.json({ toggled: true, type });
+  } catch (err) {
+    console.error('POST /community/requests/replies/:replyId/react error:', err);
+    return res.status(500).json({ error: 'Failed to react.' });
+  }
+});
+
+// GET /community/requests/replies/my-reactions — reactions by current user across all replies
+app.get('/community/requests/replies/my-reactions', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('resource_reply_reactions')
+      .select('reply_id, type')
+      .eq('user_id', req.userId!);
+    if (error) throw error;
+    return res.json(data ?? []);
+  } catch {
+    return res.json([]);
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));
