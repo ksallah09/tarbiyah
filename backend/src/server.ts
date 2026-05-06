@@ -3017,6 +3017,11 @@ app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest
     const { url, title, category, comment, displayName } = req.body;
     if (!url?.trim()) return res.status(400).json({ error: 'URL is required.' });
 
+    const moderation = await moderateRequest(title?.trim() || url.trim(), comment?.trim() ?? '');
+    if (!moderation.approved) {
+      return res.status(422).json({ error: moderation.reason ?? 'This reply could not be approved.' });
+    }
+
     const { data, error } = await supabase.from('resource_request_replies').insert({
       request_id: req.params.id,
       user_id: req.userId,
@@ -3038,10 +3043,25 @@ app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest
   }
 });
 
+// GET /community/requests/replies/:replyId/reactions
+app.get('/community/requests/replies/:replyId/reactions', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('resource_reply_reactions')
+      .select('id, type, warn_comment, created_at')
+      .eq('reply_id', req.params.replyId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return res.json(data ?? []);
+  } catch {
+    return res.json([]);
+  }
+});
+
 // POST /community/requests/replies/:replyId/react
 app.post('/community/requests/replies/:replyId/react', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { type, warnComment } = req.body; // type: 'agree' | 'warn'
+    const { type, comment } = req.body; // type: 'agree' | 'warn'
     if (!['agree', 'warn'].includes(type)) return res.status(400).json({ error: 'Invalid reaction type.' });
 
     const { data: existing } = await supabase
@@ -3059,7 +3079,7 @@ app.post('/community/requests/replies/:replyId/react', requireAuth, async (req: 
         return res.json({ toggled: false });
       } else {
         // Switch type
-        await supabase.from('resource_reply_reactions').update({ type, warn_comment: warnComment ?? null }).eq('id', existing.id);
+        await supabase.from('resource_reply_reactions').update({ type, warn_comment: comment ?? null }).eq('id', existing.id);
         await supabase.rpc('decrement_reply_reaction', { reply_id: req.params.replyId, reaction_type: existing.type });
         await supabase.rpc('increment_reply_reaction', { reply_id: req.params.replyId, reaction_type: type });
         return res.json({ toggled: true, type });
@@ -3070,7 +3090,7 @@ app.post('/community/requests/replies/:replyId/react', requireAuth, async (req: 
       reply_id: req.params.replyId,
       user_id: req.userId,
       type,
-      warn_comment: warnComment ?? null,
+      warn_comment: comment ?? null,
     });
     await supabase.rpc('increment_reply_reaction', { reply_id: req.params.replyId, reaction_type: type });
 
@@ -3092,6 +3112,26 @@ app.get('/community/requests/replies/my-reactions', requireAuth, async (req: Aut
     return res.json(data ?? []);
   } catch {
     return res.json([]);
+  }
+});
+
+// POST /community/flag
+app.post('/community/flag', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { contentType, contentId, reason } = req.body;
+    if (!contentType || !contentId || !reason?.trim()) {
+      return res.status(400).json({ error: 'Content type, ID, and reason are required.' });
+    }
+    await supabase.from('content_flags').insert({
+      user_id: req.userId,
+      content_type: contentType,
+      content_id: String(contentId),
+      reason: reason.trim(),
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /community/flag error:', err);
+    return res.status(500).json({ error: 'Failed to submit flag.' });
   }
 });
 

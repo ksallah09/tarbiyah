@@ -205,8 +205,13 @@ export default function LibraryScreen({ navigation }) {
   const [replySubmitting,    setReplySubmitting]    = useState(false);
   const [replyError,         setReplyError]         = useState('');
   const [replyFetchingMeta,  setReplyFetchingMeta]  = useState(false);
-  const [warnTarget,         setWarnTarget]         = useState(null);
-  const [warnText,           setWarnText]           = useState('');
+  const [reactionModal,      setReactionModal]      = useState(null); // { reply, type }
+  const [reactionComment,    setReactionComment]    = useState('');
+  const [viewingReactions,   setViewingReactions]   = useState(null); // { replyId, list }
+  const [reactionsLoading,   setReactionsLoading]   = useState(false);
+  const [flagModal,          setFlagModal]          = useState(null); // { contentType, contentId }
+  const [flagReason,         setFlagReason]         = useState('');
+  const [flagSubmitting,     setFlagSubmitting]     = useState(false);
   const replyMetaDebounce = useRef(null);
 
   // ── Loading overlay ──
@@ -649,7 +654,7 @@ export default function LibraryScreen({ navigation }) {
     finally { setReplySubmitting(false); }
   }
 
-  async function handleReplyReact(reply, type, warnComment) {
+  async function handleReplyReact(reply, type, comment) {
     const { data: session } = await supabase.auth.getSession();
     const token = session?.session?.access_token;
     if (!token) return;
@@ -668,9 +673,36 @@ export default function LibraryScreen({ navigation }) {
       await fetch(`${API_URL}/community/requests/replies/${reply.id}/react`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ type, warnComment }),
+        body: JSON.stringify({ type, comment }),
       });
     } catch {}
+  }
+
+  async function handleFlag(contentType, contentId, reason) {
+    setFlagSubmitting(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      await fetch(`${API_URL}/community/flag`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ contentType, contentId, reason }),
+      });
+      setFlagModal(null); setFlagReason('');
+      Alert.alert('Reported', 'Thank you — our team will review this post.');
+    } catch {
+      Alert.alert('Error', 'Could not submit report. Please try again.');
+    } finally { setFlagSubmitting(false); }
+  }
+
+  async function loadReactions(reply) {
+    setReactionsLoading(true);
+    setViewingReactions({ replyId: reply.id, list: [] });
+    try {
+      const res = await fetch(`${API_URL}/community/requests/replies/${reply.id}/reactions`);
+      const data = await res.json();
+      setViewingReactions({ replyId: reply.id, list: Array.isArray(data) ? data : [] });
+    } catch {} finally { setReactionsLoading(false); }
   }
 
   async function handleDuaReact(dua, type) {
@@ -1230,6 +1262,9 @@ export default function LibraryScreen({ navigation }) {
                             <Text style={reqStyles.replyBadgeText}>{item.reply_count}</Text>
                           </View>
                         )}
+                        <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'request', contentId: item.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 8 }}>
+                          <Ionicons name="flag-outline" size={15} color="#D1D5DB" />
+                        </TouchableOpacity>
                       </View>
                       <Text style={reqStyles.cardTitle}>{item.title}</Text>
                       <Text style={reqStyles.cardDesc} numberOfLines={2}>{item.description}</Text>
@@ -2043,8 +2078,13 @@ export default function LibraryScreen({ navigation }) {
                 return (
                   <View key={reply.id} style={reqStyles.replyCard}>
                     <View style={reqStyles.replyCardTop}>
-                      <Text style={reqStyles.replyAuthor}>{reply.display_name ?? 'Parent'}</Text>
-                      <Text style={reqStyles.replyTime}>{timeAgo(reply.created_at)}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={reqStyles.replyAuthor}>{reply.display_name ?? 'Parent'}</Text>
+                        <Text style={reqStyles.replyTime}>{timeAgo(reply.created_at)}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'request_reply', contentId: reply.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="flag-outline" size={16} color="#D1D5DB" />
+                      </TouchableOpacity>
                     </View>
                     {reply.category ? (
                       <View style={reqStyles.replyCatChip}>
@@ -2052,30 +2092,26 @@ export default function LibraryScreen({ navigation }) {
                       </View>
                     ) : null}
                     {reply.title ? <Text style={reqStyles.replyTitle}>{reply.title}</Text> : null}
-                    <Text style={reqStyles.replyUrl} numberOfLines={1}>{reply.url}</Text>
-                    {reply.comment ? <Text style={reqStyles.replyComment}>{reply.comment}</Text> : null}
+                    {reply.comment ? <Text style={reqStyles.replyComment}>"{reply.comment}"</Text> : null}
                     <View style={reqStyles.replyActions}>
                       <TouchableOpacity
                         style={[reqStyles.replyActionBtn, myReaction === 'agree' && reqStyles.replyActionBtnAgree]}
-                        onPress={() => handleReplyReact(reply, 'agree')}
+                        onPress={() => { if (myReaction === 'agree') { handleReplyReact(reply, 'agree'); return; } setReactionModal({ reply, type: 'agree' }); setReactionComment(''); }}
                         activeOpacity={0.75}
                       >
                         <Ionicons name="thumbs-up-outline" size={14} color={myReaction === 'agree' ? '#FFFFFF' : '#2E7D62'} />
                         <Text style={[reqStyles.replyActionText, myReaction === 'agree' && { color: '#FFFFFF' }]}>
-                          {reply.agree_count > 0 ? `${reply.agree_count} Agree` : 'Agree'}
+                          {(reply.agree_count ?? 0) > 0 ? `${reply.agree_count} Agree` : 'Agree'}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[reqStyles.replyActionBtn, myReaction === 'warn' && reqStyles.replyActionBtnWarn]}
-                        onPress={() => {
-                          if (myReaction === 'warn') { handleReplyReact(reply, 'warn'); return; }
-                          setWarnTarget(reply); setWarnText('');
-                        }}
+                        onPress={() => { if (myReaction === 'warn') { handleReplyReact(reply, 'warn'); return; } setReactionModal({ reply, type: 'warn' }); setReactionComment(''); }}
                         activeOpacity={0.75}
                       >
                         <Ionicons name="warning-outline" size={14} color={myReaction === 'warn' ? '#FFFFFF' : '#D97706'} />
                         <Text style={[reqStyles.replyActionText, { color: myReaction === 'warn' ? '#FFFFFF' : '#D97706' }]}>
-                          {reply.warn_count > 0 ? `${reply.warn_count} Warn` : 'Warn'}
+                          {(reply.warn_count ?? 0) > 0 ? `${reply.warn_count} Warn` : 'Warn'}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -2095,6 +2131,13 @@ export default function LibraryScreen({ navigation }) {
                         <Text style={[reqStyles.replyActionText, { color: '#6B7280' }]}>Open</Text>
                       </TouchableOpacity>
                     </View>
+                    {((reply.agree_count ?? 0) + (reply.warn_count ?? 0)) > 0 && (
+                      <TouchableOpacity style={reqStyles.viewCommentsBtn} onPress={() => loadReactions(reply)} activeOpacity={0.75}>
+                        <Text style={reqStyles.viewCommentsBtnText}>
+                          {reply.agree_count > 0 && `👍 ${reply.agree_count}`}{reply.agree_count > 0 && reply.warn_count > 0 ? '  ' : ''}{reply.warn_count > 0 && `⚠️ ${reply.warn_count}`}{'  '}View comments
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 );
               })
@@ -2116,29 +2159,100 @@ export default function LibraryScreen({ navigation }) {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ── Warn Modal ── */}
-      <Modal visible={!!warnTarget} animationType="fade" transparent>
+      {/* ── Reaction Modal (agree / warn) ── */}
+      <Modal visible={!!reactionModal} animationType="fade" transparent>
         <View style={reqStyles.splashOverlay}>
           <View style={reqStyles.warnSheet}>
-            <Text style={reqStyles.warnTitle}>Add a warning</Text>
-            <Text style={reqStyles.warnSub}>What's your concern? Keep it brief.</Text>
+            <Text style={reqStyles.warnTitle}>
+              {reactionModal?.type === 'agree' ? '👍 Agree' : '⚠️ Warn'}
+            </Text>
+            <Text style={reqStyles.warnSub}>
+              {reactionModal?.type === 'agree'
+                ? 'Add an optional comment explaining why you recommend this.'
+                : 'Add an optional comment explaining your concern.'}
+            </Text>
             <TextInput
               style={[styles.textInput, { marginTop: 12, marginBottom: 4 }]}
-              placeholder="e.g. Contains music, not age-appropriate..."
-              value={warnText}
-              onChangeText={setWarnText}
+              placeholder={reactionModal?.type === 'agree' ? 'e.g. Worked great for my 6-year-old...' : 'e.g. Contains music, not age-appropriate...'}
+              value={reactionComment}
+              onChangeText={setReactionComment}
               maxLength={120}
             />
+            <Text style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Optional — leave blank to react without a comment</Text>
             <View style={reqStyles.warnActions}>
-              <TouchableOpacity style={reqStyles.warnCancel} onPress={() => setWarnTarget(null)} activeOpacity={0.75}>
+              <TouchableOpacity style={reqStyles.warnCancel} onPress={() => setReactionModal(null)} activeOpacity={0.75}>
                 <Text style={reqStyles.warnCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={reqStyles.warnConfirm}
-                onPress={() => { handleReplyReact(warnTarget, 'warn', warnText); setWarnTarget(null); setWarnText(''); }}
+                style={[reqStyles.warnConfirm, reactionModal?.type === 'agree' && { backgroundColor: '#2E7D62' }]}
+                onPress={() => {
+                  handleReplyReact(reactionModal.reply, reactionModal.type, reactionComment || null);
+                  setReactionModal(null); setReactionComment('');
+                }}
                 activeOpacity={0.85}
               >
-                <Text style={reqStyles.warnConfirmText}>Submit Warning</Text>
+                <Text style={reqStyles.warnConfirmText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── View Reactions Modal ── */}
+      <Modal visible={!!viewingReactions} animationType="fade" transparent>
+        <View style={reqStyles.splashOverlay}>
+          <View style={[reqStyles.warnSheet, { maxHeight: '70%' }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={reqStyles.warnTitle}>Comments</Text>
+              <TouchableOpacity onPress={() => setViewingReactions(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={20} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            {reactionsLoading ? (
+              <ActivityIndicator size="small" color="#1B3D2F" style={{ marginVertical: 20 }} />
+            ) : (viewingReactions?.list ?? []).length === 0 ? (
+              <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 16 }}>No comments yet</Text>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {(viewingReactions?.list ?? []).map(r => (
+                  <View key={r.id} style={reqStyles.reactionRow}>
+                    <Text style={reqStyles.reactionIcon}>{r.type === 'agree' ? '👍' : '⚠️'}</Text>
+                    <Text style={reqStyles.reactionComment}>{r.warn_comment ?? (r.type === 'agree' ? 'Agreed without comment' : 'Warned without comment')}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Flag Modal ── */}
+      <Modal visible={!!flagModal} animationType="fade" transparent>
+        <View style={reqStyles.splashOverlay}>
+          <View style={reqStyles.warnSheet}>
+            <Text style={reqStyles.warnTitle}>Report this post</Text>
+            <Text style={reqStyles.warnSub}>Tell us why this post should be reviewed.</Text>
+            <TextInput
+              style={[styles.textInput, { marginTop: 12, marginBottom: 4 }]}
+              placeholder="e.g. Inappropriate content, spam, misleading..."
+              value={flagReason}
+              onChangeText={setFlagReason}
+              maxLength={200}
+            />
+            <View style={reqStyles.warnActions}>
+              <TouchableOpacity style={reqStyles.warnCancel} onPress={() => { setFlagModal(null); setFlagReason(''); }} activeOpacity={0.75}>
+                <Text style={reqStyles.warnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[reqStyles.warnConfirm, { backgroundColor: '#DC2626' }, (!flagReason.trim() || flagSubmitting) && { opacity: 0.5 }]}
+                onPress={() => flagReason.trim() && handleFlag(flagModal.contentType, flagModal.contentId, flagReason)}
+                disabled={!flagReason.trim() || flagSubmitting}
+                activeOpacity={0.85}
+              >
+                {flagSubmitting
+                  ? <ActivityIndicator size="small" color="#FFF" />
+                  : <Text style={reqStyles.warnConfirmText}>Submit Report</Text>
+                }
               </TouchableOpacity>
             </View>
           </View>
@@ -2913,6 +3027,12 @@ const reqStyles = StyleSheet.create({
   warnCancelText:  { fontSize: 14, fontWeight: '600', color: '#6B7280' },
   warnConfirm:     { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: '#D97706' },
   warnConfirmText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  // View comments
+  viewCommentsBtn:     { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  viewCommentsBtnText: { fontSize: 12, color: '#6B7280' },
+  reactionRow:         { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  reactionIcon:        { fontSize: 14, marginTop: 1 },
+  reactionComment:     { flex: 1, fontSize: 13, color: '#374151', lineHeight: 18 },
 });
 
 const ecStyles = StyleSheet.create({
