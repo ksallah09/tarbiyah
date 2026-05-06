@@ -1938,7 +1938,78 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Request Detail Modal ── */}
       <Modal visible={!!requestDetail} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={styles.modalSafe} edges={['top']}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <SafeAreaView style={[styles.modalSafe, { flex: 1 }]} edges={['top']}>
+          {showReplyForm ? (
+            <>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Share a Resource</Text>
+                <TouchableOpacity onPress={() => { setShowReplyForm(false); setReplyUrl(''); setReplyTitle(''); setReplyCategory('Video'); setReplyComment(''); setReplyError(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Ionicons name="close" size={22} color="#374151" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                  <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Resource Link *</Text>
+                  {replyFetchingMeta && <ActivityIndicator size="small" color="#1B3D2F" />}
+                </View>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="https://..."
+                  value={replyUrl}
+                  onChangeText={setReplyUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+                <Text style={styles.fieldLabel}>Title</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Auto-filled from the link"
+                  value={replyTitle}
+                  onChangeText={setReplyTitle}
+                />
+                <Text style={styles.fieldLabel}>Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ marginBottom: 16 }}>
+                  {CATEGORIES.filter(c => c !== 'All').map(cat => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.filterChip, replyCategory === cat && styles.filterChipActive]}
+                      onPress={() => setReplyCategory(cat)}
+                    >
+                      <Text style={[styles.filterChipText, replyCategory === cat && styles.filterChipTextActive]}>{cat}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                <Text style={styles.fieldLabel}>Why does this help? <Text style={styles.fieldLabelOptional}>(optional)</Text></Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  placeholder="Share a brief note for the person who asked..."
+                  value={replyComment}
+                  onChangeText={setReplyComment}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={280}
+                />
+                {replyError ? <Text style={styles.submitError}>{replyError}</Text> : null}
+                <TouchableOpacity
+                  style={[styles.submitBtn, replySubmitting && { opacity: 0.7 }]}
+                  onPress={handleSubmitReply}
+                  disabled={replySubmitting}
+                  activeOpacity={0.85}
+                >
+                  {replySubmitting
+                    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                        <Text style={styles.submitBtnText}>Sharing…</Text>
+                      </View>
+                    : <Text style={styles.submitBtnText}>Share Resource</Text>
+                  }
+                </TouchableOpacity>
+                <View style={{ height: 32 }} />
+              </ScrollView>
+            </>
+          ) : (
+          <>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { flex: 1 }]} numberOfLines={1}>{requestDetail?.title ?? ''}</Text>
             <TouchableOpacity onPress={() => { setRequestDetail(null); setRequestReplies([]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -2039,79 +2110,9 @@ export default function LibraryScreen({ navigation }) {
               <Text style={reqStyles.detailFabText}>Share a Resource</Text>
             </TouchableOpacity>
           </View>
+          </>
+          )}
         </SafeAreaView>
-      </Modal>
-
-      {/* ── Reply Form Modal ── */}
-      <Modal visible={showReplyForm} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView style={styles.modalSafe} edges={['top']}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Share a Resource</Text>
-              <TouchableOpacity onPress={() => { setShowReplyForm(false); setReplyUrl(''); setReplyTitle(''); setReplyCategory('Video'); setReplyComment(''); setReplyError(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close" size={22} color="#374151" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-                <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Resource Link *</Text>
-                {replyFetchingMeta && <ActivityIndicator size="small" color="#1B3D2F" />}
-              </View>
-              <TextInput
-                style={styles.textInput}
-                placeholder="https://..."
-                value={replyUrl}
-                onChangeText={setReplyUrl}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-              <Text style={styles.fieldLabel}>Title</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Auto-filled from the link"
-                value={replyTitle}
-                onChangeText={setReplyTitle}
-              />
-              <Text style={styles.fieldLabel}>Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} style={{ marginBottom: 16 }}>
-                {CATEGORIES.filter(c => c !== 'All').map(cat => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.filterChip, replyCategory === cat && styles.filterChipActive]}
-                    onPress={() => setReplyCategory(cat)}
-                  >
-                    <Text style={[styles.filterChipText, replyCategory === cat && styles.filterChipTextActive]}>{cat}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <Text style={styles.fieldLabel}>Why does this help? <Text style={styles.fieldLabelOptional}>(optional)</Text></Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                placeholder="Share a brief note for the person who asked..."
-                value={replyComment}
-                onChangeText={setReplyComment}
-                multiline
-                numberOfLines={3}
-                maxLength={280}
-              />
-              {replyError ? <Text style={styles.submitError}>{replyError}</Text> : null}
-              <TouchableOpacity
-                style={[styles.submitBtn, replySubmitting && { opacity: 0.7 }]}
-                onPress={handleSubmitReply}
-                disabled={replySubmitting}
-                activeOpacity={0.85}
-              >
-                {replySubmitting
-                  ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                      <Text style={styles.submitBtnText}>Sharing…</Text>
-                    </View>
-                  : <Text style={styles.submitBtnText}>Share Resource</Text>
-                }
-              </TouchableOpacity>
-              <View style={{ height: 32 }} />
-            </ScrollView>
-          </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
 
