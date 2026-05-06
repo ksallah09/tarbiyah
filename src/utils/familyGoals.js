@@ -8,6 +8,25 @@ const FAMILY_ID_KEY = 'tarbiyah_family_id';
 
 export { requestNotificationPermission };
 
+// Maps legacy Ionicons icon names → emoji so old saved goals display correctly
+const ICON_TO_EMOJI = {
+  'moon':                  '🕌',
+  'moon-outline':          '🌙',
+  'restaurant-outline':    '🍽️',
+  'book-outline':          '📖',
+  'hand-left-outline':     '🤲',
+  'library-outline':       '🌟',
+  'walk-outline':          '🌿',
+  'phone-portrait-outline':'📵',
+  'chatbubbles-outline':   '💬',
+  'school-outline':        '📚',
+  'trophy':                '🏆',
+};
+
+export function getGoalEmoji(goal) {
+  return goal?.emoji ?? ICON_TO_EMOJI[goal?.icon] ?? '🌟';
+}
+
 // ─── Family ID (prep for spouse sync) ────────────────────────────────────────
 
 export async function getFamilyId() {
@@ -295,6 +314,7 @@ async function scheduleGoalNotifications(goal) {
 
 export const SUGGESTED_GOALS = [
   {
+    emoji: '🕌',
     icon: 'moon',
     iconColor: '#6B7C45',
     title: 'Pray together as a family',
@@ -303,6 +323,7 @@ export const SUGGESTED_GOALS = [
     defaultDays: [],
   },
   {
+    emoji: '🍽️',
     icon: 'restaurant-outline',
     iconColor: '#D4871A',
     title: 'Eat together as a family',
@@ -311,6 +332,7 @@ export const SUGGESTED_GOALS = [
     defaultDays: [],
   },
   {
+    emoji: '🌙',
     icon: 'moon-outline',
     iconColor: '#2E7D62',
     title: 'Go to the masjid together',
@@ -319,6 +341,7 @@ export const SUGGESTED_GOALS = [
     defaultDays: [6],
   },
   {
+    emoji: '📖',
     icon: 'book-outline',
     iconColor: '#6B9FD4',
     title: 'Read Quran as a family',
@@ -327,6 +350,7 @@ export const SUGGESTED_GOALS = [
     defaultDays: [],
   },
   {
+    emoji: '🤲',
     icon: 'hand-left-outline',
     iconColor: '#9B59B6',
     title: 'Make dua together',
@@ -335,6 +359,7 @@ export const SUGGESTED_GOALS = [
     defaultDays: [],
   },
   {
+    emoji: '🌟',
     icon: 'library-outline',
     iconColor: '#F59E0B',
     title: 'Bedtime Islamic story',
@@ -343,6 +368,7 @@ export const SUGGESTED_GOALS = [
     defaultDays: [],
   },
   {
+    emoji: '🌿',
     icon: 'walk-outline',
     iconColor: '#10B981',
     title: 'Family outdoor activity',
@@ -351,6 +377,7 @@ export const SUGGESTED_GOALS = [
     defaultDays: [1, 7],
   },
   {
+    emoji: '📵',
     icon: 'phone-portrait-outline',
     iconColor: '#EF4444',
     title: 'Screen-free family time',
@@ -359,6 +386,7 @@ export const SUGGESTED_GOALS = [
     defaultDays: [],
   },
   {
+    emoji: '💬',
     icon: 'chatbubbles-outline',
     iconColor: '#3B82F6',
     title: 'Family check-in',
@@ -367,6 +395,7 @@ export const SUGGESTED_GOALS = [
     defaultDays: [],
   },
   {
+    emoji: '📚',
     icon: 'school-outline',
     iconColor: '#8B5CF6',
     title: 'Learn something Islamic together',

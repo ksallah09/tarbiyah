@@ -104,7 +104,7 @@ export default function LearnScreen({ navigation, route }) {
           <Text style={styles.heroLabel}>PARENTING EDUCATION</Text>
           <Text style={styles.heroTitle}>Learn</Text>
           <Text style={styles.heroSub}>
-            Understand the science and wisdom behind every parenting challenge — on the topics you choose.
+            Understand the science and wisdom behind parenting challenges — on the topics you choose.
           </Text>
         </View>
 

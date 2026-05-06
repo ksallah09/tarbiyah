@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PLACES_KEY = 'AIzaSyAAzZUrCRvsauWBVNUnIf9HgH-CR8ub4Ig';
+const API_URL = 'https://tarbiyah-production.up.railway.app';
 
 // ── Fetch events for given place IDs ─────────────────────────────────────────
 export async function fetchLocalEvents(placeIds) {
@@ -143,6 +144,33 @@ export async function loadCommunities() {
     if (!raw) return [];
     return JSON.parse(raw).communities ?? [];
   } catch { return []; }
+}
+
+// ── Save manually-entered mosque social links ─────────────────────────────────
+export async function saveMosqueSocialLinks(placeId, facebook, instagram) {
+  const { error } = await supabase
+    .from('mosque_profiles')
+    .upsert({
+      place_id: placeId,
+      facebook_url: facebook ?? null,
+      instagram_url: instagram ?? null,
+      last_scraped_at: new Date().toISOString(),
+    }, { onConflict: 'place_id' });
+  if (error) throw error;
+}
+
+// ── Fetch mosque Facebook / Instagram links (scrapes via backend) ─────────────
+export async function fetchMosqueSocialLinks(placeId, { force = false } = {}) {
+  if (!placeId) return { facebook: null, instagram: null };
+  try {
+    const params = new URLSearchParams({ placeId });
+    if (force) params.set('force', 'true');
+    const res = await fetch(`${API_URL}/mosque/social-links?${params}`);
+    if (!res.ok) return { facebook: null, instagram: null };
+    return await res.json();
+  } catch {
+    return { facebook: null, instagram: null };
+  }
 }
 
 // ── Load children ages from profile ──────────────────────────────────────────

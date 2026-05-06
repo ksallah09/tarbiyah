@@ -15,6 +15,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile } from '../utils/childProfiles';
 import { logCompletion } from '../utils/childCompletions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HABIT_MESSAGES, ACTIVITY_MESSAGES, pickRandom } from '../utils/encouragement';
+import EncouragementModal from '../components/EncouragementModal';
 
 // ── Developmental phase data ──────────────────────────────────────────────────
 
@@ -83,11 +85,11 @@ function getDevPhase(age) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const CARD_SHADOW = {
-  shadowColor: '#1B3D2F',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.1,
-  shadowRadius: 10,
-  elevation: 4,
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.10,
+  shadowRadius: 14,
+  elevation: 5,
 };
 
 const MOTIVATIONAL = [
@@ -140,6 +142,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const [phaseExpanded,        setPhaseExpanded]        = useState(false);
   const [winModalVisible,      setWinModalVisible]      = useState(false);
   const [incidentModalVisible, setIncidentModalVisible] = useState(false);
+  const [encouragement,        setEncouragement]        = useState(null);
   const [winText,      setWinText]      = useState('');
   const [incidentText, setIncidentText] = useState('');
   const [coachingResponses, setCoachingResponses] = useState({});
@@ -306,8 +309,13 @@ export default function DashboardsScreen({ navigation, route }) {
   };
 
   const logOccurrence = (key) => {
+    const isFirstLog = (completionCounts[key] ?? 0) === 0;
     setCompletionCounts(prev => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
     logCompletion(key);
+    if (isFirstLog) {
+      const msgs = key.startsWith('adone_') ? ACTIVITY_MESSAGES : HABIT_MESSAGES;
+      setEncouragement(pickRandom(msgs));
+    }
   };
 
   const switchChild = (id) => {
@@ -581,7 +589,7 @@ export default function DashboardsScreen({ navigation, route }) {
 
         {/* Current Focus */}
         {focusAreas.length > 0 && (<>
-        <View style={[styles.focusCard, { borderColor: child.color + '55', backgroundColor: child.colorLight }]}>
+        <View style={styles.focusCard}>
           <View style={styles.focusTopRow}>
             <View style={styles.powerDotOuter}>
               <View style={styles.powerDotInner} />
@@ -599,7 +607,7 @@ export default function DashboardsScreen({ navigation, route }) {
             return (
               <View
                 key={area.id}
-                style={[styles.focusAreaRow, index < focusAreas.length - 1 && { borderBottomWidth: 1, borderBottomColor: child.color + '20' }]}
+                style={[styles.focusAreaRow, index < focusAreas.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#F0F2F4' }]}
               >
                 <View style={[styles.focusAreaNumBadge, { backgroundColor: child.color + '20' }]}>
                   <Text style={[styles.focusAreaNum, { color: child.color }]}>{index + 1}</Text>
@@ -957,6 +965,13 @@ export default function DashboardsScreen({ navigation, route }) {
         </View>
         </View>
       </Animated.ScrollView>
+      <EncouragementModal
+        visible={!!encouragement}
+        emoji={encouragement?.emoji}
+        title={encouragement?.title}
+        body={encouragement?.body}
+        onClose={() => setEncouragement(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -1024,12 +1039,10 @@ const styles = StyleSheet.create({
 
   // Developmental phase card
   phaseCard: {
-    backgroundColor: '#F0F7F4',
+    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#C6E8D4',
     ...CARD_SHADOW,
   },
   phaseTopRow: {
@@ -1039,14 +1052,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   phaseEmojiWrap: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#EDF7F2',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#C6E8D4',
   },
   phaseEmoji: { fontSize: 20 },
   phaseTitleBlock: { flex: 1 },
@@ -1066,7 +1077,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: '#DDF0E6',
+    backgroundColor: '#F0F9F5',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1093,7 +1104,7 @@ const styles = StyleSheet.create({
   phaseDetail: { marginTop: 4 },
   phaseDetailDivider: {
     height: 1,
-    backgroundColor: '#C6E8D4',
+    backgroundColor: '#F0F4F2',
     marginVertical: 14,
   },
   phaseDetailLabel: {
@@ -1131,8 +1142,9 @@ const styles = StyleSheet.create({
 
   // Focus card
   focusCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 20, padding: 16, marginBottom: 4,
-    ...CARD_SHADOW, borderWidth: 1,
+    ...CARD_SHADOW,
   },
   focusTopRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   powerDotOuter: {

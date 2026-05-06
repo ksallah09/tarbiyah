@@ -11,13 +11,13 @@ import {
   Dimensions,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import DarkHeader from '../components/DarkHeader';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { getMonthReadDays, getStreak, getPartnerMonthCounts } from '../utils/readInsights';
 
-import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal } from '../utils/familyGoals';
+import { loadFamilyGoals, loadFamilyGoalsCached, deleteFamilyGoal, getGoalEmoji } from '../utils/familyGoals';
 import { getAllChildProfiles, syncChildProfilesFromSupabase } from '../utils/childProfiles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
@@ -25,6 +25,8 @@ import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from 
 import { updateFamilyGoalReminder } from '../utils/notifications';
 import { getWeekCompletions, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
 import { rs, hp } from '../utils/responsive';
+import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
+import EncouragementModal from '../components/EncouragementModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -48,6 +50,7 @@ function getMotivationText(done, total) {
 }
 
 export default function ProgressScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [children,    setChildren]         = useState(_childrenCache);
   const [spirMonth,   setSpiritualMonth]   = useState(_spirCache);
   const [sciMonth,    setScientificMonth]  = useState(_sciCache);
@@ -57,6 +60,7 @@ export default function ProgressScreen({ navigation }) {
   const [quranStreak, setQuranStreak]      = useState(_quranStreakCache);
   const [familyGoals,  setFamilyGoals]  = useState(_familyGoalsCache);
   const [completions,  setCompletions]  = useState(_completionsCache);
+  const [encouragement, setEncouragement] = useState(null);
   const [syncStatus,    setSyncStatus]    = useState(_syncStatusCache);
   const [partnerCounts, setPartnerCounts] = useState({ spiritual: 0, scientific: 0, quran: 0 });
   const [myHabAct,      setMyHabAct]      = useState({ habits: 0, activities: 0 });
@@ -160,11 +164,14 @@ export default function ProgressScreen({ navigation }) {
     const updated = await logCompletion(goalId);
     _completionsCache = updated;
     setCompletions(updated);
+    setEncouragement(pickRandom(GOALS_MESSAGES));
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
+      <StatusBar style="light" />
       <View style={styles.bgTop} />
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -173,12 +180,20 @@ export default function ProgressScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#2E7D62"
-            colors={['#2E7D62']}
+            tintColor="#4ADE80"
+            colors={['#4ADE80']}
           />
         }
       >
-        <DarkHeader title="Family" subtitle="Manage profiles, track goals, and grow together" />
+        {/* ── Green header with hadith ── */}
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+          <Text style={styles.hadithArabic}>خَيْرُكُمْ خَيْرُكُمْ لِأَهْلِهِ</Text>
+          <View style={styles.hadithDivider} />
+          <Text style={styles.hadithEnglish}>"The best of you are the best to their families."</Text>
+          <Text style={styles.hadithSource}>— Prophet Muhammad ﷺ</Text>
+        </View>
+
+        {/* ── Light sheet ── */}
         <View style={styles.sheet}>
         <View style={styles.content}>
 
@@ -266,8 +281,8 @@ export default function ProgressScreen({ navigation }) {
             const dotCount  = Math.min(target, 7);
             return (
               <View key={goal.id} style={[styles.familyGoalCard, { alignItems: 'flex-start' }]}>
-                <View style={[styles.familyGoalIconWrap, { backgroundColor: '#2E7D62', marginTop: 2 }]}>
-                  <Ionicons name={goal.icon ?? 'trophy'} size={18} color="#F5C242" />
+                <View style={[styles.familyGoalIconWrap, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '20', marginTop: 2 }]}>
+                  <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
                 </View>
                 <View style={styles.familyGoalBody}>
                   <Text style={styles.familyGoalTitle}>{goal.title}</Text>
@@ -518,15 +533,28 @@ export default function ProgressScreen({ navigation }) {
         </View>
         </View>
       </ScrollView>
+      <EncouragementModal
+        visible={!!encouragement}
+        emoji={encouragement?.emoji}
+        title={encouragement?.title}
+        body={encouragement?.body}
+        onClose={() => setEncouragement(null)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F6F8' },
-  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
-  scroll: { flex: 1 },
+  safe:          { flex: 1, backgroundColor: '#1B3D2F' },
+  bgTop:         { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
+  scroll:        { flex: 1 },
   scrollContent: { flexGrow: 1 },
+  header: {
+    backgroundColor: '#1B3D2F',
+    paddingHorizontal: 24,
+    paddingBottom: 18,
+    alignItems: 'center',
+  },
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
@@ -534,7 +562,37 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     overflow: 'hidden',
   },
-  content: { paddingHorizontal: hp, paddingTop: 20 },
+  content: { paddingHorizontal: hp, paddingTop: 24, paddingBottom: 40 },
+
+  // ── Hadith ──
+  hadithArabic: {
+    fontSize: 22,
+    color: '#D4A843',
+    textAlign: 'center',
+    lineHeight: 36,
+    fontWeight: '600',
+    marginBottom: 14,
+  },
+  hadithDivider: {
+    width: 40,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginBottom: 14,
+  },
+  hadithEnglish: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.88)',
+    textAlign: 'center',
+    lineHeight: 22,
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  hadithSource: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
 
   // ── Section title ──
   sectionTitleRow: {

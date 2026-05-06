@@ -174,7 +174,12 @@ export default function AddChildWizardScreen({ navigation, route }) {
       let photoUrl = photo;
       if (photo && photo.startsWith('file://')) {
         const childId = existingChild?.id ?? `child_${Date.now()}`;
-        photoUrl = await uploadPhoto(photo, `children/${childId}.jpg`).catch(() => photo);
+        try {
+          photoUrl = await uploadPhoto(photo, `children/${childId}.jpg`);
+        } catch {
+          // Upload failed — clear the photo rather than storing a local URI that won't survive a rebuild
+          photoUrl = null;
+        }
       }
       const profile = {
         ...(isEdit ? existingChild : {}),

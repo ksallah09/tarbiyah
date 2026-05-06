@@ -81,6 +81,7 @@ export default function FamilyGoalWizardScreen({ navigation, route }) {
 
     const record = {
       id,
+      emoji:          goal.emoji ?? null,
       icon:           goal.icon,
       iconColor:      goal.iconColor,
       title:          goal.title,
@@ -148,8 +149,11 @@ export default function FamilyGoalWizardScreen({ navigation, route }) {
                   onPress={() => pickSuggestion(s)}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.suggestionIconWrap, { backgroundColor: s.iconColor + '22' }]}>
-                    <Ionicons name={s.icon} size={20} color={s.iconColor} />
+                  <View style={[styles.suggestionIconWrap, { backgroundColor: (s.iconColor ?? '#2E7D62') + '22' }]}>
+                    {s.emoji
+                      ? <Text style={{ fontSize: 20 }}>{s.emoji}</Text>
+                      : <Ionicons name={s.icon} size={20} color={s.iconColor} />
+                    }
                   </View>
                   <View style={styles.suggestionText}>
                     <Text style={[styles.suggestionTitle, active && styles.suggestionTitleActive]}>

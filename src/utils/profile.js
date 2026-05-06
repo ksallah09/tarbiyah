@@ -34,7 +34,7 @@ export async function saveProfileToSupabase({
 export async function syncProfileFromSupabase(userId) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, avatar_url')
     .eq('user_id', userId)
     .single();
 
@@ -56,6 +56,10 @@ export async function syncProfileFromSupabase(userId) {
       raisingIn:         data.raising_in         ?? null,
       communities:       data.communities        ?? [],
     })),
+    // Restore profile photo URL so it survives app reinstalls
+    data.avatar_url
+      ? AsyncStorage.setItem('tarbiyah_profile_photo', data.avatar_url)
+      : Promise.resolve(),
     saveOnboardingData({
       name:          data.name,
       childrenCount: data.children_count,

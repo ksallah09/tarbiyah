@@ -45,7 +45,7 @@ export default function OnboardingName({ navigation, route }) {
 
             <View style={styles.textWrap}>
               <TypewriterText
-                lines={['What should\nwe call you?']}
+                lines={['What should we call you?']}
                 charDelay={30}
                 style={styles.question}
                 onComplete={handleComplete}

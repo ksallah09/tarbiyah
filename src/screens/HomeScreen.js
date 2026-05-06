@@ -11,6 +11,7 @@ import {
   Dimensions,
   Share,
   Animated,
+  Modal,
 } from 'react-native';
 let captureRef = null;
 try { captureRef = require('react-native-view-shot').captureRef; } catch {}
@@ -36,6 +37,10 @@ import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
 import { getAllChildProfiles } from '../utils/childProfiles';
 import { getWeekCompletions, getChildWeeklyCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
+import { loadFamilyGoalsCached, getGoalEmoji } from '../utils/familyGoals';
+import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
+import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
+import EncouragementModal from '../components/EncouragementModal';
 
 
 const SCIENCE_IMAGES = [
@@ -147,6 +152,9 @@ export default function HomeScreen({ navigation }) {
   const [partnerMonthTotal, setPartnerMonthTotal] = useState(0);
   const [children,        setChildren]        = useState([]);
   const [weekCompletions, setWeekCompletions] = useState({});
+  const [familyGoals,       setFamilyGoals]       = useState([]);
+  const [goalCompletions,   setGoalCompletions]   = useState([]);
+  const [encouragement, setEncouragement] = useState(null);
   const [spirMonth,       setSpiritualMonth]  = useState([]);
   const [sciMonth,        setScientificMonth] = useState([]);
   const [quranMonth,      setQuranMonth]      = useState([]);
@@ -283,6 +291,9 @@ export default function HomeScreen({ navigation }) {
         setWeekCompletions(counts);
         setMyHabAct(getMonthlyHabitActivityTotals(counts));
       });
+      // Load family goals + today's completions
+      loadFamilyGoalsCached().then(setFamilyGoals);
+      loadCompletions().then(setGoalCompletions);
       getMonthReadDays('spiritual').then(setSpiritualMonth);
       getMonthReadDays('scientific').then(setScientificMonth);
       getMonthReadDays('quran').then(setQuranMonth);
@@ -554,18 +565,18 @@ export default function HomeScreen({ navigation }) {
 
 
 
-              {/* CHILDREN'S PROGRESS THIS WEEK */}
+              {/* PROGRESS THIS WEEK section title */}
               <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
-                <Text style={styles.sectionTitle}>CHILDREN'S PROGRESS THIS WEEK</Text>
+                <Text style={styles.sectionTitle}>PROGRESS THIS WEEK</Text>
               </View>
 
+              {/* Growth Support Tracker card moved above Family Goals */}
               <View style={styles.cpCard}>
-                {/* Card header */}
                 <View style={styles.cpCardHeader}>
                   <View style={styles.powerDotOuter}>
                     <View style={styles.powerDotInner} />
                   </View>
-                  <Text style={styles.cpCardHeaderText}>This Week's Overview</Text>
+                  <Text style={styles.cpCardHeaderText}>Your Wins</Text>
                 </View>
 
                 {children.length === 0 ? (
@@ -591,23 +602,18 @@ export default function HomeScreen({ navigation }) {
                       onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })}
                       activeOpacity={0.75}
                     >
-                      {/* Avatar */}
                       <View style={[styles.cpAvatar, { backgroundColor: child.color }]}>
                         {child.photo
                           ? <Image source={{ uri: child.photo }} style={styles.cpAvatarPhoto} />
                           : <Text style={styles.cpAvatarInitial}>{child.name[0]}</Text>
                         }
                       </View>
-
-                      {/* Name + age */}
                       <View style={styles.cpInfo}>
                         <Text style={styles.cpName}>{child.name}</Text>
                         <View style={styles.cpAgePill}>
                           <Text style={styles.cpAgeText}>Age {child.age}</Text>
                         </View>
                       </View>
-
-                      {/* Stats */}
                       {hasAreas ? (
                         <View style={styles.cpStats}>
                           <View style={styles.cpStatItem}>
@@ -623,12 +629,89 @@ export default function HomeScreen({ navigation }) {
                       ) : (
                         <Text style={styles.cpNoAreas}>No growth area yet</Text>
                       )}
-
                       <Ionicons name="chevron-forward" size={13} color="#C3DDD6" />
                     </TouchableOpacity>
                   );
                 })}
               </View>
+
+              {familyGoals.length > 0 && (() => {
+                return (
+                  <View style={[styles.cpCard, { marginTop: 12 }]}>
+                    <View style={styles.cpCardHeader}>
+                      <View style={styles.powerDotOuter}>
+                        <View style={styles.powerDotInner} />
+                      </View>
+                      <Text style={styles.cpCardHeaderText}>Family Goals</Text>
+                    </View>
+                    {familyGoals.map((goal, idx) => {
+                        const target    = goal.frequency ?? 1;
+                        const count     = countThisWeek(goalCompletions, goal.id);
+                        const doneToday = isCompletedToday(goalCompletions, goal.id);
+                        const goalMet   = count >= target;
+                        const pct       = Math.min(Math.round((count / target) * 100), 100);
+                        const fillColor = goalMet ? '#2E7D62' : (count > 0 ? '#4A90D9' : '#D1D5DB');
+
+                        return (
+                          <View key={goal.id}>
+                            {idx > 0 && <View style={styles.goalDivider} />}
+                            <View style={styles.goalRow}>
+                              {/* Icon */}
+                              <View style={[styles.goalIconWrap, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '18' }]}>
+                                <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
+                              </View>
+
+                              {/* Body */}
+                              <View style={styles.goalBody}>
+                                <View style={styles.goalTitleRow}>
+                                  <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
+                                  {goalMet ? (
+                                    <View style={styles.goalMetPill}>
+                                      <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
+                                      <Text style={styles.goalMetText}>Done</Text>
+                                    </View>
+                                  ) : (
+                                    <TouchableOpacity
+                                      style={[styles.goalLogBtn, doneToday && styles.goalLogBtnDone]}
+                                      disabled={doneToday}
+                                      onPress={async () => {
+                                        const updated = await logGoalCompletion(goal.id);
+                                        setGoalCompletions([...updated]);
+                                        setEncouragement(pickRandom(GOALS_MESSAGES));
+                                      }}
+                                      activeOpacity={0.75}
+                                    >
+                                      <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#fff'} />
+                                      <Text style={[styles.goalLogBtnText, doneToday && { color: '#2E7D62' }]}>
+                                        {doneToday ? 'Logged' : 'Log it'}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
+
+                                {/* Progress bar */}
+                                <View style={styles.goalBarRow}>
+                                  <View style={styles.goalBarTrack}>
+                                    <View style={[styles.goalBarFill, { width: `${pct}%`, backgroundColor: fillColor }]} />
+                                  </View>
+                                  <Text style={[styles.goalBarLabel, goalMet && { color: '#2E7D62' }]}>
+                                    {count}/{target}
+                                  </Text>
+                                </View>
+
+                                <Text style={styles.goalStatusText}>
+                                  {goalMet ? '🎯 Goal met this week' : `${goal.frequencyLabel} · ${target - count} to go`}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        );
+                    })}
+                  </View>
+                );
+              })()}
+
+
 
               {/* MONTHLY LEADERBOARD — only when partner sync is on */}
               {partnerSyncOn && (() => {
@@ -870,6 +953,14 @@ export default function HomeScreen({ navigation }) {
 
         </ScrollView>
 
+      <EncouragementModal
+        visible={!!encouragement}
+        emoji={encouragement?.emoji}
+        title={encouragement?.title}
+        body={encouragement?.body}
+        onClose={() => setEncouragement(null)}
+      />
+
       </SafeAreaView>
 
       {/* ── Off-screen dua share card ── */}
@@ -913,6 +1004,34 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#1B3D2F' },
+
+  // ── Family Goals ──
+  goalsContainer:  { overflow: 'hidden' },
+  goalDivider:     { height: 1, backgroundColor: '#F0F4F2', marginHorizontal: 16 },
+  goalRow:         { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16 },
+  goalIconWrap:    { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  goalBody:        { flex: 1 },
+  goalTitleRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+  goalCardTitle:   { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1 },
+  goalBarRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  goalBarTrack:    { flex: 1, height: 6, backgroundColor: '#F0F4F2', borderRadius: 100, overflow: 'hidden' },
+  goalBarFill:     { height: 6, borderRadius: 100 },
+  goalBarLabel:    { fontSize: 11, fontWeight: '700', color: '#6B7280', minWidth: 26, textAlign: 'right' },
+  goalStatusText:  { fontSize: 11, color: '#9CA3AF' },
+  goalMetPill:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5 },
+  goalMetText:     { fontSize: 11, fontWeight: '700', color: '#2E7D62' },
+  goalLogBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1B3D2F', borderRadius: 100, paddingHorizontal: 11, paddingVertical: 6 },
+  goalLogBtnDone:  { backgroundColor: '#EDF7F2' },
+  goalLogBtnText:  { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+
+  // ── Celebration modal ──
+  celebOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  celebCard:     { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28, alignItems: 'center', width: '100%' },
+  celebEmoji:    { fontSize: 52, marginBottom: 12 },
+  celebTitle:    { fontSize: 26, fontWeight: '800', color: '#1B3D2F', marginBottom: 12 },
+  celebBody:     { fontSize: 15, color: '#4B5563', textAlign: 'center', lineHeight: 23, marginBottom: 24 },
+  celebBtn:      { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32 },
+  celebBtnText:  { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
   bgBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 300, backgroundColor: '#F5F6F8' },
 
