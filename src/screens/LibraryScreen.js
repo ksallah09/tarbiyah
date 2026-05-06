@@ -2077,6 +2077,7 @@ export default function LibraryScreen({ navigation }) {
                 const myReaction = myReplyReactions[reply.id];
                 return (
                   <View key={reply.id} style={reqStyles.replyCard}>
+                    <View style={{ padding: 14 }}>
                     <View style={reqStyles.replyCardTop}>
                       <View style={{ flex: 1 }}>
                         <Text style={reqStyles.replyAuthor}>{reply.display_name ?? 'Parent'}</Text>
@@ -2086,12 +2087,23 @@ export default function LibraryScreen({ navigation }) {
                         <Ionicons name="flag-outline" size={16} color="#D1D5DB" />
                       </TouchableOpacity>
                     </View>
+                    </View>
+                    {reply.thumbnail_url ? (
+                      <TouchableOpacity onPress={() => Linking.openURL(reply.url)} activeOpacity={0.85}>
+                        <Image source={{ uri: reply.thumbnail_url }} style={reqStyles.replyThumb} resizeMode="cover" />
+                      </TouchableOpacity>
+                    ) : null}
+                    <View style={{ padding: 14, paddingTop: reply.thumbnail_url ? 10 : 0 }}>
                     {reply.category ? (
                       <View style={reqStyles.replyCatChip}>
                         <Text style={reqStyles.replyCatText}>{reply.category}</Text>
                       </View>
                     ) : null}
-                    {reply.title ? <Text style={reqStyles.replyTitle}>{reply.title}</Text> : null}
+                    {reply.title ? (
+                      <TouchableOpacity onPress={() => Linking.openURL(reply.url)} activeOpacity={0.85}>
+                        <Text style={reqStyles.replyTitle}>{reply.title}</Text>
+                      </TouchableOpacity>
+                    ) : null}
                     {reply.comment ? <Text style={reqStyles.replyComment}>"{reply.comment}"</Text> : null}
                     <View style={reqStyles.replyActions}>
                       <TouchableOpacity
@@ -2116,14 +2128,6 @@ export default function LibraryScreen({ navigation }) {
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={reqStyles.replyActionBtn}
-                        onPress={() => { saveResource({ id: reply.id, url: reply.url, title: reply.title ?? reply.url, category: reply.category ?? 'Other', _kind: 'resource' }); }}
-                        activeOpacity={0.75}
-                      >
-                        <Ionicons name="bookmark-outline" size={14} color="#6B7280" />
-                        <Text style={[reqStyles.replyActionText, { color: '#6B7280' }]}>Save</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={reqStyles.replyActionBtn}
                         onPress={() => Linking.openURL(reply.url)}
                         activeOpacity={0.75}
                       >
@@ -2138,6 +2142,7 @@ export default function LibraryScreen({ navigation }) {
                         </Text>
                       </TouchableOpacity>
                     )}
+                    </View>
                   </View>
                 );
               })
@@ -2977,7 +2982,8 @@ const reqStyles = StyleSheet.create({
   repliesHeader:   { fontSize: 13, fontWeight: '700', color: '#6B7280', marginHorizontal: 16, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   repliesEmpty:    { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 32 },
   repliesEmptyText:{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginTop: 4 },
-  replyCard:       { backgroundColor: '#FFFFFF', borderRadius: 14, marginHorizontal: 16, marginBottom: 10, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
+  replyCard:       { backgroundColor: '#FFFFFF', borderRadius: 14, marginHorizontal: 16, marginBottom: 10, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
+  replyThumb:      { width: '100%', height: 160, backgroundColor: '#F3F4F6', marginBottom: 10 },
   replyCardTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   replyAuthor:     { fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
   replyTime:       { fontSize: 11, color: '#9CA3AF' },

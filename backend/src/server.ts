@@ -3017,7 +3017,10 @@ app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest
     const { url, title, category, comment, displayName } = req.body;
     if (!url?.trim()) return res.status(400).json({ error: 'URL is required.' });
 
-    const moderation = await moderateRequest(title?.trim() || url.trim(), comment?.trim() ?? '');
+    const [moderation, thumbnailUrl] = await Promise.all([
+      moderateRequest(title?.trim() || url.trim(), comment?.trim() ?? ''),
+      fetchThumbnail(url.trim()),
+    ]);
     if (!moderation.approved) {
       return res.status(422).json({ error: moderation.reason ?? 'This reply could not be approved.' });
     }
@@ -3030,6 +3033,7 @@ app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest
       title: title?.trim() ?? '',
       category: category ?? null,
       comment: comment?.trim() ?? null,
+      thumbnail_url: thumbnailUrl ?? null,
     }).select().single();
     if (error) throw error;
 
