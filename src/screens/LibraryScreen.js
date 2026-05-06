@@ -207,8 +207,8 @@ export default function LibraryScreen({ navigation }) {
   const [replyFetchingMeta,  setReplyFetchingMeta]  = useState(false);
   const [reactionModal,      setReactionModal]      = useState(null); // { reply, type }
   const [reactionComment,    setReactionComment]    = useState('');
-  const [viewingReactions,   setViewingReactions]   = useState(null); // { replyId, list }
-  const [reactionsLoading,   setReactionsLoading]   = useState(false);
+  const [expandedReactions,  setExpandedReactions]  = useState({}); // { [replyId]: list | 'loading' }
+  const [viewingReactions,   setViewingReactions]   = useState(null); // kept for compat, unused
   const [flagModal,          setFlagModal]          = useState(null); // { contentType, contentId }
   const [flagReason,         setFlagReason]         = useState('');
   const [flagSubmitting,     setFlagSubmitting]     = useState(false);
@@ -696,13 +696,19 @@ export default function LibraryScreen({ navigation }) {
   }
 
   async function loadReactions(reply) {
-    setReactionsLoading(true);
-    setViewingReactions({ replyId: reply.id, list: [] });
+    // Toggle collapse
+    if (expandedReactions[reply.id] && expandedReactions[reply.id] !== 'loading') {
+      setExpandedReactions(prev => { const next = { ...prev }; delete next[reply.id]; return next; });
+      return;
+    }
+    setExpandedReactions(prev => ({ ...prev, [reply.id]: 'loading' }));
     try {
       const res = await fetch(`${API_URL}/community/requests/replies/${reply.id}/reactions`);
       const data = await res.json();
-      setViewingReactions({ replyId: reply.id, list: Array.isArray(data) ? data : [] });
-    } catch {} finally { setReactionsLoading(false); }
+      setExpandedReactions(prev => ({ ...prev, [reply.id]: Array.isArray(data) ? data : [] }));
+    } catch {
+      setExpandedReactions(prev => { const next = { ...prev }; delete next[reply.id]; return next; });
+    }
   }
 
   async function handleDuaReact(dua, type) {
@@ -2185,11 +2191,30 @@ export default function LibraryScreen({ navigation }) {
                     {((reply.agree_count ?? 0) + (reply.warn_count ?? 0)) > 0 && (
                       <TouchableOpacity style={reqStyles.viewCommentsBtn} onPress={() => loadReactions(reply)} activeOpacity={0.75}>
                         <Text style={reqStyles.viewCommentsBtnText}>
-                          {reply.agree_count > 0 && `👍 ${reply.agree_count}`}{reply.agree_count > 0 && reply.warn_count > 0 ? '  ' : ''}{reply.warn_count > 0 && `⚠️ ${reply.warn_count}`}{'  '}View comments
+                          {reply.agree_count > 0 && `👍 ${reply.agree_count}`}{reply.agree_count > 0 && reply.warn_count > 0 ? '  ' : ''}{reply.warn_count > 0 && `⚠️ ${reply.warn_count}`}
+                          {'  '}{expandedReactions[reply.id] && expandedReactions[reply.id] !== 'loading' ? 'Hide comments ▲' : 'View comments ▼'}
                         </Text>
                       </TouchableOpacity>
                     )}
                     </View>
+                    {expandedReactions[reply.id] === 'loading' ? (
+                      <View style={reqStyles.commentsExpanded}>
+                        <ActivityIndicator size="small" color="#1B3D2F" />
+                      </View>
+                    ) : Array.isArray(expandedReactions[reply.id]) && expandedReactions[reply.id].length > 0 ? (
+                      <View style={reqStyles.commentsExpanded}>
+                        {expandedReactions[reply.id].map(r => (
+                          <View key={r.id} style={reqStyles.commentRow}>
+                            <Text style={reqStyles.commentIcon}>{r.type === 'agree' ? '👍' : '⚠️'}</Text>
+                            <Text style={reqStyles.commentText}>{r.warn_comment ?? (r.type === 'agree' ? 'Agreed' : 'Warned')}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : Array.isArray(expandedReactions[reply.id]) ? (
+                      <View style={reqStyles.commentsExpanded}>
+                        <Text style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center' }}>No comments yet</Text>
+                      </View>
+                    ) : null}
                   </View>
                   </View>
                 );
@@ -2238,32 +2263,6 @@ export default function LibraryScreen({ navigation }) {
                     <Text style={reqStyles.warnConfirmText}>Submit</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            </View>
-          )}
-          {!!viewingReactions && (
-            <View style={reqStyles.inlineOverlay}>
-              <View style={[reqStyles.warnSheet, { maxHeight: '70%' }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <Text style={reqStyles.warnTitle}>Comments</Text>
-                  <TouchableOpacity onPress={() => setViewingReactions(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Ionicons name="close" size={20} color="#374151" />
-                  </TouchableOpacity>
-                </View>
-                {reactionsLoading ? (
-                  <ActivityIndicator size="small" color="#1B3D2F" style={{ marginVertical: 20 }} />
-                ) : (viewingReactions.list ?? []).length === 0 ? (
-                  <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 16 }}>No comments yet</Text>
-                ) : (
-                  <ScrollView showsVerticalScrollIndicator={false}>
-                    {(viewingReactions.list ?? []).map(r => (
-                      <View key={r.id} style={reqStyles.reactionRow}>
-                        <Text style={reqStyles.reactionIcon}>{r.type === 'agree' ? '👍' : '⚠️'}</Text>
-                        <Text style={reqStyles.reactionComment}>{r.warn_comment ?? (r.type === 'agree' ? 'Agreed without comment' : 'Warned without comment')}</Text>
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
               </View>
             </View>
           )}
@@ -3073,8 +3072,12 @@ const reqStyles = StyleSheet.create({
   warnConfirm:     { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: '#D97706' },
   warnConfirmText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   // View comments
-  viewCommentsBtn:     { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  viewCommentsBtn:     { marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E7EB' },
   viewCommentsBtnText: { fontSize: 12, color: '#6B7280' },
+  commentsExpanded:    { backgroundColor: '#F9FAFB', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E7EB', paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
+  commentRow:          { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  commentIcon:         { fontSize: 13 },
+  commentText:         { flex: 1, fontSize: 13, color: '#4B5563', lineHeight: 18 },
   reactionRow:         { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   reactionIcon:        { fontSize: 14, marginTop: 1 },
   reactionComment:     { flex: 1, fontSize: 13, color: '#374151', lineHeight: 18 },
