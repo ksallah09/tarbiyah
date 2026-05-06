@@ -2119,13 +2119,10 @@ export default function LibraryScreen({ navigation }) {
                 <Text style={reqStyles.repliesEmptyText}>Be the first to suggest a resource</Text>
               </View>
             ) : (
-              <View style={reqStyles.repliesContainer}>
-              {requestReplies.map((reply, index) => {
+              requestReplies.map(reply => {
                 const myReaction = myReplyReactions[reply.id];
                 return (
-                  <View key={reply.id}>
-                  {index > 0 && <View style={reqStyles.replyDivider} />}
-                  <View style={reqStyles.replyCard}>
+                  <View key={reply.id} style={reqStyles.replyCard}>
                     <View style={{ padding: 14 }}>
                     <View style={reqStyles.replyCardTop}>
                       <View style={{ flex: 1 }}>
@@ -2193,10 +2190,8 @@ export default function LibraryScreen({ navigation }) {
                     )}
                     </View>
                   </View>
-                  </View>
                 );
-              })}
-              </View>
+              })
             )}
           </ScrollView>
           <View style={reqStyles.detailFabWrap}>
@@ -3033,9 +3028,7 @@ const reqStyles = StyleSheet.create({
   repliesHeader:   { fontSize: 13, fontWeight: '700', color: '#6B7280', marginHorizontal: 16, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   repliesEmpty:    { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 32 },
   repliesEmptyText:{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginTop: 4 },
-  repliesContainer:{ backgroundColor: '#FFFFFF', borderRadius: 14, marginHorizontal: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 2 },
-  replyDivider:    { height: StyleSheet.hairlineWidth, backgroundColor: '#E5E7EB', marginHorizontal: 14 },
-  replyCard:       { overflow: 'hidden' },
+  replyCard:       { backgroundColor: '#FFFFFF', borderRadius: 14, marginHorizontal: 16, marginBottom: 10, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 2 },
   replyThumb:      { width: '100%', height: 160, backgroundColor: '#F3F4F6', marginBottom: 10 },
   replyCardTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   replyAuthor:     { fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
