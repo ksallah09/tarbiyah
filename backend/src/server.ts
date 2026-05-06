@@ -2758,7 +2758,13 @@ function extractSocials(html: string): { facebook: string | null; instagram: str
   return { facebook, instagram };
 }
 
-const EVENTS_KEYWORDS = /\b(events?|programme|calendar|whats-on|what-s-on|activities|upcoming)\b/i;
+const EVENTS_KEYWORDS = /\b(events?|programme|program|calendar|whats-on|what-s-on|activities|upcoming)\b/i;
+
+const EVENTS_PATHS = [
+  '/events', '/events-calendar', '/event', '/upcoming-events',
+  '/community-events', '/community/events', '/whats-on', '/what-s-on',
+  '/programmes', '/programs', '/calendar', '/activities',
+];
 
 function extractEventsUrl(html: string, baseUrl: string): string | null {
   try {
@@ -2772,6 +2778,22 @@ function extractEventsUrl(html: string, baseUrl: string): string | null {
       } catch {}
     }
   } catch {}
+  return null;
+}
+
+async function probeEventsUrl(base: string): Promise<string | null> {
+  const origin = base.replace(/\/$/, '');
+  for (const path of EVENTS_PATHS) {
+    try {
+      const res = await fetch(origin + path, {
+        method: 'HEAD',
+        headers: { 'User-Agent': BROWSER_UA },
+        signal: AbortSignal.timeout(3000),
+        redirect: 'follow',
+      });
+      if (res.ok) return origin + path;
+    } catch {}
+  }
   return null;
 }
 
@@ -2843,6 +2865,11 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
     if (homeHtml) {
       ({ facebook, instagram } = extractSocials(homeHtml));
       eventsUrl = extractEventsUrl(homeHtml, base);
+    }
+
+    // If no events URL found via links, probe common paths directly
+    if (!eventsUrl) {
+      eventsUrl = await probeEventsUrl(base);
     }
 
     // If still missing socials, try /contact and /about subpages
