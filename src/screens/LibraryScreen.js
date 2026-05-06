@@ -1307,10 +1307,13 @@ export default function LibraryScreen({ navigation }) {
                         <View style={styles.duaTop}>
                           <View style={styles.duaAuthorRow}>
                             <View style={styles.duaAvatar}><Ionicons name="sparkles" size={18} color="#1B3D2F" /></View>
-                            <View>
+                            <View style={{ flex: 1 }}>
                               <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
                               <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
                             </View>
+                            <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'dua', contentId: item.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Ionicons name="flag-outline" size={15} color="#D1D5DB" />
+                            </TouchableOpacity>
                           </View>
                         </View>
                         {item.title ? <Text style={styles.winTitle}>{item.title}</Text> : null}
@@ -1375,10 +1378,13 @@ export default function LibraryScreen({ navigation }) {
                         <View style={styles.duaTop}>
                           <View style={styles.duaAuthorRow}>
                             <View style={[styles.duaAvatar, { backgroundColor: '#FEF9EE' }]}><Ionicons name="trophy-outline" size={18} color="#D4871A" /></View>
-                            <View>
+                            <View style={{ flex: 1 }}>
                               <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
                               <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
                             </View>
+                            <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'win', contentId: item.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Ionicons name="flag-outline" size={15} color="#D1D5DB" />
+                            </TouchableOpacity>
                           </View>
                         </View>
                         {item.title ? <Text style={styles.winTitle}>{item.title}</Text> : null}
@@ -1659,6 +1665,16 @@ export default function LibraryScreen({ navigation }) {
                           <Ionicons name="open-outline" size={15} color="#FFFFFF" />
                           <Text style={styles.openBtnText}>Open</Text>
                         </TouchableOpacity>
+                        {!isOwner && (
+                          <TouchableOpacity
+                            onPress={() => { setFlagModal({ contentType: 'resource', contentId: item.id }); setFlagReason(''); }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ marginLeft: 4 }}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name="flag-outline" size={15} color="#D1D5DB" />
+                          </TouchableOpacity>
+                        )}
                       </View>
                       </View>
                     </View>
@@ -1854,6 +1870,36 @@ export default function LibraryScreen({ navigation }) {
             )}
           </SafeAreaView>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Root-level Flag Modal (for resource / dua / win cards outside pageSheet) ── */}
+      <Modal visible={!!flagModal && !requestDetail} animationType="fade" transparent>
+        <View style={reqStyles.splashOverlay}>
+          <View style={reqStyles.warnSheet}>
+            <Text style={reqStyles.warnTitle}>Report this post</Text>
+            <Text style={reqStyles.warnSub}>Tell us why this post should be reviewed.</Text>
+            <TextInput
+              style={[styles.textInput, { marginTop: 12, marginBottom: 4 }]}
+              placeholder="e.g. Inappropriate content, spam, misleading..."
+              value={flagReason}
+              onChangeText={setFlagReason}
+              maxLength={200}
+            />
+            <View style={reqStyles.warnActions}>
+              <TouchableOpacity style={reqStyles.warnCancel} onPress={() => { setFlagModal(null); setFlagReason(''); }} activeOpacity={0.75}>
+                <Text style={reqStyles.warnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[reqStyles.warnConfirm, { backgroundColor: '#DC2626' }, (!flagReason.trim() || flagSubmitting) && { opacity: 0.5 }]}
+                onPress={() => flagReason.trim() && handleFlag(flagModal.contentType, flagModal.contentId, flagReason)}
+                disabled={!flagReason.trim() || flagSubmitting}
+                activeOpacity={0.85}
+              >
+                {flagSubmitting ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={reqStyles.warnConfirmText}>Submit Report</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       {/* ── Community Splash ── */}
