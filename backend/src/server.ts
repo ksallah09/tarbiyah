@@ -2758,6 +2758,23 @@ function extractSocials(html: string): { facebook: string | null; instagram: str
   return { facebook, instagram };
 }
 
+const EVENTS_KEYWORDS = /\b(events?|programme|calendar|whats-on|what-s-on|activities|upcoming)\b/i;
+
+function extractEventsUrl(html: string, baseUrl: string): string | null {
+  try {
+    const base = new URL(baseUrl);
+    for (const m of html.matchAll(/href=["']([^"'#?][^"']*)["']/g)) {
+      const href = m[1].trim();
+      if (!EVENTS_KEYWORDS.test(href)) continue;
+      try {
+        const url = new URL(href, base);
+        if (url.hostname === base.hostname) return url.href.replace(/\/$/, '');
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
+
 async function fetchPage(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
@@ -2782,7 +2799,7 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
   try {
     const { data: cached } = await supabase
       .from('mosque_profiles')
-      .select('facebook_url, instagram_url, website, last_scraped_at')
+      .select('facebook_url, instagram_url, website, events_url, last_scraped_at')
       .eq('place_id', placeId)
       .maybeSingle();
 
@@ -2791,7 +2808,7 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
       existingIg = cached.instagram_url ?? null;
       const ageMs = Date.now() - new Date(cached.last_scraped_at).getTime();
       const ttl = (existingFb || existingIg) ? 7 * 86400000 : 86400000;
-      if (!force && ageMs < ttl) return res.json({ facebook: existingFb, instagram: existingIg, website: cached.website ?? null });
+      if (!force && ageMs < ttl) return res.json({ facebook: existingFb, instagram: existingIg, website: cached.website ?? null, eventsUrl: cached.events_url ?? null });
     }
   } catch {}
 
@@ -2809,15 +2826,19 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
 
   let facebook: string | null = null;
   let instagram: string | null = null;
+  let eventsUrl: string | null = null;
 
   if (website) {
     const base = website.replace(/\/$/, '');
 
     // Try homepage first
     const homeHtml = await fetchPage(base);
-    if (homeHtml) ({ facebook, instagram } = extractSocials(homeHtml));
+    if (homeHtml) {
+      ({ facebook, instagram } = extractSocials(homeHtml));
+      eventsUrl = extractEventsUrl(homeHtml, base);
+    }
 
-    // If still missing either, try /contact and /about subpages
+    // If still missing socials, try /contact and /about subpages
     if (!facebook || !instagram) {
       for (const path of ['/contact', '/about', '/contact-us', '/about-us']) {
         if (facebook && instagram) break;
@@ -2839,11 +2860,12 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
     await supabase.from('mosque_profiles').upsert({
       place_id: placeId, website,
       facebook_url: facebook, instagram_url: instagram,
+      events_url: eventsUrl,
       last_scraped_at: new Date().toISOString(),
     }, { onConflict: 'place_id' });
   } catch {}
 
-  return res.json({ facebook, instagram, website });
+  return res.json({ facebook, instagram, website, eventsUrl });
 });
 
 // ─── GET /health ──────────────────────────────────────────────────────────────
