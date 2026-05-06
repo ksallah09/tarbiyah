@@ -619,24 +619,26 @@ const DAY_META = {
 const SLOT_HOUR  = { morning: 9,  afternoon: 14, evening: 18 };
 const SLOT_EMOJI = { morning: '🌅', afternoon: '☀️', evening: '🌙' };
 
-function getCurrentWeekHabit(child) {
+function getCurrentWeekHabit(child, dayIdx = 0) {
   const area = (child?.growthAreas ?? [])[0];
   if (!area?.plan?.length) return null;
   const daysSince = Math.floor(
     (Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000
   );
   const weekIdx = Math.min(Math.floor(daysSince / 7), area.plan.length - 1);
-  return area.plan[Math.max(0, weekIdx)]?.habits?.[0] ?? null;
+  const habits = area.plan[Math.max(0, weekIdx)]?.habits ?? [];
+  return habits.length ? habits[dayIdx % habits.length] : null;
 }
 
-function getCurrentWeekActivity(child) {
+function getCurrentWeekActivity(child, dayIdx = 0) {
   const area = (child?.growthAreas ?? [])[0];
   if (!area?.plan?.length) return null;
   const daysSince = Math.floor(
     (Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000
   );
   const weekIdx = Math.min(Math.floor(daysSince / 7), area.plan.length - 1);
-  return area.plan[Math.max(0, weekIdx)]?.activities?.[0] ?? null;
+  const activities = area.plan[Math.max(0, weekIdx)]?.activities ?? [];
+  return activities.length ? activities[dayIdx % activities.length] : null;
 }
 
 function truncateToSentence(text, maxLen = 110) {
@@ -687,9 +689,9 @@ export async function scheduleChildHabitNotifications() {
       const slots = availability[dayKey] ?? [];
       if (!slots.length) continue;
 
-      // C: rotate child by day index
+      // C: rotate child by day index, rotate habit by day index within the week
       const child = children[idx % children.length];
-      const habit = getCurrentWeekHabit(child);
+      const habit = getCurrentWeekHabit(child, idx);
       const habitBody = habit?.text
         ? `This week: ${truncateToSentence(habit.text, 80)}`
         : `This week: Check ${child.name}'s habit for today.`;
@@ -718,7 +720,7 @@ export async function scheduleChildHabitNotifications() {
 
     // D: Friday 3pm — weekly activity preview, rotating child assigned to Friday
     const fridayChild = children[DAY_META.fri.idx % children.length];
-    const activity    = getCurrentWeekActivity(fridayChild);
+    const activity    = getCurrentWeekActivity(fridayChild, DAY_META.fri.idx);
     const activityBody = activity?.text
       ? `This week: ${truncateToSentence(activity.text, 80)}`
       : `This week's activity for ${fridayChild.name} is ready.`;

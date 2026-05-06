@@ -2968,7 +2968,7 @@ app.get('/community/requests', async (_req: Request, res: Response) => {
 // POST /community/requests
 app.post('/community/requests', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, displayName } = req.body;
+    const { title, description, displayName, isAnonymous } = req.body;
     if (!title?.trim() || !description?.trim()) {
       return res.status(400).json({ error: 'Title and description are required.' });
     }
@@ -2980,7 +2980,8 @@ app.post('/community/requests', requireAuth, async (req: AuthRequest, res: Respo
 
     const { data, error } = await supabase.from('resource_requests').insert({
       user_id: req.userId,
-      display_name: displayName ?? 'Parent',
+      display_name: isAnonymous ? null : (displayName ?? 'Parent'),
+      is_anonymous: isAnonymous ?? false,
       title: title.trim(),
       description: description.trim(),
       status: 'approved',

@@ -189,6 +189,7 @@ export default function LibraryScreen({ navigation }) {
   const [showPostRequest,    setShowPostRequest]     = useState(false);
   const [reqTitle,           setReqTitle]           = useState('');
   const [reqDesc,            setReqDesc]            = useState('');
+  const [reqAnon,            setReqAnon]            = useState(false);
   const [reqSubmitting,      setReqSubmitting]       = useState(false);
   const [reqError,           setReqError]           = useState('');
   const [reqSuccess,         setReqSuccess]         = useState(false);
@@ -348,8 +349,10 @@ export default function LibraryScreen({ navigation }) {
       AsyncStorage.getItem('tarbiyah_community_notifications').then(val => {
         setCommunityNotif(val === null ? true : val === 'true');
       });
-      // Show the community splash every visit
-      setShowCommSplash(true);
+      // Show community splash only on first ever visit
+      AsyncStorage.getItem('tarbiyah_community_welcome_v1').then(seen => {
+        if (!seen) setShowCommSplash(true);
+      });
       loadLocalData();
       fetchResources();
       fetchMyPosts();
@@ -586,7 +589,7 @@ export default function LibraryScreen({ navigation }) {
       const res = await fetch(`${API_URL}/community/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: reqTitle.trim(), description: reqDesc.trim(), displayName }),
+        body: JSON.stringify({ title: reqTitle.trim(), description: reqDesc.trim(), displayName: reqAnon ? null : displayName, isAnonymous: reqAnon }),
       });
       const data = await res.json();
       if (!res.ok) { setReqError(data.error ?? 'Could not submit. Please try again.'); return; }
@@ -1217,11 +1220,8 @@ export default function LibraryScreen({ navigation }) {
                     <View style={reqStyles.cardAccent} />
                     <View style={reqStyles.cardBody}>
                       <View style={reqStyles.cardTop}>
-                        <View style={reqStyles.avatarWrap}>
-                          <Text style={{ fontSize: 14 }}>🙋</Text>
-                        </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={reqStyles.cardAuthor}>{item.display_name ?? 'Parent'}</Text>
+                          <Text style={reqStyles.cardAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
                           <Text style={reqStyles.cardTime}>{timeAgo(item.created_at)}</Text>
                         </View>
                         {(item.reply_count ?? 0) > 0 && (
@@ -1826,11 +1826,15 @@ export default function LibraryScreen({ navigation }) {
         <View style={reqStyles.splashOverlay}>
           <View style={reqStyles.splashSheet}>
             <View style={reqStyles.splashIconRow}>
-              <Text style={{ fontSize: 32 }}>🕌</Text>
+              <Text style={{ fontSize: 36 }}>🤝</Text>
             </View>
-            <Text style={reqStyles.splashTitle}>Community</Text>
+            <Text style={reqStyles.splashTitle}>Welcome to the Community</Text>
+            <Text style={reqStyles.splashHadith}>
+              "The believers in their mutual kindness, compassion, and sympathy are just like one body."
+            </Text>
+            <Text style={reqStyles.splashHadithSrc}>— Prophet Muhammad ﷺ (Bukhari & Muslim)</Text>
             <Text style={reqStyles.splashBody}>
-              Share resources, ask questions, make du'a for one another, and connect with your local mosque — all in one place.
+              When you share a resource or answer a parent's request, you may be the reason a child is raised with stronger iman. Every link shared is sadaqah.
             </Text>
             <View style={reqStyles.splashToggleRow}>
               <View style={{ flex: 1 }}>
@@ -1848,8 +1852,15 @@ export default function LibraryScreen({ navigation }) {
                 ios_backgroundColor="#E8EAED"
               />
             </View>
-            <TouchableOpacity style={reqStyles.splashBtn} onPress={() => setShowCommSplash(false)} activeOpacity={0.85}>
-              <Text style={reqStyles.splashBtnText}>Got it</Text>
+            <TouchableOpacity
+              style={reqStyles.splashBtn}
+              onPress={() => {
+                AsyncStorage.setItem('tarbiyah_community_welcome_v1', '1');
+                setShowCommSplash(false);
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={reqStyles.splashBtnText}>Let's go</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1861,7 +1872,7 @@ export default function LibraryScreen({ navigation }) {
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Ask for a Resource</Text>
-              <TouchableOpacity onPress={() => { setShowPostRequest(false); setReqTitle(''); setReqDesc(''); setReqError(''); setReqSuccess(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity onPress={() => { setShowPostRequest(false); setReqTitle(''); setReqDesc(''); setReqError(''); setReqSuccess(false); setReqAnon(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={22} color="#374151" />
               </TouchableOpacity>
             </View>
@@ -1872,7 +1883,7 @@ export default function LibraryScreen({ navigation }) {
                 </View>
                 <Text style={styles.successTitle}>Request posted!</Text>
                 <Text style={styles.successBody}>Your question is live. The community will be able to suggest resources that might help.</Text>
-                <TouchableOpacity style={styles.successBtn} onPress={() => { setShowPostRequest(false); setReqTitle(''); setReqDesc(''); setReqSuccess(false); }}>
+                <TouchableOpacity style={styles.successBtn} onPress={() => { setShowPostRequest(false); setReqTitle(''); setReqDesc(''); setReqSuccess(false); setReqAnon(false); }}>
                   <Text style={styles.successBtnText}>Done</Text>
                 </TouchableOpacity>
               </View>
@@ -1896,6 +1907,12 @@ export default function LibraryScreen({ navigation }) {
                   numberOfLines={4}
                   maxLength={500}
                 />
+                <TouchableOpacity style={styles.anonRow} onPress={() => setReqAnon(p => !p)} activeOpacity={0.75}>
+                  <View style={[styles.anonCheck, reqAnon && styles.anonCheckActive]}>
+                    {reqAnon && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+                  </View>
+                  <Text style={styles.anonLabel}>Post anonymously</Text>
+                </TouchableOpacity>
                 {reqError ? <Text style={styles.submitError}>{reqError}</Text> : null}
                 <TouchableOpacity
                   style={[styles.submitBtn, reqSubmitting && { opacity: 0.7 }]}
@@ -1931,7 +1948,7 @@ export default function LibraryScreen({ navigation }) {
           <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
             {/* Original request */}
             <View style={reqStyles.detailRequest}>
-              <Text style={reqStyles.detailAuthor}>{requestDetail?.display_name ?? 'Parent'} · {timeAgo(requestDetail?.created_at)}</Text>
+              <Text style={reqStyles.detailAuthor}>{requestDetail?.is_anonymous ? 'Anonymous Parent' : (requestDetail?.display_name ?? 'Parent')} · {timeAgo(requestDetail?.created_at)}</Text>
               <Text style={reqStyles.detailTitle}>{requestDetail?.title}</Text>
               <Text style={reqStyles.detailDesc}>{requestDetail?.description}</Text>
             </View>
@@ -2836,7 +2853,7 @@ const lcStyles = StyleSheet.create({
 
 const reqStyles = StyleSheet.create({
   // Request cards
-  card:            { backgroundColor: '#FFFFFF', borderRadius: 16, marginHorizontal: 16, marginBottom: 12, flexDirection: 'row', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  card:            { backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 12, flexDirection: 'row', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
   cardAccent:      { width: 4, backgroundColor: '#2E7D62' },
   cardBody:        { flex: 1, padding: 14 },
   cardTop:         { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
@@ -2877,8 +2894,10 @@ const reqStyles = StyleSheet.create({
   splashOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   splashSheet:     { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, paddingBottom: 40 },
   splashIconRow:   { alignItems: 'center', marginBottom: 10 },
-  splashTitle:     { fontSize: 22, fontWeight: '800', color: '#1A1A2E', textAlign: 'center', marginBottom: 8 },
-  splashBody:      { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 21, marginBottom: 24 },
+  splashTitle:     { fontSize: 22, fontWeight: '800', color: '#1A1A2E', textAlign: 'center', marginBottom: 12 },
+  splashHadith:    { fontSize: 14, fontStyle: 'italic', color: '#1B3D2F', textAlign: 'center', lineHeight: 21, paddingHorizontal: 8, marginBottom: 4 },
+  splashHadithSrc: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', marginBottom: 16 },
+  splashBody:      { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
   splashToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F9FAFB', borderRadius: 14, padding: 14, marginBottom: 20 },
   splashToggleLabel:{ fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
   splashToggleSub: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
@@ -2896,7 +2915,7 @@ const reqStyles = StyleSheet.create({
 });
 
 const ecStyles = StyleSheet.create({
-  card:         { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  card:         { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.10, shadowRadius: 8, elevation: 4 },
   badge:        { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 10 },
   badgeIcon:    { fontSize: 12 },
   badgeLabel:   { fontSize: 11, fontWeight: '700' },
