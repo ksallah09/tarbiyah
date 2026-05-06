@@ -2153,110 +2153,99 @@ export default function LibraryScreen({ navigation }) {
               <Text style={reqStyles.detailFabText}>Share a Resource</Text>
             </TouchableOpacity>
           </View>
+          {/* ── Inline overlays (inside the pageSheet to avoid iOS z-order issues) ── */}
+          {!!reactionModal && (
+            <View style={reqStyles.inlineOverlay}>
+              <View style={reqStyles.warnSheet}>
+                <Text style={reqStyles.warnTitle}>
+                  {reactionModal.type === 'agree' ? '👍 Agree' : '⚠️ Warn'}
+                </Text>
+                <Text style={reqStyles.warnSub}>
+                  {reactionModal.type === 'agree'
+                    ? 'Add an optional comment explaining why you recommend this.'
+                    : 'Add an optional comment explaining your concern.'}
+                </Text>
+                <TextInput
+                  style={[styles.textInput, { marginTop: 12, marginBottom: 4 }]}
+                  placeholder={reactionModal.type === 'agree' ? 'e.g. Worked great for my 6-year-old...' : 'e.g. Contains music, not age-appropriate...'}
+                  value={reactionComment}
+                  onChangeText={setReactionComment}
+                  maxLength={120}
+                />
+                <Text style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Optional — leave blank to react without a comment</Text>
+                <View style={reqStyles.warnActions}>
+                  <TouchableOpacity style={reqStyles.warnCancel} onPress={() => setReactionModal(null)} activeOpacity={0.75}>
+                    <Text style={reqStyles.warnCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[reqStyles.warnConfirm, reactionModal.type === 'agree' && { backgroundColor: '#2E7D62' }]}
+                    onPress={() => { handleReplyReact(reactionModal.reply, reactionModal.type, reactionComment || null); setReactionModal(null); setReactionComment(''); }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={reqStyles.warnConfirmText}>Submit</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+          {!!viewingReactions && (
+            <View style={reqStyles.inlineOverlay}>
+              <View style={[reqStyles.warnSheet, { maxHeight: '70%' }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <Text style={reqStyles.warnTitle}>Comments</Text>
+                  <TouchableOpacity onPress={() => setViewingReactions(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Ionicons name="close" size={20} color="#374151" />
+                  </TouchableOpacity>
+                </View>
+                {reactionsLoading ? (
+                  <ActivityIndicator size="small" color="#1B3D2F" style={{ marginVertical: 20 }} />
+                ) : (viewingReactions.list ?? []).length === 0 ? (
+                  <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 16 }}>No comments yet</Text>
+                ) : (
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    {(viewingReactions.list ?? []).map(r => (
+                      <View key={r.id} style={reqStyles.reactionRow}>
+                        <Text style={reqStyles.reactionIcon}>{r.type === 'agree' ? '👍' : '⚠️'}</Text>
+                        <Text style={reqStyles.reactionComment}>{r.warn_comment ?? (r.type === 'agree' ? 'Agreed without comment' : 'Warned without comment')}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          )}
+          {!!flagModal && (
+            <View style={reqStyles.inlineOverlay}>
+              <View style={reqStyles.warnSheet}>
+                <Text style={reqStyles.warnTitle}>Report this post</Text>
+                <Text style={reqStyles.warnSub}>Tell us why this post should be reviewed.</Text>
+                <TextInput
+                  style={[styles.textInput, { marginTop: 12, marginBottom: 4 }]}
+                  placeholder="e.g. Inappropriate content, spam, misleading..."
+                  value={flagReason}
+                  onChangeText={setFlagReason}
+                  maxLength={200}
+                />
+                <View style={reqStyles.warnActions}>
+                  <TouchableOpacity style={reqStyles.warnCancel} onPress={() => { setFlagModal(null); setFlagReason(''); }} activeOpacity={0.75}>
+                    <Text style={reqStyles.warnCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[reqStyles.warnConfirm, { backgroundColor: '#DC2626' }, (!flagReason.trim() || flagSubmitting) && { opacity: 0.5 }]}
+                    onPress={() => flagReason.trim() && handleFlag(flagModal.contentType, flagModal.contentId, flagReason)}
+                    disabled={!flagReason.trim() || flagSubmitting}
+                    activeOpacity={0.85}
+                  >
+                    {flagSubmitting ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={reqStyles.warnConfirmText}>Submit Report</Text>}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
           </>
           )}
         </SafeAreaView>
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ── Reaction Modal (agree / warn) ── */}
-      <Modal visible={!!reactionModal} animationType="fade" transparent>
-        <View style={reqStyles.splashOverlay}>
-          <View style={reqStyles.warnSheet}>
-            <Text style={reqStyles.warnTitle}>
-              {reactionModal?.type === 'agree' ? '👍 Agree' : '⚠️ Warn'}
-            </Text>
-            <Text style={reqStyles.warnSub}>
-              {reactionModal?.type === 'agree'
-                ? 'Add an optional comment explaining why you recommend this.'
-                : 'Add an optional comment explaining your concern.'}
-            </Text>
-            <TextInput
-              style={[styles.textInput, { marginTop: 12, marginBottom: 4 }]}
-              placeholder={reactionModal?.type === 'agree' ? 'e.g. Worked great for my 6-year-old...' : 'e.g. Contains music, not age-appropriate...'}
-              value={reactionComment}
-              onChangeText={setReactionComment}
-              maxLength={120}
-            />
-            <Text style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Optional — leave blank to react without a comment</Text>
-            <View style={reqStyles.warnActions}>
-              <TouchableOpacity style={reqStyles.warnCancel} onPress={() => setReactionModal(null)} activeOpacity={0.75}>
-                <Text style={reqStyles.warnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[reqStyles.warnConfirm, reactionModal?.type === 'agree' && { backgroundColor: '#2E7D62' }]}
-                onPress={() => {
-                  handleReplyReact(reactionModal.reply, reactionModal.type, reactionComment || null);
-                  setReactionModal(null); setReactionComment('');
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={reqStyles.warnConfirmText}>Submit</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── View Reactions Modal ── */}
-      <Modal visible={!!viewingReactions} animationType="fade" transparent>
-        <View style={reqStyles.splashOverlay}>
-          <View style={[reqStyles.warnSheet, { maxHeight: '70%' }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <Text style={reqStyles.warnTitle}>Comments</Text>
-              <TouchableOpacity onPress={() => setViewingReactions(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close" size={20} color="#374151" />
-              </TouchableOpacity>
-            </View>
-            {reactionsLoading ? (
-              <ActivityIndicator size="small" color="#1B3D2F" style={{ marginVertical: 20 }} />
-            ) : (viewingReactions?.list ?? []).length === 0 ? (
-              <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 16 }}>No comments yet</Text>
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {(viewingReactions?.list ?? []).map(r => (
-                  <View key={r.id} style={reqStyles.reactionRow}>
-                    <Text style={reqStyles.reactionIcon}>{r.type === 'agree' ? '👍' : '⚠️'}</Text>
-                    <Text style={reqStyles.reactionComment}>{r.warn_comment ?? (r.type === 'agree' ? 'Agreed without comment' : 'Warned without comment')}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── Flag Modal ── */}
-      <Modal visible={!!flagModal} animationType="fade" transparent>
-        <View style={reqStyles.splashOverlay}>
-          <View style={reqStyles.warnSheet}>
-            <Text style={reqStyles.warnTitle}>Report this post</Text>
-            <Text style={reqStyles.warnSub}>Tell us why this post should be reviewed.</Text>
-            <TextInput
-              style={[styles.textInput, { marginTop: 12, marginBottom: 4 }]}
-              placeholder="e.g. Inappropriate content, spam, misleading..."
-              value={flagReason}
-              onChangeText={setFlagReason}
-              maxLength={200}
-            />
-            <View style={reqStyles.warnActions}>
-              <TouchableOpacity style={reqStyles.warnCancel} onPress={() => { setFlagModal(null); setFlagReason(''); }} activeOpacity={0.75}>
-                <Text style={reqStyles.warnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[reqStyles.warnConfirm, { backgroundColor: '#DC2626' }, (!flagReason.trim() || flagSubmitting) && { opacity: 0.5 }]}
-                onPress={() => flagReason.trim() && handleFlag(flagModal.contentType, flagModal.contentId, flagReason)}
-                disabled={!flagReason.trim() || flagSubmitting}
-                activeOpacity={0.85}
-              >
-                {flagSubmitting
-                  ? <ActivityIndicator size="small" color="#FFF" />
-                  : <Text style={reqStyles.warnConfirmText}>Submit Report</Text>
-                }
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
       </Modal>
 
       {/* ── Du'a Submit Modal ── */}
@@ -3006,6 +2995,7 @@ const reqStyles = StyleSheet.create({
   detailFab:       { backgroundColor: '#1B3D2F', borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6 },
   detailFabText:   { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   // Community splash
+  inlineOverlay:   { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end', zIndex: 100 },
   splashOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   splashSheet:     { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, paddingBottom: 40 },
   splashIconRow:   { alignItems: 'center', marginBottom: 10 },
