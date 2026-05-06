@@ -2123,6 +2123,7 @@ export default function LibraryScreen({ navigation }) {
                 const myReaction = myReplyReactions[reply.id];
                 return (
                   <View key={reply.id} style={reqStyles.replyCard}>
+                  <View style={reqStyles.replyCardInner}>
                     <View style={{ padding: 14 }}>
                     <View style={reqStyles.replyCardTop}>
                       <View style={{ flex: 1 }}>
@@ -2189,6 +2190,7 @@ export default function LibraryScreen({ navigation }) {
                       </TouchableOpacity>
                     )}
                     </View>
+                  </View>
                   </View>
                 );
               })
@@ -3028,7 +3030,8 @@ const reqStyles = StyleSheet.create({
   repliesHeader:   { fontSize: 13, fontWeight: '700', color: '#6B7280', marginHorizontal: 16, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   repliesEmpty:    { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 32 },
   repliesEmptyText:{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginTop: 4 },
-  replyCard:       { backgroundColor: '#FFFFFF', borderRadius: 14, marginHorizontal: 16, marginBottom: 10, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 2 },
+  replyCard:       { borderRadius: 14, marginHorizontal: 16, marginBottom: 10, backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 3 },
+  replyCardInner:  { borderRadius: 14, overflow: 'hidden', backgroundColor: '#FFFFFF' },
   replyThumb:      { width: '100%', height: 160, backgroundColor: '#F3F4F6', marginBottom: 10 },
   replyCardTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   replyAuthor:     { fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
