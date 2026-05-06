@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { PanResponder } from 'react-native';
 import {
   View,
   Text,
@@ -149,6 +150,21 @@ export default function LibraryScreen({ navigation }) {
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const swipeHintX = useRef(new Animated.Value(0)).current;
   const swipeHintOpacity = useRef(new Animated.Value(0)).current;
+
+  const TAB_KEYS = ['resources', 'requests', 'local', 'dua', 'wins', 'myposts'];
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+
+  const swipePanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) =>
+      Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    onPanResponderRelease: (_, g) => {
+      if (Math.abs(g.dx) < 40) return;
+      const idx = TAB_KEYS.indexOf(activeTabRef.current);
+      if (g.dx < 0 && idx < TAB_KEYS.length - 1) setActiveTab(TAB_KEYS[idx + 1]);
+      if (g.dx > 0 && idx > 0) setActiveTab(TAB_KEYS[idx - 1]);
+    },
+  }), []);
 
   // ── My Library ──
   const [insights, setInsights]           = useState([]);
@@ -1067,7 +1083,7 @@ export default function LibraryScreen({ navigation }) {
         )}
       </View>
 
-      <View style={styles.sheet}>
+      <View style={styles.sheet} {...swipePanResponder.panHandlers}>
         {activeTab === 'library' ? (
           // ─── MY LIBRARY ───────────────────────────────────────────────────
           <>
