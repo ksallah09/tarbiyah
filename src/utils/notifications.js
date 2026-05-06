@@ -29,7 +29,7 @@ const PROFILE_KEY          = 'tarbiyah_profile';
 
 // ─── Rotating message pool ────────────────────────────────────────────────────
 const FALLBACK_MESSAGES = [
-  { title: "📖 Daily wisdom", body: "Today's reminder might be exactly what you need. Open your insights." },
+  { title: "📖 Daily wisdom", body: "Today's reminder might be exactly what you need. Read today's insights." },
   { title: "🌿 Tarbiyah", body: "A little guidance for a better parenting day. Your insights are ready." },
   { title: "🏡 Daily reminder", body: "Strengthen your home with today's parenting insight." },
   { title: "✨ Fresh perspective", body: "A new angle on your parenting journey is waiting for you." },
@@ -37,16 +37,15 @@ const FALLBACK_MESSAGES = [
   { title: "🤲 Tarbiyah", body: "Parenting is hard. Let today's wisdom be a small help." },
   { title: "🌱 Daily reminder", body: "A little guidance for a big responsibility. Your insights are ready." },
   { title: "💛 Tarbiyah", body: "Your family deserves intentional moments. Today's insights are ready." },
-  { title: "🏡 Small steps", body: "A stronger home starts with consistency. Open today's parenting insight." },
+  { title: "🏡 Small steps", body: "A stronger home starts with consistency. Read today's insights." },
   { title: "✨ Tarbiyah", body: "Today's insight can help recenter your parenting. Take a moment." },
   { title: "🌿 Daily wisdom", body: "Your daily parenting reminder is ready. Take a moment to read it." },
-  { title: "💡 Tarbiyah", body: "Today's parenting insight is ready for you. Open the app." },
   { title: "🌱 Small reminder", body: "A small reminder for a big journey. Your daily insights are ready." },
-  { title: "📖 Tarbiyah", body: "Your daily dose of parenting wisdom is here. Open today's insights." },
+  { title: "📖 Tarbiyah", body: "Your daily dose of parenting wisdom is here. Read today's insights." },
   { title: "🤲 Daily wisdom", body: "Parent with wisdom — your daily knowledge reminder is ready." },
-  { title: "💭 Tarbiyah", body: "Are you winning the moment but losing the child? Open today's insight." },
+  { title: "💭 Tarbiyah", body: "Are you winning the moment but losing the child? Read today's insights." },
   { title: "🌿 Daily reminder", body: "Your children are a trust from Allah. Be the best parent you can be." },
-  { title: "📖 Worth pausing for", body: "A parenting reminder worth your time is ready. Open the app." },
+  { title: "📖 Worth pausing for", body: "A parenting reminder worth your time is ready. Read today's insights." },
   { title: "✨ Tarbiyah", body: "Today's wisdom may help you see things differently. Your insights await." },
 ];
 
