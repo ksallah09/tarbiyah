@@ -2800,7 +2800,11 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
   try {
     const placesUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=website,name&key=${PLACES_API_KEY}`;
     const placesJson = await fetch(placesUrl).then(r => r.json()) as any;
-    if (placesJson.status === 'OK') website = placesJson.result?.website ?? null;
+    if (placesJson.status === 'OK') {
+      const raw = placesJson.result?.website ?? null;
+      // Upgrade http → https so iOS ATS doesn't block the WebView
+      website = raw ? raw.replace(/^http:\/\//i, 'https://') : null;
+    }
   } catch {}
 
   let facebook: string | null = null;
