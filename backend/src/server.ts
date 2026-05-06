@@ -2837,7 +2837,9 @@ app.get('/mosque/social-links', async (req: Request, res: Response) => {
       existingIg = cached.instagram_url ?? null;
       const ageMs = Date.now() - new Date(cached.last_scraped_at).getTime();
       const ttl = (existingFb || existingIg) ? 7 * 86400000 : 86400000;
-      if (!force && ageMs < ttl) return res.json({ facebook: existingFb, instagram: existingIg, website: cached.website ?? null, eventsUrl: cached.events_url ?? null });
+      // Also re-scrape if events_url was never populated (added after initial scrape)
+      const eventsUrlMissing = cached.events_url === null || cached.events_url === undefined;
+      if (!force && ageMs < ttl && !eventsUrlMissing) return res.json({ facebook: existingFb, instagram: existingIg, website: cached.website ?? null, eventsUrl: cached.events_url ?? null });
     }
   } catch {}
 
