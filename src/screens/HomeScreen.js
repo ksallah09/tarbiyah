@@ -657,7 +657,10 @@ export default function HomeScreen({ navigation }) {
                       <View style={styles.powerDotOuter}>
                         <View style={styles.powerDotInner} />
                       </View>
-                      <Text style={styles.cpCardHeaderText}>Family Goals</Text>
+                      <View>
+                        <Text style={styles.cpCardHeaderText}>Family Goals</Text>
+                        <Text style={styles.cpCardHeaderSub}>Manage shared goals on the Family tab</Text>
+                      </View>
                     </View>
                     {familyGoals.length === 0 && (
                       <View style={{ paddingVertical: 16, alignItems: 'center' }}>

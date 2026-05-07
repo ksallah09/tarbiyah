@@ -10,6 +10,7 @@ let ImagePicker = null;
 try { ImagePicker = require('expo-image-picker'); } catch {}
 import { getChildProfile, updateChildProfile, deleteChildProfile } from '../utils/childProfiles';
 import { uploadPhoto } from '../utils/uploadPhoto';
+import { supabase } from '../utils/supabase';
 
 // ── Option lists (same as wizard) ─────────────────────────────────────────────
 
@@ -340,9 +341,15 @@ export default function ChildDashboardScreen({ navigation, route }) {
     });
     if (!result.canceled) {
       const localUri = result.assets[0].uri;
-      const photoUrl = await uploadPhoto(localUri, `children/${child.id}.jpg`).catch(() => localUri);
-      const profile = await updateChildProfile(child.id, { photo: photoUrl });
-      if (profile) setChildData(profile);
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id ?? 'anonymous';
+        const photoUrl = await uploadPhoto(localUri, `profiles/${userId}_child_${child.id}.jpg`);
+        const profile = await updateChildProfile(child.id, { photo: photoUrl });
+        if (profile) setChildData(profile);
+      } catch {
+        Alert.alert('Upload failed', 'Could not save the photo. Please try again.');
+      }
     }
   }
 
