@@ -216,13 +216,6 @@ export default function LibraryScreen({ navigation }) {
   const [flagSubmitting,     setFlagSubmitting]     = useState(false);
   const replyMetaDebounce = useRef(null);
 
-  // ── Per-tab scroll refs ──
-  const resourcesListRef = useRef(null);
-  const requestsListRef  = useRef(null);
-  const duasListRef      = useRef(null);
-  const winsListRef      = useRef(null);
-  const myPostsListRef   = useRef(null);
-
   // ── Loading overlay ──
   const SCREEN_HEIGHT = Dimensions.get('window').height;
   const overlayTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -375,12 +368,6 @@ export default function LibraryScreen({ navigation }) {
       fetchRequests();
     }, [])
   );
-
-  // Scroll to top when switching tabs
-  useEffect(() => {
-    const refs = { resources: resourcesListRef, requests: requestsListRef, dua: duasListRef, wins: winsListRef, myposts: myPostsListRef };
-    refs[activeTab]?.current?.scrollToOffset?.({ offset: 0, animated: false });
-  }, [activeTab]);
 
   // Filter changes reload silently — no overlay
   const isFirstFocus = useRef(true);
@@ -1259,7 +1246,6 @@ export default function LibraryScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
-                ref={requestsListRef}
                 data={requests}
                 keyExtractor={item => item.id}
                 contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 100 }]}
@@ -1314,7 +1300,6 @@ export default function LibraryScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
-                ref={duasListRef}
                 data={duas}
                 keyExtractor={item => item.id}
                 contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 100 }]}
@@ -1387,7 +1372,6 @@ export default function LibraryScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
-                ref={winsListRef}
                 data={wins}
                 keyExtractor={item => item.id}
                 contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 100 }]}
@@ -1451,7 +1435,6 @@ export default function LibraryScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
-                ref={myPostsListRef}
                 data={myPosts}
                 keyExtractor={item => item.id}
                 contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 32 }]}
@@ -1600,7 +1583,6 @@ export default function LibraryScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
-                ref={resourcesListRef}
                 data={resources}
                 keyExtractor={item => item.id}
                 contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
