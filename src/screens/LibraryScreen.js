@@ -1986,7 +1986,7 @@ export default function LibraryScreen({ navigation }) {
                   placeholder="e.g. Videos on how to explain prayer to a 5-year-old"
                   value={reqTitle}
                   onChangeText={setReqTitle}
-                  maxLength={120}
+                  maxLength={200}
                 />
                 <Text style={styles.fieldLabel}>Tell us more <Text style={styles.fieldLabelOptional}>(optional)</Text></Text>
                 <TextInput
