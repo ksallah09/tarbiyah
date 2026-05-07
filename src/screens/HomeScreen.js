@@ -933,7 +933,9 @@ export default function HomeScreen({ navigation }) {
                 {dailyDua.title ? (
                   <Text style={styles.islamicDuaTitle}>{dailyDua.title}</Text>
                 ) : null}
-                <Text style={styles.islamicArabic}>{dailyDua.arabic?.replace(/[ۖ-ۭ]/g, '').trim()}</Text>
+                <View style={{ paddingTop: 14, paddingHorizontal: 4 }}>
+                  <Text style={styles.islamicArabic}>{dailyDua.arabic?.replace(/[ۖ-ۭ]/g, '').trim()}</Text>
+                </View>
                 <View style={styles.islamicDivider} />
                 <Text style={styles.islamicTranslit}>{dailyDua.transliteration}</Text>
                 <Text style={styles.islamicTranslation}>{dailyDua.translation}</Text>
@@ -1377,11 +1379,9 @@ const styles = StyleSheet.create({
     fontSize: rs(22),
     color: '#FFFFFF',
     textAlign: 'right',
-    lineHeight: 52,
+    lineHeight: 60,
     fontFamily: 'Amiri_700Bold',
     marginBottom: 2,
-    paddingTop: 10,
-    paddingHorizontal: 2,
   },
   islamicDivider: {
     height: 1,
@@ -1717,4 +1717,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#D4A843', borderRadius: 12, paddingVertical: 11,
   },
   homeLbUnlockText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+});
+3, fontWeight: '700', color: '#1B3D2F' },
 });
