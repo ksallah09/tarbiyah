@@ -1718,5 +1718,3 @@ const styles = StyleSheet.create({
   },
   homeLbUnlockText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
 });
-3, fontWeight: '700', color: '#1B3D2F' },
-});
