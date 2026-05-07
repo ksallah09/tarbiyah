@@ -546,6 +546,25 @@ export default function DashboardsScreen({ navigation, route }) {
                 </View>
               )}
 
+              {phaseExpanded && (
+                <View style={styles.phaseDetail}>
+                  <View style={styles.phaseDetailDivider} />
+
+                  <Text style={styles.phaseDetailLabel}>WHAT'S DEVELOPING</Text>
+                  <View style={styles.phaseDetailBullets}>
+                    {phase.developing.map((item, i) => (
+                      <View key={i} style={styles.phaseBulletRow}>
+                        <View style={styles.phaseBulletDot} />
+                        <Text style={styles.phaseBulletText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <Text style={styles.phaseDetailLabel}>BRAIN REALITY</Text>
+                  <Text style={styles.phaseBrainText}>{phase.brainReality}</Text>
+                </View>
+              )}
+
               {focusAreas.length > 0 && (
                 <View style={styles.phaseGrowthSection}>
                   <View style={styles.phaseGrowthHeader}>
@@ -572,25 +591,6 @@ export default function DashboardsScreen({ navigation, route }) {
                       </View>
                     );
                   })}
-                </View>
-              )}
-
-              {phaseExpanded && (
-                <View style={styles.phaseDetail}>
-                  <View style={styles.phaseDetailDivider} />
-
-                  <Text style={styles.phaseDetailLabel}>WHAT'S DEVELOPING</Text>
-                  <View style={styles.phaseDetailBullets}>
-                    {phase.developing.map((item, i) => (
-                      <View key={i} style={styles.phaseBulletRow}>
-                        <View style={styles.phaseBulletDot} />
-                        <Text style={styles.phaseBulletText}>{item}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  <Text style={styles.phaseDetailLabel}>BRAIN REALITY</Text>
-                  <Text style={styles.phaseBrainText}>{phase.brainReality}</Text>
                 </View>
               )}
             </TouchableOpacity>
