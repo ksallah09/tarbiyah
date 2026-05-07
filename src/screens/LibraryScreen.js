@@ -228,7 +228,7 @@ export default function LibraryScreen({ navigation }) {
   function showLoadingOverlay() {
     overlayActiveRef.current = true;
     setOverlayReady(false);
-    overlayBtnOpacity.setValue(0);
+    overlayBtnOpacity.setValue(1);
     setOverlayHadith(COMMUNITY_HADITHS[Math.floor(Math.random() * COMMUNITY_HADITHS.length)]);
     setOverlayVisible(true);
     overlayTranslateY.setValue(SCREEN_HEIGHT);
@@ -2460,7 +2460,7 @@ export default function LibraryScreen({ navigation }) {
           <Text style={styles.loadingOverlayAttribution}>— Prophet Muhammad ﷺ</Text>
           <Text style={styles.loadingOverlayTagline}>Parents helping parents</Text>
           <Animated.View style={{ opacity: overlayBtnOpacity, marginTop: 40 }}>
-            <TouchableOpacity style={styles.overlayBtn} onPress={dismissOverlay} activeOpacity={0.85} disabled={!overlayReady}>
+            <TouchableOpacity style={styles.overlayBtn} onPress={dismissOverlay} activeOpacity={0.85}>
               <Text style={styles.overlayBtnText}>Continue</Text>
             </TouchableOpacity>
           </Animated.View>
