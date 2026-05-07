@@ -546,6 +546,35 @@ export default function DashboardsScreen({ navigation, route }) {
                 </View>
               )}
 
+              {focusAreas.length > 0 && (
+                <View style={styles.phaseGrowthSection}>
+                  <View style={styles.phaseGrowthHeader}>
+                    <View style={styles.powerDotOuter}><View style={styles.powerDotInner} /></View>
+                    <Text style={[styles.focusEyebrow, { color: child.color, flex: 1 }]}>CURRENT GROWTH AREAS</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('ChildDashboard', { child })} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                      <Text style={[styles.focusEditLink, { color: child.color }]}>Edit</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {focusAreas.map((area, index) => {
+                    const expanded = expandedAreas.has(area.id);
+                    return (
+                      <View key={area.id} style={[styles.focusAreaRow, index < focusAreas.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#F0F2F4' }]}>
+                        <View style={[styles.focusAreaNumBadge, { backgroundColor: child.color + '20' }]}>
+                          <Text style={[styles.focusAreaNum, { color: child.color }]}>{index + 1}</Text>
+                        </View>
+                        <View style={styles.focusAreaText}>
+                          <Text style={styles.focusAreaName}>{area.title}</Text>
+                          {expanded && <Text style={styles.focusAreaOverview}>{area.aiOverview}</Text>}
+                        </View>
+                        <TouchableOpacity onPress={() => toggleExpand(area.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={[styles.expandBtn, { backgroundColor: child.color + '18' }]}>
+                          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={13} color={child.color} />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
               {phaseExpanded && (
                 <View style={styles.phaseDetail}>
                   <View style={styles.phaseDetailDivider} />
@@ -598,47 +627,6 @@ export default function DashboardsScreen({ navigation, route }) {
 
         {/* Current Focus */}
         {focusAreas.length > 0 && (<>
-        <View style={styles.focusCard}>
-          <View style={styles.focusTopRow}>
-            <View style={styles.powerDotOuter}>
-              <View style={styles.powerDotInner} />
-            </View>
-            <Text style={[styles.focusEyebrow, { color: child.color }]}>CURRENT GROWTH AREAS</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ChildDashboard', { child })}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.focusEditLink, { color: child.color }]}>Edit</Text>
-            </TouchableOpacity>
-          </View>
-          {focusAreas.map((area, index) => {
-            const expanded = expandedAreas.has(area.id);
-            return (
-              <View
-                key={area.id}
-                style={[styles.focusAreaRow, index < focusAreas.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#F0F2F4' }]}
-              >
-                <View style={[styles.focusAreaNumBadge, { backgroundColor: child.color + '20' }]}>
-                  <Text style={[styles.focusAreaNum, { color: child.color }]}>{index + 1}</Text>
-                </View>
-                <View style={styles.focusAreaText}>
-                  <Text style={styles.focusAreaName}>{area.title}</Text>
-                  {expanded && (
-                    <Text style={styles.focusAreaOverview}>{area.aiOverview}</Text>
-                  )}
-                </View>
-                <TouchableOpacity
-                  onPress={() => toggleExpand(area.id)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={[styles.expandBtn, { backgroundColor: child.color + '18' }]}
-                >
-                  <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={13} color={child.color} />
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-
         {/* Coaching Tip */}
         {todayTip && (
           <>
@@ -1112,6 +1100,8 @@ const styles = StyleSheet.create({
   },
   specialNeedsNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 10, backgroundColor: '#FEF9EE', borderRadius: 8, padding: 10 },
   specialNeedsNoteText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
+  phaseGrowthSection: { marginTop: 14, borderTopWidth: 1, borderTopColor: '#F0F4F2', paddingTop: 12 },
+  phaseGrowthHeader:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   phaseDetail: { marginTop: 4 },
   phaseDetailDivider: {
     height: 1,
