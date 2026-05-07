@@ -1378,9 +1378,10 @@ const styles = StyleSheet.create({
     fontSize: rs(22),
     color: '#FFFFFF',
     textAlign: 'right',
-    lineHeight: 42,
+    lineHeight: 56,
     fontFamily: 'Amiri_700Bold',
     marginBottom: 2,
+    paddingTop: 8,
   },
   islamicDivider: {
     height: 1,
