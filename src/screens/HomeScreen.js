@@ -593,7 +593,9 @@ export default function HomeScreen({ navigation }) {
 
                 {children.length === 0 ? (
                   <View style={styles.cpCardEmpty}>
-                    <Text style={{ fontSize: 32, marginBottom: 4 }}>👨‍👩‍👧‍👦</Text>
+                    <View style={styles.childEmptyIconWrap}>
+                      <Ionicons name="people-outline" size={22} color="#1B3D2F" />
+                    </View>
                     <Text style={styles.childEmptyLabel}>Add your children</Text>
                     <Text style={styles.childEmptySub}>Track habits, activities, and growth — all in one place.</Text>
                     <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('AddChildWizard')} activeOpacity={0.75}>
@@ -656,8 +658,10 @@ export default function HomeScreen({ navigation }) {
                     </View>
                     {familyGoals.length === 0 && (
                       <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 22, marginBottom: 6 }}>🤲</Text>
-                        <Text style={{ fontSize: 14, fontWeight: '600', color: '#1A1A2E', marginBottom: 4, textAlign: 'center' }}>No family goals yet</Text>
+                        <View style={styles.childEmptyIconWrap}>
+                          <Ionicons name="flag-outline" size={22} color="#1B3D2F" />
+                        </View>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A2E', marginBottom: 4, textAlign: 'center' }}>No family goals yet</Text>
                         <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19, paddingHorizontal: 16, marginBottom: 14 }}>
                           Set a shared goal to start growing together.
                         </Text>
