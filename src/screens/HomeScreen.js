@@ -588,7 +588,10 @@ export default function HomeScreen({ navigation }) {
                   <View style={styles.powerDotOuter}>
                     <View style={styles.powerDotInner} />
                   </View>
-                  <Text style={styles.cpCardHeaderText}>Your Wins</Text>
+                  <View>
+                    <Text style={styles.cpCardHeaderText}>Your Wins</Text>
+                    <Text style={styles.cpCardHeaderSub}>Track habits & activities from each child's dashboard</Text>
+                  </View>
                 </View>
 
                 {children.length === 0 ? (
@@ -1544,6 +1547,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FCFA',
   },
   cpCardHeaderText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+  cpCardHeaderSub:  { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
   cpCardEmpty: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 20, gap: 6 },
   cpRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
