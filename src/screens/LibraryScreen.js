@@ -1882,9 +1882,9 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Root-level Flag Modal (for resource / dua / win cards outside pageSheet) ── */}
       <Modal visible={!!flagModal && !requestDetail} animationType="fade" transparent>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
         <View style={reqStyles.splashOverlay}>
-          <View style={reqStyles.warnSheet}>
+          <View style={[reqStyles.warnSheet, { paddingBottom: 32 }]}>
             <Text style={reqStyles.warnTitle}>Report this post</Text>
             <Text style={reqStyles.warnSub}>Tell us why this post should be reviewed.</Text>
             <TextInput
@@ -2243,8 +2243,8 @@ export default function LibraryScreen({ navigation }) {
           </View>
           {/* ── Inline overlays (inside the pageSheet to avoid iOS z-order issues) ── */}
           {!!reactionModal && (
-            <View style={reqStyles.inlineOverlay}>
-              <View style={reqStyles.warnSheet}>
+            <KeyboardAvoidingView style={reqStyles.inlineOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
+              <View style={[reqStyles.warnSheet, { paddingBottom: 32 }]}>
                 <Text style={reqStyles.warnTitle}>
                   {reactionModal.type === 'agree' ? '👍 Agree' : '⚠️ Warn'}
                 </Text>
@@ -2274,11 +2274,11 @@ export default function LibraryScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
+            </KeyboardAvoidingView>
           )}
           {!!flagModal && (
-            <KeyboardAvoidingView style={reqStyles.inlineOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-              <View style={reqStyles.warnSheet}>
+            <KeyboardAvoidingView style={reqStyles.inlineOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
+              <View style={[reqStyles.warnSheet, { paddingBottom: 32 }]}>
                 <Text style={reqStyles.warnTitle}>Report this post</Text>
                 <Text style={reqStyles.warnSub}>Tell us why this post should be reviewed.</Text>
                 <TextInput
