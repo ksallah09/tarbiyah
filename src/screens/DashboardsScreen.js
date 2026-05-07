@@ -537,6 +537,15 @@ export default function DashboardsScreen({ navigation, route }) {
                 <Text style={styles.phaseInsightText}>"{phase.keyInsight}"</Text>
               </View>
 
+              {(child.specialNeeds ?? []).length > 0 && (
+                <View style={styles.specialNeedsNote}>
+                  <Ionicons name="information-circle-outline" size={14} color="#D4871A" />
+                  <Text style={styles.specialNeedsNoteText}>
+                    Developmental milestones can vary — {child.name}'s additional needs may affect how these phases present. Always follow their individual pace.
+                  </Text>
+                </View>
+              )}
+
               {phaseExpanded && (
                 <View style={styles.phaseDetail}>
                   <View style={styles.phaseDetailDivider} />
@@ -1101,6 +1110,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontStyle: 'italic',
   },
+  specialNeedsNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 10, backgroundColor: '#FEF9EE', borderRadius: 8, padding: 10 },
+  specialNeedsNoteText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
   phaseDetail: { marginTop: 4 },
   phaseDetailDivider: {
     height: 1,

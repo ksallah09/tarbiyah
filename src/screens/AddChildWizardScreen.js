@@ -198,7 +198,11 @@ export default function AddChildWizardScreen({ navigation, route }) {
         ? await import('../utils/childProfiles').then(m => m.updateChildProfile(existingChild.id, profile))
         : await saveChildProfile(profile);
 
-      navigation.replace('GrowthAreaWizard', { child: saved, isFirstTime: !isEdit });
+      if (route?.params?.afterOnboarding) {
+        navigation.replace('GrowthAreaWizard', { child: saved, isFirstTime: true, afterOnboarding: true });
+      } else {
+        navigation.replace('GrowthAreaWizard', { child: saved, isFirstTime: !isEdit });
+      }
     } catch (e) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {

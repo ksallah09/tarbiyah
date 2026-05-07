@@ -228,8 +228,20 @@ export default function HomeScreen({ navigation }) {
         const focusAreas = focusRaw ? JSON.parse(focusRaw) : [];
         const profileRaw = await AsyncStorage.getItem('tarbiyah_profile');
         const profile = profileRaw ? JSON.parse(profileRaw) : {};
-        const childrenAges = profile.childrenAges ?? [];
         const familyStructure = profile.familyStructure ?? 'prefer_not_to_say';
+
+        // Derive age groups from actual child profiles (more accurate than onboarding buckets)
+        const childrenRaw = await AsyncStorage.getItem('tarbiyah_child_profiles');
+        const childProfiles = childrenRaw ? JSON.parse(childrenRaw) : [];
+        const ageToGroup = (age) => {
+          if (age < 5)  return 'under-5';
+          if (age < 11) return '5-10';
+          if (age < 16) return '11-15';
+          return '16-plus';
+        };
+        const childrenAges = childProfiles.length > 0
+          ? [...new Set(childProfiles.map(c => ageToGroup(c.age ?? 0)))]
+          : (profile.childrenAges ?? []);
 
         const query = new URLSearchParams();
         if (focusAreas.length) query.set('focusAreas', focusAreas.join(','));
@@ -635,7 +647,7 @@ export default function HomeScreen({ navigation }) {
                 })}
               </View>
 
-              {familyGoals.length > 0 && (() => {
+              {(() => {
                 return (
                   <View style={[styles.cpCard, { marginTop: 12 }]}>
                     <View style={styles.cpCardHeader}>
@@ -644,6 +656,15 @@ export default function HomeScreen({ navigation }) {
                       </View>
                       <Text style={styles.cpCardHeaderText}>Family Goals</Text>
                     </View>
+                    {familyGoals.length === 0 && (
+                      <View style={{ paddingVertical: 16, paddingHorizontal: 4, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 22, marginBottom: 6 }}>🤲</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: '#1A1A2E', marginBottom: 4, textAlign: 'center' }}>No family goals yet</Text>
+                        <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19 }}>
+                          "The best of you are those who are best to their families." Set a shared goal on the Family tab to start growing together.
+                        </Text>
+                      </View>
+                    )}
                     {familyGoals.map((goal, idx) => {
                         const target    = goal.frequency ?? 1;
                         const count     = countThisWeek(goalCompletions, goal.id);

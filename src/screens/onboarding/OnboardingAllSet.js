@@ -51,9 +51,16 @@ export default function OnboardingAllSet({ route, navigation }) {
           <TouchableOpacity
             style={styles.btn}
             activeOpacity={0.85}
+            onPress={async () => { await markOnboardingComplete(); navigation.navigate('AddChildWizard', { afterOnboarding: true }); }}
+          >
+            <Text style={styles.btnText}>Add Your First Child →</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.skipBtn}
+            activeOpacity={0.75}
             onPress={async () => { await markOnboardingComplete(); navigation.navigate('FeatureTour'); }}
           >
-            <Text style={styles.btnText}>Open Tarbiyah</Text>
+            <Text style={styles.skipBtnText}>Skip for now</Text>
           </TouchableOpacity>
         </Animated.View>
       </LinearGradient>
@@ -112,5 +119,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1B3D2F',
     letterSpacing: 0.2,
+  },
+  skipBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  skipBtnText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.55)',
   },
 });

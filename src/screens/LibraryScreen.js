@@ -1,5 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { PanResponder } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -151,20 +150,6 @@ export default function LibraryScreen({ navigation }) {
   const swipeHintX = useRef(new Animated.Value(0)).current;
   const swipeHintOpacity = useRef(new Animated.Value(0)).current;
 
-  const TAB_KEYS = ['resources', 'requests', 'local', 'dua', 'wins', 'myposts'];
-  const activeTabRef = useRef(activeTab);
-  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
-
-  const swipePanResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) =>
-      Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-    onPanResponderRelease: (_, g) => {
-      if (Math.abs(g.dx) < 40) return;
-      const idx = TAB_KEYS.indexOf(activeTabRef.current);
-      if (g.dx < 0 && idx < TAB_KEYS.length - 1) setActiveTab(TAB_KEYS[idx + 1]);
-      if (g.dx > 0 && idx > 0) setActiveTab(TAB_KEYS[idx - 1]);
-    },
-  }), []);
 
   // ── My Library ──
   const [insights, setInsights]           = useState([]);
@@ -218,6 +203,7 @@ export default function LibraryScreen({ navigation }) {
   const [replyTitle,         setReplyTitle]         = useState('');
   const [replyCategory,      setReplyCategory]      = useState('Video');
   const [replyComment,       setReplyComment]       = useState('');
+  const [replyAnon,          setReplyAnon]          = useState(false);
   const [replySubmitting,    setReplySubmitting]    = useState(false);
   const [replyError,         setReplyError]         = useState('');
   const [replyFetchingMeta,  setReplyFetchingMeta]  = useState(false);
@@ -657,7 +643,7 @@ export default function LibraryScreen({ navigation }) {
       const res = await fetch(`${API_URL}/community/requests/${requestDetail.id}/replies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ url: replyUrl.trim(), title: replyTitle.trim(), category: replyCategory, comment: replyComment.trim(), displayName }),
+        body: JSON.stringify({ url: replyUrl.trim(), title: replyTitle.trim(), category: replyCategory, comment: replyComment.trim(), displayName: replyAnon ? null : displayName, isAnonymous: replyAnon }),
       });
       const data = await res.json();
       if (!res.ok) { setReplyError(data.error ?? 'Could not submit.'); return; }
@@ -665,7 +651,7 @@ export default function LibraryScreen({ navigation }) {
       setRequests(prev => prev.map(r => r.id === requestDetail.id ? { ...r, reply_count: (r.reply_count ?? 0) + 1 } : r));
       setRequestDetail(prev => ({ ...prev, reply_count: (prev.reply_count ?? 0) + 1 }));
       setShowReplyForm(false);
-      setReplyUrl(''); setReplyTitle(''); setReplyCategory('Video'); setReplyComment(''); setReplyError('');
+      setReplyUrl(''); setReplyTitle(''); setReplyCategory('Video'); setReplyComment(''); setReplyError(''); setReplyAnon(false);
     } catch { setReplyError('Something went wrong.'); }
     finally { setReplySubmitting(false); }
   }
@@ -1083,7 +1069,7 @@ export default function LibraryScreen({ navigation }) {
         )}
       </View>
 
-      <View style={styles.sheet} {...swipePanResponder.panHandlers}>
+      <View style={styles.sheet}>
         {activeTab === 'library' ? (
           // ─── MY LIBRARY ───────────────────────────────────────────────────
           <>
@@ -1896,6 +1882,7 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Root-level Flag Modal (for resource / dua / win cards outside pageSheet) ── */}
       <Modal visible={!!flagModal && !requestDetail} animationType="fade" transparent>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={reqStyles.splashOverlay}>
           <View style={reqStyles.warnSheet}>
             <Text style={reqStyles.warnTitle}>Report this post</Text>
@@ -1922,6 +1909,7 @@ export default function LibraryScreen({ navigation }) {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Community Splash ── */}
@@ -2047,7 +2035,7 @@ export default function LibraryScreen({ navigation }) {
             <>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Share a Resource</Text>
-                <TouchableOpacity onPress={() => { setShowReplyForm(false); setReplyUrl(''); setReplyTitle(''); setReplyCategory('Video'); setReplyComment(''); setReplyError(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <TouchableOpacity onPress={() => { setShowReplyForm(false); setReplyUrl(''); setReplyTitle(''); setReplyCategory('Video'); setReplyComment(''); setReplyError(''); setReplyAnon(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   <Ionicons name="close" size={22} color="#374151" />
                 </TouchableOpacity>
               </View>
@@ -2093,6 +2081,12 @@ export default function LibraryScreen({ navigation }) {
                   numberOfLines={3}
                   maxLength={280}
                 />
+                <TouchableOpacity style={styles.anonRow} onPress={() => setReplyAnon(p => !p)} activeOpacity={0.75}>
+                  <View style={[styles.anonCheck, replyAnon && styles.anonCheckActive]}>
+                    {replyAnon && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+                  </View>
+                  <Text style={styles.anonLabel}>Reply anonymously</Text>
+                </TouchableOpacity>
                 {replyError ? <Text style={styles.submitError}>{replyError}</Text> : null}
                 <TouchableOpacity
                   style={[styles.submitBtn, replySubmitting && { opacity: 0.7 }]}
@@ -2149,7 +2143,7 @@ export default function LibraryScreen({ navigation }) {
                     <View style={{ padding: 14 }}>
                     <View style={reqStyles.replyCardTop}>
                       <View style={{ flex: 1 }}>
-                        <Text style={reqStyles.replyAuthor}>{reply.display_name ?? 'Parent'}</Text>
+                        <Text style={reqStyles.replyAuthor}>{reply.is_anonymous ? 'Anonymous Parent' : (reply.display_name ?? 'Parent')}</Text>
                         <Text style={reqStyles.replyTime}>{timeAgo(reply.created_at)}</Text>
                       </View>
                       <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'request_reply', contentId: reply.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -2283,7 +2277,7 @@ export default function LibraryScreen({ navigation }) {
             </View>
           )}
           {!!flagModal && (
-            <View style={reqStyles.inlineOverlay}>
+            <KeyboardAvoidingView style={reqStyles.inlineOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
               <View style={reqStyles.warnSheet}>
                 <Text style={reqStyles.warnTitle}>Report this post</Text>
                 <Text style={reqStyles.warnSub}>Tell us why this post should be reviewed.</Text>
@@ -2308,7 +2302,7 @@ export default function LibraryScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
+            </KeyboardAvoidingView>
           )}
           </>
           )}

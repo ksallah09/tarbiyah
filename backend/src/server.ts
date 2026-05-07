@@ -3014,7 +3014,7 @@ app.get('/community/requests/:id/replies', async (req: Request, res: Response) =
 // POST /community/requests/:id/replies
 app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { url, title, category, comment, displayName } = req.body;
+    const { url, title, category, comment, displayName, isAnonymous } = req.body;
     if (!url?.trim()) return res.status(400).json({ error: 'URL is required.' });
 
     const [moderation, thumbnailUrl] = await Promise.all([
@@ -3028,7 +3028,8 @@ app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest
     const { data, error } = await supabase.from('resource_request_replies').insert({
       request_id: req.params.id,
       user_id: req.userId,
-      display_name: displayName ?? 'Parent',
+      display_name: isAnonymous ? null : (displayName ?? 'Parent'),
+      is_anonymous: isAnonymous ?? false,
       url: url.trim(),
       title: title?.trim() ?? '',
       category: category ?? null,

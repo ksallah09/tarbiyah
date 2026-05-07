@@ -72,7 +72,7 @@ const pb = StyleSheet.create({
 });
 
 export default function GrowthAreaWizardScreen({ navigation, route }) {
-  const { child, isFirstTime = false, fromDashboard = false } = route?.params ?? {};
+  const { child, isFirstTime = false, fromDashboard = false, afterOnboarding = false } = route?.params ?? {};
 
   const [step, setStep]             = useState(STEP_INTRO);
   const [issue, setIssue]           = useState('');
@@ -246,10 +246,11 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
   }
 
   function handleBridgeContinue() {
-    navigation.replace('GrowthAreaPlan', { area: savedArea, child });
+    navigation.replace('GrowthAreaPlan', { area: savedArea, child, afterOnboarding });
   }
 
   function handleSkip() {
+    if (afterOnboarding) { navigation.navigate('FeatureTour'); return; }
     navigation.goBack();
   }
 
