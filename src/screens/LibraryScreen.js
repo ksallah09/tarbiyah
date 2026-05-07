@@ -3363,7 +3363,7 @@ const styles = StyleSheet.create({
   resourceCard: {
     backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 12,
     flexDirection: 'row', overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+    borderWidth: 1, borderColor: '#E2E8F0',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
