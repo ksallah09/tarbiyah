@@ -1706,7 +1706,7 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Submit Modal ── */}
       <Modal visible={showSubmit} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined}>
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingResource ? 'Edit Resource' : 'Share a Resource'}</Text>
@@ -1882,7 +1882,7 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Root-level Flag Modal (for resource / dua / win cards outside pageSheet) ── */}
       <Modal visible={!!flagModal && !requestDetail} animationType="fade" transparent>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined} keyboardVerticalOffset={80}>
         <View style={reqStyles.splashOverlay}>
           <View style={[reqStyles.warnSheet, { paddingBottom: 32 }]}>
             <Text style={reqStyles.warnTitle}>Report this post</Text>
@@ -1959,7 +1959,7 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Post Request Modal ── */}
       <Modal visible={showPostRequest} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined}>
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Ask for a Resource</Text>
@@ -2029,7 +2029,7 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Request Detail Modal ── */}
       <Modal visible={!!requestDetail} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined}>
         <SafeAreaView style={[styles.modalSafe, { flex: 1 }]} edges={['top']}>
           {showReplyForm ? (
             <>
@@ -2243,7 +2243,7 @@ export default function LibraryScreen({ navigation }) {
           </View>
           {/* ── Inline overlays (inside the pageSheet to avoid iOS z-order issues) ── */}
           {!!reactionModal && (
-            <KeyboardAvoidingView style={reqStyles.inlineOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
+            <KeyboardAvoidingView style={reqStyles.inlineOverlay} behavior={Platform.OS === 'ios' ? 'height' : undefined} keyboardVerticalOffset={80}>
               <View style={[reqStyles.warnSheet, { paddingBottom: 32 }]}>
                 <Text style={reqStyles.warnTitle}>
                   {reactionModal.type === 'agree' ? '👍 Agree' : '⚠️ Warn'}
@@ -2277,7 +2277,7 @@ export default function LibraryScreen({ navigation }) {
             </KeyboardAvoidingView>
           )}
           {!!flagModal && (
-            <KeyboardAvoidingView style={reqStyles.inlineOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
+            <KeyboardAvoidingView style={reqStyles.inlineOverlay} behavior={Platform.OS === 'ios' ? 'height' : undefined} keyboardVerticalOffset={80}>
               <View style={[reqStyles.warnSheet, { paddingBottom: 32 }]}>
                 <Text style={reqStyles.warnTitle}>Report this post</Text>
                 <Text style={reqStyles.warnSub}>Tell us why this post should be reviewed.</Text>
@@ -2312,7 +2312,7 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Du'a Submit Modal ── */}
       <Modal visible={showDuaSubmit} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined}>
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingDua ? "Edit Du'a" : "Share a Du'a"}</Text>
@@ -2382,7 +2382,7 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Win Submit Modal ── */}
       <Modal visible={showWinSubmit} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined}>
           <SafeAreaView style={styles.modalSafe} edges={['top']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingWin ? 'Edit Win' : 'Share a Win'}</Text>

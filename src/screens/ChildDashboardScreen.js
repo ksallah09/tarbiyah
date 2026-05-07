@@ -75,7 +75,7 @@ function QuickEditModal({ visible, child, onClose }) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => onClose(null)}>
       <SafeAreaView style={modal.safe} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined}>
           <View style={modal.header}>
             <TouchableOpacity onPress={() => onClose(null)} style={modal.cancelBtn}>
               <Text style={modal.cancelText}>Cancel</Text>
@@ -192,7 +192,7 @@ function ChipEditModal({ visible, field, current, onClose }) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => onClose(null)}>
       <SafeAreaView style={modal.safe} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined}>
 
           {/* Header */}
           <View style={modal.header}>

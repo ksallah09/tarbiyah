@@ -213,7 +213,7 @@ export default function LearnScreen({ navigation, route }) {
 
       {/* ── Wizard Modal ── */}
       <Modal visible={showWizard} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined}>
           <SafeAreaView style={styles.wizardSafe} edges={['top']}>
 
             <View style={styles.wizardHeader}>
