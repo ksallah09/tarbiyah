@@ -921,7 +921,7 @@ export default function HomeScreen({ navigation }) {
               >
                 <LinearGradient
                   colors={['rgba(15,50,35,0.55)', 'rgba(10,35,25,0.80)']}
-                  style={StyleSheet.absoluteFill}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
                 />
                 <View style={styles.islamicCardTopRow}>
                   <View style={{ flexDirection: 'row' }}>
@@ -1348,7 +1348,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 10,
     padding: 18,
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -1378,10 +1377,11 @@ const styles = StyleSheet.create({
     fontSize: rs(22),
     color: '#FFFFFF',
     textAlign: 'right',
-    lineHeight: 56,
+    lineHeight: 52,
     fontFamily: 'Amiri_700Bold',
     marginBottom: 2,
-    paddingTop: 8,
+    paddingTop: 10,
+    paddingHorizontal: 2,
   },
   islamicDivider: {
     height: 1,
