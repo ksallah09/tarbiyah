@@ -243,7 +243,7 @@ export default function LibraryScreen({ navigation }) {
   function hideLoadingOverlay() {
     if (!overlayActiveRef.current) return;
     setOverlayReady(true);
-    Animated.timing(overlayBtnOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+    overlayBtnOpacity.setValue(1);
   }
 
   function dismissOverlay() {
