@@ -593,9 +593,7 @@ export default function HomeScreen({ navigation }) {
 
                 {children.length === 0 ? (
                   <View style={styles.cpCardEmpty}>
-                    <View style={styles.childEmptyIconWrap}>
-                      <Ionicons name="people-outline" size={22} color="#1B3D2F" />
-                    </View>
+                    <Text style={{ fontSize: 32, marginBottom: 4 }}>👨‍👩‍👧‍👦</Text>
                     <Text style={styles.childEmptyLabel}>Add your children</Text>
                     <Text style={styles.childEmptySub}>Track habits, activities, and growth — all in one place.</Text>
                     <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('AddChildWizard')} activeOpacity={0.75}>
