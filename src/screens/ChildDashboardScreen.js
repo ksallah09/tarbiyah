@@ -347,8 +347,8 @@ export default function ChildDashboardScreen({ navigation, route }) {
         const photoUrl = await uploadPhoto(localUri, `profiles/${userId}_child_${child.id}.jpg`);
         const profile = await updateChildProfile(child.id, { photo: photoUrl });
         if (profile) setChildData(profile);
-      } catch {
-        Alert.alert('Upload failed', 'Could not save the photo. Please try again.');
+      } catch (e) {
+        Alert.alert('Upload failed', e?.message ?? JSON.stringify(e) ?? 'Unknown error');
       }
     }
   }
