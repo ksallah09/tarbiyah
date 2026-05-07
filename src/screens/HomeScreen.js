@@ -657,12 +657,19 @@ export default function HomeScreen({ navigation }) {
                       <Text style={styles.cpCardHeaderText}>Family Goals</Text>
                     </View>
                     {familyGoals.length === 0 && (
-                      <View style={{ paddingVertical: 16, paddingHorizontal: 4, alignItems: 'center' }}>
+                      <View style={{ paddingVertical: 16, alignItems: 'center' }}>
                         <Text style={{ fontSize: 22, marginBottom: 6 }}>🤲</Text>
                         <Text style={{ fontSize: 14, fontWeight: '600', color: '#1A1A2E', marginBottom: 4, textAlign: 'center' }}>No family goals yet</Text>
-                        <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19 }}>
-                          "The best of you are those who are best to their families." Set a shared goal on the Family tab to start growing together.
+                        <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19, maxWidth: 200, marginBottom: 14 }}>
+                          Set a shared goal to start growing together.
                         </Text>
+                        <TouchableOpacity
+                          style={{ backgroundColor: '#1B3D2F', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20 }}
+                          onPress={() => navigation.navigate('FamilyGoalWizard')}
+                          activeOpacity={0.85}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>Add Family Goal</Text>
+                        </TouchableOpacity>
                       </View>
                     )}
                     {familyGoals.map((goal, idx) => {
