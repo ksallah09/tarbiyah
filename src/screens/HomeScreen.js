@@ -663,12 +663,9 @@ export default function HomeScreen({ navigation }) {
                         <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19, paddingHorizontal: 16, marginBottom: 14 }}>
                           Set a shared goal to start growing together.
                         </Text>
-                        <TouchableOpacity
-                          style={{ backgroundColor: '#1B3D2F', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20 }}
-                          onPress={() => navigation.navigate('FamilyGoalWizard')}
-                          activeOpacity={0.85}
-                        >
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>Add Family Goal</Text>
+                        <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('FamilyGoalWizard')} activeOpacity={0.75}>
+                          <Ionicons name="add-circle-outline" size={15} color="#1B3D2F" />
+                          <Text style={styles.childEmptyBtnText}>Add Family Goal</Text>
                         </TouchableOpacity>
                       </View>
                     )}
