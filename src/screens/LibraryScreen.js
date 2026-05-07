@@ -586,7 +586,7 @@ export default function LibraryScreen({ navigation }) {
   }
 
   async function handlePostRequest() {
-    if (!reqTitle.trim() || !reqDesc.trim()) { setReqError('Please fill in both fields.'); return; }
+    if (!reqTitle.trim()) { setReqError('Please enter what you need.'); return; }
     setReqSubmitting(true); setReqError('');
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -1988,7 +1988,7 @@ export default function LibraryScreen({ navigation }) {
                   onChangeText={setReqTitle}
                   maxLength={120}
                 />
-                <Text style={styles.fieldLabel}>Tell us more *</Text>
+                <Text style={styles.fieldLabel}>Tell us more <Text style={styles.fieldLabelOptional}>(optional)</Text></Text>
                 <TextInput
                   style={[styles.textInput, styles.textArea]}
                   placeholder="Share any extra context — age of your child, what you've already tried, etc."
