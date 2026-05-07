@@ -2969,11 +2969,11 @@ app.get('/community/requests', async (_req: Request, res: Response) => {
 app.post('/community/requests', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { title, description, displayName, isAnonymous } = req.body;
-    if (!title?.trim() || !description?.trim()) {
-      return res.status(400).json({ error: 'Title and description are required.' });
+    if (!title?.trim()) {
+      return res.status(400).json({ error: 'Title is required.' });
     }
 
-    const moderation = await moderateRequest(title.trim(), description.trim());
+    const moderation = await moderateRequest(title.trim(), description?.trim() ?? '');
     if (!moderation.approved) {
       return res.status(422).json({ error: moderation.reason ?? 'This request could not be approved.' });
     }
