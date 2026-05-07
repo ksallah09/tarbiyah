@@ -933,7 +933,7 @@ export default function HomeScreen({ navigation }) {
                 {dailyDua.title ? (
                   <Text style={styles.islamicDuaTitle}>{dailyDua.title}</Text>
                 ) : null}
-                <Text style={styles.islamicArabic}>{dailyDua.arabic}</Text>
+                <Text style={styles.islamicArabic}>{dailyDua.arabic?.replace(/[ۖ-ۭ]/g, '').trim()}</Text>
                 <View style={styles.islamicDivider} />
                 <Text style={styles.islamicTranslit}>{dailyDua.transliteration}</Text>
                 <Text style={styles.islamicTranslation}>{dailyDua.translation}</Text>
