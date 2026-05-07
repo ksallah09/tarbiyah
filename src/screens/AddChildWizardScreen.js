@@ -11,6 +11,7 @@ let ImagePicker = null;
 try { ImagePicker = require('expo-image-picker'); } catch {}
 import { saveChildProfile } from '../utils/childProfiles';
 import { uploadPhoto } from '../utils/uploadPhoto';
+import { supabase } from '../utils/supabase';
 
 const TOTAL_STEPS = 9;
 
@@ -174,8 +175,10 @@ export default function AddChildWizardScreen({ navigation, route }) {
       let photoUrl = photo;
       if (photo && photo.startsWith('file://')) {
         const childId = existingChild?.id ?? `child_${Date.now()}`;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id ?? 'anonymous';
         try {
-          photoUrl = await uploadPhoto(photo, `children/${childId}.jpg`);
+          photoUrl = await uploadPhoto(photo, `profiles/${userId}_child_${childId}.jpg`);
         } catch {
           // Upload failed — clear the photo rather than storing a local URI that won't survive a rebuild
           photoUrl = null;
