@@ -3038,8 +3038,8 @@ app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest
     }).select().single();
     if (error) throw error;
 
-    // Increment reply_count on the request
-    await supabase.rpc('increment_request_reply_count', { request_id: req.params.id });
+    // Increment reply_count on the request (best-effort)
+    supabase.rpc('increment_request_reply_count', { request_id: req.params.id }).catch(() => {});
 
     return res.status(201).json(data);
   } catch (err) {
