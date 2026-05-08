@@ -3042,9 +3042,9 @@ app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest
     (async () => { try { await supabase.rpc('increment_request_reply_count', { request_id: req.params.id }); } catch {} })();
 
     return res.status(201).json(data);
-  } catch (err) {
+  } catch (err: any) {
     console.error('POST /community/requests/:id/replies error:', err);
-    return res.status(500).json({ error: 'Failed to submit reply.' });
+    return res.status(500).json({ error: err?.message ?? 'Failed to submit reply.' });
   }
 });
 
