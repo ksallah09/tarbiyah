@@ -23,6 +23,7 @@ import { buildModuleSystemPrompt } from './prompts/module';
 import { generateAllLessonNarrations, generateSingleLessonNarration } from './generators/audio';
 import { generateJsonWithOpenAI } from './config/openai';
 import { ExtractedContent, AppDailyPayload, AppModule, ModuleLesson } from './types';
+import googleTrends from 'google-trends-api';
 
 const app = express();
 app.use(cors());
@@ -3242,6 +3243,49 @@ async function fetchYoutubeTrends(ageNum: number): Promise<string[]> {
   return results.slice(0, 15);
 }
 
+async function fetchGoogleTrends(ageNum: number): Promise<string[]> {
+  // Categories most relevant to youth by age group
+  const categories: Record<string, number[]> = {
+    '3-5':  [8],           // Arts & Entertainment
+    '6-8':  [8, 41],       // Entertainment + Video Games
+    '9-11': [8, 41, 957],  // + Online Communities
+    '12-14':[8, 41, 957, 16], // + Music
+    '15+':  [8, 41, 957, 16, 280], // + Society
+  };
+  const group = childWorldAgeGroup(ageNum);
+  const cats  = categories[group] ?? categories['9-11'];
+
+  const results: string[] = [];
+  await Promise.allSettled(cats.map(async cat => {
+    try {
+      const raw  = await googleTrends.dailyTrends({ trendDate: new Date(), geo: 'US', category: cat });
+      const data = JSON.parse(raw);
+      const stories = data?.default?.trendingStories ?? [];
+      for (const story of stories.slice(0, 5)) {
+        const title = story?.title ?? story?.entityNames?.[0];
+        if (title) results.push(`[Google Trends] ${title}`);
+        // Add related queries for richer context
+        for (const article of (story?.articles ?? []).slice(0, 2)) {
+          if (article?.title) results.push(`[Google Trends] ${article.title}`);
+        }
+      }
+    } catch {}
+  }));
+
+  // Also fetch real-time trends (TikTok + Instagram signals show up here)
+  try {
+    const raw    = await googleTrends.realTimeTrends({ geo: 'US', category: 'e' }); // Entertainment
+    const data   = JSON.parse(raw);
+    const stories = data?.storySummaries?.trendingStories ?? [];
+    for (const story of stories.slice(0, 6)) {
+      const title = story?.title ?? story?.entityNames?.[0];
+      if (title) results.push(`[Trending Now] ${title}`);
+    }
+  } catch {}
+
+  return [...new Set(results)].slice(0, 20);
+}
+
 async function fetchUrbanSlang(): Promise<string[]> {
   try {
     const res  = await fetch('https://api.urbandictionary.com/v0/trending');
@@ -3255,11 +3299,12 @@ async function fetchUrbanSlang(): Promise<string[]> {
 
 function buildChildWorldPrompt(params: {
   age: number; ageGroup: string; gender?: string; name?: string;
-  interests?: string; youtube: string[]; reddit: string[]; slang: string[];
+  interests?: string; youtube: string[]; reddit: string[]; slang: string[]; googleTrends: string[];
 }): string {
-  const { age, ageGroup, gender, name, interests, youtube, reddit, slang } = params;
+  const { age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends } = params;
 
   const trendBlock = [
+    googleTrends.length ? `GOOGLE TRENDS (captures TikTok + Instagram viral signals):\n${googleTrends.join('\n')}` : '',
     youtube.length ? `YOUTUBE TRENDING THIS WEEK:\n${youtube.join('\n')}` : '',
     reddit.length  ? `REDDIT TOP POSTS THIS WEEK:\n${reddit.join('\n')}`  : '',
     slang.length   ? `URBAN DICTIONARY TRENDING SLANG:\n${slang.join(', ')}` : '',
@@ -3348,17 +3393,21 @@ app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => 
     const interests = (req.query.interests as string) ?? undefined;
     const ageGroup  = childWorldAgeGroup(age);
 
-    const [redditResult, youtubeResult, slangResult] = await Promise.allSettled([
+    const [redditResult, youtubeResult, slangResult, googleResult] = await Promise.allSettled([
       fetchRedditTrends(age),
       fetchYoutubeTrends(age),
       fetchUrbanSlang(),
+      fetchGoogleTrends(age),
     ]);
 
-    const reddit  = redditResult.status  === 'fulfilled' ? redditResult.value  : [];
-    const youtube = youtubeResult.status === 'fulfilled' ? youtubeResult.value : [];
-    const slang   = slangResult.status   === 'fulfilled' ? slangResult.value   : [];
+    const reddit       = redditResult.status  === 'fulfilled' ? redditResult.value  : [];
+    const youtube      = youtubeResult.status === 'fulfilled' ? youtubeResult.value : [];
+    const slang        = slangResult.status   === 'fulfilled' ? slangResult.value   : [];
+    const googleTrends = googleResult.status  === 'fulfilled' ? googleResult.value  : [];
 
-    const prompt   = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang });
+    console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length}`);
+
+    const prompt = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends });
     const snapshot = await generateChildWorldSnapshot(prompt);
 
     if (!snapshot) return res.status(500).json({ error: 'Failed to generate snapshot.' });

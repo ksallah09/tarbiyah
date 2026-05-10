@@ -25,6 +25,7 @@
     "dotenv": "^16.4.5",
     "expo": "~54.0.33",
     "express": "^5.2.1",
+    "google-trends-api": "^4.9.2",
     "openai": "^6.34.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
