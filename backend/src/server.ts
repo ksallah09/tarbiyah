@@ -3172,6 +3172,204 @@ async function start() {
   })();
 }
 
+// ─── This Week in Youth Culture ──────────────────────────────────────────────
+
+function childWorldAgeGroup(age: number): string {
+  if (age <= 5)  return '3-5';
+  if (age <= 8)  return '6-8';
+  if (age <= 11) return '9-11';
+  if (age <= 14) return '12-14';
+  return '15+';
+}
+
+async function fetchRedditTrends(ageNum: number): Promise<string[]> {
+  const subreddits: Record<string, string[]> = {
+    '3-5':  ['gaming'],
+    '6-8':  ['gaming', 'Minecraft', 'roblox'],
+    '9-11': ['gaming', 'Minecraft', 'roblox', 'memes', 'teenagers'],
+    '12-14':['teenagers', 'GenZ', 'memes', 'gaming', 'AskTeens'],
+    '15+':  ['teenagers', 'GenZ', 'memes', 'gaming', 'unpopularopinion'],
+  };
+  const group = childWorldAgeGroup(ageNum);
+  const subs  = subreddits[group] ?? subreddits['9-11'];
+
+  const results: string[] = [];
+  await Promise.allSettled(subs.map(async sub => {
+    try {
+      const res  = await fetch(`https://www.reddit.com/r/${sub}/top.json?t=week&limit=8`, {
+        headers: { 'User-Agent': 'TarbiyahBot/1.0' },
+      });
+      if (!res.ok) return;
+      const json: any = await res.json();
+      const posts = json?.data?.children ?? [];
+      for (const p of posts) {
+        const title = p?.data?.title;
+        if (title && title.length < 200) results.push(`[r/${sub}] ${title}`);
+      }
+    } catch {}
+  }));
+  return results.slice(0, 20);
+}
+
+async function fetchYoutubeTrends(ageNum: number): Promise<string[]> {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) return [];
+
+  const categoryIds: Record<string, string[]> = {
+    '3-5':  ['1'],        // Film & Animation
+    '6-8':  ['20', '24'], // Gaming, Entertainment
+    '9-11': ['20', '24', '10'], // + Music
+    '12-14':['20', '24', '10'],
+    '15+':  ['20', '24', '10', '25'], // + News & Politics
+  };
+  const group = childWorldAgeGroup(ageNum);
+  const cats  = categoryIds[group] ?? categoryIds['9-11'];
+
+  const results: string[] = [];
+  await Promise.allSettled(cats.map(async cat => {
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=${cat}&regionCode=US&maxResults=8&key=${apiKey}`;
+      const res  = await fetch(url);
+      if (!res.ok) return;
+      const json: any = await res.json();
+      for (const item of json?.items ?? []) {
+        const title   = item?.snippet?.title;
+        const channel = item?.snippet?.channelTitle;
+        if (title) results.push(`[YouTube] ${title} — ${channel}`);
+      }
+    } catch {}
+  }));
+  return results.slice(0, 15);
+}
+
+async function fetchUrbanSlang(): Promise<string[]> {
+  try {
+    const res  = await fetch('https://api.urbandictionary.com/v0/trending');
+    if (!res.ok) return [];
+    const json: any = await res.json();
+    return (json?.words ?? []).slice(0, 15) as string[];
+  } catch {
+    return [];
+  }
+}
+
+function buildChildWorldPrompt(params: {
+  age: number; ageGroup: string; gender?: string; name?: string;
+  interests?: string; youtube: string[]; reddit: string[]; slang: string[];
+}): string {
+  const { age, ageGroup, gender, name, interests, youtube, reddit, slang } = params;
+
+  const trendBlock = [
+    youtube.length ? `YOUTUBE TRENDING THIS WEEK:\n${youtube.join('\n')}` : '',
+    reddit.length  ? `REDDIT TOP POSTS THIS WEEK:\n${reddit.join('\n')}`  : '',
+    slang.length   ? `URBAN DICTIONARY TRENDING SLANG:\n${slang.join(', ')}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  return `You are generating a weekly "This Week in Youth Culture" digest for a Muslim parent whose child is ${age} years old (age group: ${ageGroup})${gender ? `, gender: ${gender}` : ''}${name ? `, name: ${name}` : ''}${interests ? `, interests: ${interests}` : ''}.
+
+Here is REAL trending data from this week — use this as the foundation for the content:
+
+${trendBlock || 'No live trend data available — use your knowledge of current youth culture.'}
+
+Using the above real trends as your core, generate a weekly digest with the following structure. Where the trend data does not cover a section, use accurate evergreen knowledge for this age group.
+
+The Islamic lens and conversation starters must always be practical, non-preachy, and grounded in the Prophet's ﷺ example.
+
+Return ONLY valid JSON, no markdown:
+{
+  "ageGroup": "${ageGroup}",
+  "onlineWorld": [
+    { "platform": "string — real platform/trend from the data", "context": "string — what kids this age actually do there, grounded in the trend data", "tip": "string — one practical thing for the parent to do" }
+  ],
+  "slang": [
+    { "word": "string", "meaning": "string", "note": "string — context/concern level" }
+  ],
+  "humor": {
+    "summary": "string — what humor looks like for this age right now",
+    "items": [
+      { "type": "string — humor format name", "detail": "string — explanation for parent" }
+    ],
+    "islamicAngle": "string"
+  },
+  "concerns": [
+    { "concern": "string", "detail": "string", "action": "string — practical step" }
+  ],
+  "habits": [
+    { "habit": "string", "detail": "string" }
+  ],
+  "schoolCulture": [
+    { "trend": "string", "detail": "string" }
+  ],
+  "starters": [
+    { "question": "string — ready to ask verbatim", "why": "string — why it works" }
+  ],
+  "islamicLens": "string — 3-4 sentences, grounded in sunnah, practical not preachy"
+}
+
+Rules:
+- onlineWorld: 2-3 items. Reference actual platform names and trends from the data above.
+- slang: 4-6 words actually trending or relevant for this age group right now.
+- humor.items: 3-4 types.
+- concerns: 2-3 real concerns for this age right now.
+- habits: 2-3 items.
+- schoolCulture: 2-3 items.
+- starters: 3 questions, age-appropriate, conversational.
+- Everything should feel current and real, not generic.`;
+}
+
+async function generateChildWorldSnapshot(prompt: string): Promise<any> {
+  const system = 'You are an expert on youth culture, child development, and Islamic parenting. You generate accurate, current, non-alarmist weekly digests for Muslim parents.';
+
+  function parse(text: string) {
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(cleaned);
+  }
+
+  try {
+    const model = getJsonModel(MODEL_HEAVY, system);
+    const text  = await generateWithRetry(model, prompt, MODEL_HEAVY, system);
+    return parse(text);
+  } catch {}
+
+  try {
+    const text = await generateJsonWithOpenAI(system, prompt);
+    return parse(text);
+  } catch {}
+
+  return null;
+}
+
+// GET /child-world
+app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const age       = parseInt(req.query.age as string) || 10;
+    const gender    = (req.query.gender    as string) ?? undefined;
+    const name      = (req.query.name      as string) ?? undefined;
+    const interests = (req.query.interests as string) ?? undefined;
+    const ageGroup  = childWorldAgeGroup(age);
+
+    const [redditResult, youtubeResult, slangResult] = await Promise.allSettled([
+      fetchRedditTrends(age),
+      fetchYoutubeTrends(age),
+      fetchUrbanSlang(),
+    ]);
+
+    const reddit  = redditResult.status  === 'fulfilled' ? redditResult.value  : [];
+    const youtube = youtubeResult.status === 'fulfilled' ? youtubeResult.value : [];
+    const slang   = slangResult.status   === 'fulfilled' ? slangResult.value   : [];
+
+    const prompt   = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang });
+    const snapshot = await generateChildWorldSnapshot(prompt);
+
+    if (!snapshot) return res.status(500).json({ error: 'Failed to generate snapshot.' });
+
+    return res.json({ ...snapshot, generatedAt: new Date().toISOString() });
+  } catch (err: any) {
+    console.error('GET /child-world error:', err);
+    return res.status(500).json({ error: err?.message ?? 'Failed to generate world snapshot.' });
+  }
+});
+
 start().catch(err => {
   console.error('Server startup error:', err);
   process.exit(1);
