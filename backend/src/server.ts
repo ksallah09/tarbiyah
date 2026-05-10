@@ -3185,11 +3185,11 @@ function childWorldAgeGroup(age: number): string {
 
 async function fetchRedditTrends(ageNum: number): Promise<string[]> {
   const subreddits: Record<string, string[]> = {
-    '3-5':  ['gaming'],
-    '6-8':  ['gaming', 'Minecraft', 'roblox'],
-    '9-11': ['gaming', 'Minecraft', 'roblox', 'memes', 'teenagers'],
-    '12-14':['teenagers', 'GenZ', 'memes', 'gaming', 'AskTeens'],
-    '15+':  ['teenagers', 'GenZ', 'memes', 'gaming', 'unpopularopinion'],
+    '3-5':  ['gaming', 'OutOfTheLoop'],
+    '6-8':  ['gaming', 'Minecraft', 'roblox', 'OutOfTheLoop'],
+    '9-11': ['gaming', 'Minecraft', 'roblox', 'memes', 'teenagers', 'OutOfTheLoop'],
+    '12-14':['teenagers', 'GenZ', 'memes', 'gaming', 'AskTeens', 'OutOfTheLoop', 'internetparents'],
+    '15+':  ['teenagers', 'GenZ', 'memes', 'gaming', 'unpopularopinion', 'OutOfTheLoop', 'internetparents'],
   };
   const group = childWorldAgeGroup(ageNum);
   const subs  = subreddits[group] ?? subreddits['9-11'];
@@ -3348,7 +3348,17 @@ Return ONLY valid JSON, no markdown:
   "starters": [
     { "question": "string — ready to ask verbatim", "why": "string — why it works" }
   ],
-  "islamicLens": "string — 3-4 sentences, grounded in sunnah, practical not preachy"
+  "islamicLens": "string — 3-4 sentences, grounded in sunnah, practical not preachy",
+  "safetyWatch": [
+    {
+      "threat": "string — name of the trend, challenge, or pattern",
+      "severity": "high | medium | low",
+      "whatItIs": "string — clear explanation of what this is and why it is dangerous",
+      "ageRisk": "string — which ages are most at risk and why",
+      "signs": "string — signs a parent might notice if their child is exposed",
+      "action": "string — specific, practical steps for a Muslim parent to take"
+    }
+  ]
 }
 
 Rules:
@@ -3359,6 +3369,7 @@ Rules:
 - habits: 2-3 items.
 - schoolCulture: 2-3 items.
 - starters: 3 questions, age-appropriate, conversational.
+- safetyWatch: CRITICALLY IMPORTANT. Scan ALL the trend data above specifically for: viral dangerous challenges, self-harm content or glorification, predatory adult-to-minor contact patterns, radicalisation or extremist content gaining traction with youth, harmful viral content, eating disorder or body image content targeting this age group, substance use trends, sexual content normalisation. Return 1-3 items only if genuinely present in the data or known to be active right now for this age group. Return an empty array [] if there is nothing specifically dangerous this week — do NOT manufacture threats. severity "high" = immediate parental action needed, "medium" = awareness and conversation needed, "low" = monitor.
 - Everything should feel current and real, not generic.`;
 }
 

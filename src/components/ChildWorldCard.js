@@ -248,6 +248,7 @@ const WORLD_SNAPSHOTS = {
 };
 
 const SECTION_CONFIG = [
+  { key: 'safetyWatch',   emoji: '🚨', label: 'Safety Watch',                  safety: true },
   { key: 'onlineWorld',   emoji: '📱', label: 'What They May Be Seeing Online' },
   { key: 'slang',         emoji: '💬', label: 'Slang This Week'                },
   { key: 'humor',         emoji: '😂', label: 'What Kids Are Laughing At'      },
@@ -264,6 +265,35 @@ function WorldSection({ sectionKey, data }) {
   if (!cfg || !data) return null;
 
   function renderContent() {
+    if (sectionKey === 'safetyWatch') {
+      if (!data?.length) return null;
+      return data.map((item, i) => (
+        <View key={i} style={[cw.safetyItem, i < data.length - 1 && { marginBottom: 12 }]}>
+          <View style={cw.safetyTopRow}>
+            <View style={[cw.severityBadge, { backgroundColor: item.severity === 'high' ? '#FEE2E2' : item.severity === 'medium' ? '#FEF9EE' : '#F3F4F6' }]}>
+              <Text style={[cw.severityText, { color: item.severity === 'high' ? '#DC2626' : item.severity === 'medium' ? '#D4871A' : '#6B7280' }]}>
+                {item.severity?.toUpperCase()}
+              </Text>
+            </View>
+            <Text style={cw.safetyThreat}>{item.threat}</Text>
+          </View>
+          <Text style={cw.safetyBody}>{item.whatItIs}</Text>
+          <View style={cw.safetyMeta}>
+            <Text style={cw.safetyMetaLabel}>Who's at risk</Text>
+            <Text style={cw.safetyMetaText}>{item.ageRisk}</Text>
+          </View>
+          <View style={cw.safetyMeta}>
+            <Text style={cw.safetyMetaLabel}>Signs to watch for</Text>
+            <Text style={cw.safetyMetaText}>{item.signs}</Text>
+          </View>
+          <View style={cw.tipRow}>
+            <Ionicons name="shield-checkmark-outline" size={13} color="#2E7D62" />
+            <Text style={cw.tipText}>{item.action}</Text>
+          </View>
+          {i < data.length - 1 && <View style={[cw.itemDivider, { marginTop: 12 }]} />}
+        </View>
+      ));
+    }
     if (sectionKey === 'onlineWorld') {
       return data.map((item, i) => (
         <View key={i} style={cw.sectionItem}>
@@ -345,14 +375,24 @@ function WorldSection({ sectionKey, data }) {
     return null;
   }
 
+  // Hide safety section entirely if there's nothing to report
+  if (cfg.safety && (!data || data.length === 0)) return null;
+
+  const isSafety = cfg.safety;
+
   return (
-    <View style={cw.section}>
+    <View style={[cw.section, isSafety && cw.safetySection]}>
       <TouchableOpacity style={cw.sectionHeader} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
-        <View style={cw.sectionEmojiWrap}>
+        <View style={[cw.sectionEmojiWrap, isSafety && cw.safetyEmojiWrap]}>
           <Text style={cw.sectionEmoji}>{cfg.emoji}</Text>
         </View>
-        <Text style={cw.sectionHeaderText}>{cfg.label}</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#2E7D62" />
+        <Text style={[cw.sectionHeaderText, isSafety && cw.safetyHeaderText]}>{cfg.label}</Text>
+        {isSafety && data?.length > 0 && (
+          <View style={cw.safetyCountBadge}>
+            <Text style={cw.safetyCountText}>{data.length}</Text>
+          </View>
+        )}
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={isSafety ? '#DC2626' : '#2E7D62'} />
       </TouchableOpacity>
       {open && <View style={cw.sectionBody}>{renderContent()}</View>}
     </View>
@@ -370,7 +410,14 @@ export function ChildWorldCard({ child }) {
 
   useEffect(() => {
     if (!child?.id) return;
-    let cancelled = false;
+
+    // Reset immediately to static fallback for this child's age group
+    const staticSnap = WORLD_SNAPSHOTS[getAgeGroup(child.age)];
+    setSnap(staticSnap);
+    setLive(false);
+    setLoading(false);
+
+    const controller = new AbortController();
 
     async function load() {
       // Check cache first
@@ -380,18 +427,18 @@ export function ChildWorldCard({ child }) {
           const cached = JSON.parse(raw);
           const age    = Date.now() - new Date(cached.generatedAt).getTime();
           if (age < CACHE_TTL_MS) {
-            if (!cancelled) { setSnap(cached); setLive(true); }
+            if (!controller.signal.aborted) { setSnap(cached); setLive(true); }
             return;
           }
         }
       } catch {}
 
       // Fetch from backend
-      setLoading(true);
+      if (!controller.signal.aborted) setLoading(true);
       try {
         const { data: session } = await supabase.auth.getSession();
         const token = session?.session?.access_token;
-        if (!token) return;
+        if (!token || controller.signal.aborted) return;
 
         const params = new URLSearchParams({
           age:       String(child.age ?? 10),
@@ -402,24 +449,25 @@ export function ChildWorldCard({ child }) {
 
         const res = await fetch(`${API_URL}/child-world?${params}`, {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         });
-        if (!res.ok) return;
+        if (!res.ok || controller.signal.aborted) return;
         const data = await res.json();
 
-        if (!cancelled && data?.onlineWorld) {
+        if (!controller.signal.aborted && data?.onlineWorld) {
           await AsyncStorage.setItem(cacheKey, JSON.stringify(data));
           setSnap(data);
           setLive(true);
         }
       } catch (e) {
-        console.warn('[ChildWorldCard] fetch error:', e.message);
+        if (e.name !== 'AbortError') console.warn('[ChildWorldCard] fetch error:', e.message);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => { controller.abort(); };
   }, [child?.id]);
 
   return (
@@ -438,17 +486,24 @@ export function ChildWorldCard({ child }) {
             )}
           </View>
           <Text style={cw.title}>This Week in {displayName}'s World</Text>
-          <View style={cw.ageBadge}><Text style={cw.ageBadgeText}>{snap.ageLabel}</Text></View>
+          <View style={cw.ageBadge}><Text style={cw.ageBadgeText}>{snap.ageLabel ?? `Ages ${snap.ageGroup ?? ageGroup}`}</Text></View>
         </View>
       </View>
 
-      {/* Divider */}
-      <View style={cw.divider} />
+      {/* Loading message */}
+      {loading && (
+        <View style={cw.loadingBanner}>
+          <ActivityIndicator size="small" color="#2E7D62" />
+          <Text style={cw.loadingText}>Fetching this week's live trends…</Text>
+        </View>
+      )}
 
-      {/* Sections */}
-      {['onlineWorld', 'slang', 'humor', 'concerns', 'habits', 'schoolCulture', 'starters', 'islamicLens'].map(key => (
-        <WorldSection key={key} sectionKey={key} data={snap[key]} />
-      ))}
+      {/* Sections — greyed out until live data arrives */}
+      <View style={{ opacity: loading ? 0.35 : 1 }} pointerEvents={loading ? 'none' : 'auto'}>
+        {['safetyWatch', 'onlineWorld', 'slang', 'humor', 'concerns', 'habits', 'schoolCulture', 'starters', 'islamicLens'].map(key => (
+          <WorldSection key={key} sectionKey={key} data={snap[key]} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -487,7 +542,11 @@ const cw = StyleSheet.create({
   },
   liveBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.8 },
 
-  divider: { height: 1, backgroundColor: '#EDF7F2', marginBottom: 4 },
+  loadingBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#EDF7F2', borderRadius: 10, padding: 12, marginBottom: 8,
+  },
+  loadingText: { fontSize: 13, color: '#2E7D62', fontWeight: '600' },
 
   // Sections — mirrors phase card growth area rows
   section: { borderBottomWidth: 1, borderBottomColor: '#EDF7F2' },
@@ -533,4 +592,20 @@ const cw = StyleSheet.create({
   },
   starterQ:    { fontSize: 14, fontWeight: '700', color: '#1A1A2E', lineHeight: 20, marginBottom: 6 },
   starterWhy:  { fontSize: 12, color: '#6B7280', lineHeight: 18 },
+
+  // Safety Watch
+  safetySection:   { backgroundColor: '#FFF8F8', borderRadius: 12, marginBottom: 4, borderWidth: 1, borderColor: '#FEE2E2' },
+  safetyEmojiWrap: { backgroundColor: '#FEE2E2' },
+  safetyHeaderText:{ flex: 1, fontSize: 14, fontWeight: '800', color: '#DC2626' },
+  safetyCountBadge:{ backgroundColor: '#DC2626', borderRadius: 100, width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
+  safetyCountText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
+  safetyItem:      { paddingTop: 4 },
+  safetyTopRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  severityBadge:   { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
+  severityText:    { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  safetyThreat:    { flex: 1, fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  safetyBody:      { fontSize: 13, color: '#374151', lineHeight: 20, marginBottom: 10 },
+  safetyMeta:      { marginBottom: 8 },
+  safetyMetaLabel: { fontSize: 10, fontWeight: '700', color: '#DC2626', letterSpacing: 0.5, marginBottom: 2 },
+  safetyMetaText:  { fontSize: 12, color: '#374151', lineHeight: 18 },
 });
