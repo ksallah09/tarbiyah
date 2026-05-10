@@ -3370,6 +3370,7 @@ Rules:
 - schoolCulture: 2-3 items.
 - starters: 3 questions, age-appropriate, conversational.
 - safetyWatch: CRITICALLY IMPORTANT. Scan ALL the trend data above specifically for: viral dangerous challenges, self-harm content or glorification, predatory adult-to-minor contact patterns, radicalisation or extremist content gaining traction with youth, harmful viral content, eating disorder or body image content targeting this age group, substance use trends, sexual content normalisation. Return 1-3 items only if genuinely present in the data or known to be active right now for this age group. Return an empty array [] if there is nothing specifically dangerous this week — do NOT manufacture threats. severity "high" = immediate parental action needed, "medium" = awareness and conversation needed, "low" = monitor.
+- TONE — CRITICAL: Never assume the child is on any platform. Always use conditional language: "if your child uses TikTok...", "kids this age who are on Roblox...", "if they've come across this...". Never say "your child is watching", "your child uses", or "your child sees". The parent may not know what their child is or isn't on — the goal is awareness, not assumption. This applies to every section including onlineWorld, concerns, safetyWatch, and habits.
 - Everything should feel current and real, not generic.`;
 }
 
