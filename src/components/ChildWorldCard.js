@@ -255,6 +255,7 @@ const SECTION_CONFIG = [
   { key: 'concerns',      emoji: '⚠️', label: 'Online Concerns'               },
   { key: 'habits',        emoji: '🔄', label: 'Youth Habits'                   },
   { key: 'schoolCulture', emoji: '🏫', label: 'School Culture'                 },
+  { key: 'fashionCulture',emoji: '👟', label: 'Fashion & Style'               },
   { key: 'starters',      emoji: '🗣️', label: 'Ask This Week'                 },
   { key: 'islamicLens',   emoji: '🌙', label: 'Islamic Lens'                   },
 ];
@@ -358,6 +359,25 @@ function WorldSection({ sectionKey, data }) {
           <Text style={cw.itemTitle}>{item.title}</Text>
           <Text style={cw.itemBody}>{item.body}</Text>
           {i < items.length - 1 && <View style={cw.itemDivider} />}
+        </View>
+      ));
+    }
+    if (sectionKey === 'fashionCulture') {
+      return data.map((item, i) => (
+        <View key={i} style={cw.sectionItem}>
+          <Text style={cw.itemTitle}>{item.trend}</Text>
+          <Text style={cw.itemBody}>{item.whatItIs}</Text>
+          {item.ageGroup && (
+            <View style={[cw.ageBadge, { marginTop: 6 }]}>
+              <Text style={cw.ageBadgeText}>{item.ageGroup}</Text>
+            </View>
+          )}
+          {item.islamicAngle && (
+            <View style={cw.islamicPill}>
+              <Text style={cw.islamicPillText}>{item.islamicAngle}</Text>
+            </View>
+          )}
+          {i < data.length - 1 && <View style={cw.itemDivider} />}
         </View>
       ));
     }
@@ -486,7 +506,10 @@ export function ChildWorldCard({ child }) {
             )}
           </View>
           <Text style={cw.title}>This Week in {displayName}'s World</Text>
-          <View style={cw.ageBadge}><Text style={cw.ageBadgeText}>{snap.ageLabel ?? `Ages ${snap.ageGroup ?? ageGroup}`}</Text></View>
+          <View style={cw.metaRow}>
+            <View style={cw.ageBadge}><Text style={cw.ageBadgeText}>{snap.ageLabel ?? `Ages ${snap.ageGroup ?? ageGroup}`}</Text></View>
+            <Text style={cw.weekText}>Week of {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
+          </View>
         </View>
       </View>
 
@@ -500,7 +523,7 @@ export function ChildWorldCard({ child }) {
 
       {/* Sections — greyed out until live data arrives */}
       <View style={{ opacity: loading ? 0.35 : 1 }} pointerEvents={loading ? 'none' : 'auto'}>
-        {['safetyWatch', 'onlineWorld', 'slang', 'humor', 'concerns', 'habits', 'schoolCulture', 'starters', 'islamicLens'].map(key => (
+        {['safetyWatch', 'onlineWorld', 'slang', 'humor', 'concerns', 'habits', 'schoolCulture', 'fashionCulture', 'starters', 'islamicLens'].map(key => (
           <WorldSection key={key} sectionKey={key} data={snap[key]} />
         ))}
       </View>
@@ -532,11 +555,12 @@ const cw = StyleSheet.create({
   emojiMain:  { fontSize: 20 },
   eyebrow: { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
   title:   { fontSize: 15, fontWeight: '800', color: '#1A1A2E', marginBottom: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   ageBadge: {
-    alignSelf: 'flex-start',
     backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3,
   },
   ageBadgeText: { fontSize: 11, fontWeight: '700', color: '#2E7D62' },
+  weekText: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
   liveBadge: {
     backgroundColor: '#2E7D62', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2,
   },

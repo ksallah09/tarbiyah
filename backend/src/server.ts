@@ -3188,8 +3188,8 @@ async function fetchRedditTrends(ageNum: number): Promise<string[]> {
     '3-5':  ['gaming', 'OutOfTheLoop'],
     '6-8':  ['gaming', 'Minecraft', 'roblox', 'OutOfTheLoop'],
     '9-11': ['gaming', 'Minecraft', 'roblox', 'memes', 'teenagers', 'OutOfTheLoop'],
-    '12-14':['teenagers', 'GenZ', 'memes', 'gaming', 'AskTeens', 'OutOfTheLoop', 'internetparents'],
-    '15+':  ['teenagers', 'GenZ', 'memes', 'gaming', 'unpopularopinion', 'OutOfTheLoop', 'internetparents'],
+    '12-14':['teenagers', 'GenZ', 'memes', 'gaming', 'AskTeens', 'streetwear', 'Sneakers', 'OutOfTheLoop', 'internetparents'],
+    '15+':  ['teenagers', 'GenZ', 'memes', 'gaming', 'unpopularopinion', 'streetwear', 'Sneakers', 'femalefashionadvice', 'OutOfTheLoop', 'internetparents'],
   };
   const group = childWorldAgeGroup(ageNum);
   const subs  = subreddits[group] ?? subreddits['9-11'];
@@ -3217,11 +3217,11 @@ async function fetchYoutubeTrends(ageNum: number): Promise<string[]> {
   if (!apiKey) return [];
 
   const categoryIds: Record<string, string[]> = {
-    '3-5':  ['1'],        // Film & Animation
-    '6-8':  ['20', '24'], // Gaming, Entertainment
-    '9-11': ['20', '24', '10'], // + Music
-    '12-14':['20', '24', '10'],
-    '15+':  ['20', '24', '10', '25'], // + News & Politics
+    '3-5':  ['1'],                // Film & Animation
+    '6-8':  ['20', '24'],         // Gaming, Entertainment
+    '9-11': ['20', '24', '10'],   // + Music
+    '12-14':['20', '24', '10', '26'], // + Beauty & Fashion
+    '15+':  ['20', '24', '10', '26', '25'], // + News & Politics
   };
   const group = childWorldAgeGroup(ageNum);
   const cats  = categoryIds[group] ?? categoryIds['9-11'];
@@ -3319,11 +3319,11 @@ async function fetchSafetySignals(ageNum: number): Promise<string[]> {
 async function fetchGoogleTrends(ageNum: number): Promise<string[]> {
   // Categories most relevant to youth by age group
   const categories: Record<string, number[]> = {
-    '3-5':  [8],           // Arts & Entertainment
-    '6-8':  [8, 41],       // Entertainment + Video Games
-    '9-11': [8, 41, 957],  // + Online Communities
-    '12-14':[8, 41, 957, 16], // + Music
-    '15+':  [8, 41, 957, 16, 280], // + Society
+    '3-5':  [8],                    // Arts & Entertainment
+    '6-8':  [8, 41],                // Entertainment + Video Games
+    '9-11': [8, 41, 957],           // + Online Communities
+    '12-14':[8, 41, 957, 16, 185],  // + Music + Fashion & Style
+    '15+':  [8, 41, 957, 16, 185, 280], // + Society
   };
   const group = childWorldAgeGroup(ageNum);
   const cats  = categories[group] ?? categories['9-11'];
@@ -3422,6 +3422,14 @@ Return ONLY valid JSON, no markdown:
   "schoolCulture": [
     { "trend": "string", "detail": "string" }
   ],
+  "fashionCulture": [
+    {
+      "trend": "string — name of the style, aesthetic, or clothing trend",
+      "whatItIs": "string — what it looks like, where kids are getting it, what it signals socially",
+      "ageGroup": "string — which ages are most into this",
+      "islamicAngle": "string — how to engage with this as a Muslim parent, modesty conversation hooks, values angle"
+    }
+  ],
   "starters": [
     { "question": "string — ready to ask verbatim", "why": "string — why it works" }
   ],
@@ -3445,6 +3453,7 @@ Rules:
 - concerns: 2-3 real concerns for this age right now.
 - habits: 2-3 items.
 - schoolCulture: 2-3 items.
+- fashionCulture: 2-3 items. What styles, aesthetics, brands, or clothing trends are active for this age group right now. For ages 3-8 keep it simple (character clothing, specific brands kids want). For 9+ include aesthetic culture (dark academia, streetwear, e-girl, soft boy, gorpcore etc.), sneaker culture, brand pressure, and fast fashion platforms (Shein, ASOS, Depop). Always include an Islamic angle focused on modesty as a value not a restriction.
 - starters: 3 questions, age-appropriate, conversational.
 - safetyWatch: CRITICALLY IMPORTANT. Scan ALL the trend data above specifically for: viral dangerous challenges, self-harm content or glorification, predatory adult-to-minor contact patterns, radicalisation or extremist content gaining traction with youth, harmful viral content, eating disorder or body image content targeting this age group, substance use trends, sexual content normalisation. Return 1-3 items only if genuinely present in the data or known to be active right now for this age group. Return an empty array [] if there is nothing specifically dangerous this week — do NOT manufacture threats. severity "high" = immediate parental action needed, "medium" = awareness and conversation needed, "low" = monitor.
 - TONE — CRITICAL: Never assume the child is on any platform. Always use conditional language: "if your child uses TikTok...", "kids this age who are on Roblox...", "if they've come across this...". Never say "your child is watching", "your child uses", or "your child sees". The parent may not know what their child is or isn't on — the goal is awareness, not assumption. This applies to every section including onlineWorld, concerns, safetyWatch, and habits.
