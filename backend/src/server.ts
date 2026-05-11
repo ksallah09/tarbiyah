@@ -3243,6 +3243,79 @@ async function fetchYoutubeTrends(ageNum: number): Promise<string[]> {
   return results.slice(0, 15);
 }
 
+async function fetchSafetySignals(ageNum: number): Promise<string[]> {
+  const results: string[] = [];
+
+  // 1. Reddit keyword searches for active dangerous trends
+  const safetyQueries = [
+    'dangerous challenge kids teens',
+    'viral trend warning children',
+    'online predator warning',
+    'teen self harm trend',
+    'extremist content youth',
+    'child safety alert online',
+  ];
+
+  await Promise.allSettled(safetyQueries.map(async query => {
+    try {
+      const url  = `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=top&t=week&limit=5`;
+      const res  = await fetch(url, { headers: { 'User-Agent': 'TarbiyahBot/1.0' } });
+      if (!res.ok) return;
+      const json: any = await res.json();
+      for (const p of json?.data?.children ?? []) {
+        const title = p?.data?.title;
+        const sub   = p?.data?.subreddit;
+        if (title && title.length < 200) results.push(`[Safety signal — r/${sub}] ${title}`);
+      }
+    } catch {}
+  }));
+
+  // 2. Safety-focused subreddits
+  const safetySubs = ['Parenting', 'internetparents', 'OutOfTheLoop', 'TrueOffMyChest'];
+  await Promise.allSettled(safetySubs.map(async sub => {
+    try {
+      const res  = await fetch(`https://www.reddit.com/r/${sub}/top.json?t=week&limit=6`, {
+        headers: { 'User-Agent': 'TarbiyahBot/1.0' },
+      });
+      if (!res.ok) return;
+      const json: any = await res.json();
+      for (const p of json?.data?.children ?? []) {
+        const title = p?.data?.title ?? '';
+        // Only include posts that contain safety-relevant keywords
+        const keywords = ['teen', 'child', 'kid', 'danger', 'challenge', 'online', 'predator', 'harm', 'abuse', 'viral', 'tiktok', 'discord', 'roblox', 'trend', 'warn'];
+        if (keywords.some(k => title.toLowerCase().includes(k))) {
+          results.push(`[Safety — r/${sub}] ${title}`);
+        }
+      }
+    } catch {}
+  }));
+
+  // Age-specific safety concerns
+  const ageGroup = childWorldAgeGroup(ageNum);
+  const ageSpecificSubs: Record<string, string[]> = {
+    '3-5':  ['Parenting'],
+    '6-8':  ['Parenting', 'roblox'],
+    '9-11': ['Parenting', 'roblox', 'teenagers'],
+    '12-14':['teenagers', 'GenZ', 'Parenting'],
+    '15+':  ['teenagers', 'GenZ'],
+  };
+
+  await Promise.allSettled((ageSpecificSubs[ageGroup] ?? []).map(async sub => {
+    try {
+      const searchUrl = `https://www.reddit.com/r/${sub}/search.json?q=warning+danger+unsafe+predator+challenge&sort=top&t=week&limit=5&restrict_sr=1`;
+      const res = await fetch(searchUrl, { headers: { 'User-Agent': 'TarbiyahBot/1.0' } });
+      if (!res.ok) return;
+      const json: any = await res.json();
+      for (const p of json?.data?.children ?? []) {
+        const title = p?.data?.title;
+        if (title && title.length < 200) results.push(`[Age-specific safety — r/${sub}] ${title}`);
+      }
+    } catch {}
+  }));
+
+  return [...new Set(results)].slice(0, 25);
+}
+
 async function fetchGoogleTrends(ageNum: number): Promise<string[]> {
   // Categories most relevant to youth by age group
   const categories: Record<string, number[]> = {
@@ -3299,9 +3372,9 @@ async function fetchUrbanSlang(): Promise<string[]> {
 
 function buildChildWorldPrompt(params: {
   age: number; ageGroup: string; gender?: string; name?: string;
-  interests?: string; youtube: string[]; reddit: string[]; slang: string[]; googleTrends: string[];
+  interests?: string; youtube: string[]; reddit: string[]; slang: string[]; googleTrends: string[]; safetySignals: string[];
 }): string {
-  const { age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends } = params;
+  const { age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals } = params;
 
   const trendBlock = [
     googleTrends.length ? `GOOGLE TRENDS (captures TikTok + Instagram viral signals):\n${googleTrends.join('\n')}` : '',
@@ -3310,11 +3383,15 @@ function buildChildWorldPrompt(params: {
     slang.length   ? `URBAN DICTIONARY TRENDING SLANG:\n${slang.join(', ')}` : '',
   ].filter(Boolean).join('\n\n');
 
+  const safetyBlock = safetySignals.length
+    ? `\n\nDEDICATED SAFETY SIGNALS (from targeted searches and safety-focused communities — treat these with high priority when populating safetyWatch):\n${safetySignals.join('\n')}`
+    : '';
+
   return `You are generating a weekly "This Week in Youth Culture" digest for a Muslim parent whose child is ${age} years old (age group: ${ageGroup})${gender ? `, gender: ${gender}` : ''}${name ? `, name: ${name}` : ''}${interests ? `, interests: ${interests}` : ''}.
 
 Here is REAL trending data from this week — use this as the foundation for the content:
 
-${trendBlock || 'No live trend data available — use your knowledge of current youth culture.'}
+${trendBlock || 'No live trend data available — use your knowledge of current youth culture.'}${safetyBlock}
 
 Using the above real trends as your core, generate a weekly digest with the following structure. Where the trend data does not cover a section, use accurate evergreen knowledge for this age group.
 
@@ -3405,21 +3482,23 @@ app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => 
     const interests = (req.query.interests as string) ?? undefined;
     const ageGroup  = childWorldAgeGroup(age);
 
-    const [redditResult, youtubeResult, slangResult, googleResult] = await Promise.allSettled([
+    const [redditResult, youtubeResult, slangResult, googleResult, safetyResult] = await Promise.allSettled([
       fetchRedditTrends(age),
       fetchYoutubeTrends(age),
       fetchUrbanSlang(),
       fetchGoogleTrends(age),
+      fetchSafetySignals(age),
     ]);
 
-    const reddit       = redditResult.status  === 'fulfilled' ? redditResult.value  : [];
-    const youtube      = youtubeResult.status === 'fulfilled' ? youtubeResult.value : [];
-    const slang        = slangResult.status   === 'fulfilled' ? slangResult.value   : [];
-    const googleTrends = googleResult.status  === 'fulfilled' ? googleResult.value  : [];
+    const reddit         = redditResult.status   === 'fulfilled' ? redditResult.value   : [];
+    const youtube        = youtubeResult.status  === 'fulfilled' ? youtubeResult.value  : [];
+    const slang          = slangResult.status    === 'fulfilled' ? slangResult.value    : [];
+    const googleTrends   = googleResult.status   === 'fulfilled' ? googleResult.value   : [];
+    const safetySignals  = safetyResult.status   === 'fulfilled' ? safetyResult.value   : [];
 
-    console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length}`);
+    console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length} Safety:${safetySignals.length}`);
 
-    const prompt = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends });
+    const prompt = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals });
     const snapshot = await generateChildWorldSnapshot(prompt);
 
     if (!snapshot) return res.status(500).json({ error: 'Failed to generate snapshot.' });
