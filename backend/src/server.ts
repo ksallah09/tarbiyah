@@ -2305,10 +2305,7 @@ WISDOM RULES (for every habit and activity):
 - Use plain language. No hadith numbers, scholar names, or study citations. The insight is what matters.
 
 DAILY TIPS — ISLAMIC WEIGHT:
-- Of 28 daily tips, at least 12 must draw from Islamic wisdom (not 7).
-- Islamic tips must carry real tarbiyah depth — a principle explained, connected to the specific challenge, applied practically. Not generic reminders.
 - Rotate across: Islamic tarbiyah wisdom (12–14), child development insight (6–8), practical encouragement (4–5), parent self-reminder grounded in faith (3–4).
-- Islamic tips might draw from: the Prophetic example with children, the concept of fitrah and how it applies to this challenge, what sabr or rahmah looks like on a hard day with this specific issue, how akhlaq is built through this kind of struggle.
 
 TONE: Warm, wise, spiritually grounded, specific, non-judgmental, practical. The voice of a scholar-parent who loves both Islamic tradition and child development science.
 
@@ -2430,10 +2427,6 @@ Respond with valid JSON only (no markdown):
       "habits": [{ "priority": "primary", "text": "...", "wisdom": "..." }, { "priority": "secondary", "text": "...", "wisdom": "..." }, { "priority": "bonus", "text": "...", "wisdom": "..." }],
       "activities": [{ "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }]
     }
-  ],
-  "dailyTips": [
-    { "title": "3-5 word punchy title", "body": "1-2 sentences. Islamic wisdom OR child development insight OR practical encouragement OR faith-grounded parent reminder. Warm, specific to the challenge, directly useful today." },
-    "... 28 items total"
   ]
 }
 
@@ -2446,9 +2439,7 @@ Rules:
 - All other wisdoms: alternate between Islamic and developmental — both must appear substantively across the plan.
 - Habits progress across weeks (Week 1: rahmah/awareness → Week 4: ihsan/ownership).
 - Activities become progressively more child-led across weeks.
-- dailyTips: exactly 28 items. At least 12 must be genuinely Islamic (tarbiyah insight, Prophetic example, spiritual reframe of the challenge). Remaining tips: child development insight, practical encouragement, faith-grounded parent self-reminder. Spread evenly — do not group by type.
-- Islamic tips must be SUBSTANTIVE: a real tarbiyah principle named, explained briefly, and connected to this specific challenge. Never a throwaway line.
-- All content — habits, activities, tips — must be visibly connected to the specific challenge described.
+- All content — habits, activities — must be visibly connected to the specific challenge described.
 - No hadith numbers, scholar names, or study citations anywhere.
 - No markdown. Valid JSON only.`;
 
@@ -2596,9 +2587,6 @@ Respond with valid JSON only (no markdown):
     { "week": 2, "theme": "...", "islamicPrinciple": "...", "habits": [{ "priority": "primary", "text": "...", "wisdom": "..." }, { "priority": "secondary", "text": "...", "wisdom": "..." }, { "priority": "bonus", "text": "...", "wisdom": "..." }], "activities": [{ "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }] },
     { "week": 3, "theme": "...", "islamicPrinciple": "...", "habits": [{ "priority": "primary", "text": "...", "wisdom": "..." }, { "priority": "secondary", "text": "...", "wisdom": "..." }, { "priority": "bonus", "text": "...", "wisdom": "..." }], "activities": [{ "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }] },
     { "week": 4, "theme": "...", "islamicPrinciple": "...", "habits": [{ "priority": "primary", "text": "...", "wisdom": "..." }, { "priority": "secondary", "text": "...", "wisdom": "..." }, { "priority": "bonus", "text": "...", "wisdom": "..." }], "activities": [{ "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }] }
-  ],
-  "dailyTips": [
-    { "title": "3-5 word punchy title", "body": "1-2 sentences. Islamic wisdom OR child development insight OR practical encouragement. Warm, specific to the challenge." }
   ]
 }
 
@@ -2606,7 +2594,6 @@ Rules:
 - Exactly 4 weeks. Each week: exactly 3 habits and exactly 3 activities.
 - Every week MUST have an "islamicPrinciple".
 - Primary habit wisdom: Islamic grounding required. First activity wisdom: Islamic grounding required.
-- dailyTips: exactly 28 items. At least 12 must be genuinely Islamic tarbiyah wisdom.
 - No hadith numbers, scholar names, or study citations. No markdown. Valid JSON only.`;
 
     function cleanJson(raw: string): string {

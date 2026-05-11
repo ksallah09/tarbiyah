@@ -1,13 +1,12 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Animated, Image, ImageBackground, ActivityIndicator,
+  StyleSheet, Animated, Image, ActivityIndicator,
   Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const ACTIVITY_CARD_WIDTH = SCREEN_WIDTH - 40; // content area width (20px padding each side)
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -17,6 +16,7 @@ import { logCompletion } from '../utils/childCompletions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HABIT_MESSAGES, ACTIVITY_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
+import { ChildWorldCard } from '../components/ChildWorldCard';
 
 // ── Developmental phase data ──────────────────────────────────────────────────
 
@@ -188,14 +188,7 @@ export default function DashboardsScreen({ navigation, route }) {
   });
   const primaryArea = focusAreas.find(a => a.weekHabits.length > 0) ?? focusAreas[0] ?? null;
   const activeArea  = focusAreas[Math.min(activeAreaIndex, Math.max(focusAreas.length - 1, 0))] ?? primaryArea;
-  const todayTip = (() => {
-    const tips = activeArea?.dailyTips;
-    if (!tips?.length) return null;
-    const daysSince = Math.floor((Date.now() - new Date(activeArea.createdAt ?? Date.now()).getTime()) / 86400000);
-    return tips[daysSince % tips.length] ?? null;
-  })();
-
-  const wins     = child?.wins      ?? [];
+const wins     = child?.wins      ?? [];
   const incidents = child?.incidents ?? [];
 
   async function addWin() {
@@ -529,25 +522,25 @@ export default function DashboardsScreen({ navigation, route }) {
                 />
               </View>
 
-              <View style={styles.phaseShiftRow}>
-                <Text style={styles.phaseShift}>{phase.shift}</Text>
-              </View>
-
-              <View style={styles.phaseInsightBox}>
-                <Text style={styles.phaseInsightText}>"{phase.keyInsight}"</Text>
-              </View>
-
               {(child.specialNeeds ?? []).length > 0 && (
                 <View style={styles.specialNeedsNote}>
                   <Ionicons name="information-circle-outline" size={14} color="#D4871A" />
                   <Text style={styles.specialNeedsNoteText}>
-                    Developmental milestones can vary — {child.name}'s additional needs may affect how these phases present. Always follow their individual pace.
+                    Developmental milestones can vary — {child.name}'s special needs may affect how these phases present. Always follow their individual pace.
                   </Text>
                 </View>
               )}
 
               {phaseExpanded && (
                 <View style={styles.phaseDetail}>
+                  <View style={styles.phaseDetailDivider} />
+
+                  <View style={styles.phaseShiftRow}>
+                    <Text style={styles.phaseShift}>{phase.shift}</Text>
+                  </View>
+                  <View style={styles.phaseInsightBox}>
+                    <Text style={styles.phaseInsightText}>"{phase.keyInsight}"</Text>
+                  </View>
                   <View style={styles.phaseDetailDivider} />
 
                   <Text style={styles.phaseDetailLabel}>WHAT'S DEVELOPING</Text>
@@ -568,27 +561,24 @@ export default function DashboardsScreen({ navigation, route }) {
               {focusAreas.length > 0 && (
                 <View style={styles.phaseGrowthSection}>
                   <View style={styles.phaseGrowthHeader}>
-                    <View style={styles.powerDotOuter}><View style={styles.powerDotInner} /></View>
-                    <Text style={[styles.focusEyebrow, { color: child.color, flex: 1 }]}>CURRENT GROWTH AREAS</Text>
+                    <Text style={styles.phaseEyebrow}>CURRENT GROWTH AREAS</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('ChildDashboard', { child })} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                      <Text style={[styles.focusEditLink, { color: child.color }]}>Edit</Text>
+                      <Text style={styles.phaseGrowthEdit}>Edit</Text>
                     </TouchableOpacity>
                   </View>
                   {focusAreas.map((area, index) => {
                     const expanded = expandedAreas.has(area.id);
                     return (
-                      <View key={area.id} style={[styles.focusAreaRow, index < focusAreas.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#F0F2F4' }]}>
-                        <View style={[styles.focusAreaNumBadge, { backgroundColor: child.color + '20' }]}>
-                          <Text style={[styles.focusAreaNum, { color: child.color }]}>{index + 1}</Text>
+                      <TouchableOpacity key={area.id} onPress={() => toggleExpand(area.id)} activeOpacity={0.7} style={[styles.focusAreaRow, index < focusAreas.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#EDF7F2' }]}>
+                        <View style={styles.focusAreaNumBadge}>
+                          <Text style={styles.focusAreaNum}>{index + 1}</Text>
                         </View>
                         <View style={styles.focusAreaText}>
                           <Text style={styles.focusAreaName}>{area.title}</Text>
                           {expanded && <Text style={styles.focusAreaOverview}>{area.aiOverview}</Text>}
                         </View>
-                        <TouchableOpacity onPress={() => toggleExpand(area.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={[styles.expandBtn, { backgroundColor: child.color + '18' }]}>
-                          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={13} color={child.color} />
-                        </TouchableOpacity>
-                      </View>
+                        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#2E7D62" />
+                      </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -625,31 +615,16 @@ export default function DashboardsScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Current Focus */}
-        {focusAreas.length > 0 && (<>
-        {/* Coaching Tip */}
-        {todayTip && (
+        {/* Youth culture card — under phase when no growth areas */}
+        {focusAreas.length === 0 && (
           <>
-            <Text style={styles.sectionLabel}>COACHING TIP OF THE DAY</Text>
-            <ImageBackground
-              source={require('../../assets/spiritual-5.jpg')}
-              style={styles.tipCard}
-              imageStyle={styles.tipCardImg}
-              resizeMode="cover"
-            >
-              <LinearGradient
-                colors={['rgba(10,28,20,0.55)', 'rgba(10,28,20,0.88)']}
-                style={styles.tipCardOverlay}
-              >
-                <View style={styles.tipHeader}>
-                  <Ionicons name="bulb-outline" size={15} color="#F5C842" />
-                  <Text style={styles.tipTitle}>{todayTip.title}</Text>
-                </View>
-                <Text style={styles.tipText}>"{todayTip.body}"</Text>
-              </LinearGradient>
-            </ImageBackground>
+            <View style={{ height: 16 }} />
+            <ChildWorldCard child={child} />
           </>
         )}
+
+        {/* Current Focus */}
+        {focusAreas.length > 0 && (<>
 
         {/* This Week */}
         {focusAreas.length > 0 && (
@@ -657,24 +632,27 @@ export default function DashboardsScreen({ navigation, route }) {
             <Text style={styles.sectionLabel}>THIS WEEK</Text>
 
             {/* ── Habits — 1 primary per area, expandable ── */}
-            <View style={[styles.weekBlock, { backgroundColor: '#EDF7F2', borderColor: '#8ECFB8' }]}>
-              <View style={styles.weekBlockHeaderHabit}>
-                <View style={styles.weekBlockIconHabit}>
-                  <Ionicons name="repeat-outline" size={15} color="#1B4D3E" />
-                </View>
-                <View style={styles.weekBlockTitleWrap}>
-                  <Text style={[styles.weekBlockTitle, { color: '#1B4D3E' }]}>Habits to Build This Week</Text>
-                  <Text style={[styles.weekBlockSub, { color: '#2E7D62' }]}>Swipe · do as many as you can</Text>
+            <View style={styles.weekBlock}>
+              <View style={styles.weekBlockHeader}>
+                <View style={styles.phaseTopRow}>
+                  <View style={styles.phaseEmojiWrap}>
+                    <Text style={styles.phaseEmoji}>🔄</Text>
+                  </View>
+                  <View style={styles.phaseTitleBlock}>
+                    <Text style={styles.phaseEyebrow}>WEEKLY PLAN</Text>
+                    <Text style={styles.phaseTitle}>Habits to Build This Week</Text>
+                  </View>
                 </View>
               </View>
 
+              <View style={styles.weekBlockSwipeClip}>
               {focusAreas.map((area, areaIdx) => {
                 const habits     = area.weekHabits ?? [];
                 const isLastArea = areaIdx === focusAreas.length - 1;
                 if (!habits.length) return null;
                 const currentPage = activityPages[`h_${area.id}`] ?? 0;
                 return (
-                  <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#C6E8D4', paddingBottom: 4, marginBottom: 4 }]}>
+                  <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#EDF7F2', paddingBottom: 4, marginBottom: 4 }]}>
                     {focusAreas.length > 1 && (
                       <View style={styles.habitAreaLabel}>
                         <View style={[styles.habitAreaDot, { backgroundColor: child.color }]} />
@@ -697,7 +675,7 @@ export default function DashboardsScreen({ navigation, route }) {
                         const wisdomOpen = expandedWisdom.has(key);
                         const count    = completionCounts[doneKey] ?? 0;
                         return (
-                          <View key={i} style={[styles.activitySwipeCard, { width: ACTIVITY_CARD_WIDTH, backgroundColor: '#EDF7F2', borderTopColor: '#C6E8D4' }]}>
+                          <View key={i} style={[styles.activitySwipeCard, { width: ACTIVITY_CARD_WIDTH, backgroundColor: '#FFFFFF', borderTopColor: '#EDF7F2' }]}>
                             <View style={styles.activityCardTop}>
                               <View style={[styles.weekNumBadgeDefault, styles.weekNumBadge]}>
                                 <Text style={[styles.weekNumText, { color: '#2E7D62' }]}>{i + 1}</Text>
@@ -748,31 +726,35 @@ export default function DashboardsScreen({ navigation, route }) {
                   </View>
                 );
               })}
+              </View>
             </View>
 
             {/* ── Activities — swipeable cards per area ── */}
-            <View style={[styles.weekBlock, { marginBottom: 4, backgroundColor: '#FEF8EE', borderColor: '#DDB96A' }]}>
-              <View style={styles.weekBlockHeaderActivity}>
-                <View style={styles.weekBlockIconActivity}>
-                  <Ionicons name="color-palette-outline" size={15} color="#92400E" />
-                </View>
-                <View style={styles.weekBlockTitleWrap}>
-                  <Text style={[styles.weekBlockTitle, { color: '#92400E' }]}>Activities to Try This Week</Text>
-                  <Text style={[styles.weekBlockSub, { color: '#B45309' }]}>Swipe to explore · pick one or try them all</Text>
+            <View style={[styles.weekBlock, { marginBottom: 4 }]}>
+              <View style={styles.weekBlockHeader}>
+                <View style={styles.phaseTopRow}>
+                  <View style={styles.phaseEmojiWrap}>
+                    <Text style={styles.phaseEmoji}>🎯</Text>
+                  </View>
+                  <View style={styles.phaseTitleBlock}>
+                    <Text style={styles.phaseEyebrow}>WEEKLY PLAN</Text>
+                    <Text style={styles.phaseTitle}>Activities to Try This Week</Text>
+                  </View>
                 </View>
               </View>
 
+              <View style={styles.weekBlockSwipeClip}>
               {focusAreas.map((area, areaIdx) => {
                 const activities = area.weekActivities ?? [];
                 if (!activities.length) return null;
                 const currentPage = activityPages[area.id] ?? 0;
                 const isLastArea  = areaIdx === focusAreas.length - 1;
                 return (
-                  <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#F5DFB8', paddingBottom: 12, marginBottom: 4 }]}>
+                  <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#EDF7F2', paddingBottom: 12, marginBottom: 4 }]}>
                     {focusAreas.length > 1 && (
                       <View style={styles.habitAreaLabel}>
-                        <View style={[styles.habitAreaDot, { backgroundColor: '#B45309' }]} />
-                        <Text style={[styles.habitAreaTitle, { color: '#92400E' }]} numberOfLines={1}>{area.title}</Text>
+                        <View style={[styles.habitAreaDot, { backgroundColor: '#2E7D62' }]} />
+                        <Text style={[styles.habitAreaTitle, { color: '#2E7D62' }]} numberOfLines={1}>{area.title}</Text>
                       </View>
                     )}
                     <ScrollView
@@ -791,7 +773,7 @@ export default function DashboardsScreen({ navigation, route }) {
                         const wisdomOpen = expandedWisdom.has(key);
                         const count    = completionCounts[doneKey] ?? 0;
                         return (
-                          <View key={i} style={[styles.activitySwipeCard, { width: ACTIVITY_CARD_WIDTH }]}>
+                          <View key={i} style={[styles.activitySwipeCard, { width: ACTIVITY_CARD_WIDTH, backgroundColor: '#FFFFFF', borderTopColor: '#EDF7F2' }]}>
                             <View style={styles.activityCardTop}>
                               <View style={styles.weekNumBadgeActivityDefault}>
                                 <Ionicons name="star-outline" size={13} color="#B45309" />
@@ -833,19 +815,24 @@ export default function DashboardsScreen({ navigation, route }) {
                     <View style={styles.activityDotsWrap}>
                       <View style={styles.activityDots}>
                         {activities.map((_, i) => (
-                          <View key={i} style={[styles.activityDot, i === currentPage && styles.activityDotActive]} />
+                          <View key={i} style={[styles.activityDot, i === currentPage && { ...styles.activityDotActive, backgroundColor: '#2E7D62' }]} />
                         ))}
                       </View>
                       {activities.length > 1 && (
-                        <Text style={[styles.swipeHint, { color: '#B45309' }]}>swipe for more</Text>
+                        <Text style={styles.swipeHint}>swipe for more</Text>
                       )}
                     </View>
                   </View>
                 );
               })}
+              </View>
             </View>
           </>
         )}
+
+        {/* ── This Week in Youth Culture ── */}
+        <View style={{ height: 16 }} />
+        <ChildWorldCard child={child} />
 
         {/* Wins */}
         <View style={styles.sectionRow}>
@@ -854,15 +841,15 @@ export default function DashboardsScreen({ navigation, route }) {
         </View>
         {wins.length === 0 ? (
           <View style={styles.emptyPrompt}>
-            <Ionicons name="star-outline" size={22} color="#F59E0B" />
+            <View style={styles.emptyPromptIcon}><Text style={{ fontSize: 18 }}>⭐</Text></View>
             <View style={styles.emptyPromptText}>
-              <Text style={styles.emptyPromptTitle}>Log a win</Text>
-              <Text style={styles.emptyPromptBody}>Noting moments of growth — however small — helps build a more accurate picture of {child.name}.</Text>
+              <Text style={styles.emptyPromptTitle}>No wins logged yet</Text>
+              <Text style={styles.emptyPromptBody}>Noting moments of growth — however small — builds a more accurate picture of {child.name}.</Text>
             </View>
           </View>
         ) : wins.map(w => (
-          <View key={w.id} style={styles.entryCard}>
-            <Ionicons name="star" size={14} color="#F59E0B" style={{ marginTop: 2 }} />
+          <View key={w.id} style={styles.winCard}>
+            <View style={styles.winIconWrap}><Text style={{ fontSize: 15 }}>⭐</Text></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.entryText}>{w.text}</Text>
               <Text style={styles.entryDate}>{new Date(w.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
@@ -875,15 +862,15 @@ export default function DashboardsScreen({ navigation, route }) {
 
         {/* Incidents */}
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionLabel}>INCIDENT REPORTS</Text>
+          <Text style={styles.sectionLabel}>DIFFICULT MOMENTS</Text>
           <TouchableOpacity onPress={() => setIncidentModalVisible(true)}><Text style={styles.sectionLink}>+ Log</Text></TouchableOpacity>
         </View>
         {incidents.length === 0 ? (
           <View style={styles.emptyPrompt}>
-            <Ionicons name="alert-circle-outline" size={22} color="#9CA3AF" />
+            <View style={styles.emptyPromptIcon}><Text style={{ fontSize: 18 }}>📝</Text></View>
             <View style={styles.emptyPromptText}>
               <Text style={styles.emptyPromptTitle}>Log a difficult moment</Text>
-              <Text style={styles.emptyPromptBody}>Incidents give the app context about recurring patterns. The more you log, the more personalised the coaching becomes for {child.name}.</Text>
+              <Text style={styles.emptyPromptBody}>Logging difficult moments gives the app context on recurring patterns — the more you log, the more personalised the guidance becomes for {child.name}.</Text>
             </View>
           </View>
         ) : incidents.map(inc => {
@@ -891,8 +878,8 @@ export default function DashboardsScreen({ navigation, route }) {
           const loading  = coachingLoading.has(inc.id);
           return (
             <View key={inc.id}>
-              <View style={styles.entryCard}>
-                <Ionicons name="alert-circle" size={14} color="#9CA3AF" style={{ marginTop: 2 }} />
+              <View style={styles.incidentEntryCard}>
+                <View style={styles.incidentIconWrap}><Text style={{ fontSize: 15 }}>⚠️</Text></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.entryText}>{inc.text}</Text>
                   <Text style={styles.entryDate}>{new Date(inc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
@@ -1046,7 +1033,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   phaseEmojiWrap: {
     width: 42,
@@ -1074,7 +1061,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: '#F0F9F5',
+    backgroundColor: '#EDF7F2',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1087,25 +1074,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   phaseInsightBox: {
+    backgroundColor: '#EDF7F2',
+    borderRadius: 10,
     borderLeftWidth: 3,
     borderLeftColor: '#2E7D62',
-    paddingLeft: 12,
-    paddingVertical: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   phaseInsightText: {
     fontSize: 13,
-    color: '#374151',
+    color: '#1B4D3E',
     lineHeight: 20,
     fontStyle: 'italic',
   },
   specialNeedsNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 10, backgroundColor: '#FEF9EE', borderRadius: 8, padding: 10 },
   specialNeedsNoteText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
-  phaseGrowthSection: { marginTop: 14, borderTopWidth: 1, borderTopColor: '#F0F4F2', paddingTop: 12 },
-  phaseGrowthHeader:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  phaseDetail: { marginTop: 4 },
+  phaseGrowthSection: { marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDF7F2', paddingTop: 12 },
+  phaseGrowthHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  phaseGrowthEdit:    { fontSize: 12, fontWeight: '700', color: '#2E7D62' },
+  phaseDetail: { marginTop: 14 },
   phaseDetailDivider: {
     height: 1,
-    backgroundColor: '#F0F4F2',
+    backgroundColor: '#EDF7F2',
     marginVertical: 14,
   },
   phaseDetailLabel: {
@@ -1165,18 +1155,14 @@ const styles = StyleSheet.create({
   focusEditLink: { fontSize: 12, fontWeight: '700' },
   focusAreaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   focusAreaNumBadge: {
-    width: 26, height: 26, borderRadius: 13,
-    alignItems: 'center', justifyContent: 'center', marginTop: 1,
+    width: 26, height: 26, borderRadius: 8,
+    backgroundColor: '#EDF7F2',
+    alignItems: 'center', justifyContent: 'center',
   },
-  focusAreaNum:      { fontSize: 12, fontWeight: '800' },
+  focusAreaNum:      { fontSize: 12, fontWeight: '800', color: '#2E7D62' },
   focusAreaText:     { flex: 1 },
   focusAreaName:     { fontSize: 14, fontWeight: '700', color: '#1A1A2E', marginBottom: 3 },
-  focusAreaOverview: { fontSize: 12, color: '#4B5563', lineHeight: 18 },
-  expandBtn: {
-    width: 26, height: 26, borderRadius: 13,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
+  focusAreaOverview: { fontSize: 12, color: '#4B5563', lineHeight: 18, marginTop: 2 },
 
   // Tip card
   tipCard: {
@@ -1197,7 +1183,7 @@ const styles = StyleSheet.create({
   },
   habitAreaLabel: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
-    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4,
+    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4,
   },
   habitAreaDot:  { width: 7, height: 7, borderRadius: 4 },
   habitAreaTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, flex: 1 },
@@ -1213,9 +1199,9 @@ const styles = StyleSheet.create({
 
   // Swipeable activity cards
   activitySwipeCard: {
-    backgroundColor: '#FEF8EE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 0, padding: 16,
-    borderTopWidth: 1, borderTopColor: '#F5DFB8',
+    borderTopWidth: 1, borderTopColor: '#EDF7F2',
   },
   activityCardTop: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10,
@@ -1251,33 +1237,15 @@ const styles = StyleSheet.create({
 
   // This Week cards
   weekBlock: {
-    backgroundColor: '#FFF', borderRadius: 18, overflow: 'hidden',
-    marginBottom: 10,
-    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.13, shadowRadius: 14, elevation: 6,
-    borderWidth: 1, borderColor: '#D8E8DF',
+    backgroundColor: '#FFFFFF', borderRadius: 18,
+    paddingTop: 16, paddingBottom: 8, marginBottom: 10,
+    ...CARD_SHADOW,
   },
-  weekBlockHeaderHabit: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#EDF7F2', paddingHorizontal: 16, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: '#D4EDE2',
+  weekBlockSwipeClip: {
+    overflow: 'hidden', borderBottomLeftRadius: 18, borderBottomRightRadius: 18,
+    width: '100%',
   },
-  weekBlockHeaderActivity: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#FEF6EC', paddingHorizontal: 16, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: '#F5DFB8',
-  },
-  weekBlockIconHabit: {
-    width: 34, height: 34, borderRadius: 10,
-    backgroundColor: '#C6E8D4', alignItems: 'center', justifyContent: 'center',
-  },
-  weekBlockIconActivity: {
-    width: 34, height: 34, borderRadius: 10,
-    backgroundColor: '#FDE8C8', alignItems: 'center', justifyContent: 'center',
-  },
-  weekBlockTitleWrap: { flex: 1 },
-  weekBlockTitle:     { fontSize: 14, fontWeight: '800', marginBottom: 1 },
-  weekBlockSub:       { fontSize: 11, fontWeight: '500' },
+  weekBlockHeader: { paddingHorizontal: 16, marginBottom: 0 },
   weekItemRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14,
@@ -1430,18 +1398,36 @@ const styles = StyleSheet.create({
 
   // Empty states
   emptyPrompt: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
-    backgroundColor: '#FAFAFA', borderRadius: 14, padding: 16, marginBottom: 6,
-    borderWidth: 1, borderColor: '#EBEBEB', borderStyle: 'dashed',
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 6,
+    borderWidth: 1, borderColor: '#EDF7F2', borderStyle: 'dashed',
+    ...CARD_SHADOW,
+  },
+  emptyPromptIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center',
   },
   emptyPromptText:  { flex: 1 },
-  emptyPromptTitle: { fontSize: 13, fontWeight: '700', color: '#374151', marginBottom: 4 },
-  emptyPromptBody:  { fontSize: 12, color: '#9CA3AF', lineHeight: 18 },
+  emptyPromptTitle: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
+  emptyPromptBody:  { fontSize: 12, color: '#6B7280', lineHeight: 18 },
 
-  entryCard: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, marginBottom: 8,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  winCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, marginBottom: 8,
+    ...CARD_SHADOW,
+  },
+  winIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center',
+  },
+  incidentEntryCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, marginBottom: 8,
+    ...CARD_SHADOW,
+  },
+  incidentIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: '#FEF9EE', alignItems: 'center', justifyContent: 'center',
   },
   entryText: { fontSize: 13, color: '#1A1A2E', lineHeight: 19, marginBottom: 3 },
   entryDate: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
