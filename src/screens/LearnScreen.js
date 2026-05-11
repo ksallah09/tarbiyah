@@ -37,7 +37,6 @@ export default function LearnScreen({ navigation, route }) {
   const [input, setInput]           = useState('');
   const [modules, setModules]       = useState(_modulesCache ?? []);
   const [showWizard, setShowWizard] = useState(false);
-  const [wizardStep, setWizardStep] = useState(1);
   const hasMountedRef = useRef(false);
 
   useEffect(() => {
@@ -85,13 +84,13 @@ export default function LearnScreen({ navigation, route }) {
     const topic = input.trim();
     if (!topic) return;
     setShowWizard(false);
-    setWizardStep(1);
+
     setInput('');
     navigation.navigate('ModuleDetail', { topic, voice, isNew: true });
   }
 
-  function openWizard() { setWizardStep(1); setShowWizard(true); }
-  function closeWizard() { setShowWizard(false); setWizardStep(1); setInput(''); }
+  function openWizard() { setShowWizard(true); }
+  function closeWizard() { setShowWizard(false); setInput(''); }
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
@@ -213,111 +212,61 @@ export default function LearnScreen({ navigation, route }) {
 
       {/* ── Wizard Modal ── */}
       <Modal visible={showWizard} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : undefined}>
           <SafeAreaView style={styles.wizardSafe} edges={['top']}>
 
             <View style={styles.wizardHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.wizardHeaderLabel}>
-                  {wizardStep === 1 ? 'PERSONALISED LEARNING' : 'STEP 2 OF 2'}
-                </Text>
-                <Text style={styles.wizardHeaderTitle}>
-                  {wizardStep === 1 ? "What's on your mind?" : 'Choose Your Narrator'}
-                </Text>
+                <Text style={styles.wizardHeaderLabel}>PERSONALISED LEARNING</Text>
+                <Text style={styles.wizardHeaderTitle}>What's on your mind?</Text>
               </View>
               <TouchableOpacity style={styles.wizardCloseBtn} onPress={closeWizard} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={20} color="rgba(255,255,255,0.7)" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.wizardStepRow}>
-              <View style={[styles.wizardStepDot, styles.wizardStepDotActive]} />
-              <View style={[styles.wizardStepLine, wizardStep === 2 && styles.wizardStepLineActive]} />
-              <View style={[styles.wizardStepDot, wizardStep === 2 && styles.wizardStepDotActive]} />
-            </View>
-
-            {wizardStep === 1 ? (
-              <>
-                <ScrollView contentContainerStyle={styles.wizardScroll} keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
-                  <TextInput
-                    style={styles.wizardInput}
-                    placeholder="e.g. My child struggles with anger and I don't know how to respond..."
-                    placeholderTextColor="rgba(255,255,255,0.35)"
-                    value={input}
-                    onChangeText={setInput}
-                    multiline
-                    maxLength={300}
-                  />
-                  <Text style={styles.wizardTopicsLabel}>COMMON TOPICS</Text>
-                  <View style={styles.wizardTopicsGrid}>
-                    {SUGGESTED_PROMPTS.map((prompt, i) => (
-                      <TouchableOpacity
-                        key={i}
-                        style={[styles.wizardTopicChip, input === prompt && styles.wizardTopicChipActive]}
-                        onPress={() => setInput(prompt)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.wizardTopicText, input === prompt && styles.wizardTopicTextActive]} numberOfLines={2}>
-                          {prompt}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
+            <>
+              <ScrollView contentContainerStyle={styles.wizardScroll} keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
+                <TextInput
+                  style={styles.wizardInput}
+                  placeholder="e.g. My child struggles with anger and I don't know how to respond..."
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  value={input}
+                  onChangeText={setInput}
+                  multiline
+                  maxLength={300}
+                />
+                <Text style={styles.wizardTopicsLabel}>COMMON TOPICS</Text>
+                <View style={styles.wizardTopicsGrid}>
+                  {SUGGESTED_PROMPTS.map((prompt, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={[styles.wizardTopicChip, input === prompt && styles.wizardTopicChipActive]}
+                      onPress={() => setInput(prompt)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.wizardTopicText, input === prompt && styles.wizardTopicTextActive]} numberOfLines={2}>
+                        {prompt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <View style={[styles.wizardFooter, { paddingBottom: insets.bottom + 16 }]}>
                   <TouchableOpacity
                     style={[styles.wizardContinueBtn, !input.trim() && styles.wizardContinueBtnDisabled]}
-                    onPress={() => setWizardStep(2)}
+                    onPress={() => handleGenerate('onyx')}
                     disabled={!input.trim()}
                     activeOpacity={0.85}
                   >
-                    <Text style={styles.wizardContinueBtnText}>Continue</Text>
+                    <Text style={styles.wizardContinueBtnText}>Generate</Text>
                     <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
-              </>
-            ) : (
-              <>
-                <ScrollView contentContainerStyle={styles.wizardScroll} showsVerticalScrollIndicator={false}>
-                  <View style={styles.wizardTopicRecap}>
-                    <Ionicons name="chatbubble-outline" size={13} color="rgba(255,255,255,0.4)" />
-                    <Text style={styles.wizardTopicRecapText} numberOfLines={2}>{input}</Text>
-                  </View>
-                  <Text style={styles.wizardNarratorSub}>
-                    Your narrator will read each lesson aloud so you can listen hands-free. Choose the voice that feels most comfortable.
-                  </Text>
-                  <TouchableOpacity style={styles.wizardVoiceOption} activeOpacity={0.8} onPress={() => handleGenerate('shimmer')}>
-                    <View style={[styles.wizardVoiceIcon, { backgroundColor: 'rgba(46,125,98,0.3)' }]}>
-                      <Ionicons name="mic" size={24} color="#4ADE80" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.wizardVoiceName}>Female Voice</Text>
-                      <Text style={styles.wizardVoiceDesc}>Warm and calming</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.wizardVoiceOption} activeOpacity={0.8} onPress={() => handleGenerate('onyx')}>
-                    <View style={[styles.wizardVoiceIcon, { backgroundColor: 'rgba(79,70,229,0.3)' }]}>
-                      <Ionicons name="mic" size={24} color="#818CF8" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.wizardVoiceName}>Male Voice</Text>
-                      <Text style={styles.wizardVoiceDesc}>Deep and steady</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
-                  </TouchableOpacity>
-                </ScrollView>
-                <View style={[styles.wizardFooter, { paddingBottom: insets.bottom + 16 }]}>
-                  <TouchableOpacity onPress={() => setWizardStep(1)} style={styles.wizardBackBtn}>
-                    <Ionicons name="chevron-back" size={15} color="rgba(255,255,255,0.5)" />
-                    <Text style={styles.wizardBackBtnText}>Back</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
+              </KeyboardAvoidingView>
+            </>
 
           </SafeAreaView>
-        </KeyboardAvoidingView>
       </Modal>
 
     </SafeAreaView>

@@ -37,7 +37,7 @@ import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
 import { getAllChildProfiles } from '../utils/childProfiles';
 import { getWeekCompletions, getChildWeeklyCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
-import { loadFamilyGoalsCached, getGoalEmoji } from '../utils/familyGoals';
+import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji } from '../utils/familyGoals';
 import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
@@ -303,8 +303,9 @@ export default function HomeScreen({ navigation }) {
         setWeekCompletions(counts);
         setMyHabAct(getMonthlyHabitActivityTotals(counts));
       });
-      // Load family goals + today's completions
+      // Load family goals: paint from cache instantly, then sync from Supabase
       loadFamilyGoalsCached().then(setFamilyGoals);
+      loadFamilyGoals().then(setFamilyGoals);
       loadCompletions().then(setGoalCompletions);
       getMonthReadDays('spiritual').then(setSpiritualMonth);
       getMonthReadDays('scientific').then(setScientificMonth);
@@ -956,26 +957,7 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
               </ImageBackground>
 
-              {/* CURRENT LEARNING STREAKS */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>CURRENT LEARNING STREAKS</Text>
-              </View>
-              <View style={styles.streakRow}>
-                {[
-                  { label: 'Spiritual',  streak,      icon: 'moon',         color: '#2E7D62', bg: '#E8F5EF' },
-                  { label: 'Research',   streak: sciStreak,  icon: 'bulb-outline', color: '#D4871A', bg: '#FEF3E7' },
-                  { label: 'Quran',      streak: quranStreak, icon: 'book-outline', color: '#1A3A6B', bg: '#EEF4FB' },
-                ].map(({ label, streak: s, icon, color, bg }) => (
-                  <View key={label} style={[styles.streakCountCard, { backgroundColor: bg }]}>
-                    <Ionicons name={icon} size={16} color={color} />
-                    <Text style={[styles.streakCountNum, { color }]}>{s}</Text>
-                    <Text style={[styles.streakCountLabel, { color }]}>{label}</Text>
-                    <Text style={styles.streakCountSub}>day streak</Text>
-                  </View>
-                ))}
-              </View>
-
-              {__DEV__ && (
+{__DEV__ && (
                 <TouchableOpacity style={styles.devRefreshBtn} onPress={devForceRefresh} activeOpacity={0.7}>
                   <Ionicons name={devRefreshing ? 'sync' : 'refresh-outline'} size={13} color="#9CA3AF" />
                   <Text style={styles.devRefreshText}>{devRefreshing ? 'Refreshing…' : 'DEV — Force refresh insights'}</Text>

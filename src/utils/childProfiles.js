@@ -112,11 +112,14 @@ async function syncToSupabase(profiles) {
     const { data } = await supabase.auth.getSession();
     if (!data?.session?.access_token) return;
     const userId = data.session.user.id;
-    await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ children_profiles: profiles })
       .eq('user_id', userId);
-  } catch {}
+    if (error) console.warn('[childProfiles] syncToSupabase error:', error.message);
+  } catch (e) {
+    console.warn('[childProfiles] syncToSupabase threw:', e.message);
+  }
 }
 
 export async function syncChildProfilesFromSupabase() {

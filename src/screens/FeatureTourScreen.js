@@ -20,15 +20,15 @@ const TAB_WIDTH = SCREEN_WIDTH / 5;
 const MOCK_TAB_HEIGHT = 60;
 
 const MOCK_TABS = [
-  { name: 'Home',       icon: 'home-outline',         filled: 'home' },
-  { name: 'Growth',     icon: 'trending-up-outline',   filled: 'trending-up' },
-  { name: 'Learn',      icon: 'layers-outline',         filled: 'layers' },
-  { name: 'Community',  icon: 'globe-outline',          filled: 'globe' },
-  { name: 'My Library', icon: 'bookmark-outline',       filled: 'bookmark' },
+  { name: 'Home',       icon: 'home-outline',    filled: 'home'    },
+  { name: 'Family',     icon: 'people-outline',  filled: 'people'  },
+  { name: 'Dashboards', icon: 'apps-outline',    filled: 'apps'    },
+  { name: 'Learn',      icon: 'layers-outline',  filled: 'layers'  },
+  { name: 'Community',  icon: 'globe-outline',   filled: 'globe'   },
 ];
 
 // Which tab index each slide highlights (null = none)
-const SLIDE_TAB = [null, 0, 1, 1, 2, 3];
+const SLIDE_TAB = [null, 0, 1, 2, 2, 3, 4];
 
 const SLIDES = [
   {
@@ -36,42 +36,49 @@ const SLIDES = [
     icon: 'sparkles',
     iconColor: '#D4A843',
     title: 'Welcome to Tarbiyah',
-    body: 'Built for Muslim parents striving to nurture faith, character, and confidence in their children.',
+    body: 'Your guide to Prophetic parenting — built for Muslim parents striving to raise children with faith, character, and confidence.',
   },
   {
     key: 'insights',
     icon: 'sunny-outline',
     iconColor: '#D4A843',
-    title: 'Daily Wisdom',
-    body: "Every day brings a new spiritual insight and research-backed parenting tip, personalized to your family's ages and focus areas.",
+    title: 'Daily Insights',
+    body: 'Every day brings a fresh spiritual insight and a research-backed parenting tip — automatically personalised to the context of your family.',
   },
   {
-    key: 'pip',
-    icon: 'ribbon-outline',
-    iconColor: '#D4A843',
-    title: 'Parent Development Plan',
-    body: 'Build a personalized 30-day plan targeting your specific parenting habits. Complete 5 focused daily actions and build a streak that drives real change.',
-  },
-  {
-    key: 'child',
-    icon: 'leaf-outline',
+    key: 'family',
+    icon: 'people-outline',
     iconColor: '#4ADE80',
-    title: 'Child Development Plan',
-    body: 'Create a dedicated growth plan for each child — with tailored daily parent actions designed around their specific challenge and age.',
+    title: 'Family Goals & Connection',
+    body: 'Strengthen family connection. Set shared goals for your whole family and log progress. Small moments of growth, captured and remembered.',
+  },
+  {
+    key: 'dashboard',
+    icon: 'apps-outline',
+    iconColor: '#4ADE80',
+    title: 'Child Dashboards',
+    body: "Each child gets their own dashboard — a personalised weekly plan of habits and activities built around their specific growth area.",
+  },
+  {
+    key: 'culture',
+    icon: 'globe-outline',
+    iconColor: '#4ADE80',
+    title: 'This Week in Youth Culture',
+    body: "Stay fluent in your child's world. Live trend data from Google, YouTube, Reddit and more — decoded through an Islamic parenting lens every week.",
   },
   {
     key: 'learn',
     icon: 'layers-outline',
     iconColor: '#D4A843',
-    title: 'Learn Your Way',
-    body: 'Need guidance right now? Get Real-Time advice for any situation. Or Go Deeper with a full personalized learning module for lasting transformation.',
+    title: 'Learn On Demand',
+    body: "Describe any parenting challenge and get a full AI-generated audio learning module — tailored to your situation and ready to listen to hands-free.",
   },
   {
     key: 'community',
     icon: 'people-outline',
     iconColor: '#D4A843',
     title: 'Parents Helping Parents',
-    body: "Share resources, duas, and parenting wins — and connect with Muslim parents around the world.",
+    body: 'Browse curated Islamic parenting resources, request what you need, and share what has worked for your family.',
   },
 ];
 

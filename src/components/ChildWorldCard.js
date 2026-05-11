@@ -7,6 +7,15 @@ import { supabase } from '../utils/supabase';
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+function getWeekOf(generatedAt) {
+  const d = generatedAt ? new Date(generatedAt) : new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // roll back to Monday
+  const monday = new Date(d);
+  monday.setDate(diff);
+  return monday.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
 export function getAgeGroup(age) {
   if (!age || age <= 5) return '3-5';
   if (age <= 8) return '6-8';
@@ -269,7 +278,7 @@ function WorldSection({ sectionKey, data }) {
     if (sectionKey === 'safetyWatch') {
       if (!data?.length) return null;
       return data.map((item, i) => (
-        <View key={i} style={[cw.safetyItem, i < data.length - 1 && { marginBottom: 12 }]}>
+        <View key={i} style={cw.safetyItem}>
           <View style={cw.safetyTopRow}>
             <View style={[cw.severityBadge, { backgroundColor: item.severity === 'high' ? '#FEE2E2' : item.severity === 'medium' ? '#FEF9EE' : '#F3F4F6' }]}>
               <Text style={[cw.severityText, { color: item.severity === 'high' ? '#DC2626' : item.severity === 'medium' ? '#D4871A' : '#6B7280' }]}>
@@ -291,7 +300,9 @@ function WorldSection({ sectionKey, data }) {
             <Ionicons name="shield-checkmark-outline" size={13} color="#2E7D62" />
             <Text style={cw.tipText}>{item.action}</Text>
           </View>
-          {i < data.length - 1 && <View style={[cw.itemDivider, { marginTop: 12 }]} />}
+          {i < data.length - 1 && (
+            <View style={cw.safetyBand} />
+          )}
         </View>
       ));
     }
@@ -402,10 +413,8 @@ function WorldSection({ sectionKey, data }) {
 
   return (
     <View style={[cw.section, isSafety && cw.safetySection]}>
-      <TouchableOpacity style={cw.sectionHeader} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
-        <View style={[cw.sectionEmojiWrap, isSafety && cw.safetyEmojiWrap]}>
-          <Text style={cw.sectionEmoji}>{cfg.emoji}</Text>
-        </View>
+      <TouchableOpacity style={[cw.sectionHeader, isSafety && cw.safetyHeader]} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
+        <Text style={cw.sectionEmoji}>{cfg.emoji}</Text>
         <Text style={[cw.sectionHeaderText, isSafety && cw.safetyHeaderText]}>{cfg.label}</Text>
         {isSafety && data?.length > 0 && (
           <View style={cw.safetyCountBadge}>
@@ -414,7 +423,7 @@ function WorldSection({ sectionKey, data }) {
         )}
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={isSafety ? '#DC2626' : '#2E7D62'} />
       </TouchableOpacity>
-      {open && <View style={cw.sectionBody}>{renderContent()}</View>}
+      {open && <View style={[cw.sectionBody, isSafety && cw.safetySectionBody]}>{renderContent()}</View>}
     </View>
   );
 }
@@ -508,8 +517,9 @@ export function ChildWorldCard({ child }) {
           <Text style={cw.title}>This Week in {displayName}'s World</Text>
           <View style={cw.metaRow}>
             <View style={cw.ageBadge}><Text style={cw.ageBadgeText}>{snap.ageLabel ?? `Ages ${snap.ageGroup ?? ageGroup}`}</Text></View>
-            <Text style={cw.weekText}>Week of {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
+            <Text style={cw.weekText}>Week of {getWeekOf(snap.generatedAt)}</Text>
           </View>
+          <Text style={cw.refreshNote}>Refreshes weekly · Sourced from live trend data</Text>
         </View>
       </View>
 
@@ -524,9 +534,49 @@ export function ChildWorldCard({ child }) {
       {/* Sections — greyed out until live data arrives */}
       <View style={{ opacity: loading ? 0.35 : 1 }} pointerEvents={loading ? 'none' : 'auto'}>
         {['safetyWatch', 'onlineWorld', 'slang', 'humor', 'concerns', 'habits', 'schoolCulture', 'fashionCulture', 'starters', 'islamicLens'].map(key => (
-          <WorldSection key={key} sectionKey={key} data={snap[key]} />
+          <WorldSection key={`${child?.id}_${key}`} sectionKey={key} data={snap[key]} />
         ))}
       </View>
+
+      {/* Sources footer */}
+      <SourcesFooter />
+    </View>
+  );
+}
+
+function SourcesFooter() {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={cw.sourcesWrap}>
+      <TouchableOpacity style={cw.sourcesBtn} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
+        <Ionicons name="information-circle-outline" size={13} color="#9CA3AF" />
+        <Text style={cw.sourcesBtnText}>How this works</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={12} color="#9CA3AF" />
+      </TouchableOpacity>
+      {open && (
+        <View style={cw.sourcesBody}>
+          <Text style={cw.sourcesText}>
+            This digest is generated weekly using live data from four sources:
+          </Text>
+          {[
+            { icon: '📈', label: 'Google Trends', desc: 'Captures what\'s going viral across TikTok, Instagram and the wider web in real time.' },
+            { icon: '▶️', label: 'YouTube Trending', desc: 'Top videos in Gaming, Entertainment, Music and Fashion for your child\'s age group this week.' },
+            { icon: '💬', label: 'Reddit', desc: 'Top posts from youth communities (r/teenagers, r/GenZ, r/memes) plus safety-focused subreddits.' },
+            { icon: '📖', label: 'Urban Dictionary', desc: 'Trending slang words kids are actually looking up and using this week.' },
+          ].map((s, i) => (
+            <View key={i} style={cw.sourceRow}>
+              <Text style={cw.sourceIcon}>{s.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={cw.sourceLabel}>{s.label}</Text>
+                <Text style={cw.sourceDesc}>{s.desc}</Text>
+              </View>
+            </View>
+          ))}
+          <Text style={cw.sourcesDisclaimer}>
+            Raw trend data is reviewed and contextualised by Tarbiyah's AI through an Islamic parenting lens. Content is not medical or clinical advice.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -560,7 +610,8 @@ const cw = StyleSheet.create({
     backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3,
   },
   ageBadgeText: { fontSize: 11, fontWeight: '700', color: '#2E7D62' },
-  weekText: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
+  weekText:     { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
+  refreshNote:  { fontSize: 10, color: '#9CA3AF', marginTop: 4, fontStyle: 'italic' },
   liveBadge: {
     backgroundColor: '#2E7D62', borderRadius: 100, paddingHorizontal: 7, paddingVertical: 2,
   },
@@ -618,12 +669,27 @@ const cw = StyleSheet.create({
   starterWhy:  { fontSize: 12, color: '#6B7280', lineHeight: 18 },
 
   // Safety Watch
-  safetySection:   { backgroundColor: '#FFF8F8', borderRadius: 12, marginBottom: 4, borderWidth: 1, borderColor: '#FEE2E2' },
+  safetySection:    { backgroundColor: '#FFF8F8', borderRadius: 8, marginBottom: 4, marginHorizontal: -12, borderWidth: 1, borderColor: '#FEE2E2' },
+  safetyHeader:     { paddingHorizontal: 12 },
+  safetySectionBody:{ paddingHorizontal: 16, paddingBottom: 16 },
   safetyEmojiWrap: { backgroundColor: '#FEE2E2' },
   safetyHeaderText:{ flex: 1, fontSize: 14, fontWeight: '800', color: '#DC2626' },
   safetyCountBadge:{ backgroundColor: '#DC2626', borderRadius: 100, width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
   safetyCountText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  safetyItem:      { paddingTop: 4 },
+  safetyItem:      { paddingTop: 4, paddingBottom: 12 },
+  safetyBand:      { height: 10, backgroundColor: '#FEE2E2', marginHorizontal: -16, marginTop: 12, marginBottom: 12 },
+
+  // Sources footer
+  sourcesWrap:     { borderTopWidth: 1, borderTopColor: '#EDF7F2', marginTop: 8, paddingTop: 12 },
+  sourcesBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  sourcesBtnText:  { fontSize: 12, color: '#9CA3AF', fontWeight: '500', flex: 1 },
+  sourcesBody:     { marginTop: 12, gap: 4 },
+  sourcesText:     { fontSize: 12, color: '#6B7280', lineHeight: 18, marginBottom: 8 },
+  sourceRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  sourceIcon:      { fontSize: 14, marginTop: 1 },
+  sourceLabel:     { fontSize: 12, fontWeight: '700', color: '#1A1A2E', marginBottom: 2 },
+  sourceDesc:      { fontSize: 12, color: '#6B7280', lineHeight: 17 },
+  sourcesDisclaimer: { fontSize: 11, color: '#9CA3AF', lineHeight: 16, fontStyle: 'italic', marginTop: 4 },
   safetyTopRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   severityBadge:   { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
   severityText:    { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },

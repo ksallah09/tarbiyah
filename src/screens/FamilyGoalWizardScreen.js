@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  TextInput, StyleSheet, Switch,
+  TextInput, StyleSheet, Switch, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -128,10 +128,12 @@ export default function FamilyGoalWizardScreen({ navigation, route }) {
         <View style={{ width: 36 }} />
       </View>
 
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 32 }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
 
         {/* ── STEP 0: Choose goal ── */}
@@ -202,8 +204,10 @@ export default function FamilyGoalWizardScreen({ navigation, route }) {
                     placeholder="e.g. We will volunteer together monthly"
                     placeholderTextColor="rgba(255,255,255,0.35)"
                     multiline
+                    maxLength={80}
                   />
                 </View>
+                <Text style={styles.charCount}>{customTitle.length}/80</Text>
               </View>
             )}
           </View>
@@ -336,6 +340,7 @@ export default function FamilyGoalWizardScreen({ navigation, route }) {
         )}
 
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Bottom CTA */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
@@ -426,6 +431,10 @@ const styles = StyleSheet.create({
   customInput: {
     color: '#FFFFFF', fontSize: 15, lineHeight: 22,
     paddingTop: 10,
+  },
+  charCount: {
+    fontSize: 11, color: 'rgba(255,255,255,0.35)',
+    textAlign: 'right', marginTop: 8,
   },
 
   // Option rows (frequency + reminder time)

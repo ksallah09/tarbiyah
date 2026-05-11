@@ -34,7 +34,7 @@ export default function OnboardingAllSet({ route, navigation }) {
           <TypewriterText
             lines={[
               `JazakAllahu\nKhayran, ${name}.`,
-              'Your first insight\nis ready.',
+              "Let's begin.",
             ]}
             charDelay={28}
             lineDelay={700}
@@ -51,16 +51,9 @@ export default function OnboardingAllSet({ route, navigation }) {
           <TouchableOpacity
             style={styles.btn}
             activeOpacity={0.85}
-            onPress={async () => { await markOnboardingComplete(); navigation.navigate('AddChildWizard', { afterOnboarding: true }); }}
-          >
-            <Text style={styles.btnText}>Add Your First Child →</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.skipBtn}
-            activeOpacity={0.75}
             onPress={async () => { await markOnboardingComplete(); navigation.navigate('FeatureTour'); }}
           >
-            <Text style={styles.skipBtnText}>Skip for now</Text>
+            <Text style={styles.btnText}>Continue →</Text>
           </TouchableOpacity>
         </Animated.View>
       </LinearGradient>

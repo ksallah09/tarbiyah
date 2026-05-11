@@ -56,6 +56,7 @@ import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission } from './src/utils/notifications';
+import { syncChildProfilesFromSupabase } from './src/utils/childProfiles';
 
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
@@ -396,12 +397,15 @@ export default function App() {
           'tarbiyah_daily_cache',
           'tarbiyah_partner_cache',
           'tarbiyah_profile_photo',
+          'tarbiyah_child_profiles',
         ]).catch(() => {});
         setOnboarded(false);
       }
       if (event === 'SIGNED_IN') {
         // Clear stale cache from any previous account session
         AsyncStorage.removeItem('tarbiyah_daily_cache').catch(() => {});
+        // Restore children saved to this account's profile in Supabase
+        syncChildProfilesFromSupabase().catch(() => {});
       }
       // Background token refresh failed — clear stale session and send to sign-in
       if (event === 'TOKEN_REFRESH_FAILED' || (event === 'TOKEN_REFRESHED' && !session)) {
