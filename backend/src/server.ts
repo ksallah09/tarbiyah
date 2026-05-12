@@ -3056,7 +3056,7 @@ app.delete('/community/requests/replies/:replyId', requireAuth, async (req: Auth
     if (error) throw error;
 
     // Decrement reply_count on the parent request (best-effort)
-    await supabase.rpc('decrement_request_reply_count', { request_id: reply.request_id }).catch(() => {});
+    try { await supabase.rpc('decrement_request_reply_count', { request_id: reply.request_id }); } catch {}
 
     return res.json({ success: true });
   } catch (err: any) {
