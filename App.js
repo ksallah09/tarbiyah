@@ -57,6 +57,7 @@ import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission } from './src/utils/notifications';
 import { syncChildProfilesFromSupabase } from './src/utils/childProfiles';
+import { getFamilySyncStatus } from './src/utils/familySync';
 
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
@@ -406,6 +407,8 @@ export default function App() {
         AsyncStorage.removeItem('tarbiyah_daily_cache').catch(() => {});
         // Restore children saved to this account's profile in Supabase
         syncChildProfilesFromSupabase().catch(() => {});
+        // Pre-warm partner sync status cache so Home leaderboard loads on first focus
+        getFamilySyncStatus().catch(() => {});
       }
       // Background token refresh failed — clear stale session and send to sign-in
       if (event === 'TOKEN_REFRESH_FAILED' || (event === 'TOKEN_REFRESHED' && !session)) {
