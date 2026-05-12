@@ -12,6 +12,9 @@ try { ImagePicker = require('expo-image-picker'); } catch {}
 import { saveChildProfile } from '../utils/childProfiles';
 import { uploadPhoto } from '../utils/uploadPhoto';
 import { supabase } from '../utils/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
 
 const TOTAL_STEPS = 9;
 
@@ -200,6 +203,32 @@ export default function AddChildWizardScreen({ navigation, route }) {
       const saved = isEdit
         ? await import('../utils/childProfiles').then(m => m.updateChildProfile(existingChild.id, profile))
         : await saveChildProfile(profile);
+
+      // Fire background youth culture generation for new children
+      if (!isEdit && saved?.id) {
+        (async () => {
+          try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) return;
+            const res = await fetch(`${API_URL}/child-world/async`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                childId:   saved.id,
+                age:       saved.age,
+                gender:    saved.gender ?? undefined,
+                name:      saved.name?.split(' ')[0] ?? undefined,
+                interests: saved.interests?.join(',') ?? undefined,
+              }),
+            });
+            if (res.ok) {
+              const { jobId } = await res.json();
+              await AsyncStorage.setItem(`tarbiyah_world_job_${saved.id}`, jobId);
+            }
+          } catch {}
+        })();
+      }
 
       if (route?.params?.afterOnboarding) {
         navigation.replace('GrowthAreaWizard', { child: saved, isFirstTime: true, afterOnboarding: true });

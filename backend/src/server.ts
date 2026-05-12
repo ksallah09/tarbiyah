@@ -3469,6 +3469,62 @@ async function generateChildWorldSnapshot(prompt: string): Promise<any> {
   return null;
 }
 
+// POST /child-world/async — fire-and-forget background generation
+app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { childId, age, gender, name, interests } = req.body;
+    if (!childId || !age) return res.status(400).json({ error: 'childId and age required.' });
+
+    // Create job record
+    const { data: job, error: jobErr } = await supabase
+      .from('child_world_jobs')
+      .insert({ user_id: req.userId, child_id: childId, status: 'pending' })
+      .select('id')
+      .single();
+    if (jobErr || !job) return res.status(500).json({ error: 'Failed to create job.' });
+
+    // Return jobId immediately — generation runs in background
+    res.json({ jobId: job.id });
+
+    // Background generation
+    (async () => {
+      try {
+        const ageNum   = parseInt(age) || 10;
+        const ageGroup = childWorldAgeGroup(ageNum);
+
+        const [redditResult, youtubeResult, slangResult, googleResult, safetyResult] = await Promise.allSettled([
+          fetchRedditTrends(ageNum),
+          fetchYoutubeTrends(ageNum),
+          fetchUrbanSlang(),
+          fetchGoogleTrends(ageNum),
+          fetchSafetySignals(ageNum),
+        ]);
+
+        const reddit        = redditResult.status  === 'fulfilled' ? redditResult.value  : [];
+        const youtube       = youtubeResult.status === 'fulfilled' ? youtubeResult.value : [];
+        const slang         = slangResult.status   === 'fulfilled' ? slangResult.value   : [];
+        const googleTrends  = googleResult.status  === 'fulfilled' ? googleResult.value  : [];
+        const safetySignals = safetyResult.status  === 'fulfilled' ? safetyResult.value  : [];
+
+        const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals });
+        const snapshot = await generateChildWorldSnapshot(prompt);
+
+        if (snapshot) {
+          const result = { ...snapshot, generatedAt: new Date().toISOString() };
+          await supabase.from('child_world_jobs').update({ status: 'complete', result }).eq('id', job.id);
+        } else {
+          await supabase.from('child_world_jobs').update({ status: 'failed', error: 'Generation returned null.' }).eq('id', job.id);
+        }
+      } catch (err: any) {
+        await supabase.from('child_world_jobs').update({ status: 'failed', error: err?.message ?? 'Unknown error' }).eq('id', job.id);
+      }
+    })();
+  } catch (err: any) {
+    console.error('POST /child-world/async error:', err);
+    return res.status(500).json({ error: err?.message ?? 'Failed to start job.' });
+  }
+});
+
 // GET /child-world
 app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
