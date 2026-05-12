@@ -3046,8 +3046,14 @@ app.delete('/community/requests/replies/:replyId', requireAuth, async (req: Auth
       .select('user_id, request_id')
       .eq('id', replyId)
       .single();
-    if (fetchErr || !reply) return res.status(404).json({ error: 'Reply not found.' });
-    if (reply.user_id !== req.userId) return res.status(403).json({ error: 'Not your reply.' });
+    if (fetchErr || !reply) {
+      console.error('DELETE reply: not found', { replyId, fetchErr });
+      return res.status(404).json({ error: 'Reply not found.' });
+    }
+    if (reply.user_id !== req.userId) {
+      console.error('DELETE reply: ownership mismatch', { replyUserId: reply.user_id, requestUserId: req.userId });
+      return res.status(403).json({ error: 'Not your reply.' });
+    }
 
     const { error } = await supabase
       .from('resource_request_replies')

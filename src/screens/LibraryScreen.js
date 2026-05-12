@@ -644,7 +644,12 @@ export default function LibraryScreen({ navigation }) {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) { Alert.alert('Error', 'Could not delete reply. Please try again.'); return; }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.warn('[deleteReply] failed', res.status, body);
+        Alert.alert('Error', body?.error ?? 'Could not delete reply. Please try again.');
+        return;
+      }
       setRequestReplies(prev => prev.filter(r => r.id !== deleteReplyId));
       setRequests(prev => prev.map(r => r.id === requestDetail?.id ? { ...r, reply_count: Math.max(0, (r.reply_count ?? 1) - 1) } : r));
       setRequestDetail(prev => prev ? { ...prev, reply_count: Math.max(0, (prev.reply_count ?? 1) - 1) } : prev);
