@@ -505,6 +505,7 @@ export function ChildWorldCard({ child }) {
               title: 'Youth Culture Digest Ready',
               body: `This week's digest for ${displayName} is ready to explore.`,
               sound: true,
+              data: { screen: 'Dashboards', childId: child?.id },
             },
             trigger: null,
           });
