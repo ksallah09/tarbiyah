@@ -3036,6 +3036,35 @@ app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest
   }
 });
 
+// DELETE /community/requests/replies/:replyId
+app.delete('/community/requests/replies/:replyId', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { replyId } = req.params;
+    // Verify ownership before deleting
+    const { data: reply, error: fetchErr } = await supabase
+      .from('resource_request_replies')
+      .select('user_id, request_id')
+      .eq('id', replyId)
+      .single();
+    if (fetchErr || !reply) return res.status(404).json({ error: 'Reply not found.' });
+    if (reply.user_id !== req.userId) return res.status(403).json({ error: 'Not your reply.' });
+
+    const { error } = await supabase
+      .from('resource_request_replies')
+      .delete()
+      .eq('id', replyId);
+    if (error) throw error;
+
+    // Decrement reply_count on the parent request (best-effort)
+    await supabase.rpc('decrement_request_reply_count', { request_id: reply.request_id }).catch(() => {});
+
+    return res.json({ success: true });
+  } catch (err: any) {
+    console.error('DELETE /community/requests/replies/:replyId error:', err);
+    return res.status(500).json({ error: 'Failed to delete reply.' });
+  }
+});
+
 // GET /community/requests/replies/:replyId/reactions
 app.get('/community/requests/replies/:replyId/reactions', async (req: Request, res: Response) => {
   try {

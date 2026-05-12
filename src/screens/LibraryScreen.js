@@ -167,6 +167,8 @@ export default function LibraryScreen({ navigation }) {
   const [mySavedIds, setMySavedIds]           = useState(new Set());
   const [currentUserId, setCurrentUserId]     = useState(null);
   const [hiddenThumbs, setHiddenThumbs]       = useState(new Set());
+  const [deleteReplyId, setDeleteReplyId]     = useState(null);
+  const [deletingReply, setDeletingReply]     = useState(false);
 
   // ── Local community ──
   const [communities,       setCommunities]       = useState([]);
@@ -630,6 +632,24 @@ export default function LibraryScreen({ navigation }) {
         setMyReplyReactions(map);
       }
     } catch {} finally { setRepliesLoading(false); }
+  }
+
+  async function handleDeleteReply() {
+    if (!deleteReplyId) return;
+    setDeletingReply(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const res = await fetch(`${API_URL}/community/requests/replies/${deleteReplyId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { Alert.alert('Error', 'Could not delete reply. Please try again.'); return; }
+      setRequestReplies(prev => prev.filter(r => r.id !== deleteReplyId));
+      setRequests(prev => prev.map(r => r.id === requestDetail?.id ? { ...r, reply_count: Math.max(0, (r.reply_count ?? 1) - 1) } : r));
+      setRequestDetail(prev => prev ? { ...prev, reply_count: Math.max(0, (prev.reply_count ?? 1) - 1) } : prev);
+    } catch { Alert.alert('Error', 'Something went wrong.'); }
+    finally { setDeletingReply(false); setDeleteReplyId(null); }
   }
 
   async function handleSubmitReply() {
@@ -2146,9 +2166,21 @@ export default function LibraryScreen({ navigation }) {
                         <Text style={reqStyles.replyAuthor}>{reply.is_anonymous ? 'Anonymous Parent' : (reply.display_name ?? 'Parent')}</Text>
                         <Text style={reqStyles.replyTime}>{timeAgo(reply.created_at)}</Text>
                       </View>
-                      <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'request_reply', contentId: reply.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <Ionicons name="flag-outline" size={16} color="#D1D5DB" />
-                      </TouchableOpacity>
+                      {currentUserId && reply.user_id === currentUserId ? (
+                        <TouchableOpacity
+                          onPress={() => Alert.alert('Reply', 'What would you like to do?', [
+                            { text: 'Delete', style: 'destructive', onPress: () => setDeleteReplyId(reply.id) },
+                            { text: 'Cancel', style: 'cancel' },
+                          ])}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="ellipsis-horizontal" size={18} color="#9CA3AF" />
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'request_reply', contentId: reply.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Ionicons name="flag-outline" size={16} color="#D1D5DB" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                     </View>
                     {reply.thumbnail_url ? (
@@ -2275,6 +2307,27 @@ export default function LibraryScreen({ navigation }) {
                 </View>
               </View>
             </KeyboardAvoidingView>
+          )}
+          {!!deleteReplyId && (
+            <View style={reqStyles.inlineOverlay}>
+              <View style={[reqStyles.warnSheet, { paddingBottom: 32 }]}>
+                <Text style={reqStyles.warnTitle}>Delete reply?</Text>
+                <Text style={reqStyles.warnSub}>This can't be undone. Your reply will be permanently removed.</Text>
+                <View style={reqStyles.warnActions}>
+                  <TouchableOpacity style={reqStyles.warnCancel} onPress={() => setDeleteReplyId(null)} activeOpacity={0.75}>
+                    <Text style={reqStyles.warnCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[reqStyles.warnConfirm, { backgroundColor: '#DC2626' }, deletingReply && { opacity: 0.5 }]}
+                    onPress={handleDeleteReply}
+                    disabled={deletingReply}
+                    activeOpacity={0.85}
+                  >
+                    {deletingReply ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={reqStyles.warnConfirmText}>Delete</Text>}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
           )}
           {!!flagModal && (
             <KeyboardAvoidingView style={reqStyles.inlineOverlay} behavior={Platform.OS === 'ios' ? 'height' : undefined} keyboardVerticalOffset={80}>
