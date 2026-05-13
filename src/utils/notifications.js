@@ -1,7 +1,9 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { supabase } from './supabase';
 
 // ─── Notification handler (must be set before any scheduling) ─────────────────
 Notifications.setNotificationHandler({
@@ -66,6 +68,33 @@ export async function requestNotificationPermission() {
 
   const { status } = await Notifications.requestPermissionsAsync();
   return status === 'granted';
+}
+
+// ─── Push token — save to Supabase so backend can send pushes ─────────────────
+export async function savePushTokenToSupabase() {
+  try {
+    if (!Device.isDevice) return;
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId
+      ?? Constants.easConfig?.projectId;
+    if (!projectId) return;
+
+    const { data: tokenData } = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (!tokenData) return;
+
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session?.session?.user?.id;
+    if (!userId) return;
+
+    await supabase
+      .from('profiles')
+      .update({ push_token: tokenData })
+      .eq('user_id', userId);
+  } catch (e) {
+    console.warn('[Notifications] savePushToken error:', e);
+  }
 }
 
 // ─── Parse reminder time string → { hour, minute } ───────────────────────────

@@ -3547,6 +3547,31 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
         if (snapshot) {
           const result = { ...snapshot, generatedAt: new Date().toISOString() };
           await supabase.from('child_world_jobs').update({ status: 'complete', result }).eq('id', job.id);
+
+          // Send push notification to the parent
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('push_token')
+              .eq('user_id', req.userId)
+              .single();
+            if (profile?.push_token) {
+              const childFirstName = name ?? 'Your child';
+              await fetch('https://exp.host/--/api/v2/push/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({
+                  to: profile.push_token,
+                  title: `${childFirstName}'s "Youth Culture" weekly update is ready`,
+                  body: 'See trends, slang, online concerns and more.',
+                  sound: 'default',
+                  data: { screen: 'Dashboards', childId },
+                }),
+              });
+            }
+          } catch (pushErr: any) {
+            console.warn('Push notification failed:', pushErr?.message);
+          }
         } else {
           await supabase.from('child_world_jobs').update({ status: 'failed', error: 'Generation returned null.' }).eq('id', job.id);
         }

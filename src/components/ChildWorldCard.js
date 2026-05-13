@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
 import { supabase } from '../utils/supabase';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
@@ -499,17 +498,6 @@ export function ChildWorldCard({ child }) {
         setSnap(enriched);
         setLive(true);
         setPreparing(false);
-        try {
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Youth Culture Digest Ready',
-              body: `This week's digest for ${displayName} is ready to explore.`,
-              sound: true,
-              data: { screen: 'Dashboards', childId: child?.id },
-            },
-            trigger: null,
-          });
-        } catch {}
       }
     }
 

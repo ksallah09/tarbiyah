@@ -55,7 +55,7 @@ import FeatureTourScreen from './src/screens/FeatureTourScreen';
 import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
-import { requestNotificationPermission } from './src/utils/notifications';
+import { requestNotificationPermission, savePushTokenToSupabase } from './src/utils/notifications';
 import { syncChildProfilesFromSupabase } from './src/utils/childProfiles';
 import { getFamilySyncStatus } from './src/utils/familySync';
 import { initializePurchases, checkEntitlement, loginRevenueCat, logoutRevenueCat } from './src/utils/purchases';
@@ -388,8 +388,10 @@ export default function App() {
         await SplashScreen.hideAsync();
       });
 
-    // Request notification permission on first open
-    requestNotificationPermission();
+    // Request notification permission on first open, then save push token to Supabase
+    requestNotificationPermission().then(granted => {
+      if (granted) savePushTokenToSupabase();
+    });
 
     // Navigate to correct screen when user taps a notification
     notifResponseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
