@@ -711,19 +711,18 @@ export async function scheduleChildHabitNotifications() {
 
     const habitIds = [];
 
-    // B + C: for each day the parent is available, schedule per-slot habit notifications
-    // rotating through children by day index
+    // Schedule one concrete notification per day slot — skip if no plan content yet
     for (const [dayKey, { weekday, idx }] of Object.entries(DAY_META)) {
       const slots = availability[dayKey] ?? [];
       if (!slots.length) continue;
 
-      // C: rotate child by day index, rotate habit by day index within the week
       const child = children[idx % children.length];
       const habit = getCurrentWeekHabit(child, idx);
-      const habitBody = habit?.text
-        ? `This week: ${truncateToSentence(habit.text, 80)}`
-        : `This week: Check ${child.name}'s habit for today.`;
-      const habitText = `${habitBody} Open Tarbiyah to see more.`;
+
+      // Skip this day entirely if there's no actual habit text to show
+      if (!habit?.text) continue;
+
+      const habitText = `${truncateToSentence(habit.text, 100)} Open Tarbiyah to check it off.`;
 
       for (const slot of slots) {
         const hour  = SLOT_HOUR[slot];
@@ -732,13 +731,15 @@ export async function scheduleChildHabitNotifications() {
 
         const id = await Notifications.scheduleNotificationAsync({
           content: {
-            title: `${emoji} ${child.name} · Growth Habit`,
+            title: `${emoji} ${child.name} · This week's habit`,
             body: habitText,
             sound: true,
             data: { screen: 'Dashboards', childId: child.id },
             android: { channelId: 'default' },
           },
-          trigger: { type: 'calendar', repeats: true, weekday, hour, minute: 0 },
+          // Use a one-time date trigger for each upcoming occurrence of this weekday/slot
+          // so the text stays fresh — rescheduled weekly when the app opens
+          trigger: { type: 'calendar', repeats: false, weekday, hour, minute: 0 },
         });
         habitIds.push(id);
       }
@@ -746,26 +747,24 @@ export async function scheduleChildHabitNotifications() {
 
     await AsyncStorage.setItem(HABIT_NOTIF_IDS_KEY, JSON.stringify(habitIds));
 
-    // D: Friday 3pm — weekly activity preview, rotating child assigned to Friday
+    // Friday 3pm — weekly activity preview (only if actual content exists)
     const fridayChild = children[DAY_META.fri.idx % children.length];
     const activity    = getCurrentWeekActivity(fridayChild, DAY_META.fri.idx);
-    const activityBody = activity?.text
-      ? `This week: ${truncateToSentence(activity.text, 80)}`
-      : `This week's activity for ${fridayChild.name} is ready.`;
-    const activityText = `${activityBody} Open Tarbiyah to see more.`;
 
-    const activityId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: `🎯 Weekend activity · ${fridayChild.name}`,
-        body: activityText,
-        sound: true,
-        data: { screen: 'Dashboards', childId: fridayChild.id },
-        android: { channelId: 'default' },
-      },
-      trigger: { type: 'calendar', repeats: true, weekday: 6, hour: 15, minute: 0 },
-    });
-
-    await AsyncStorage.setItem(ACTIVITY_NOTIF_IDS_KEY, JSON.stringify([activityId]));
+    if (activity?.text) {
+      const activityText = `${truncateToSentence(activity.text, 100)} Open Tarbiyah to see more.`;
+      const activityId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `🎯 ${fridayChild.name} · This week's activity`,
+          body: activityText,
+          sound: true,
+          data: { screen: 'Dashboards', childId: fridayChild.id },
+          android: { channelId: 'default' },
+        },
+        trigger: { type: 'calendar', repeats: false, weekday: 6, hour: 15, minute: 0 },
+      });
+      await AsyncStorage.setItem(ACTIVITY_NOTIF_IDS_KEY, JSON.stringify([activityId]));
+    }
   } catch (err) {
     console.error('scheduleChildHabitNotifications error:', err);
   }
