@@ -58,6 +58,8 @@ import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission } from './src/utils/notifications';
 import { syncChildProfilesFromSupabase } from './src/utils/childProfiles';
 import { getFamilySyncStatus } from './src/utils/familySync';
+import { initializePurchases, checkEntitlement, loginRevenueCat, logoutRevenueCat } from './src/utils/purchases';
+import PaywallScreen from './src/screens/PaywallScreen';
 
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
@@ -330,12 +332,13 @@ function OnboardingStack() {
 
 // ─── Root — decides onboarding vs main app ────────────────────────────────────
 
-export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {} });
+export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {} });
 export function useAuth() { return useContext(AuthContext); }
 
 export default function App() {
   const [loading, setLoading]         = useState(true);
   const [onboarded, setOnboarded]     = useState(false);
+  const [hasAccess, setHasAccess]     = useState(__DEV__); // skip paywall in dev
   const [showAppSplash, setShowAppSplash] = useState(false);
   const navigationRef                 = useRef(null);
   const notifResponseListener         = useRef(null);
@@ -360,14 +363,22 @@ export default function App() {
 
   useEffect(() => {
     Promise.all([isOnboardingComplete(), getSession()])
-      .then(async ([complete]) => {
+      .then(async ([complete, session]) => {
+        // Initialize RevenueCat with the current user id if available
+        const userId = session?.user?.id ?? null;
+        await initializePurchases(userId);
+
         setOnboarded(complete);
         if (complete) {
+          // Check entitlement before showing the app
+          if (!__DEV__) {
+            const active = await checkEntitlement();
+            setHasAccess(active);
+          }
           setShowAppSplash(true);
           setLoading(false);
           await new Promise(r => setTimeout(r, 600));
         } else {
-          // New user — dismiss native splash immediately, go straight to onboarding
           setLoading(false);
         }
         await SplashScreen.hideAsync();
@@ -400,6 +411,8 @@ export default function App() {
           'tarbiyah_profile_photo',
           'tarbiyah_child_profiles',
         ]).catch(() => {});
+        logoutRevenueCat().catch(() => {});
+        setHasAccess(__DEV__);
         setOnboarded(false);
       }
       if (event === 'SIGNED_IN') {
@@ -409,6 +422,11 @@ export default function App() {
         syncChildProfilesFromSupabase().catch(() => {});
         // Pre-warm partner sync status cache so Home leaderboard loads on first focus
         getFamilySyncStatus().catch(() => {});
+        // Log in to RevenueCat and recheck entitlement
+        if (session?.user?.id) {
+          loginRevenueCat(session.user.id).catch(() => {});
+          if (!__DEV__) checkEntitlement().then(setHasAccess).catch(() => {});
+        }
       }
       // Background token refresh failed — clear stale session and send to sign-in
       if (event === 'TOKEN_REFRESH_FAILED' || (event === 'TOKEN_REFRESHED' && !session)) {
@@ -438,13 +456,18 @@ export default function App() {
 
   async function handleCompleteOnboarding() {
     setOnboarded(true);
+    // After onboarding, check entitlement — will show paywall if not active
+    if (!__DEV__) {
+      const active = await checkEntitlement();
+      setHasAccess(active);
+    }
   }
 
   if (loading) return <View style={styles.splash} />;
 
   return (
     <SafeAreaProvider>
-    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding }}>
+    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess }}>
       <NavigationContainer
         ref={navigationRef}
         onReady={() => {
@@ -453,10 +476,12 @@ export default function App() {
         }}
       >
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
-          {onboarded ? (
-            <RootStack.Screen name="MainApp" component={MainApp} />
-          ) : (
+          {!onboarded ? (
             <RootStack.Screen name="Onboarding" component={OnboardingStack} />
+          ) : !hasAccess ? (
+            <RootStack.Screen name="Paywall" component={PaywallScreen} options={{ animation: 'fade' }} />
+          ) : (
+            <RootStack.Screen name="MainApp" component={MainApp} />
           )}
         </RootStack.Navigator>
 
