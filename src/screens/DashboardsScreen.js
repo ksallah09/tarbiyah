@@ -551,6 +551,53 @@ const wins     = child?.wins      ?? [];
               );
             })}
           </View>
+
+          {/* Shared moments feed */}
+          {(() => {
+            const allMoments = children.flatMap(c => [
+              ...(c.wins      ?? []).map(w => ({ ...w, childName: c.name, childColor: c.color, type: 'win' })),
+              ...(c.incidents ?? []).map(i => ({ ...i, childName: c.name, childColor: c.color, type: 'incident' })),
+            ]).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            return (
+              <View style={{ marginTop: 20 }}>
+                <View style={styles.familyMomentsHeader}>
+                  <Text style={styles.familyMomentsEyebrow}>FAMILY LOG</Text>
+                  <Text style={styles.familyMomentsTitle}>Wins & Difficult Moments</Text>
+                  <Text style={styles.familyMomentsSub}>Logged from each child's dashboard</Text>
+                </View>
+                <View style={styles.familyGoalCard}>
+                  {allMoments.length === 0 ? (
+                    <View style={styles.familyGoalEmpty}>
+                      <Ionicons name="journal-outline" size={28} color="#D1D5DB" style={{ marginBottom: 10 }} />
+                      <Text style={styles.familyGoalEmptyTitle}>Nothing logged yet</Text>
+                      <Text style={styles.familyGoalEmptySub}>Wins and difficult moments logged on a child's dashboard will appear here for both parents to see.</Text>
+                    </View>
+                  ) : allMoments.map((entry, idx) => (
+                    <View key={entry.id}>
+                      {idx > 0 && <View style={styles.familyGoalDivider} />}
+                      <View style={styles.familyMomentRow}>
+                        <View style={[styles.familyMomentIconWrap, { backgroundColor: entry.type === 'win' ? '#FEF9EE' : '#FFF8F8' }]}>
+                          <Text style={{ fontSize: 16 }}>{entry.type === 'win' ? '⭐' : '⚠️'}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.familyMomentTopRow}>
+                            <View style={[styles.familyMomentChildBadge, { backgroundColor: (entry.childColor ?? '#2E7D62') + '22' }]}>
+                              <Text style={[styles.familyMomentChildName, { color: entry.childColor ?? '#2E7D62' }]}>{entry.childName}</Text>
+                            </View>
+                            <Text style={styles.familyMomentDate}>
+                              {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </Text>
+                          </View>
+                          <Text style={styles.familyMomentText}>{entry.text}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
         </ScrollView>
       )}
 
@@ -1082,6 +1129,19 @@ const styles = StyleSheet.create({
   familyGoalLogBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1B3D2F', borderRadius: 100, paddingHorizontal: 11, paddingVertical: 6 },
   familyGoalLogBtnDone: { backgroundColor: '#EDF7F2' },
   familyGoalLogBtnText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+
+  // Shared moments feed
+  familyMomentsHeader:   { marginBottom: 12 },
+  familyMomentsEyebrow:  { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
+  familyMomentsTitle:    { fontSize: 16, fontWeight: '800', color: '#1A1A2E', marginBottom: 2 },
+  familyMomentsSub:      { fontSize: 12, color: '#9CA3AF' },
+  familyMomentRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 },
+  familyMomentIconWrap:  { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  familyMomentTopRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 },
+  familyMomentChildBadge:{ borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
+  familyMomentChildName: { fontSize: 11, fontWeight: '700' },
+  familyMomentDate:      { fontSize: 11, color: '#9CA3AF' },
+  familyMomentText:      { fontSize: 13, color: '#374151', lineHeight: 19 },
 
   // Fixed tab bar
   tabBar: { backgroundColor: '#1B3D2F', paddingBottom: 14 },
