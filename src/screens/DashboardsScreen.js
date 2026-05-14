@@ -619,12 +619,14 @@ const wins     = child?.wins      ?? [];
                           <Text style={styles.familyMomentText}>{entry.text}</Text>
                           {entry.type === 'win' && (
                             <TouchableOpacity
-                              style={styles.familyMomentLoveBtn}
+                              style={[styles.familyMomentLoveBtn, loved && styles.familyMomentLoveBtnActive]}
                               onPress={() => handleLoveWin(entry.childId, entry.id)}
                               activeOpacity={0.7}
                             >
-                              <Ionicons name={loved ? 'heart' : 'heart-outline'} size={15} color={loved ? '#E11D48' : '#9CA3AF'} />
-                              {loveCount > 0 && <Text style={[styles.familyMomentLoveCount, loved && { color: '#E11D48' }]}>{loveCount}</Text>}
+                              <Ionicons name={loved ? 'heart' : 'heart-outline'} size={14} color={loved ? '#E11D48' : '#9CA3AF'} />
+                              <Text style={[styles.familyMomentLoveCount, loved && styles.familyMomentLoveCountActive]}>
+                                {loved ? (loveCount > 1 ? `${loveCount} loves` : 'Loved') : 'Love'}
+                              </Text>
                             </TouchableOpacity>
                           )}
                         </View>
@@ -1180,8 +1182,10 @@ const styles = StyleSheet.create({
   familyMomentChildName: { fontSize: 11, fontWeight: '700' },
   familyMomentDate:      { fontSize: 11, color: '#9CA3AF' },
   familyMomentText:      { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 8 },
-  familyMomentLoveBtn:   { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
-  familyMomentLoveCount: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
+  familyMomentLoveBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' },
+  familyMomentLoveBtnActive:{ borderColor: '#FDA4AF', backgroundColor: '#FFF1F2' },
+  familyMomentLoveCount:    { fontSize: 12, fontWeight: '700', color: '#9CA3AF' },
+  familyMomentLoveCountActive: { color: '#E11D48' },
 
   // Fixed tab bar
   tabBar: { backgroundColor: '#1B3D2F', paddingBottom: 14 },
