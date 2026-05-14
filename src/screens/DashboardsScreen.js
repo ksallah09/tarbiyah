@@ -151,7 +151,9 @@ export default function DashboardsScreen({ navigation, route }) {
   const [incidentText, setIncidentText] = useState('');
   const [coachingResponses, setCoachingResponses] = useState({});
   const [coachingLoading,   setCoachingLoading]   = useState(new Set());
-  const [lovedWins,         setLovedWins]          = useState(new Set()); // win IDs loved by this device
+  const [lovedWins,         setLovedWins]          = useState(new Set());
+  const [acknowledgedInc,   setAcknowledgedInc]    = useState(new Set());
+  const [myProfileName,     setMyProfileName]      = useState('');
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
 
@@ -180,9 +182,14 @@ export default function DashboardsScreen({ navigation, route }) {
     loadFamilyGoalsCached().then(setFamilyGoals);
     loadFamilyGoals().then(setFamilyGoals);
     loadCompletions().then(setGoalCompletions);
-    // Load loved wins for this device
     AsyncStorage.getItem('tarbiyah_loved_wins').then(raw => {
       setLovedWins(new Set(raw ? JSON.parse(raw) : []));
+    });
+    AsyncStorage.getItem('tarbiyah_acknowledged_inc').then(raw => {
+      setAcknowledgedInc(new Set(raw ? JSON.parse(raw) : []));
+    });
+    AsyncStorage.getItem('tarbiyah_profile').then(raw => {
+      if (raw) setMyProfileName(JSON.parse(raw).name?.split(' ')[0] ?? '');
     });
   }, [route?.params?.childId]));
 
@@ -223,21 +230,44 @@ const wins     = child?.wins      ?? [];
   }
 
   async function handleLoveWin(childId, winId) {
+    const name = myProfileName || 'You';
     const alreadyLoved = lovedWins.has(winId);
-    // Optimistic local update
     const nextLoved = new Set(lovedWins);
     alreadyLoved ? nextLoved.delete(winId) : nextLoved.add(winId);
     setLovedWins(nextLoved);
     await AsyncStorage.setItem('tarbiyah_loved_wins', JSON.stringify([...nextLoved]));
 
-    // Update love count on the win entry
     const profiles = await getAllChildProfiles();
     const targetChild = profiles.find(c => c.id === childId);
     if (!targetChild) return;
-    const updatedWins = (targetChild.wins ?? []).map(w =>
-      w.id === winId ? { ...w, loves: Math.max(0, (w.loves ?? 0) + (alreadyLoved ? -1 : 1)) } : w
-    );
+    const updatedWins = (targetChild.wins ?? []).map(w => {
+      if (w.id !== winId) return w;
+      const current = Array.isArray(w.loves) ? w.loves : [];
+      const next = alreadyLoved ? current.filter(n => n !== name) : [...current, name];
+      return { ...w, loves: next };
+    });
     await updateChildProfile(childId, { wins: updatedWins });
+    getAllChildProfiles().then(setChildren);
+  }
+
+  async function handleAcknowledgeIncident(childId, incidentId) {
+    const name = myProfileName || 'You';
+    const alreadyAck = acknowledgedInc.has(incidentId);
+    const nextAck = new Set(acknowledgedInc);
+    alreadyAck ? nextAck.delete(incidentId) : nextAck.add(incidentId);
+    setAcknowledgedInc(nextAck);
+    await AsyncStorage.setItem('tarbiyah_acknowledged_inc', JSON.stringify([...nextAck]));
+
+    const profiles = await getAllChildProfiles();
+    const targetChild = profiles.find(c => c.id === childId);
+    if (!targetChild) return;
+    const updatedIncidents = (targetChild.incidents ?? []).map(i => {
+      if (i.id !== incidentId) return i;
+      const current = Array.isArray(i.acknowledges) ? i.acknowledges : [];
+      const next = alreadyAck ? current.filter(n => n !== name) : [...current, name];
+      return { ...i, acknowledges: next };
+    });
+    await updateChildProfile(childId, { incidents: updatedIncidents });
     getAllChildProfiles().then(setChildren);
   }
 
@@ -599,7 +629,9 @@ const wins     = child?.wins      ?? [];
                     </View>
                   ) : allMoments.map((entry, idx) => {
                     const loved = lovedWins.has(entry.id);
-                    const loveCount = entry.loves ?? 0;
+                    const loveNames = Array.isArray(entry.loves) ? entry.loves : [];
+                    const acked = acknowledgedInc.has(entry.id);
+                    const ackNames = Array.isArray(entry.acknowledges) ? entry.acknowledges : [];
                     return (
                     <View key={entry.id}>
                       {idx > 0 && <View style={styles.familyGoalDivider} />}
@@ -625,7 +657,23 @@ const wins     = child?.wins      ?? [];
                             >
                               <Ionicons name={loved ? 'heart' : 'heart-outline'} size={14} color={loved ? '#E11D48' : '#9CA3AF'} />
                               <Text style={[styles.familyMomentLoveCount, loved && styles.familyMomentLoveCountActive]}>
-                                {loved ? (loveCount > 1 ? `${loveCount} loves` : 'Loved') : 'Love'}
+                                {loveNames.length === 0
+                                  ? 'Love'
+                                  : `Loved by ${loveNames.join(' & ')}`}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {entry.type === 'incident' && (
+                            <TouchableOpacity
+                              style={[styles.familyMomentLoveBtn, acked && styles.familyMomentAckBtnActive]}
+                              onPress={() => handleAcknowledgeIncident(entry.childId, entry.id)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name={acked ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={acked ? '#2E7D62' : '#9CA3AF'} />
+                              <Text style={[styles.familyMomentLoveCount, acked && styles.familyMomentAckCountActive]}>
+                                {ackNames.length === 0
+                                  ? 'Acknowledge'
+                                  : `Acknowledged by ${ackNames.join(' & ')}`}
                               </Text>
                             </TouchableOpacity>
                           )}
@@ -1186,6 +1234,8 @@ const styles = StyleSheet.create({
   familyMomentLoveBtnActive:{ borderColor: '#FDA4AF', backgroundColor: '#FFF1F2' },
   familyMomentLoveCount:    { fontSize: 12, fontWeight: '700', color: '#9CA3AF' },
   familyMomentLoveCountActive: { color: '#E11D48' },
+  familyMomentAckBtnActive:    { borderColor: '#86EFAC', backgroundColor: '#F0FDF4' },
+  familyMomentAckCountActive:  { color: '#2E7D62' },
 
   // Fixed tab bar
   tabBar: { backgroundColor: '#1B3D2F', paddingBottom: 14 },
