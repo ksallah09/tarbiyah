@@ -2574,14 +2574,14 @@ Respond with valid JSON only (no markdown):
       "theme": "Short theme title (3-5 words)",
       "islamicPrinciple": "One Islamic concept that frames this week. 1-2 sentences on what this principle means for THIS week's approach with THIS child.",
       "habits": [
-        { "priority": "primary", "text": "The single most impactful daily habit for this week.", "wisdom": "2-3 sentences. Islamic grounding required — name the tarbiyah principle, explain its depth, connect to this child's challenge." },
-        { "priority": "secondary", "text": "An important supporting habit.", "wisdom": "2-3 sentences. Draw from child development — explain the mechanism and connect to this child's specific issue." },
-        { "priority": "bonus", "text": "A bonus habit for parents who want to go deeper.", "wisdom": "2-3 sentences. Blend Islamic and developmental insight." }
+        { "priority": "primary", "text": "The single most impactful daily habit the PARENT does this week to support the child. Written as a parent action — what the parent says, does, models, or creates. Never what the child does.", "wisdom": "2-3 sentences. Islamic grounding required — name the tarbiyah principle, explain its depth, connect to this child's challenge." },
+        { "priority": "secondary", "text": "A supporting daily parent habit — a behaviour the parent repeats to reinforce this week's theme. Parent as actor, not the child.", "wisdom": "2-3 sentences. Draw from child development — explain the mechanism and connect to this child's specific issue." },
+        { "priority": "bonus", "text": "A deeper parent habit for those who want to go further. Still a parent action — not a child task.", "wisdom": "2-3 sentences. Blend Islamic and developmental insight." }
       ],
       "activities": [
-        { "text": "A specific experience the parent sets up for the child. Age-appropriate, tied to the challenge.", "wisdom": "2-3 sentences. Islamic grounding required — how does this build the child's fitrah or akhlaq?" },
-        { "text": "A second activity — more play-based or creative, still tied to the challenge.", "wisdom": "2-3 sentences. Child development research — why does this experience build the specific skill?" },
-        { "text": "A third activity — more child-led than the first two.", "wisdom": "2-3 sentences. Blend Islamic and developmental insight." }
+        { "text": "A specific one-off experience the parent sets up or leads with the child this week. Age-appropriate, tied to the challenge.", "wisdom": "2-3 sentences. Islamic grounding required — how does this build the child's fitrah or akhlaq?" },
+        { "text": "A second activity — more play-based or creative, still led or initiated by the parent.", "wisdom": "2-3 sentences. Child development research — why does this experience build the specific skill?" },
+        { "text": "A third activity — more child-led but still set up by the parent.", "wisdom": "2-3 sentences. Blend Islamic and developmental insight." }
       ]
     },
     { "week": 2, "theme": "...", "islamicPrinciple": "...", "habits": [{ "priority": "primary", "text": "...", "wisdom": "..." }, { "priority": "secondary", "text": "...", "wisdom": "..." }, { "priority": "bonus", "text": "...", "wisdom": "..." }], "activities": [{ "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }, { "text": "...", "wisdom": "..." }] },
@@ -2594,6 +2594,7 @@ Rules:
 - Exactly 4 weeks. Each week: exactly 3 habits and exactly 3 activities.
 - Every week MUST have an "islamicPrinciple".
 - Primary habit wisdom: Islamic grounding required. First activity wisdom: Islamic grounding required.
+- CRITICAL: Every habit must be a PARENT action — something the parent does, models, says, or creates. NEVER write a habit as something the child does. The child is not the actor in habits. If you find yourself writing "the child does X", rewrite it as "the parent does Y to support the child doing X".
 - No hadith numbers, scholar names, or study citations. No markdown. Valid JSON only.`;
 
     function cleanJson(raw: string): string {
