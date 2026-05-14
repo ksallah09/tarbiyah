@@ -14,9 +14,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile } from '../utils/childProfiles';
 import { logCompletion } from '../utils/childCompletions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { HABIT_MESSAGES, ACTIVITY_MESSAGES, pickRandom } from '../utils/encouragement';
+import { HABIT_MESSAGES, ACTIVITY_MESSAGES, GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
 import { ChildWorldCard } from '../components/ChildWorldCard';
+import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji } from '../utils/familyGoals';
+import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
 
 // ── Developmental phase data ──────────────────────────────────────────────────
 
@@ -131,7 +133,9 @@ export default function DashboardsScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [children, setChildren] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const [activeChildId, setActiveChildId] = useState(null);
+  const [activeChildId, setActiveChildId] = useState('family');
+  const [familyGoals,   setFamilyGoals]   = useState([]);
+  const [goalCompletions, setGoalCompletions] = useState([]);
   const [activeAreaIndex, setActiveAreaIndex]       = useState(0);
   const [expandedAreas, setExpandedAreas]           = useState(new Set());
   const [expandedWisdom, setExpandedWisdom]         = useState(new Set());
@@ -157,8 +161,8 @@ export default function DashboardsScreen({ navigation, route }) {
       setLoaded(true);
       setActiveChildId(prev => {
         if (requestedId && profiles.find(c => c.id === requestedId)) return requestedId;
-        if (prev && profiles.find(c => c.id === prev)) return prev;
-        return profiles[0]?.id ?? null;
+        if (prev === 'family' || (prev && profiles.find(c => c.id === prev))) return prev;
+        return 'family';
       });
     });
     syncChildProfilesFromSupabase().then(() =>
@@ -166,11 +170,15 @@ export default function DashboardsScreen({ navigation, route }) {
         setChildren(profiles);
         setActiveChildId(prev => {
           if (requestedId && profiles.find(c => c.id === requestedId)) return requestedId;
-          if (prev && profiles.find(c => c.id === prev)) return prev;
-          return profiles[0]?.id ?? null;
+          if (prev === 'family' || (prev && profiles.find(c => c.id === prev))) return prev;
+          return 'family';
         });
       })
     );
+    // Load family goals
+    loadFamilyGoalsCached().then(setFamilyGoals);
+    loadFamilyGoals().then(setFamilyGoals);
+    loadCompletions().then(setGoalCompletions);
   }, [route?.params?.childId]));
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -329,29 +337,8 @@ const wins     = child?.wins      ?? [];
     setCompletionCounts({});
   };
 
-  if (loaded && children.length === 0) {
-    return (
-      <SafeAreaView style={styles.safe} edges={[]}>
-        <StatusBar style="light" />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-          <Ionicons name="people-outline" size={52} color="rgba(255,255,255,0.2)" />
-          <Text style={{ fontSize: 20, fontWeight: '800', color: '#FFFFFF', marginTop: 20, marginBottom: 10, textAlign: 'center' }}>No children added yet</Text>
-          <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 21, marginBottom: 32 }}>Add your first child in the Family tab to see personalised dashboards here.</Text>
-          <TouchableOpacity
-            style={{ backgroundColor: '#4ADE80', borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14 }}
-            onPress={() => navigation.navigate('Family')}
-            activeOpacity={0.85}
-          >
-            <Text style={{ fontSize: 15, fontWeight: '800', color: '#1B3D2F' }}>Go to Family</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!child) return (
-    <SafeAreaView style={styles.safe} edges={[]}><StatusBar style="light" /><View style={{ flex:1, alignItems:'center', justifyContent:'center' }}><ActivityIndicator color="#4ADE80" /></View></SafeAreaView>
-  );
+  // Only block render if we have no children AND we're not on the family tab
+  if (!child && activeChildId !== 'family' && loaded) return null;
 
   const renderWeekItem = ({ item, index, keyPrefix, total, isActivity }) => {
     const key       = `${keyPrefix}_${index}`;
@@ -447,6 +434,18 @@ const wins     = child?.wins      ?? [];
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabRow}
         >
+          {/* Family tab — always first */}
+          <TouchableOpacity
+            style={[styles.childPill, activeChildId === 'family' && { backgroundColor: '#2E7D62', borderColor: '#FFFFFF', borderWidth: 2 }]}
+            onPress={() => setActiveChildId('family')}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="home-outline" size={12} color={activeChildId === 'family' ? '#FFFFFF' : 'rgba(255,255,255,0.5)'} />
+            <Text style={[styles.childPillText, activeChildId === 'family' && styles.childPillTextActive]}>
+              Family
+            </Text>
+          </TouchableOpacity>
+
           {children.map(c => {
             const active = c.id === activeChildId;
             return (
@@ -466,7 +465,97 @@ const wins     = child?.wins      ?? [];
         </ScrollView>
       </View>
 
+      {/* ── Family dashboard ── */}
+      {activeChildId === 'family' && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+          <View style={styles.familyDashHeader}>
+            <View style={styles.familyDashIconWrap}>
+              <Ionicons name="home-outline" size={20} color="#2E7D62" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.familyDashEyebrow}>FAMILY DASHBOARD</Text>
+              <Text style={styles.familyDashTitle}>Family Goals</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.familyDashAddBtn}
+              onPress={() => navigation.navigate('FamilyGoalWizard')}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.familyGoalCard}>
+            {familyGoals.length === 0 ? (
+              <View style={styles.familyGoalEmpty}>
+                <Ionicons name="flag-outline" size={28} color="#D1D5DB" style={{ marginBottom: 10 }} />
+                <Text style={styles.familyGoalEmptyTitle}>No family goals yet</Text>
+                <Text style={styles.familyGoalEmptySub}>Set a shared goal to start growing together.</Text>
+                <TouchableOpacity style={styles.familyGoalEmptyBtn} onPress={() => navigation.navigate('FamilyGoalWizard')} activeOpacity={0.75}>
+                  <Ionicons name="add-circle-outline" size={14} color="#1B3D2F" />
+                  <Text style={styles.familyGoalEmptyBtnText}>Add Family Goal</Text>
+                </TouchableOpacity>
+              </View>
+            ) : familyGoals.map((goal, idx) => {
+              const target    = goal.frequency ?? 1;
+              const count     = countThisWeek(goalCompletions, goal.id);
+              const doneToday = isCompletedToday(goalCompletions, goal.id);
+              const goalMet   = count >= target;
+              const pct       = Math.min(Math.round((count / target) * 100), 100);
+              const fillColor = goalMet ? '#2E7D62' : (count > 0 ? '#4A90D9' : '#D1D5DB');
+              return (
+                <View key={goal.id}>
+                  {idx > 0 && <View style={styles.familyGoalDivider} />}
+                  <View style={styles.familyGoalRow}>
+                    <View style={[styles.familyGoalIconWrap, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '18' }]}>
+                      <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.familyGoalTitleRow}>
+                        <Text style={styles.familyGoalTitle} numberOfLines={1}>{goal.title}</Text>
+                        {goalMet ? (
+                          <View style={styles.familyGoalMetPill}>
+                            <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
+                            <Text style={styles.familyGoalMetText}>Done</Text>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={[styles.familyGoalLogBtn, doneToday && styles.familyGoalLogBtnDone]}
+                            disabled={doneToday}
+                            onPress={async () => {
+                              const updated = await logGoalCompletion(goal.id);
+                              setGoalCompletions([...updated]);
+                              setEncouragement(pickRandom(GOALS_MESSAGES));
+                            }}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#fff'} />
+                            <Text style={[styles.familyGoalLogBtnText, doneToday && { color: '#2E7D62' }]}>
+                              {doneToday ? 'Logged' : 'Log it'}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <View style={styles.familyGoalBarRow}>
+                        <View style={styles.familyGoalBarTrack}>
+                          <View style={[styles.familyGoalBarFill, { width: `${pct}%`, backgroundColor: fillColor }]} />
+                        </View>
+                        <Text style={[styles.familyGoalBarLabel, goalMet && { color: '#2E7D62' }]}>{count}/{target}</Text>
+                      </View>
+                      <Text style={styles.familyGoalStatus}>
+                        {goalMet ? '🎯 Goal met this week' : `${goal.frequencyLabel} · ${target - count} to go`}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      )}
+
       {/* ── Scrollable content ── */}
+      {activeChildId !== 'family' && (
       <Animated.ScrollView
         ref={scrollRef}
         style={{ flex: 1, opacity: fadeAnim }}
@@ -949,6 +1038,7 @@ const wins     = child?.wins      ?? [];
         </View>
         </View>
       </Animated.ScrollView>
+      )}
       <EncouragementModal
         visible={!!encouragement}
         emoji={encouragement?.emoji}
@@ -964,6 +1054,34 @@ const wins     = child?.wins      ?? [];
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#1B3D2F' },
+
+  // Family dashboard
+  familyDashHeader:  { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  familyDashIconWrap:{ width: 42, height: 42, borderRadius: 12, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
+  familyDashEyebrow: { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
+  familyDashTitle:   { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  familyDashAddBtn:  { width: 36, height: 36, borderRadius: 10, backgroundColor: '#2E7D62', alignItems: 'center', justifyContent: 'center' },
+  familyGoalCard:    { backgroundColor: '#FFFFFF', borderRadius: 18, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.10, shadowRadius: 14, elevation: 5 },
+  familyGoalEmpty:   { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20 },
+  familyGoalEmptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A2E', marginBottom: 6 },
+  familyGoalEmptySub:   { fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19, marginBottom: 16 },
+  familyGoalEmptyBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 16, paddingVertical: 9 },
+  familyGoalEmptyBtnText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+  familyGoalDivider: { height: 1, backgroundColor: '#F0F4F2', marginHorizontal: 16 },
+  familyGoalRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16 },
+  familyGoalIconWrap:{ width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  familyGoalTitleRow:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+  familyGoalTitle:   { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1 },
+  familyGoalBarRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  familyGoalBarTrack:{ flex: 1, height: 6, backgroundColor: '#F0F4F2', borderRadius: 100, overflow: 'hidden' },
+  familyGoalBarFill: { height: 6, borderRadius: 100 },
+  familyGoalBarLabel:{ fontSize: 11, fontWeight: '700', color: '#6B7280', minWidth: 26, textAlign: 'right' },
+  familyGoalStatus:  { fontSize: 11, color: '#9CA3AF' },
+  familyGoalMetPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5 },
+  familyGoalMetText: { fontSize: 11, fontWeight: '700', color: '#2E7D62' },
+  familyGoalLogBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1B3D2F', borderRadius: 100, paddingHorizontal: 11, paddingVertical: 6 },
+  familyGoalLogBtnDone: { backgroundColor: '#EDF7F2' },
+  familyGoalLogBtnText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
 
   // Fixed tab bar
   tabBar: { backgroundColor: '#1B3D2F', paddingBottom: 14 },
