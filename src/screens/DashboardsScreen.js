@@ -151,6 +151,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const [incidentText, setIncidentText] = useState('');
   const [coachingResponses, setCoachingResponses] = useState({});
   const [coachingLoading,   setCoachingLoading]   = useState(new Set());
+  const [lovedWins,         setLovedWins]          = useState(new Set()); // win IDs loved by this device
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
 
@@ -179,6 +180,10 @@ export default function DashboardsScreen({ navigation, route }) {
     loadFamilyGoalsCached().then(setFamilyGoals);
     loadFamilyGoals().then(setFamilyGoals);
     loadCompletions().then(setGoalCompletions);
+    // Load loved wins for this device
+    AsyncStorage.getItem('tarbiyah_loved_wins').then(raw => {
+      setLovedWins(new Set(raw ? JSON.parse(raw) : []));
+    });
   }, [route?.params?.childId]));
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -214,6 +219,25 @@ const wins     = child?.wins      ?? [];
     if (!child) return;
     const updated = wins.filter(w => w.id !== id);
     await updateChildProfile(child.id, { wins: updated });
+    getAllChildProfiles().then(setChildren);
+  }
+
+  async function handleLoveWin(childId, winId) {
+    const alreadyLoved = lovedWins.has(winId);
+    // Optimistic local update
+    const nextLoved = new Set(lovedWins);
+    alreadyLoved ? nextLoved.delete(winId) : nextLoved.add(winId);
+    setLovedWins(nextLoved);
+    await AsyncStorage.setItem('tarbiyah_loved_wins', JSON.stringify([...nextLoved]));
+
+    // Update love count on the win entry
+    const profiles = await getAllChildProfiles();
+    const targetChild = profiles.find(c => c.id === childId);
+    if (!targetChild) return;
+    const updatedWins = (targetChild.wins ?? []).map(w =>
+      w.id === winId ? { ...w, loves: Math.max(0, (w.loves ?? 0) + (alreadyLoved ? -1 : 1)) } : w
+    );
+    await updateChildProfile(childId, { wins: updatedWins });
     getAllChildProfiles().then(setChildren);
   }
 
@@ -555,8 +579,8 @@ const wins     = child?.wins      ?? [];
           {/* Shared moments feed */}
           {(() => {
             const allMoments = children.flatMap(c => [
-              ...(c.wins      ?? []).map(w => ({ ...w, childName: c.name, childColor: c.color, type: 'win' })),
-              ...(c.incidents ?? []).map(i => ({ ...i, childName: c.name, childColor: c.color, type: 'incident' })),
+              ...(c.wins      ?? []).map(w => ({ ...w, childId: c.id, childName: c.name, childColor: c.color, type: 'win' })),
+              ...(c.incidents ?? []).map(i => ({ ...i, childId: c.id, childName: c.name, childColor: c.color, type: 'incident' })),
             ]).sort((a, b) => new Date(b.date) - new Date(a.date));
 
             return (
@@ -573,7 +597,10 @@ const wins     = child?.wins      ?? [];
                       <Text style={styles.familyGoalEmptyTitle}>Nothing logged yet</Text>
                       <Text style={styles.familyGoalEmptySub}>Wins and difficult moments logged on a child's dashboard will appear here for both parents to see.</Text>
                     </View>
-                  ) : allMoments.map((entry, idx) => (
+                  ) : allMoments.map((entry, idx) => {
+                    const loved = lovedWins.has(entry.id);
+                    const loveCount = entry.loves ?? 0;
+                    return (
                     <View key={entry.id}>
                       {idx > 0 && <View style={styles.familyGoalDivider} />}
                       <View style={styles.familyMomentRow}>
@@ -590,10 +617,21 @@ const wins     = child?.wins      ?? [];
                             </Text>
                           </View>
                           <Text style={styles.familyMomentText}>{entry.text}</Text>
+                          {entry.type === 'win' && (
+                            <TouchableOpacity
+                              style={styles.familyMomentLoveBtn}
+                              onPress={() => handleLoveWin(entry.childId, entry.id)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name={loved ? 'heart' : 'heart-outline'} size={15} color={loved ? '#E11D48' : '#9CA3AF'} />
+                              {loveCount > 0 && <Text style={[styles.familyMomentLoveCount, loved && { color: '#E11D48' }]}>{loveCount}</Text>}
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </View>
                     </View>
-                  ))}
+                    );
+                  })}
                 </View>
               </View>
             );
@@ -1141,7 +1179,9 @@ const styles = StyleSheet.create({
   familyMomentChildBadge:{ borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
   familyMomentChildName: { fontSize: 11, fontWeight: '700' },
   familyMomentDate:      { fontSize: 11, color: '#9CA3AF' },
-  familyMomentText:      { fontSize: 13, color: '#374151', lineHeight: 19 },
+  familyMomentText:      { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 8 },
+  familyMomentLoveBtn:   { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
+  familyMomentLoveCount: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
 
   // Fixed tab bar
   tabBar: { backgroundColor: '#1B3D2F', paddingBottom: 14 },
