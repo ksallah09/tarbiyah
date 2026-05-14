@@ -467,7 +467,7 @@ const wins     = child?.wins      ?? [];
 
       {/* ── Family dashboard ── */}
       {activeChildId === 'family' && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1, backgroundColor: '#F5F5F5' }} contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
           <View style={styles.familyDashHeader}>
             <View style={styles.familyDashIconWrap}>
               <Ionicons name="home-outline" size={20} color="#2E7D62" />
@@ -1059,7 +1059,7 @@ const styles = StyleSheet.create({
   familyDashHeader:  { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   familyDashIconWrap:{ width: 42, height: 42, borderRadius: 12, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
   familyDashEyebrow: { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
-  familyDashTitle:   { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  familyDashTitle:   { fontSize: 18, fontWeight: '800', color: '#1A1A2E' },
   familyDashAddBtn:  { width: 36, height: 36, borderRadius: 10, backgroundColor: '#2E7D62', alignItems: 'center', justifyContent: 'center' },
   familyGoalCard:    { backgroundColor: '#FFFFFF', borderRadius: 18, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.10, shadowRadius: 14, elevation: 5 },
   familyGoalEmpty:   { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20 },
