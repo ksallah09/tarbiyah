@@ -3037,6 +3037,73 @@ app.post('/community/requests/:id/replies', requireAuth, async (req: AuthRequest
   }
 });
 
+// POST /family/notify-partner — send a push notification to the linked partner
+app.post('/family/notify-partner', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { title, body, data } = req.body;
+    if (!title || !body) return res.status(400).json({ error: 'title and body required.' });
+
+    // Find partner via family_members
+    const { data: myMembership } = await supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', req.userId)
+      .limit(1)
+      .single();
+
+    let partnerUserId: string | null = null;
+
+    if (myMembership?.family_id) {
+      const { data: others } = await supabase
+        .from('family_members')
+        .select('user_id')
+        .eq('family_id', myMembership.family_id)
+        .neq('user_id', req.userId!)
+        .limit(1);
+      partnerUserId = others?.[0]?.user_id ?? null;
+    }
+
+    // Fall back to family_invites
+    if (!partnerUserId) {
+      const { data: invite } = await supabase
+        .from('family_invites')
+        .select('used_by')
+        .eq('created_by', req.userId!)
+        .not('used_by', 'is', null)
+        .limit(1)
+        .single();
+      partnerUserId = invite?.used_by ?? null;
+    }
+
+    if (!partnerUserId) return res.json({ sent: false, reason: 'no partner found' });
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('push_token')
+      .eq('user_id', partnerUserId)
+      .single();
+
+    if (!profile?.push_token) return res.json({ sent: false, reason: 'no push token' });
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        to: profile.push_token,
+        title,
+        body,
+        sound: 'default',
+        data: data ?? { screen: 'Dashboards' },
+      }),
+    });
+
+    return res.json({ sent: true });
+  } catch (err: any) {
+    console.error('POST /family/notify-partner error:', err);
+    return res.status(500).json({ error: err?.message });
+  }
+});
+
 // DELETE /community/requests/replies/:replyId
 app.delete('/community/requests/replies/:replyId', requireAuth, async (req: AuthRequest, res: Response) => {
   try {

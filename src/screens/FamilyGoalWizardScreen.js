@@ -9,6 +9,24 @@ import {
   SUGGESTED_GOALS, FREQUENCY_OPTIONS, REMINDER_TIMES,
   saveFamilyGoal, requestNotificationPermission,
 } from '../utils/familyGoals';
+import { supabase } from '../utils/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCachedSyncStatus } from '../utils/familySync';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
+
+async function notifyPartner(title, body, data = {}) {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) return;
+    await fetch(`${API_URL}/family/notify-partner`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title, body, data }),
+    });
+  } catch {}
+}
 
 const STEPS = ['goal', 'frequency', 'reminder', 'confirm'];
 
@@ -97,6 +115,19 @@ export default function FamilyGoalWizardScreen({ navigation, route }) {
 
     try {
       await saveFamilyGoal(record);
+      // Notify partner if linked (only for new goals, not edits)
+      if (!editGoal) {
+        const syncStatus = await getCachedSyncStatus();
+        if (syncStatus?.linked) {
+          const raw = await AsyncStorage.getItem('tarbiyah_profile');
+          const name = raw ? (JSON.parse(raw).name?.split(' ')[0] ?? 'Your partner') : 'Your partner';
+          notifyPartner(
+            `${name} added a new family goal`,
+            record.title,
+            { screen: 'Dashboards' }
+          );
+        }
+      }
     } catch (err) {
       console.warn('Save goal error:', err.message);
     }

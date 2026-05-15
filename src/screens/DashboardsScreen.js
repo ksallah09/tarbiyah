@@ -22,6 +22,21 @@ import { getCachedSyncStatus } from '../utils/familySync';
 import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
 import { supabase } from '../utils/supabase';
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
+
+async function notifyPartner(title, body, data = {}) {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) return;
+    await fetch(`${API_URL}/family/notify-partner`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title, body, data }),
+    });
+  } catch {}
+}
+
 // ── Developmental phase data ──────────────────────────────────────────────────
 
 const DEV_PHASES = [
@@ -185,6 +200,12 @@ export default function DashboardsScreen({ navigation, route }) {
       });
       if (error) console.warn('[handleShare] insert error:', error.message);
       loadFamilyMoments();
+      const label = isActivity ? 'activity' : 'habit';
+      notifyPartner(
+        `${myProfileName || 'Your partner'} shared a ${label} for ${child.name}`,
+        itemText.length > 100 ? itemText.slice(0, 97) + '…' : itemText,
+        { screen: 'Dashboards', childId: child.id }
+      );
     } catch (e) { console.warn('[handleShare] error:', e.message); }
   }
 
@@ -278,6 +299,11 @@ const wins     = child?.wins      ?? [];
         user_id: session?.user?.id ?? null,
       });
       loadFamilyMoments();
+      if (partnerLinked) notifyPartner(
+        `${myProfileName || 'Your partner'} logged a win for ${child.name} ⭐`,
+        entry.text.length > 100 ? entry.text.slice(0, 97) + '…' : entry.text,
+        { screen: 'Dashboards', childId: child.id }
+      );
     } catch {}
   }
 
@@ -395,6 +421,11 @@ const wins     = child?.wins      ?? [];
         user_id: session?.user?.id ?? null,
       });
       loadFamilyMoments();
+      if (partnerLinked) notifyPartner(
+        `${myProfileName || 'Your partner'} logged a difficult moment for ${child.name}`,
+        entry.text.length > 100 ? entry.text.slice(0, 97) + '…' : entry.text,
+        { screen: 'Dashboards', childId: child.id }
+      );
     } catch {}
   }
 
