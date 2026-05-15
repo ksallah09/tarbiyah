@@ -672,8 +672,8 @@ const wins     = child?.wins      ?? [];
                         </View>
                         <View style={{ flex: 1 }}>
                           <View style={styles.familyMomentTopRow}>
-                            <View style={[styles.familyMomentChildBadge, { backgroundColor: (entry.childColor ?? '#2E7D62') + '22' }]}>
-                              <Text style={[styles.familyMomentChildName, { color: entry.childColor ?? '#2E7D62' }]}>{entry.childName}</Text>
+                            <View style={[styles.familyMomentChildBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22' }]}>
+                              <Text style={[styles.familyMomentChildName, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
                             </View>
                             <Text style={styles.familyMomentDate}>
                               {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
