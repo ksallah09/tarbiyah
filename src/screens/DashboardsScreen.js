@@ -697,16 +697,12 @@ const wins     = child?.wins      ?? [];
                             <View style={[styles.familyMomentChildBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22' }]}>
                               <Text style={[styles.familyMomentChildName, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
                             </View>
+                            <Text style={styles.familySharedTypeLabel}>
+                              {entry.type === 'shared_habit' ? 'Habit' : 'Activity'}
+                            </Text>
                             <Text style={styles.familyMomentDate}>
                               {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </Text>
-                          </View>
-                          <View style={styles.familySharedTypePillRow}>
-                            <View style={[styles.familySharedTypePill, entry.type === 'shared_habit' ? styles.familySharedTypePillHabit : styles.familySharedTypePillActivity]}>
-                              <Text style={[styles.familySharedTypePillText, entry.type === 'shared_habit' ? { color: '#2E7D62' } : { color: '#B45309' }]}>
-                                {entry.type === 'shared_habit' ? 'Habit' : 'Activity'}
-                              </Text>
-                            </View>
                           </View>
                           <Text style={styles.familyMomentText}>{entry.text}</Text>
                           <Text style={styles.familyMomentSharedBy}>
@@ -1389,12 +1385,8 @@ const styles = StyleSheet.create({
   familyMomentText:      { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 8 },
   familyMomentReactionRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   familyMomentReactionLabel:  { fontSize: 12, color: '#6B7280', fontWeight: '500' },
-  familyMomentSharedBy:         { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
-  familySharedTypePillRow:      { flexDirection: 'row', marginBottom: 6 },
-  familySharedTypePill:         { borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3 },
-  familySharedTypePillHabit:    { backgroundColor: '#EDF7F2' },
-  familySharedTypePillActivity: { backgroundColor: '#FEF9EE' },
-  familySharedTypePillText:     { fontSize: 11, fontWeight: '700' },
+  familyMomentSharedBy:    { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
+  familySharedTypeLabel:   { fontSize: 11, fontWeight: '600', color: '#9CA3AF', flex: 1, paddingLeft: 6 },
   familyMomentAckNamePill:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
   shareBtn:     { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 8, marginLeft: 2, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 100, borderWidth: 1, borderColor: '#D1FAE5', backgroundColor: '#F0FDF4' },
   shareBtnDone: { borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
