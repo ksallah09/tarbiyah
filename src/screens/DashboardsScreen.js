@@ -17,8 +17,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HABIT_MESSAGES, ACTIVITY_MESSAGES, GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
 import { ChildWorldCard } from '../components/ChildWorldCard';
-import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji } from '../utils/familyGoals';
+import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji, getFamilyId } from '../utils/familyGoals';
 import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
+import { supabase } from '../utils/supabase';
 
 // ── Developmental phase data ──────────────────────────────────────────────────
 
@@ -154,8 +155,21 @@ export default function DashboardsScreen({ navigation, route }) {
   const [lovedWins,         setLovedWins]          = useState(new Set());
   const [acknowledgedInc,   setAcknowledgedInc]    = useState(new Set());
   const [myProfileName,     setMyProfileName]      = useState('');
+  const [familyMoments,     setFamilyMoments]      = useState([]);
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
+
+  async function loadFamilyMoments() {
+    try {
+      const familyId = await getFamilyId();
+      const { data } = await supabase
+        .from('family_moments')
+        .select('*')
+        .eq('family_id', familyId)
+        .order('date', { ascending: false });
+      if (data) setFamilyMoments(data);
+    } catch {}
+  }
 
   useFocusEffect(useCallback(() => {
     const requestedId = route?.params?.childId ?? null;
@@ -191,6 +205,7 @@ export default function DashboardsScreen({ navigation, route }) {
     AsyncStorage.getItem('tarbiyah_profile').then(raw => {
       if (raw) setMyProfileName(JSON.parse(raw).name?.split(' ')[0] ?? '');
     });
+    loadFamilyMoments();
   }, [route?.params?.childId]));
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -220,6 +235,17 @@ const wins     = child?.wins      ?? [];
     setWinText('');
     setWinModalVisible(false);
     getAllChildProfiles().then(setChildren);
+    // Mirror to shared family_moments table
+    try {
+      const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
+      await supabase.from('family_moments').insert({
+        id: entry.id, family_id: familyId, child_id: child.id,
+        child_name: child.name, child_color: child.color,
+        type: 'win', text: entry.text, date: entry.date,
+        user_id: session?.user?.id ?? null,
+      });
+      loadFamilyMoments();
+    } catch {}
   }
 
   async function deleteWin(id) {
@@ -227,6 +253,7 @@ const wins     = child?.wins      ?? [];
     const updated = wins.filter(w => w.id !== id);
     await updateChildProfile(child.id, { wins: updated });
     getAllChildProfiles().then(setChildren);
+    supabase.from('family_moments').delete().eq('id', id).then(() => loadFamilyMoments());
   }
 
   async function handleLoveWin(childId, winId) {
@@ -237,17 +264,15 @@ const wins     = child?.wins      ?? [];
     setLovedWins(nextLoved);
     await AsyncStorage.setItem('tarbiyah_loved_wins', JSON.stringify([...nextLoved]));
 
-    const profiles = await getAllChildProfiles();
-    const targetChild = profiles.find(c => c.id === childId);
-    if (!targetChild) return;
-    const updatedWins = (targetChild.wins ?? []).map(w => {
-      if (w.id !== winId) return w;
-      const current = Array.isArray(w.loves) ? w.loves : [];
-      const next = alreadyLoved ? current.filter(n => n !== name) : [...current, name];
-      return { ...w, loves: next };
-    });
-    await updateChildProfile(childId, { wins: updatedWins });
-    getAllChildProfiles().then(setChildren);
+    // Update loves on the family_moments row
+    const moment = familyMoments.find(m => m.id === winId);
+    const current = Array.isArray(moment?.loves) ? moment.loves : [];
+    const next = alreadyLoved ? current.filter(n => n !== name) : [...current, name];
+    // Optimistic UI update
+    setFamilyMoments(prev => prev.map(m => m.id === winId ? { ...m, loves: next } : m));
+    try {
+      await supabase.from('family_moments').update({ loves: next }).eq('id', winId);
+    } catch {}
   }
 
   async function handleAcknowledgeIncident(childId, incidentId) {
@@ -258,17 +283,15 @@ const wins     = child?.wins      ?? [];
     setAcknowledgedInc(nextAck);
     await AsyncStorage.setItem('tarbiyah_acknowledged_inc', JSON.stringify([...nextAck]));
 
-    const profiles = await getAllChildProfiles();
-    const targetChild = profiles.find(c => c.id === childId);
-    if (!targetChild) return;
-    const updatedIncidents = (targetChild.incidents ?? []).map(i => {
-      if (i.id !== incidentId) return i;
-      const current = Array.isArray(i.acknowledges) ? i.acknowledges : [];
-      const next = alreadyAck ? current.filter(n => n !== name) : [...current, name];
-      return { ...i, acknowledges: next };
-    });
-    await updateChildProfile(childId, { incidents: updatedIncidents });
-    getAllChildProfiles().then(setChildren);
+    // Update acknowledges on the family_moments row
+    const moment = familyMoments.find(m => m.id === incidentId);
+    const current = Array.isArray(moment?.acknowledges) ? moment.acknowledges : [];
+    const next = alreadyAck ? current.filter(n => n !== name) : [...current, name];
+    // Optimistic UI update
+    setFamilyMoments(prev => prev.map(m => m.id === incidentId ? { ...m, acknowledges: next } : m));
+    try {
+      await supabase.from('family_moments').update({ acknowledges: next }).eq('id', incidentId);
+    } catch {}
   }
 
   async function fetchCoaching(entryId, text, currentChild) {
@@ -329,7 +352,17 @@ const wins     = child?.wins      ?? [];
     setIncidentText('');
     setIncidentModalVisible(false);
     getAllChildProfiles().then(setChildren);
-    // fetchCoaching(entry.id, text, child); // disabled — reserved for future release
+    // Mirror to shared family_moments table
+    try {
+      const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
+      await supabase.from('family_moments').insert({
+        id: entry.id, family_id: familyId, child_id: child.id,
+        child_name: child.name, child_color: child.color,
+        type: 'incident', text: entry.text, date: entry.date,
+        user_id: session?.user?.id ?? null,
+      });
+      loadFamilyMoments();
+    } catch {}
   }
 
   async function deleteIncident(id) {
@@ -337,6 +370,7 @@ const wins     = child?.wins      ?? [];
     const updated = incidents.filter(i => i.id !== id);
     await updateChildProfile(child.id, { incidents: updated });
     getAllChildProfiles().then(setChildren);
+    supabase.from('family_moments').delete().eq('id', id).then(() => loadFamilyMoments());
   }
 
   const toggleExpand = (id) => {
@@ -608,10 +642,7 @@ const wins     = child?.wins      ?? [];
 
           {/* Shared moments feed */}
           {(() => {
-            const allMoments = children.flatMap(c => [
-              ...(c.wins      ?? []).map(w => ({ ...w, childId: c.id, childName: c.name, childColor: c.color, type: 'win' })),
-              ...(c.incidents ?? []).map(i => ({ ...i, childId: c.id, childName: c.name, childColor: c.color, type: 'incident' })),
-            ]).sort((a, b) => new Date(b.date) - new Date(a.date));
+            const allMoments = familyMoments;
 
             return (
               <View style={{ marginTop: 20 }}>
@@ -628,10 +659,10 @@ const wins     = child?.wins      ?? [];
                       <Text style={styles.familyGoalEmptySub}>Wins and difficult moments logged on a child's dashboard will appear here for both parents to see.</Text>
                     </View>
                   ) : allMoments.map((entry, idx) => {
-                    const loved = lovedWins.has(entry.id);
                     const loveNames = Array.isArray(entry.loves) ? entry.loves : [];
-                    const acked = acknowledgedInc.has(entry.id);
-                    const ackNames = Array.isArray(entry.acknowledges) ? entry.acknowledges : [];
+                    const ackNames  = Array.isArray(entry.acknowledges) ? entry.acknowledges : [];
+                    const loved = lovedWins.has(entry.id) || loveNames.includes(myProfileName);
+                    const acked = acknowledgedInc.has(entry.id) || ackNames.includes(myProfileName);
                     return (
                     <View key={entry.id}>
                       {idx > 0 && <View style={styles.familyGoalDivider} />}
