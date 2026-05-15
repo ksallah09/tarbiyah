@@ -752,6 +752,9 @@ const wins     = child?.wins      ?? [];
                             <View style={[styles.familyMomentChildBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22' }]}>
                               <Text style={[styles.familyMomentChildName, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
                             </View>
+                            <Text style={styles.familySharedTypeLabel}>
+                              {entry.type === 'win' ? 'Win' : 'Difficult Moment'}
+                            </Text>
                             <Text style={styles.familyMomentDate}>
                               {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </Text>
