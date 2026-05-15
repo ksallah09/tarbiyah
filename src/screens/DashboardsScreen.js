@@ -18,6 +18,7 @@ import { HABIT_MESSAGES, ACTIVITY_MESSAGES, GOALS_MESSAGES, pickRandom } from '.
 import EncouragementModal from '../components/EncouragementModal';
 import { ChildWorldCard } from '../components/ChildWorldCard';
 import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji, getFamilyId } from '../utils/familyGoals';
+import { getCachedSyncStatus } from '../utils/familySync';
 import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
 import { supabase } from '../utils/supabase';
 
@@ -157,6 +158,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const [myProfileName,     setMyProfileName]      = useState('');
   const [familyMoments,     setFamilyMoments]      = useState([]);
   const [sharedItems,       setSharedItems]        = useState(new Set());
+  const [partnerLinked,     setPartnerLinked]      = useState(false);
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
 
@@ -236,6 +238,7 @@ export default function DashboardsScreen({ navigation, route }) {
     AsyncStorage.getItem('tarbiyah_shared_items').then(raw => {
       setSharedItems(new Set(raw ? JSON.parse(raw) : []));
     });
+    getCachedSyncStatus().then(s => setPartnerLinked(!!s?.linked));
   }, [route?.params?.childId]));
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -672,7 +675,7 @@ const wins     = child?.wins      ?? [];
 
           {/* Partner shared habits/activities */}
           {(() => {
-            const { data: { session } } = { data: { session: null } }; // placeholder — use familyMoments filter
+            if (!partnerLinked) return null;
             const sharedByPartner = familyMoments.filter(m =>
               (m.type === 'shared_habit' || m.type === 'shared_activity')
             );
@@ -1050,7 +1053,7 @@ const wins     = child?.wins      ?? [];
                                 )}
                               </View>
                             </View>
-                            {(() => {
+                            {partnerLinked && (() => {
                               const shareKey = `share_h_${area.id}_${i}`;
                               const shared = sharedItems.has(shareKey);
                               return (
@@ -1165,7 +1168,7 @@ const wins     = child?.wins      ?? [];
                                 )}
                               </View>
                             </View>
-                            {(() => {
+                            {partnerLinked && (() => {
                               const shareKey = `share_a_${area.id}_${i}`;
                               const shared = sharedItems.has(shareKey);
                               return (
