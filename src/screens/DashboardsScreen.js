@@ -156,8 +156,33 @@ export default function DashboardsScreen({ navigation, route }) {
   const [acknowledgedInc,   setAcknowledgedInc]    = useState(new Set());
   const [myProfileName,     setMyProfileName]      = useState('');
   const [familyMoments,     setFamilyMoments]      = useState([]);
+  const [sharedItems,       setSharedItems]        = useState(new Set());
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
+
+  async function handleShare(shareKey, itemText, isActivity) {
+    if (sharedItems.has(shareKey) || !child) return;
+    const next = new Set(sharedItems);
+    next.add(shareKey);
+    setSharedItems(next);
+    await AsyncStorage.setItem('tarbiyah_shared_items', JSON.stringify([...next]));
+    try {
+      const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
+      await supabase.from('family_moments').insert({
+        id: shareKey,
+        family_id: familyId,
+        child_id: child.id,
+        child_name: child.name,
+        child_color: child.color,
+        type: isActivity ? 'shared_activity' : 'shared_habit',
+        text: itemText,
+        date: new Date().toISOString(),
+        shared_by_name: myProfileName || 'Your partner',
+        user_id: session?.user?.id ?? null,
+      });
+      loadFamilyMoments();
+    } catch {}
+  }
 
   async function loadFamilyMoments() {
     try {
@@ -206,6 +231,9 @@ export default function DashboardsScreen({ navigation, route }) {
       if (raw) setMyProfileName(JSON.parse(raw).name?.split(' ')[0] ?? '');
     });
     loadFamilyMoments();
+    AsyncStorage.getItem('tarbiyah_shared_items').then(raw => {
+      setSharedItems(new Set(raw ? JSON.parse(raw) : []));
+    });
   }, [route?.params?.childId]));
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -640,6 +668,50 @@ const wins     = child?.wins      ?? [];
             })}
           </View>
 
+          {/* Partner shared habits/activities */}
+          {(() => {
+            const { data: { session } } = { data: { session: null } }; // placeholder — use familyMoments filter
+            const sharedByPartner = familyMoments.filter(m =>
+              (m.type === 'shared_habit' || m.type === 'shared_activity')
+            );
+            if (!sharedByPartner.length) return null;
+            return (
+              <View style={{ marginTop: 20 }}>
+                <View style={styles.familyMomentsHeader}>
+                  <Text style={styles.familyMomentsEyebrow}>SHARED THIS WEEK</Text>
+                  <Text style={styles.familyMomentsTitle}>Habits & Activities</Text>
+                  <Text style={styles.familyMomentsSub}>Shared from a child's dashboard</Text>
+                </View>
+                <View style={styles.familyGoalCard}>
+                  {sharedByPartner.map((entry, idx) => (
+                    <View key={entry.id}>
+                      {idx > 0 && <View style={styles.familyGoalDivider} />}
+                      <View style={styles.familyMomentRow}>
+                        <View style={[styles.familyMomentIconWrap, { backgroundColor: entry.type === 'shared_habit' ? '#EDF7F2' : '#FEF9EE' }]}>
+                          <Text style={{ fontSize: 16 }}>{entry.type === 'shared_habit' ? '🔄' : '🎯'}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.familyMomentTopRow}>
+                            <View style={[styles.familyMomentChildBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22' }]}>
+                              <Text style={[styles.familyMomentChildName, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
+                            </View>
+                            <Text style={styles.familyMomentDate}>
+                              {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </Text>
+                          </View>
+                          <Text style={styles.familyMomentText}>{entry.text}</Text>
+                          <Text style={styles.familyMomentSharedBy}>
+                            Shared by {entry.shared_by_name ?? 'Partner'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
+
           {/* Shared moments feed */}
           {(() => {
             const allMoments = familyMoments;
@@ -970,6 +1042,23 @@ const wins     = child?.wins      ?? [];
                                 )}
                               </View>
                             </View>
+                            {(() => {
+                              const shareKey = `share_h_${area.id}_${i}`;
+                              const shared = sharedItems.has(shareKey);
+                              return (
+                                <TouchableOpacity
+                                  style={[styles.shareBtn, shared && styles.shareBtnDone]}
+                                  onPress={() => handleShare(shareKey, habit.text, false)}
+                                  disabled={shared}
+                                  activeOpacity={0.7}
+                                >
+                                  <Ionicons name={shared ? 'checkmark-circle' : 'share-outline'} size={12} color={shared ? '#9CA3AF' : '#2E7D62'} />
+                                  <Text style={[styles.shareBtnText, shared && styles.shareBtnTextDone]}>
+                                    {shared ? 'Shared with partner' : 'Share with partner'}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })()}
                             {wisdomOpen && habit.wisdom && (
                               <View style={styles.wisdomPanel}>
                                 <Text style={styles.wisdomText}>{habit.wisdom}</Text>
@@ -1068,6 +1157,23 @@ const wins     = child?.wins      ?? [];
                                 )}
                               </View>
                             </View>
+                            {(() => {
+                              const shareKey = `share_a_${area.id}_${i}`;
+                              const shared = sharedItems.has(shareKey);
+                              return (
+                                <TouchableOpacity
+                                  style={[styles.shareBtn, shared && styles.shareBtnDone]}
+                                  onPress={() => handleShare(shareKey, activity.text, true)}
+                                  disabled={shared}
+                                  activeOpacity={0.7}
+                                >
+                                  <Ionicons name={shared ? 'checkmark-circle' : 'share-outline'} size={12} color={shared ? '#9CA3AF' : '#2E7D62'} />
+                                  <Text style={[styles.shareBtnText, shared && styles.shareBtnTextDone]}>
+                                    {shared ? 'Shared with partner' : 'Share with partner'}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })()}
                             {wisdomOpen && activity.wisdom && (
                               <View style={[styles.wisdomPanel, styles.wisdomPanelActivity]}>
                                 <Text style={[styles.wisdomText, { color: '#92400E' }]}>{activity.wisdom}</Text>
@@ -1274,7 +1380,12 @@ const styles = StyleSheet.create({
   familyMomentText:      { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 8 },
   familyMomentReactionRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   familyMomentReactionLabel:  { fontSize: 12, color: '#6B7280', fontWeight: '500' },
+  familyMomentSharedBy:       { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
   familyMomentAckNamePill:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  shareBtn:     { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 8, marginLeft: 2, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 100, borderWidth: 1, borderColor: '#D1FAE5', backgroundColor: '#F0FDF4' },
+  shareBtnDone: { borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
+  shareBtnText: { fontSize: 11, fontWeight: '600', color: '#2E7D62' },
+  shareBtnTextDone: { color: '#9CA3AF' },
   familyMomentAckNameText:    { fontSize: 12, fontWeight: '500', color: '#6B7280' },
   familyMomentLoveBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' },
   familyMomentLoveBtnActive:{ borderColor: '#FDA4AF', backgroundColor: '#FFF1F2' },
