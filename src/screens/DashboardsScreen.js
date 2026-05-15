@@ -716,7 +716,7 @@ const wins     = child?.wins      ?? [];
 
           {/* Shared moments feed */}
           {(() => {
-            const allMoments = familyMoments;
+            const allMoments = familyMoments.filter(m => m.type === 'win' || m.type === 'incident');
 
             return (
               <View style={{ marginTop: 20 }}>
