@@ -167,8 +167,9 @@ export default function DashboardsScreen({ navigation, route }) {
     setSharedItems(next);
     await AsyncStorage.setItem('tarbiyah_shared_items', JSON.stringify([...next]));
     try {
-      const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
-      await supabase.from('family_moments').insert({
+      const [familyId, sessionRes] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
+      const userId = sessionRes?.data?.session?.user?.id ?? null;
+      const { error } = await supabase.from('family_moments').insert({
         id: shareKey,
         family_id: familyId,
         child_id: child.id,
@@ -177,11 +178,12 @@ export default function DashboardsScreen({ navigation, route }) {
         type: isActivity ? 'shared_activity' : 'shared_habit',
         text: itemText,
         date: new Date().toISOString(),
-        shared_by_name: myProfileName || 'Your partner',
-        user_id: session?.user?.id ?? null,
+        shared_by_name: myProfileName || 'Partner',
+        user_id: userId,
       });
+      if (error) console.warn('[handleShare] insert error:', error.message);
       loadFamilyMoments();
-    } catch {}
+    } catch (e) { console.warn('[handleShare] error:', e.message); }
   }
 
   async function loadFamilyMoments() {
