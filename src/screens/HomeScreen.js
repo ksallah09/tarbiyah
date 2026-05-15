@@ -37,8 +37,8 @@ import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
 import { getAllChildProfiles } from '../utils/childProfiles';
 import { getWeekCompletions, getChildWeeklyCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
-import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji } from '../utils/familyGoals';
-import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
+import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
+import { loadCompletions } from '../utils/goalCompletions';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
 
@@ -152,8 +152,6 @@ export default function HomeScreen({ navigation }) {
   const [partnerMonthTotal, setPartnerMonthTotal] = useState(0);
   const [children,        setChildren]        = useState([]);
   const [weekCompletions, setWeekCompletions] = useState({});
-  const [familyGoals,       setFamilyGoals]       = useState([]);
-  const [goalCompletions,   setGoalCompletions]   = useState([]);
   const [encouragement, setEncouragement] = useState(null);
   const [spirMonth,       setSpiritualMonth]  = useState([]);
   const [sciMonth,        setScientificMonth] = useState([]);
@@ -303,10 +301,6 @@ export default function HomeScreen({ navigation }) {
         setWeekCompletions(counts);
         setMyHabAct(getMonthlyHabitActivityTotals(counts));
       });
-      // Load family goals: paint from cache instantly, then sync from Supabase
-      loadFamilyGoalsCached().then(setFamilyGoals);
-      loadFamilyGoals().then(setFamilyGoals);
-      loadCompletions().then(setGoalCompletions);
       getMonthReadDays('spiritual').then(setSpiritualMonth);
       getMonthReadDays('scientific').then(setScientificMonth);
       getMonthReadDays('quran').then(setQuranMonth);
@@ -651,99 +645,6 @@ export default function HomeScreen({ navigation }) {
                 })}
               </View>
 
-              {(() => {
-                return (
-                  <View style={[styles.cpCard, { marginTop: 12 }]}>
-                    <View style={styles.cpCardHeader}>
-                      <View style={styles.powerDotOuter}>
-                        <View style={styles.powerDotInner} />
-                      </View>
-                      <View>
-                        <Text style={styles.cpCardHeaderText}>Family Goals</Text>
-                        <Text style={styles.cpCardHeaderSub}>Manage shared goals on the Family tab</Text>
-                      </View>
-                    </View>
-                    {familyGoals.length === 0 && (
-                      <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                        <View style={styles.childEmptyIconWrap}>
-                          <Ionicons name="flag-outline" size={22} color="#1B3D2F" />
-                        </View>
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A2E', marginBottom: 4, textAlign: 'center' }}>No family goals yet</Text>
-                        <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19, paddingHorizontal: 16, marginBottom: 14 }}>
-                          Set a shared goal to start growing together.
-                        </Text>
-                        <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('FamilyGoalWizard')} activeOpacity={0.75}>
-                          <Ionicons name="add-circle-outline" size={15} color="#1B3D2F" />
-                          <Text style={styles.childEmptyBtnText}>Add Family Goal</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                    {familyGoals.map((goal, idx) => {
-                        const target    = goal.frequency ?? 1;
-                        const count     = countThisWeek(goalCompletions, goal.id);
-                        const doneToday = isCompletedToday(goalCompletions, goal.id);
-                        const goalMet   = count >= target;
-                        const pct       = Math.min(Math.round((count / target) * 100), 100);
-                        const fillColor = goalMet ? '#2E7D62' : (count > 0 ? '#4A90D9' : '#D1D5DB');
-
-                        return (
-                          <View key={goal.id}>
-                            {idx > 0 && <View style={styles.goalDivider} />}
-                            <View style={styles.goalRow}>
-                              {/* Icon */}
-                              <View style={[styles.goalIconWrap, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '18' }]}>
-                                <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
-                              </View>
-
-                              {/* Body */}
-                              <View style={styles.goalBody}>
-                                <View style={styles.goalTitleRow}>
-                                  <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
-                                  {goalMet ? (
-                                    <View style={styles.goalMetPill}>
-                                      <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
-                                      <Text style={styles.goalMetText}>Done</Text>
-                                    </View>
-                                  ) : (
-                                    <TouchableOpacity
-                                      style={[styles.goalLogBtn, doneToday && styles.goalLogBtnDone]}
-                                      disabled={doneToday}
-                                      onPress={async () => {
-                                        const updated = await logGoalCompletion(goal.id);
-                                        setGoalCompletions([...updated]);
-                                        setEncouragement(pickRandom(GOALS_MESSAGES));
-                                      }}
-                                      activeOpacity={0.75}
-                                    >
-                                      <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#fff'} />
-                                      <Text style={[styles.goalLogBtnText, doneToday && { color: '#2E7D62' }]}>
-                                        {doneToday ? 'Logged' : 'Log it'}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  )}
-                                </View>
-
-                                {/* Progress bar */}
-                                <View style={styles.goalBarRow}>
-                                  <View style={styles.goalBarTrack}>
-                                    <View style={[styles.goalBarFill, { width: `${pct}%`, backgroundColor: fillColor }]} />
-                                  </View>
-                                  <Text style={[styles.goalBarLabel, goalMet && { color: '#2E7D62' }]}>
-                                    {count}/{target}
-                                  </Text>
-                                </View>
-
-                                <Text style={styles.goalStatusText}>
-                                  {goalMet ? '🎯 Goal met this week' : `${goal.frequencyLabel} · ${target - count} to go`}
-                                </Text>
-                              </View>
-                            </View>
-                          </View>
-                        );
-                    })}
-                  </View>
-                );
-              })()}
 
 
 
