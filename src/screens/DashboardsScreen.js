@@ -712,9 +712,10 @@ const wins     = child?.wins      ?? [];
                                 </Text>
                               </TouchableOpacity>
                               {ackNames.length > 0 && (
-                                <Text style={styles.familyMomentReactionLabel}>
-                                  ✓ {ackNames.join(' & ')}
-                                </Text>
+                                <View style={styles.familyMomentAckNamePill}>
+                                  <Ionicons name="checkmark-circle" size={13} color="#2E7D62" />
+                                  <Text style={styles.familyMomentAckNameText}>{ackNames.join(' & ')}</Text>
+                                </View>
                               )}
                             </View>
                           )}
@@ -1272,7 +1273,9 @@ const styles = StyleSheet.create({
   familyMomentDate:      { fontSize: 11, color: '#9CA3AF' },
   familyMomentText:      { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 8 },
   familyMomentReactionRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  familyMomentReactionLabel:{ fontSize: 12, color: '#6B7280', fontWeight: '500' },
+  familyMomentReactionLabel:  { fontSize: 12, color: '#6B7280', fontWeight: '500' },
+  familyMomentAckNamePill:    { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#86EFAC', backgroundColor: '#F0FDF4' },
+  familyMomentAckNameText:    { fontSize: 12, fontWeight: '600', color: '#2E7D62' },
   familyMomentLoveBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' },
   familyMomentLoveBtnActive:{ borderColor: '#FDA4AF', backgroundColor: '#FFF1F2' },
   familyMomentLoveCount:    { fontSize: 12, fontWeight: '700', color: '#9CA3AF' },
