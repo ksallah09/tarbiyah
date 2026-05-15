@@ -681,32 +681,42 @@ const wins     = child?.wins      ?? [];
                           </View>
                           <Text style={styles.familyMomentText}>{entry.text}</Text>
                           {entry.type === 'win' && (
-                            <TouchableOpacity
-                              style={[styles.familyMomentLoveBtn, loved && styles.familyMomentLoveBtnActive]}
-                              onPress={() => handleLoveWin(entry.childId, entry.id)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons name={loved ? 'heart' : 'heart-outline'} size={14} color={loved ? '#E11D48' : '#9CA3AF'} />
-                              <Text style={[styles.familyMomentLoveCount, loved && styles.familyMomentLoveCountActive]}>
-                                {loveNames.length === 0
-                                  ? 'Love'
-                                  : `Loved by ${loveNames.join(' & ')}`}
-                              </Text>
-                            </TouchableOpacity>
+                            <View style={styles.familyMomentReactionRow}>
+                              <TouchableOpacity
+                                style={[styles.familyMomentLoveBtn, loved && styles.familyMomentLoveBtnActive]}
+                                onPress={() => handleLoveWin(entry.childId, entry.id)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name={loved ? 'heart' : 'heart-outline'} size={14} color={loved ? '#E11D48' : '#9CA3AF'} />
+                                <Text style={[styles.familyMomentLoveCount, loved && styles.familyMomentLoveCountActive]}>
+                                  {loved ? 'Loved' : 'Love'}
+                                </Text>
+                              </TouchableOpacity>
+                              {loveNames.length > 0 && (
+                                <Text style={styles.familyMomentReactionLabel}>
+                                  ❤️ {loveNames.join(' & ')}
+                                </Text>
+                              )}
+                            </View>
                           )}
                           {entry.type === 'incident' && (
-                            <TouchableOpacity
-                              style={[styles.familyMomentLoveBtn, acked && styles.familyMomentAckBtnActive]}
-                              onPress={() => handleAcknowledgeIncident(entry.childId, entry.id)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons name={acked ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={acked ? '#2E7D62' : '#9CA3AF'} />
-                              <Text style={[styles.familyMomentLoveCount, acked && styles.familyMomentAckCountActive]}>
-                                {ackNames.length === 0
-                                  ? 'Acknowledge'
-                                  : `Acknowledged by ${ackNames.join(' & ')}`}
-                              </Text>
-                            </TouchableOpacity>
+                            <View style={styles.familyMomentReactionRow}>
+                              <TouchableOpacity
+                                style={[styles.familyMomentLoveBtn, acked && styles.familyMomentAckBtnActive]}
+                                onPress={() => handleAcknowledgeIncident(entry.childId, entry.id)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name={acked ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={acked ? '#2E7D62' : '#9CA3AF'} />
+                                <Text style={[styles.familyMomentLoveCount, acked && styles.familyMomentAckCountActive]}>
+                                  {acked ? 'Acknowledged' : 'Acknowledge'}
+                                </Text>
+                              </TouchableOpacity>
+                              {ackNames.length > 0 && (
+                                <Text style={styles.familyMomentReactionLabel}>
+                                  ✓ {ackNames.join(' & ')}
+                                </Text>
+                              )}
+                            </View>
                           )}
                         </View>
                       </View>
@@ -1261,6 +1271,8 @@ const styles = StyleSheet.create({
   familyMomentChildName: { fontSize: 11, fontWeight: '700' },
   familyMomentDate:      { fontSize: 11, color: '#9CA3AF' },
   familyMomentText:      { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 8 },
+  familyMomentReactionRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  familyMomentReactionLabel:{ fontSize: 12, color: '#6B7280', fontWeight: '500' },
   familyMomentLoveBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' },
   familyMomentLoveBtnActive:{ borderColor: '#FDA4AF', backgroundColor: '#FFF1F2' },
   familyMomentLoveCount:    { fontSize: 12, fontWeight: '700', color: '#9CA3AF' },
