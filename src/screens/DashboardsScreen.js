@@ -175,6 +175,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const [sharedItems,       setSharedItems]        = useState(new Set());
   const [partnerLinked,     setPartnerLinked]      = useState(false);
   const [expandedShared,    setExpandedShared]     = useState(new Set());
+  const [overflowShared,    setOverflowShared]     = useState(new Set());
   const [sharedPage,        setSharedPage]         = useState(0);
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
@@ -732,7 +733,7 @@ const wins     = child?.wins      ?? [];
                 >
                   {sharedByPartner.map(entry => {
                     const isExpanded = expandedShared.has(entry.id);
-                    const isLong = entry.text?.length > 120;
+                    const isOverflow = overflowShared.has(entry.id);
                     const isHabit = entry.type === 'shared_habit';
                     return (
                       <View key={entry.id} style={[styles.sharedSwipeCard, { width: CARD_W }]}>
@@ -751,10 +752,15 @@ const wins     = child?.wins      ?? [];
                         <Text
                           style={[styles.sharedSwipeCardText, { marginTop: 10 }]}
                           numberOfLines={isExpanded ? undefined : 3}
+                          onTextLayout={e => {
+                            if (e.nativeEvent.lines.length > 3) {
+                              setOverflowShared(prev => new Set([...prev, entry.id]));
+                            }
+                          }}
                         >
                           {entry.text}
                         </Text>
-                        {isLong && (
+                        {isOverflow && (
                           <TouchableOpacity
                             onPress={() => setExpandedShared(prev => {
                               const next = new Set(prev);
