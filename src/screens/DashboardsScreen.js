@@ -11,7 +11,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile } from '../utils/childProfiles';
+import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile, syncChildrenToFamilyGarden } from '../utils/childProfiles';
 import { logCompletion } from '../utils/childCompletions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HABIT_MESSAGES, ACTIVITY_MESSAGES, GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
@@ -163,6 +163,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const [sharedItems,       setSharedItems]        = useState(new Set());
   const [partnerLinked,     setPartnerLinked]      = useState(false);
   const [gardenTotals,      setGardenTotals]       = useState({});
+  const [familyChildrenList, setFamilyChildrenList] = useState([]);
   const [expandedShared,    setExpandedShared]     = useState(new Set());
   const [overflowShared,    setOverflowShared]     = useState(new Set());
   const [sharedPage,        setSharedPage]         = useState(0);
@@ -274,16 +275,27 @@ export default function DashboardsScreen({ navigation, route }) {
     loadFamilyGoals().then(setFamilyGoals);
     getCachedSyncStatus().then(s => setPartnerLinked(!!s?.linked));
     getFamilyId().then(async familyId => {
-      const { data } = await supabase
+      // Load deed counts
+      const { data: actions } = await supabase
         .from('child_garden_actions')
-        .select('child_id, child_name')
+        .select('child_id')
         .eq('family_id', familyId);
-      if (data) {
+      if (actions) {
         const totals = {};
-        data.forEach(row => { totals[row.child_id] = (totals[row.child_id] ?? 0) + 1; });
+        actions.forEach(row => { totals[row.child_id] = (totals[row.child_id] ?? 0) + 1; });
         setGardenTotals(totals);
       }
+      // Load all children registered in the shared family garden
+      const { data: fc } = await supabase
+        .from('family_children')
+        .select('child_id, child_name, child_color, child_gender')
+        .eq('family_id', familyId);
+      if (fc) setFamilyChildrenList(fc);
     }).catch(() => {});
+    // Auto-sync local children into the shared family garden
+    getAllChildProfiles().then(profiles => {
+      if (profiles.length > 0) syncChildrenToFamilyGarden(profiles);
+    });
   }, [activeChildId]);
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -729,7 +741,7 @@ const wins     = child?.wins      ?? [];
           </View>
 
           {/* Family Garden overview */}
-          {children.length > 0 && (
+          {(familyChildrenList.length > 0 || children.length > 0) && (
             <View style={{ marginTop: 20 }}>
               <View style={styles.familyMomentsHeader}>
                 <Text style={styles.familyMomentsEyebrow}>FAMILY GARDEN</Text>
@@ -737,12 +749,12 @@ const wins     = child?.wins      ?? [];
                 <Text style={styles.familyMomentsSub}>Good deeds planted by your children</Text>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-                {children.map(c => (
+                {(familyChildrenList.length > 0 ? familyChildrenList : children).map(c => (
                   <MiniGardenCard
-                    key={c.id}
-                    childName={c.name}
-                    total={gardenTotals[c.id] ?? 0}
-                    color={c.color}
+                    key={c.child_id ?? c.id}
+                    childName={c.child_name ?? c.name}
+                    total={gardenTotals[c.child_id ?? c.id] ?? 0}
+                    color={c.child_color ?? c.color}
                   />
                 ))}
               </ScrollView>
