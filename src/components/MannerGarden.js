@@ -36,7 +36,7 @@ const DEFAULT_THRESHOLDS = { sprout: 10, sapling: 25, tree: 50, flowering: 100, 
 const STAGE_META = [
   { index: 0, name: 'Seed',               key: 'seed'      },
   { index: 1, name: 'Sprout',             key: 'sprout'    },
-  { index: 2, name: 'Sapling',            key: 'sapling'   },
+  { index: 2, name: 'Young Tree',          key: 'sapling'   },
   { index: 3, name: 'Growing Tree',       key: 'tree'      },
   { index: 4, name: 'Flowering Tree',     key: 'flowering' },
   { index: 5, name: 'Fruit-bearing Tree', key: 'fruit'     },
