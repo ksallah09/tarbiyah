@@ -18,6 +18,7 @@ import { HABIT_MESSAGES, ACTIVITY_MESSAGES, GOALS_MESSAGES, pickRandom } from '.
 import EncouragementModal from '../components/EncouragementModal';
 import { ChildWorldCard } from '../components/ChildWorldCard';
 import MannerGarden, { MiniGardenCard } from '../components/MannerGarden';
+import FamilyDuplicateModal from '../components/FamilyDuplicateModal';
 import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji, getFamilyId } from '../utils/familyGoals';
 import { getCachedSyncStatus } from '../utils/familySync';
 import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
@@ -163,8 +164,9 @@ export default function DashboardsScreen({ navigation, route }) {
   const [sharedItems,       setSharedItems]        = useState(new Set());
   const [partnerLinked,     setPartnerLinked]      = useState(false);
   const [gardenTotals,      setGardenTotals]       = useState({});
-  const [familyChildrenList, setFamilyChildrenList] = useState([]);
-  const [familyRefreshing,   setFamilyRefreshing]   = useState(false);
+  const [familyChildrenList,  setFamilyChildrenList]  = useState([]);
+  const [familyRefreshing,    setFamilyRefreshing]    = useState(false);
+  const [showDuplicateModal,  setShowDuplicateModal]  = useState(false);
   const [expandedShared,    setExpandedShared]     = useState(new Set());
   const [overflowShared,    setOverflowShared]     = useState(new Set());
   const [sharedPage,        setSharedPage]         = useState(0);
@@ -753,11 +755,29 @@ const wins     = child?.wins      ?? [];
           {/* Family Garden overview */}
           {(familyChildrenList.length > 0 || children.length > 0) && (
             <View style={{ marginTop: 20 }}>
-              <View style={styles.familyMomentsHeader}>
-                <Text style={styles.familyMomentsEyebrow}>FAMILY GARDEN</Text>
-                <Text style={styles.familyMomentsTitle}>Good Deeds Garden</Text>
-                <Text style={styles.familyMomentsSub}>Good deeds planted by your children</Text>
+              <View style={[styles.familyMomentsHeader, { flexDirection: 'row', alignItems: 'flex-start' }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.familyMomentsEyebrow}>FAMILY GARDEN</Text>
+                  <Text style={styles.familyMomentsTitle}>Good Deeds Garden</Text>
+                  <Text style={styles.familyMomentsSub}>Good deeds planted by your children</Text>
+                </View>
+                {familyChildrenList.length > 1 && (
+                  <TouchableOpacity
+                    onPress={() => setShowDuplicateModal(true)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{ marginTop: 4 }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#2E7D62' }}>Manage</Text>
+                  </TouchableOpacity>
+                )}
               </View>
+
+              <FamilyDuplicateModal
+                visible={showDuplicateModal}
+                children={familyChildrenList}
+                gardenTotals={gardenTotals}
+                onDone={() => { setShowDuplicateModal(false); loadFamilyTab(); }}
+              />
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                 {(familyChildrenList.length > 0 ? familyChildrenList : children).map(c => (
                   <MiniGardenCard
