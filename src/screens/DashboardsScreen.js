@@ -749,14 +749,20 @@ const wins     = child?.wins      ?? [];
                             {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </Text>
                         </View>
+                        {/* Hidden full-text to measure real line count */}
                         <Text
-                          style={[styles.sharedSwipeCardText, { marginTop: 10 }]}
-                          numberOfLines={isExpanded ? undefined : 3}
+                          style={[styles.sharedSwipeCardText, { position: 'absolute', opacity: 0 }]}
                           onTextLayout={e => {
                             if (e.nativeEvent.lines.length > 3) {
                               setOverflowShared(prev => new Set([...prev, entry.id]));
                             }
                           }}
+                        >
+                          {entry.text}
+                        </Text>
+                        <Text
+                          style={[styles.sharedSwipeCardText, { marginTop: 10 }]}
+                          numberOfLines={isExpanded ? undefined : 3}
                         >
                           {entry.text}
                         </Text>
