@@ -728,8 +728,8 @@ const wins     = child?.wins      ?? [];
                   showsHorizontalScrollIndicator={false}
                   decelerationRate="fast"
                   style={{ marginHorizontal: -20 }}
-                  contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
-                  onMomentumScrollEnd={e => setSharedPage(Math.round(e.nativeEvent.contentOffset.x / (CARD_W + 12)))}
+                  contentContainerStyle={{ paddingHorizontal: 20 }}
+                  onMomentumScrollEnd={e => setSharedPage(Math.round(e.nativeEvent.contentOffset.x / CARD_W))}
                 >
                   {sharedByPartner.map(entry => {
                     const isExpanded = expandedShared.has(entry.id);
