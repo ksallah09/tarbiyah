@@ -578,6 +578,25 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                   </View>
                 );
               })}
+
+              <Text style={[gs.settingsSectionTitle, { marginTop: 28 }]}>Orchard & Jannah rewards</Text>
+              <Text style={gs.settingsSectionSub}>Special celebrations for bigger milestones.</Text>
+              {[
+                { key: 'orchard', label: 'Orchard complete 🌿', placeholder: 'e.g. "Family dinner out"' },
+                { key: 'jannah',  label: 'Jannah Garden 🌴',    placeholder: 'e.g. "Special family trip"' },
+              ].map(({ key, label, placeholder }) => (
+                <View key={key} style={gs.settingsRewardRow}>
+                  <Text style={gs.settingsRowLabel}>{label}</Text>
+                  <TextInput
+                    style={gs.settingsRewardInput}
+                    placeholder={placeholder}
+                    placeholderTextColor="#9CA3AF"
+                    value={draftRewards[key] ?? ''}
+                    onChangeText={v => setDraftRewards(prev => ({ ...prev, [key]: v }))}
+                    maxLength={80}
+                  />
+                </View>
+              ))}
             </ScrollView>
             <TouchableOpacity style={[gs.saveBtn, savingSettings && { opacity: 0.5 }]} onPress={saveSettings} disabled={savingSettings} activeOpacity={0.85}>
               <Text style={gs.saveBtnText}>{savingSettings ? 'Saving…' : 'Save Settings'}</Text>
@@ -597,6 +616,12 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                 <Text style={gs.celebSub}>{celebEvent.orchards} orchards grown —</Text>
                 <Text style={gs.celebStage}>Jannah Garden #{celebEvent.number}!</Text>
                 <Text style={gs.celebNote}>A new garden begins. May it be accepted 🤲</Text>
+                {!!settings.rewards?.jannah && (
+                  <View style={gs.celebRewardWrap}>
+                    <Ionicons name="gift-outline" size={16} color="#D4A843" />
+                    <Text style={gs.celebReward}>{settings.rewards.jannah}</Text>
+                  </View>
+                )}
               </>
             )}
             {celebEvent?.type === 'orchard' && (
@@ -610,6 +635,12 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                     ? 'Keep going — a Jannah Garden awaits!'
                     : `${3 - (celebEvent.number % 3 || 3)} more orchard${3 - (celebEvent.number % 3 || 3) !== 1 ? 's' : ''} to a Jannah Garden`}
                 </Text>
+                {!!settings.rewards?.orchard && (
+                  <View style={gs.celebRewardWrap}>
+                    <Ionicons name="gift-outline" size={16} color="#D4A843" />
+                    <Text style={gs.celebReward}>{settings.rewards.orchard}</Text>
+                  </View>
+                )}
               </>
             )}
             {celebEvent?.type === 'tree' && (
