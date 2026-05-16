@@ -283,6 +283,25 @@ export async function leaveFamily() {
   if (!userId) return;
 
   const familyId = await getFamilyId();
+  const newFamilyId = `family_${userId}_${Date.now()}`;
+
+  // Re-key own garden deeds to the new personal family before switching
+  await supabase
+    .from('child_garden_actions')
+    .update({ family_id: newFamilyId })
+    .eq('user_id', userId)
+    .eq('family_id', familyId);
+
+  // Re-key garden settings for own children
+  const localChildren = await getLocalChildren();
+  const childIds = localChildren.map(c => c.id);
+  if (childIds.length > 0) {
+    await supabase
+      .from('child_garden_settings')
+      .update({ family_id: newFamilyId })
+      .in('child_id', childIds)
+      .eq('family_id', familyId);
+  }
 
   // Remove from family_members
   await supabase
@@ -291,8 +310,6 @@ export async function leaveFamily() {
     .eq('family_id', familyId)
     .eq('user_id', userId);
 
-  // Create a new personal family ID
-  const newFamilyId = `family_${userId}_${Date.now()}`;
   await AsyncStorage.setItem(FAMILY_ID_KEY, newFamilyId);
   await AsyncStorage.removeItem(PARTNER_CACHE_KEY);
 }
