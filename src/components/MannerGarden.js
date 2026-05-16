@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Modal,
-  TextInput, ScrollView, Animated, KeyboardAvoidingView, Platform, Alert,
+  TextInput, ScrollView, Animated, KeyboardAvoidingView, Platform, Alert, SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -170,15 +170,32 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
   const [draftRewards,    setDraftRewards]    = useState({});
   // Milestone celebration
   const [celebStage,     setCelebStage]     = useState(null);
+  // Child view
+  const [showChildView,  setShowChildView]  = useState(false);
 
-  const swayAnim    = useRef(new Animated.Value(0)).current;
-  const dropY       = useRef(new Animated.Value(0)).current;
-  const dropOpacity = useRef(new Animated.Value(0)).current;
+  const swayAnim      = useRef(new Animated.Value(0)).current;
+  const dropY         = useRef(new Animated.Value(0)).current;
+  const dropOpacity   = useRef(new Animated.Value(0)).current;
+  const childSwayAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadActions();
     loadSettings();
   }, [child?.id]);
+
+  useEffect(() => {
+    if (!showChildView) { childSwayAnim.setValue(0); return; }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(childSwayAnim, { toValue: 5,  duration: 2200, useNativeDriver: true }),
+        Animated.timing(childSwayAnim, { toValue: -4, duration: 2200, useNativeDriver: true }),
+        Animated.timing(childSwayAnim, { toValue: 2,  duration: 1600, useNativeDriver: true }),
+        Animated.timing(childSwayAnim, { toValue: 0,  duration: 1200, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showChildView]);
 
   const stages = buildStages(settings.thresholds);
 
@@ -385,6 +402,12 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         <Text style={gs.logBtnText}>Log a good deed</Text>
       </TouchableOpacity>
 
+      {/* Show child their garden */}
+      <TouchableOpacity style={gs.showChildBtn} onPress={() => setShowChildView(true)} activeOpacity={0.8}>
+        <Ionicons name="eye-outline" size={15} color="#2E7D62" />
+        <Text style={gs.showChildBtnText}>Show {displayName} their garden</Text>
+      </TouchableOpacity>
+
       {/* ── Log deed modal ── */}
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -506,9 +529,89 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
             <TouchableOpacity style={gs.celebBtn} onPress={() => setCelebStage(null)} activeOpacity={0.85}>
               <Text style={gs.celebBtnText}>Wonderful! 🌱</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => { setCelebStage(null); setShowChildView(true); }} activeOpacity={0.75} style={{ marginTop: 12 }}>
+              <Text style={gs.celebShowLink}>Show {displayName} their garden →</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
+      {/* ── Child view ── */}
+      <Modal visible={showChildView} animationType="fade" presentationStyle="fullScreen" onRequestClose={() => setShowChildView(false)}>
+        <LinearGradient colors={['#ECFDF5', '#D1FAE5', '#EFF6FF', '#DBEAFE']} style={{ flex: 1 }}>
+          <SafeAreaView style={{ flex: 1 }}>
+            {/* Close */}
+            <TouchableOpacity
+              style={cv.closeBtn}
+              onPress={() => setShowChildView(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Ionicons name="close" size={22} color="rgba(0,0,0,0.35)" />
+            </TouchableOpacity>
+
+            <ScrollView contentContainerStyle={cv.scroll} showsVerticalScrollIndicator={false}>
+              {/* Name + stage */}
+              <Text style={cv.childName}>{displayName}</Text>
+              <Text style={cv.stageName}>{stage.name}</Text>
+
+              {/* Big tree */}
+              <View style={cv.treeWrap}>
+                <View style={{ transform: [{ scale: 1.65 }] }}>
+                  <TreeIllustration stageIndex={stage.index} swayAnim={childSwayAnim} />
+                </View>
+              </View>
+
+              {/* Deed count */}
+              <View style={cv.deedsWrap}>
+                <Text style={cv.deedsNumber}>{total}</Text>
+                <Text style={cv.deedsLabel}>good deeds planted 🌱</Text>
+              </View>
+
+              {/* Progress */}
+              {stage.next && (
+                <View style={cv.progressWrap}>
+                  <View style={cv.progressTrack}>
+                    <View style={[cv.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+                  </View>
+                  <Text style={cv.progressLabel}>
+                    {toNext} more deed{toNext !== 1 ? 's' : ''} to {nextStage?.name}
+                  </Text>
+                </View>
+              )}
+
+              {/* Next reward */}
+              {!!nextReward && (
+                <View style={cv.rewardCard}>
+                  <Text style={cv.rewardEmoji}>🎁</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={cv.rewardPre}>Next reward</Text>
+                    <Text style={cv.rewardText}>{nextReward}</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Recent deeds */}
+              {actions.length > 0 && (
+                <View style={cv.recentWrap}>
+                  <Text style={cv.recentTitle}>Recent good deeds</Text>
+                  {actions.slice(0, 5).map((a, idx) => {
+                    const m = MANNERS.find(m => m.key === a.manner);
+                    return (
+                      <View key={a.id} style={[cv.recentRow, idx < Math.min(actions.length, 5) - 1 && cv.recentRowBorder]}>
+                        <Text style={cv.recentEmoji}>{m?.emoji ?? '✨'}</Text>
+                        <Text style={cv.recentLabel}>{m?.label ?? a.manner}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Motivational */}
+              <Text style={cv.motivation}>Ma Shaa Allah! Keep growing! 🤲</Text>
+            </ScrollView>
+          </SafeAreaView>
+        </LinearGradient>
+      </Modal>
+
     </View>
   );
 }
@@ -608,12 +711,45 @@ const gs = StyleSheet.create({
   celebReward:       { fontSize: 14, fontWeight: '600', color: '#7C5900', flex: 1 },
   celebBtn:          { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40 },
   celebBtnText:      { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  celebShowLink:     { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
 
-  // Mini card
+  // Show child button
+  showChildBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 },
+  showChildBtnText:  { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
+
+  // Mini card (defined in cv block below for child view)
   miniCard:          { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', width: 100, borderWidth: 1, borderColor: '#F0F0F0' },
   miniEmoji:         { fontSize: 32, marginBottom: 8 },
   miniNameBadge:     { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 4 },
   miniName:          { fontSize: 11, fontWeight: '700' },
   miniStage:         { fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginBottom: 2 },
   miniCount:         { fontSize: 10, fontWeight: '600', color: '#2E7D62' },
+});
+
+// ── Child view styles ─────────────────────────────────────────────────────────
+
+const cv = StyleSheet.create({
+  scroll:        { alignItems: 'center', paddingHorizontal: 24, paddingTop: 24, paddingBottom: 48 },
+  closeBtn:      { position: 'absolute', top: 12, left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
+  childName:     { fontSize: 40, fontWeight: '900', color: '#1A1A2E', textAlign: 'center', marginTop: 24, marginBottom: 4 },
+  stageName:     { fontSize: 16, fontWeight: '700', color: '#2E7D62', marginBottom: 28 },
+  treeWrap:      { height: 290, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  deedsWrap:     { alignItems: 'center', marginBottom: 20 },
+  deedsNumber:   { fontSize: 60, fontWeight: '900', color: '#1B3D2F', lineHeight: 68 },
+  deedsLabel:    { fontSize: 15, color: '#6B7280', fontWeight: '500' },
+  progressWrap:  { width: '100%', marginBottom: 20 },
+  progressTrack: { height: 10, backgroundColor: 'rgba(46,125,98,0.15)', borderRadius: 100, overflow: 'hidden', marginBottom: 8 },
+  progressFill:  { height: 10, backgroundColor: '#2E7D62', borderRadius: 100 },
+  progressLabel: { fontSize: 14, color: '#6B7280', textAlign: 'center', fontWeight: '500' },
+  rewardCard:    { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#FEF9EE', borderRadius: 18, padding: 18, width: '100%', marginBottom: 20, borderWidth: 1.5, borderColor: '#F5D97A' },
+  rewardEmoji:   { fontSize: 32 },
+  rewardPre:     { fontSize: 11, fontWeight: '700', color: '#B99A3A', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
+  rewardText:    { fontSize: 18, fontWeight: '800', color: '#7C5900' },
+  recentWrap:    { width: '100%', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 18, padding: 16, marginBottom: 20 },
+  recentTitle:   { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 },
+  recentRow:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
+  recentRowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
+  recentEmoji:   { fontSize: 22, width: 30, textAlign: 'center' },
+  recentLabel:   { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
+  motivation:    { fontSize: 15, fontWeight: '600', color: '#2E7D62', textAlign: 'center', opacity: 0.8 },
 });
