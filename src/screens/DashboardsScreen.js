@@ -266,6 +266,26 @@ export default function DashboardsScreen({ navigation, route }) {
     }).catch(() => {});
   }, [route?.params?.childId]));
 
+  // Refresh family data whenever the Family tab is selected (not just on screen focus)
+  useEffect(() => {
+    if (activeChildId !== 'family') return;
+    loadFamilyMoments();
+    loadFamilyGoalsCached().then(setFamilyGoals);
+    loadFamilyGoals().then(setFamilyGoals);
+    getCachedSyncStatus().then(s => setPartnerLinked(!!s?.linked));
+    getFamilyId().then(async familyId => {
+      const { data } = await supabase
+        .from('child_garden_actions')
+        .select('child_id, child_name')
+        .eq('family_id', familyId);
+      if (data) {
+        const totals = {};
+        data.forEach(row => { totals[row.child_id] = (totals[row.child_id] ?? 0) + 1; });
+        setGardenTotals(totals);
+      }
+    }).catch(() => {});
+  }, [activeChildId]);
+
   const child = children.find(c => c.id === activeChildId) ?? children[0];
   const displayName = child ? (child.name.length > 12 ? child.name.slice(0, 12).trimEnd() + '…' : child.name) : '';
 
