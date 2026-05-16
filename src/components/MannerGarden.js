@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, Modal,
   TextInput, ScrollView, Animated, KeyboardAvoidingView, Platform, Alert, SafeAreaView,
 } from 'react-native';
+import Svg, { Path, Circle, G, Defs, LinearGradient as SvgGrad, Stop, Rect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { captureRef } from 'react-native-view-shot';
@@ -24,6 +25,183 @@ function pronoun(gender) {
   if (gender === 'male')   return 'his';
   return 'their';
 }
+
+// ── SVG path helpers ──────────────────────────────────────────────────────────
+
+function trunkPath(cx, topY, botY, topW, botW) {
+  const c = (botY - topY) * 0.35;
+  const l = cx - topW / 2, r = cx + topW / 2;
+  const lb = cx - botW / 2, rb = cx + botW / 2;
+  return `M ${l},${topY} C ${l},${topY + c} ${lb},${botY - c} ${lb},${botY} L ${rb},${botY} C ${rb},${botY - c} ${r},${topY + c} ${r},${topY} Z`;
+}
+
+function blob(cx, cy, rx, ry) {
+  // Slightly irregular 4-arc blob
+  return [
+    `M ${cx},${cy - ry}`,
+    `C ${cx + rx * 0.58},${cy - ry * 1.04} ${cx + rx * 1.04},${cy - ry * 0.56} ${cx + rx},${cy}`,
+    `C ${cx + rx * 1.06},${cy + ry * 0.5}  ${cx + rx * 0.54},${cy + ry}        ${cx},${cy + ry}`,
+    `C ${cx - rx * 0.56},${cy + ry * 1.04} ${cx - rx * 1.04},${cy + ry * 0.5}  ${cx - rx},${cy}`,
+    `C ${cx - rx * 1.06},${cy - ry * 0.56} ${cx - rx * 0.58},${cy - ry * 1.04} ${cx},${cy - ry}`,
+    'Z',
+  ].join(' ');
+}
+
+// ── Stage SVG components ──────────────────────────────────────────────────────
+
+function SeedStage() {
+  return (
+    <G>
+      <Path d="M 86,140 Q 100,132 114,140 Q 114,148 100,148 Q 86,148 86,140 Z" fill="#7C3A12" />
+      <Path d="M 94,136 Q 100,132 106,136" stroke="rgba(255,255,255,0.15)" strokeWidth={1.5} fill="none" />
+      <Path d="M 100,132 C 100,127 99,122 100,117" stroke="#22C55E" strokeWidth={2.5} strokeLinecap="round" fill="none" />
+      <Path d="M 100,120 C 97,116 93,114 92,111 C 91,109 93,107 96,109 C 99,111 100,116 100,120 Z" fill="#4ADE80" />
+      <Path d="M 100,117 C 103,114 107,113 108,110 C 109,108 107,106 104,108 C 101,110 100,114 100,117 Z" fill="#86EFAC" />
+    </G>
+  );
+}
+
+function SproutStage() {
+  return (
+    <G>
+      <Path d="M 100,136 C 99,128 101,118 100,108 C 99,100 100,96 100,90" stroke="#22C55E" strokeWidth={3} strokeLinecap="round" fill="none" />
+      <Path d="M 100,112 C 95,109 88,107 85,103 C 82,99 84,95 88,96 C 92,97 97,104 100,108 Z" fill="#86EFAC" />
+      <Path d="M 100,102 C 105,98 112,97 115,100 C 118,103 116,108 112,108 C 108,108 103,105 100,102 Z" fill="#4ADE80" />
+      <Path d="M 100,90 C 103,87 107,84 107,81 C 107,79 104,78 102,80 C 100,82 100,87 100,90 Z" fill="#86EFAC" />
+      <Path d="M 100,90 C 97,87 93,84 93,81 C 93,79 96,78 98,80 C 100,82 100,87 100,90 Z" fill="#BBF7D0" />
+    </G>
+  );
+}
+
+function YoungTreeStage({ progress }) {
+  const rx = 30 + progress * 5;
+  const ry = 24 + progress * 4;
+  const cy = 80 - progress * 2;
+  return (
+    <G>
+      <Path d={trunkPath(100, cy + ry - 10, 142, 6, 9)} fill="#8B4513" />
+      <Path d={blob(100, cy, rx, ry)} fill="url(#canopyA)" />
+      <Path d={blob(93, cy - 7, rx * 0.36, ry * 0.36)} fill="rgba(255,255,255,0.18)" />
+    </G>
+  );
+}
+
+function GrowingTreeStage({ progress }) {
+  const rx = 42 + progress * 5;
+  const ry = 33 + progress * 4;
+  const cy = 63 - progress * 2;
+  return (
+    <G>
+      <Path d={trunkPath(100, cy + ry - 12, 142, 10, 14)} fill="#7C3A12" />
+      <Path d={blob(100, cy - 6, rx * 0.55, ry * 0.48)} fill="#1FA84E" />
+      <Path d={blob(100, cy, rx, ry)} fill="url(#canopyB)" />
+      <Path d={blob(91, cy - 10, rx * 0.34, ry * 0.34)} fill="rgba(255,255,255,0.16)" />
+    </G>
+  );
+}
+
+function FloweringTreeStage({ progress }) {
+  const rx = 46 + progress * 4;
+  const ry = 35 + progress * 3;
+  const cy = 58 - progress * 2;
+  const flowers = [
+    [83, 50], [117, 46], [133, 64], [129, 82],
+    [109, 96], [80, 91], [65, 73], [73, 55],
+  ];
+  return (
+    <G>
+      <Path d={trunkPath(100, cy + ry - 12, 142, 11, 15)} fill="#7C3A12" />
+      <Path d={blob(78,  cy + 4, rx * 0.46, ry * 0.5)} fill="#15803D" />
+      <Path d={blob(122, cy + 2, rx * 0.46, ry * 0.5)} fill="#15803D" />
+      <Path d={blob(100, cy, rx, ry)} fill="url(#canopyC)" />
+      <Path d={blob(100, cy - 10, rx * 0.38, ry * 0.37)} fill="#22C55E" />
+      <Path d={blob(90,  cy - 12, rx * 0.24, ry * 0.26)} fill="rgba(255,255,255,0.15)" />
+      {flowers.map(([x, y], i) => (
+        <G key={i}>
+          <Circle cx={x} cy={y} r={4.5} fill="#FBCFE8" />
+          <Circle cx={x} cy={y} r={1.8} fill="#F472B6" />
+        </G>
+      ))}
+    </G>
+  );
+}
+
+function FruitTreeStage({ progress }) {
+  const rx = 48 + progress * 4;
+  const ry = 37 + progress * 3;
+  const cy = 56 - progress * 2;
+  const fruits = [
+    [80,  49, 5.5, 0], [110, 43, 6,   1], [132, 61, 5.5, 0],
+    [136, 79, 5,   2], [124, 95, 5.5, 1], [100, 102, 6,  0],
+    [76,  95, 5,   2], [63,  77, 5.5, 1], [70,  57, 5,   0],
+  ];
+  const fruitColors = ['#FB923C', '#FCD34D', '#F87171'];
+  return (
+    <G>
+      <Path d={trunkPath(100, cy + ry - 14, 142, 12, 17)} fill="#6B2D0A" />
+      <Path d={blob(76,  cy + 5, rx * 0.48, ry * 0.52)} fill="#14532D" />
+      <Path d={blob(124, cy + 3, rx * 0.48, ry * 0.52)} fill="#14532D" />
+      <Path d={blob(100, cy, rx, ry)} fill="url(#canopyC)" />
+      <Path d={blob(100, cy - 12, rx * 0.4, ry * 0.38)} fill="#22C55E" />
+      <Path d={blob(89,  cy - 13, rx * 0.24, ry * 0.26)} fill="rgba(255,255,255,0.14)" />
+      {fruits.map(([x, y, r, ci], i) => (
+        <G key={i}>
+          <Circle cx={x} cy={y} r={r} fill={fruitColors[ci]} />
+          <Circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.32} fill="rgba(255,255,255,0.32)" />
+        </G>
+      ))}
+    </G>
+  );
+}
+
+// ── Tree illustration ─────────────────────────────────────────────────────────
+
+function TreeIllustration({ stageIndex, swayAnim, growthScale, progress = 0 }) {
+  return (
+    <Animated.View style={[
+      ts.scene,
+      { transform: [{ translateX: swayAnim }, { scale: growthScale }] },
+    ]}>
+      <Svg width={200} height={170}>
+        <Defs>
+          <SvgGrad id="sky" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0"   stopColor="#EFF6FF" />
+            <Stop offset="1"   stopColor="#DBEAFE" />
+          </SvgGrad>
+          <SvgGrad id="canopyA" x1="0.3" y1="0" x2="0.7" y2="1">
+            <Stop offset="0"   stopColor="#BBF7D0" />
+            <Stop offset="1"   stopColor="#4ADE80" />
+          </SvgGrad>
+          <SvgGrad id="canopyB" x1="0.3" y1="0" x2="0.7" y2="1">
+            <Stop offset="0"   stopColor="#4ADE80" />
+            <Stop offset="1"   stopColor="#16A34A" />
+          </SvgGrad>
+          <SvgGrad id="canopyC" x1="0.3" y1="0" x2="0.7" y2="1">
+            <Stop offset="0"   stopColor="#22C55E" />
+            <Stop offset="1"   stopColor="#15803D" />
+          </SvgGrad>
+        </Defs>
+
+        <Rect x={0} y={0} width={200} height={170} fill="url(#sky)" />
+
+        {stageIndex === 0 && <SeedStage />}
+        {stageIndex === 1 && <SproutStage />}
+        {stageIndex === 2 && <YoungTreeStage progress={progress} />}
+        {stageIndex === 3 && <GrowingTreeStage progress={progress} />}
+        {stageIndex === 4 && <FloweringTreeStage progress={progress} />}
+        {stageIndex >= 5 && <FruitTreeStage progress={progress} />}
+
+        {/* Earth with slight curve */}
+        <Path d="M 0,142 Q 100,137 200,142 L 200,170 L 0,170 Z" fill="#92400E" />
+        <Path d="M 10,144 Q 100,139 190,144 Q 100,149 10,144 Z" fill="rgba(255,255,255,0.07)" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+const ts = StyleSheet.create({
+  scene: { width: 200, height: 170, borderRadius: 20, overflow: 'hidden' },
+});
 
 // ── Manners ──────────────────────────────────────────────────────────────────
 
@@ -91,101 +269,11 @@ function computeProgress(total, thresholds) {
     completedTrees,
     completedOrchards,
     jannahGardensCompleted,
-    treeNumber:   completedTrees + 1,
+    treeNumber:    completedTrees + 1,
     orchardNumber: completedOrchards + 1,
     jannahNumber:  jannahGardensCompleted + 1,
   };
 }
-
-// ── Tree illustration ─────────────────────────────────────────────────────────
-
-const FLOWER_POSITIONS = [
-  { top: '18%', left: '22%' }, { top: '12%', left: '55%' },
-  { top: '40%', left: '68%' }, { top: '55%', left: '28%' },
-  { top: '28%', left: '40%' }, { top: '62%', left: '58%' },
-  { top: '48%', left: '12%' }, { top: '22%', left: '75%' },
-];
-
-const FRUIT_POSITIONS = [
-  { top: '20%', left: '25%' }, { top: '15%', left: '58%' },
-  { top: '42%', left: '70%' }, { top: '58%', left: '30%' },
-  { top: '30%', left: '42%' }, { top: '65%', left: '60%' },
-  { top: '50%', left: '10%' }, { top: '25%', left: '78%' },
-];
-
-function TreeIllustration({ stageIndex, swayAnim }) {
-  return (
-    <View style={tree.scene}>
-      <LinearGradient colors={['#EFF6FF', '#DBEAFE']} style={tree.sky} />
-      <Animated.View style={[tree.treeWrap, { transform: [{ translateX: swayAnim }] }]}>
-        {stageIndex === 0 && (
-          <View style={tree.seedWrap}>
-            <View style={tree.seed} />
-            <View style={tree.seedCrack} />
-          </View>
-        )}
-        {stageIndex === 1 && (
-          <View style={tree.sproutWrap}>
-            <View style={tree.sproutStem} />
-            <View style={tree.sproutLeftLeaf} />
-            <View style={tree.sproutRightLeaf} />
-          </View>
-        )}
-        {stageIndex >= 2 && (
-          <View style={tree.treeContainer}>
-            <View style={[
-              tree.canopy,
-              stageIndex === 2 && tree.canopySapling,
-              stageIndex === 3 && tree.canopyTree,
-              stageIndex === 4 && tree.canopyFlowering,
-              stageIndex >= 5 && tree.canopyFruit,
-            ]}>
-              {stageIndex === 4 && FLOWER_POSITIONS.map((pos, i) => (
-                <View key={i} style={[tree.flowerDot, { top: pos.top, left: pos.left }]} />
-              ))}
-              {stageIndex >= 5 && FRUIT_POSITIONS.map((pos, i) => (
-                <View key={i} style={[tree.fruitDot, i % 3 === 0 && tree.fruitDotAlt, { top: pos.top, left: pos.left }]} />
-              ))}
-            </View>
-            <View style={[
-              tree.trunk,
-              { backgroundColor: '#92400E' },
-              stageIndex === 2 && tree.trunkSapling,
-              stageIndex >= 3 && tree.trunkFull,
-            ]} />
-          </View>
-        )}
-      </Animated.View>
-      <LinearGradient colors={['#92400E', '#78350F']} style={tree.earth} />
-    </View>
-  );
-}
-
-const tree = StyleSheet.create({
-  scene:           { width: 200, height: 170, overflow: 'hidden', borderRadius: 20 },
-  sky:             { ...StyleSheet.absoluteFillObject },
-  earth:           { position: 'absolute', bottom: 0, left: 0, right: 0, height: 28, borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  treeWrap:        { position: 'absolute', bottom: 28, left: 0, right: 0, alignItems: 'center' },
-  seedWrap:        { alignItems: 'center', marginBottom: -10 },
-  seed:            { width: 22, height: 14, borderRadius: 11, backgroundColor: '#92400E' },
-  seedCrack:       { width: 2, height: 8, backgroundColor: '#4ADE80', borderRadius: 1, marginTop: -4 },
-  sproutWrap:      { alignItems: 'center', width: 60 },
-  sproutStem:      { width: 4, height: 38, backgroundColor: '#4ADE80', borderRadius: 2 },
-  sproutLeftLeaf:  { position: 'absolute', bottom: 16, left: 6, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '-35deg' }] },
-  sproutRightLeaf: { position: 'absolute', bottom: 16, right: 6, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '35deg' }] },
-  treeContainer:   { alignItems: 'center' },
-  canopy:          { overflow: 'hidden', position: 'relative' },
-  canopySapling:   { width: 62,  height: 55, borderRadius: 31, backgroundColor: '#BBF7D0', marginBottom: -4 },
-  canopyTree:      { width: 95,  height: 82, borderRadius: 48, backgroundColor: '#4ADE80', marginBottom: -6 },
-  canopyFlowering: { width: 98,  height: 85, borderRadius: 49, backgroundColor: '#22C55E', marginBottom: -6 },
-  canopyFruit:     { width: 102, height: 90, borderRadius: 51, backgroundColor: '#16A34A', marginBottom: -6 },
-  trunk:           { borderRadius: 4 },
-  trunkSapling:    { width: 10, height: 44 },
-  trunkFull:       { width: 14, height: 62 },
-  flowerDot:       { position: 'absolute', width: 9,  height: 9,  borderRadius: 5, backgroundColor: '#FEC0D3' },
-  fruitDot:        { position: 'absolute', width: 11, height: 11, borderRadius: 6, backgroundColor: '#FCD34D' },
-  fruitDotAlt:     { backgroundColor: '#FB923C' },
-});
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -210,7 +298,9 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
   const swayAnim      = useRef(new Animated.Value(0)).current;
   const dropY         = useRef(new Animated.Value(0)).current;
   const dropOpacity   = useRef(new Animated.Value(0)).current;
+  const growthScale   = useRef(new Animated.Value(1)).current;
   const childSwayAnim = useRef(new Animated.Value(0)).current;
+  const staticScale   = useRef(new Animated.Value(1)).current;
   const shareCardRef  = useRef();
 
   useEffect(() => { loadActions(); loadSettings(); }, [child?.id]);
@@ -291,17 +381,24 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
   }
 
   function animateTree() {
+    // Water drop
     dropY.setValue(0);
     dropOpacity.setValue(1);
     Animated.parallel([
       Animated.timing(dropY,       { toValue: 90, duration: 700, useNativeDriver: true }),
       Animated.timing(dropOpacity, { toValue: 0,  duration: 700, delay: 200, useNativeDriver: true }),
     ]).start();
+    // Sway
     Animated.sequence([
       Animated.timing(swayAnim, { toValue: 7,  duration: 130, useNativeDriver: true }),
       Animated.timing(swayAnim, { toValue: -5, duration: 130, useNativeDriver: true }),
       Animated.timing(swayAnim, { toValue: 3,  duration: 120, useNativeDriver: true }),
       Animated.timing(swayAnim, { toValue: 0,  duration: 120, useNativeDriver: true }),
+    ]).start();
+    // Growth bounce — tree pulses slightly bigger then settles
+    Animated.sequence([
+      Animated.timing(growthScale, { toValue: 1.09, duration: 160, useNativeDriver: true }),
+      Animated.spring(growthScale,  { toValue: 1,    friction: 5, tension: 60, useNativeDriver: true }),
     ]).start();
   }
 
@@ -379,16 +476,16 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
     finally { setSharing(false); }
   }
 
-  const total       = actions.length;
-  const prog        = computeProgress(total, settings.thresholds);
-  const stage       = getStageFromList(stages, prog.currentTreeDeeds);
-  const progress    = stage.next ? (prog.currentTreeDeeds - stage.min) / (stage.next - stage.min) : 1;
-  const toNext      = stage.next ? stage.next - prog.currentTreeDeeds : 0;
-  const nextStage   = stage.next ? stages[stage.index + 1] : null;
-  const nextReward  = nextStage ? settings.rewards?.[nextStage.key] : null;
-  const displayName = child?.name?.split(' ')[0] ?? 'Your Child';
+  const total        = actions.length;
+  const prog         = computeProgress(total, settings.thresholds);
+  const stage        = getStageFromList(stages, prog.currentTreeDeeds);
+  const progress     = stage.next ? (prog.currentTreeDeeds - stage.min) / (stage.next - stage.min) : 1;
+  const toNext       = stage.next ? stage.next - prog.currentTreeDeeds : 0;
+  const nextStage    = stage.next ? stages[stage.index + 1] : null;
+  const nextReward   = nextStage ? settings.rewards?.[nextStage.key] : null;
+  const displayName  = child?.name?.split(' ')[0] ?? 'Your Child';
   const childPronoun = pronoun(child?.gender);
-  const recentThree = actions.slice(0, 3);
+  const recentThree  = actions.slice(0, 3);
 
   return (
     <View style={[gs.card, style]}>
@@ -415,7 +512,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
 
       {/* Tree scene */}
       <View style={gs.sceneWrap}>
-        <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} />
+        <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} growthScale={growthScale} progress={progress} />
         <Animated.View style={[gs.waterDrop, { transform: [{ translateY: dropY }], opacity: dropOpacity }]}>
           <Text style={{ fontSize: 18 }}>💧</Text>
         </Animated.View>
@@ -425,7 +522,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         </View>
       </View>
 
-      {/* Progress to next stage */}
+      {/* Progress */}
       {stage.next ? (
         <View style={gs.progressWrap}>
           <View style={gs.progressTrack}>
@@ -443,7 +540,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         <Text style={gs.nextTreeHint}>🌱 Next deed starts Tree #{prog.treeNumber + 1}</Text>
       )}
 
-      {/* Achievements summary — only shown once trees have been completed */}
+      {/* Achievements summary */}
       {prog.completedTrees > 0 && (
         <View style={gs.achieveRow}>
           <View style={gs.achieveItem}>
@@ -488,7 +585,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         </View>
       )}
 
-      {/* Log button */}
       <TouchableOpacity style={gs.logBtn} onPress={() => setShowModal(true)} activeOpacity={0.85}>
         <Ionicons name="add-circle-outline" size={16} color="#1B3D2F" />
         <Text style={gs.logBtnText}>Log a good deed</Text>
@@ -554,44 +650,37 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
             <ScrollView contentContainerStyle={[gs.modalScroll, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
               <Text style={gs.settingsSectionTitle}>Deeds needed per stage</Text>
               <Text style={gs.settingsSectionSub}>How many good deeds to reach each growth stage.</Text>
-              {STAGE_KEYS.map((key, i) => {
-                const stageName = STAGE_META[i + 1].name;
-                return (
-                  <View key={key} style={gs.settingsRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={gs.settingsRowLabel}>{stageName}</Text>
-                      {i > 0 && <Text style={gs.settingsRowSub}>Must be more than {draftThresholds[STAGE_KEYS[i - 1]] || '—'}</Text>}
-                    </View>
-                    <TextInput
-                      style={gs.settingsNumInput}
-                      keyboardType="number-pad"
-                      value={String(draftThresholds[key] ?? '')}
-                      onChangeText={v => setDraftThresholds(prev => ({ ...prev, [key]: parseInt(v) || 0 }))}
-                      maxLength={4}
-                    />
-                    <Text style={gs.settingsUnit}>deeds</Text>
+              {STAGE_KEYS.map((key, i) => (
+                <View key={key} style={gs.settingsRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={gs.settingsRowLabel}>{STAGE_META[i + 1].name}</Text>
+                    {i > 0 && <Text style={gs.settingsRowSub}>Must be more than {draftThresholds[STAGE_KEYS[i - 1]] || '—'}</Text>}
                   </View>
-                );
-              })}
+                  <TextInput
+                    style={gs.settingsNumInput}
+                    keyboardType="number-pad"
+                    value={String(draftThresholds[key] ?? '')}
+                    onChangeText={v => setDraftThresholds(prev => ({ ...prev, [key]: parseInt(v) || 0 }))}
+                    maxLength={4}
+                  />
+                  <Text style={gs.settingsUnit}>deeds</Text>
+                </View>
+              ))}
               <Text style={[gs.settingsSectionTitle, { marginTop: 28 }]}>Milestone rewards</Text>
               <Text style={gs.settingsSectionSub}>What will you celebrate when your child reaches each stage?</Text>
-              {STAGE_KEYS.map((key, i) => {
-                const stageName = STAGE_META[i + 1].name;
-                return (
-                  <View key={key} style={gs.settingsRewardRow}>
-                    <Text style={gs.settingsRowLabel}>{stageName}</Text>
-                    <TextInput
-                      style={gs.settingsRewardInput}
-                      placeholder={`e.g. "Trip to the park"`}
-                      placeholderTextColor="#9CA3AF"
-                      value={draftRewards[key] ?? ''}
-                      onChangeText={v => setDraftRewards(prev => ({ ...prev, [key]: v }))}
-                      maxLength={80}
-                    />
-                  </View>
-                );
-              })}
-
+              {STAGE_KEYS.map((key, i) => (
+                <View key={key} style={gs.settingsRewardRow}>
+                  <Text style={gs.settingsRowLabel}>{STAGE_META[i + 1].name}</Text>
+                  <TextInput
+                    style={gs.settingsRewardInput}
+                    placeholder={`e.g. "Trip to the park"`}
+                    placeholderTextColor="#9CA3AF"
+                    value={draftRewards[key] ?? ''}
+                    onChangeText={v => setDraftRewards(prev => ({ ...prev, [key]: v }))}
+                    maxLength={80}
+                  />
+                </View>
+              ))}
               <Text style={[gs.settingsSectionTitle, { marginTop: 28 }]}>Orchard & Jannah rewards</Text>
               <Text style={gs.settingsSectionSub}>Special celebrations for bigger milestones.</Text>
               {[
@@ -697,26 +786,17 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         <LinearGradient colors={['#ECFDF5', '#D1FAE5', '#EFF6FF', '#DBEAFE']} style={{ flex: 1 }}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={cv.header}>
-              <TouchableOpacity
-                style={cv.closeBtn}
-                onPress={() => setShowChildView(false)}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
+              <TouchableOpacity style={cv.closeBtn} onPress={() => setShowChildView(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                 <Ionicons name="close" size={22} color="rgba(0,0,0,0.35)" />
               </TouchableOpacity>
               <View style={{ flex: 1 }} />
-              <TouchableOpacity
-                style={[cv.shareBtn, sharing && { opacity: 0.5 }]}
-                onPress={shareGarden}
-                disabled={sharing}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
+              <TouchableOpacity style={[cv.shareBtn, sharing && { opacity: 0.5 }]} onPress={shareGarden} disabled={sharing} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="share-outline" size={20} color="#2E7D62" />
                 <Text style={cv.shareBtnText}>{sharing ? 'Sharing…' : 'Share'}</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Hidden share card — captured by react-native-view-shot */}
+            {/* Hidden share card */}
             <View ref={shareCardRef} style={sc.card} collapsable={false}>
               <LinearGradient colors={['#ECFDF5', '#D1FAE5', '#EFF6FF', '#DBEAFE']} style={StyleSheet.absoluteFill} />
               <Text style={sc.eyebrow}>GOOD DEEDS GARDEN · TARBIYAH</Text>
@@ -724,7 +804,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
               <Text style={sc.stageName}>{stage.name}</Text>
               <View style={sc.treeWrap}>
                 <View style={{ transform: [{ scale: 1.7 }] }}>
-                  <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} />
+                  <TreeIllustration stageIndex={stage.index} swayAnim={staticScale} growthScale={staticScale} progress={progress} />
                 </View>
               </View>
               <Text style={sc.deedsNumber}>{total}</Text>
@@ -763,7 +843,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
 
               <View style={cv.treeWrap}>
                 <View style={{ transform: [{ scale: 1.65 }] }}>
-                  <TreeIllustration stageIndex={stage.index} swayAnim={childSwayAnim} />
+                  <TreeIllustration stageIndex={stage.index} swayAnim={childSwayAnim} growthScale={growthScale} progress={progress} />
                 </View>
               </View>
 
@@ -772,7 +852,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                 <Text style={cv.deedsLabel}>total good deeds 🌱</Text>
               </View>
 
-              {/* Next stage card */}
               {stage.next ? (
                 <View style={cv.nextCard}>
                   <Text style={cv.nextStageName}>🌿 Next stage is {nextStage?.name}</Text>
@@ -800,7 +879,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                 </View>
               )}
 
-              {/* Achievements — shown once at least 1 tree is complete */}
               {prog.completedTrees > 0 && (
                 <View style={cv.achieveCard}>
                   <Text style={cv.achieveTitle}>Achievements</Text>
@@ -889,7 +967,7 @@ const gs = StyleSheet.create({
   rewardText:        { fontSize: 11, color: '#D4A843', fontWeight: '600' },
   nextTreeHint:      { fontSize: 11, color: '#2E7D62', fontWeight: '600', textAlign: 'center', marginBottom: 14 },
 
-  achieveRow:        { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, marginBottom: 14, gap: 0 },
+  achieveRow:        { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, marginBottom: 14 },
   achieveItem:       { flex: 1, alignItems: 'center', gap: 2 },
   achieveDivider:    { width: 1, height: 32, backgroundColor: '#E5E7EB' },
   achieveEmoji:      { fontSize: 18 },
@@ -966,6 +1044,8 @@ const gs = StyleSheet.create({
 const cv = StyleSheet.create({
   header:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   closeBtn:        { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
+  shareBtn:        { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(46,125,98,0.1)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
+  shareBtnText:    { fontSize: 13, fontWeight: '700', color: '#2E7D62' },
   scroll:          { alignItems: 'center', paddingHorizontal: 24, paddingTop: 8, paddingBottom: 48 },
   childName:       { fontSize: 40, fontWeight: '900', color: '#1A1A2E', textAlign: 'center', marginTop: 24, marginBottom: 4 },
   stageName:       { fontSize: 16, fontWeight: '700', color: '#2E7D62', marginBottom: 28 },
@@ -1001,11 +1081,9 @@ const cv = StyleSheet.create({
   recentEmoji:     { fontSize: 22, width: 30, textAlign: 'center' },
   recentLabel:     { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
   motivation:      { fontSize: 15, fontWeight: '600', color: '#2E7D62', textAlign: 'center', opacity: 0.8 },
-  shareBtn:        { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(46,125,98,0.1)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
-  shareBtnText:    { fontSize: 13, fontWeight: '700', color: '#2E7D62' },
 });
 
-// ── Share card styles (fixed 360×580 for image capture) ───────────────────────
+// ── Share card styles ─────────────────────────────────────────────────────────
 
 const sc = StyleSheet.create({
   card:          { width: 360, height: 580, padding: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'absolute', top: -9999, left: 0 },
