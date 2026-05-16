@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 import { supabase } from '../utils/supabase';
 import { getFamilyId } from '../utils/familyGoals';
 import { notifyPartner } from '../utils/partnerNotify';
@@ -203,11 +205,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
   const [draftRewards,    setDraftRewards]    = useState({});
   const [celebEvent,      setCelebEvent]      = useState(null);
   const [showChildView,   setShowChildView]   = useState(false);
+  const [sharing,         setSharing]         = useState(false);
 
   const swayAnim      = useRef(new Animated.Value(0)).current;
   const dropY         = useRef(new Animated.Value(0)).current;
   const dropOpacity   = useRef(new Animated.Value(0)).current;
   const childSwayAnim = useRef(new Animated.Value(0)).current;
+  const shareCardRef  = useRef();
 
   useEffect(() => { loadActions(); loadSettings(); }, [child?.id]);
 
@@ -364,6 +368,15 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
       }
     } catch { Alert.alert('Error', 'Something went wrong.'); }
     finally { setSaving(false); }
+  }
+
+  async function shareGarden() {
+    try {
+      setSharing(true);
+      const uri = await captureRef(shareCardRef, { format: 'png', quality: 1 });
+      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: `${displayName}'s Good Deeds Garden` });
+    } catch { Alert.alert('Could not share', 'Please try again.'); }
+    finally { setSharing(false); }
   }
 
   const total       = actions.length;
@@ -691,6 +704,58 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
               >
                 <Ionicons name="close" size={22} color="rgba(0,0,0,0.35)" />
               </TouchableOpacity>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity
+                style={[cv.shareBtn, sharing && { opacity: 0.5 }]}
+                onPress={shareGarden}
+                disabled={sharing}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="share-outline" size={20} color="#2E7D62" />
+                <Text style={cv.shareBtnText}>{sharing ? 'Sharing…' : 'Share'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Hidden share card — captured by react-native-view-shot */}
+            <View ref={shareCardRef} style={sc.card} collapsable={false}>
+              <LinearGradient colors={['#ECFDF5', '#D1FAE5', '#EFF6FF', '#DBEAFE']} style={StyleSheet.absoluteFill} />
+              <Text style={sc.eyebrow}>GOOD DEEDS GARDEN · TARBIYAH</Text>
+              <Text style={sc.name}>{displayName}</Text>
+              <Text style={sc.stageName}>{stage.name}</Text>
+              <View style={sc.treeWrap}>
+                <View style={{ transform: [{ scale: 1.7 }] }}>
+                  <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} />
+                </View>
+              </View>
+              <Text style={sc.deedsNumber}>{total}</Text>
+              <Text style={sc.deedsLabel}>good deeds planted 🌱</Text>
+              {stage.next && (
+                <View style={sc.progressWrap}>
+                  <View style={sc.progressTrack}>
+                    <View style={[sc.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+                  </View>
+                  <Text style={sc.progressLabel}>{toNext} more deed{toNext !== 1 ? 's' : ''} to {nextStage?.name}</Text>
+                </View>
+              )}
+              {!!nextReward && (
+                <View style={sc.rewardCard}>
+                  <Text style={sc.rewardEmoji}>🎁</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={sc.rewardPre}>Next reward</Text>
+                    <Text style={sc.rewardText}>{nextReward}</Text>
+                  </View>
+                </View>
+              )}
+              {prog.completedTrees > 0 && (
+                <View style={sc.achieveRow}>
+                  <Text style={sc.achieveItem}>🌳 {prog.completedTrees} tree{prog.completedTrees !== 1 ? 's' : ''}</Text>
+                  <Text style={sc.achieveSep}>·</Text>
+                  <Text style={sc.achieveItem}>🌿 {prog.completedOrchards} orchard{prog.completedOrchards !== 1 ? 's' : ''}</Text>
+                  <Text style={sc.achieveSep}>·</Text>
+                  <Text style={sc.achieveItem}>🌴 {prog.jannahGardensCompleted} jannah</Text>
+                </View>
+              )}
+              <Text style={sc.brand}>tarbiyah.app</Text>
             </View>
 
             <ScrollView contentContainerStyle={cv.scroll} showsVerticalScrollIndicator={false}>
@@ -937,4 +1002,30 @@ const cv = StyleSheet.create({
   recentEmoji:     { fontSize: 22, width: 30, textAlign: 'center' },
   recentLabel:     { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
   motivation:      { fontSize: 15, fontWeight: '600', color: '#2E7D62', textAlign: 'center', opacity: 0.8 },
+  shareBtn:        { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(46,125,98,0.1)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
+  shareBtnText:    { fontSize: 13, fontWeight: '700', color: '#2E7D62' },
+});
+
+// ── Share card styles (fixed 360×580 for image capture) ───────────────────────
+
+const sc = StyleSheet.create({
+  card:          { width: 360, height: 580, padding: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'absolute', top: -9999, left: 0 },
+  eyebrow:       { fontSize: 9, fontWeight: '800', color: '#2E7D62', letterSpacing: 1.5, marginBottom: 12, textTransform: 'uppercase' },
+  name:          { fontSize: 38, fontWeight: '900', color: '#1A1A2E', textAlign: 'center', marginBottom: 4 },
+  stageName:     { fontSize: 14, fontWeight: '700', color: '#2E7D62', marginBottom: 20 },
+  treeWrap:      { height: 200, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  deedsNumber:   { fontSize: 52, fontWeight: '900', color: '#1B3D2F', lineHeight: 56 },
+  deedsLabel:    { fontSize: 13, color: '#6B7280', fontWeight: '500', marginBottom: 16 },
+  progressWrap:  { width: '100%', marginBottom: 16 },
+  progressTrack: { height: 8, backgroundColor: 'rgba(46,125,98,0.15)', borderRadius: 100, overflow: 'hidden', marginBottom: 6 },
+  progressFill:  { height: 8, backgroundColor: '#2E7D62', borderRadius: 100 },
+  progressLabel: { fontSize: 11, color: '#6B7280', textAlign: 'center' },
+  rewardCard:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FEF9EE', borderRadius: 14, padding: 14, width: '100%', marginBottom: 16, borderWidth: 1.5, borderColor: '#F5D97A' },
+  rewardEmoji:   { fontSize: 24 },
+  rewardPre:     { fontSize: 9, fontWeight: '700', color: '#B99A3A', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 },
+  rewardText:    { fontSize: 14, fontWeight: '800', color: '#7C5900' },
+  achieveRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
+  achieveItem:   { fontSize: 12, fontWeight: '600', color: '#374151' },
+  achieveSep:    { fontSize: 12, color: '#D1D5DB' },
+  brand:         { fontSize: 11, fontWeight: '600', color: '#9CA3AF', position: 'absolute', bottom: 20 },
 });
