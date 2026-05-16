@@ -712,8 +712,8 @@ const wins     = child?.wins      ?? [];
           {children.length > 0 && (
             <View style={{ marginTop: 20 }}>
               <View style={styles.familyMomentsHeader}>
-                <Text style={styles.familyMomentsEyebrow}>MANNERS GARDEN</Text>
-                <Text style={styles.familyMomentsTitle}>Family Trees</Text>
+                <Text style={styles.familyMomentsEyebrow}>GOOD DEEDS GARDEN</Text>
+                <Text style={styles.familyMomentsTitle}>Good Deeds Garden</Text>
                 <Text style={styles.familyMomentsSub}>Good deeds planted by your children</Text>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
@@ -1319,7 +1319,7 @@ const wins     = child?.wins      ?? [];
         <View style={{ height: 16 }} />
         <ChildWorldCard child={child} />
 
-        {/* ── Manners Garden ── */}
+        {/* ── Good Deeds Garden ── */}
         <View style={{ height: 16 }} />
         <MannerGarden
           child={child}

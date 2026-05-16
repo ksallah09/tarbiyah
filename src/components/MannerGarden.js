@@ -258,7 +258,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
           <Text style={{ fontSize: 20 }}>🌱</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={gs.eyebrow}>MANNERS GARDEN</Text>
+          <Text style={gs.eyebrow}>GOOD DEEDS GARDEN</Text>
           <Text style={gs.title}>{displayName}'s Tree</Text>
         </View>
         <View style={gs.stagePill}>
