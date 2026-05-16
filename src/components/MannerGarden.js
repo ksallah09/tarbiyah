@@ -12,7 +12,7 @@ import { notifyPartner } from '../utils/partnerNotify';
 // ── Manners ──────────────────────────────────────────────────────────────────
 
 const MANNERS = [
-  { key: 'truthfulness',       label: 'Truthfulness',          emoji: '🤍' },
+  { key: 'truthfulness',       label: 'Truthfulness',          emoji: '❤️' },
   { key: 'respecting_parents', label: 'Respecting Parents',    emoji: '💚' },
   { key: 'kind_words',         label: 'Kind Words',            emoji: '💬' },
   { key: 'helping_siblings',   label: 'Helping Siblings',      emoji: '🤝' },
