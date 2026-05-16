@@ -41,9 +41,9 @@ export async function mergeDuplicateChildren(keepChild, removeChild) {
         // Both in local profile — just drop the duplicate
         updated = profiles.filter(p => p.id !== removeId);
       } else {
-        // Only the duplicate is local — remap it to the canonical id so deeds still log correctly
+        // Only the duplicate is local — remap to canonical id but keep the parent's own display name
         updated = profiles.map(p =>
-          p.id === removeId ? { ...p, id: keepId, name: keepName } : p
+          p.id === removeId ? { ...p, id: keepId } : p
         );
       }
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
