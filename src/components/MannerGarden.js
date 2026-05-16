@@ -82,9 +82,9 @@ function TreeIllustration({ stageIndex, swayAnim }) {
         {stageIndex === 1 && (
           // Sprout
           <View style={tree.sproutWrap}>
+            <View style={tree.sproutStem} />
             <View style={tree.sproutLeftLeaf} />
             <View style={tree.sproutRightLeaf} />
-            <View style={tree.sproutStem} />
           </View>
         )}
 
@@ -135,10 +135,10 @@ const tree = StyleSheet.create({
   seedCrack:   { width: 2, height: 8, backgroundColor: '#4ADE80', borderRadius: 1, marginTop: -4 },
 
   // Sprout
-  sproutWrap:       { alignItems: 'center' },
+  sproutWrap:       { alignItems: 'center', width: 60 },
   sproutStem:       { width: 4, height: 38, backgroundColor: '#4ADE80', borderRadius: 2 },
-  sproutLeftLeaf:   { position: 'absolute', bottom: 18, left: '50%', marginLeft: -22, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '-30deg' }] },
-  sproutRightLeaf:  { position: 'absolute', bottom: 18, left: '50%', marginLeft: 2, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '30deg' }] },
+  sproutLeftLeaf:   { position: 'absolute', bottom: 16, left: 6, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '-35deg' }] },
+  sproutRightLeaf:  { position: 'absolute', bottom: 16, right: 6, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '35deg' }] },
 
   // Sapling / Tree
   treeContainer: { alignItems: 'center' },
