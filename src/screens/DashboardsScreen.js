@@ -174,6 +174,8 @@ export default function DashboardsScreen({ navigation, route }) {
   const [familyMoments,     setFamilyMoments]      = useState([]);
   const [sharedItems,       setSharedItems]        = useState(new Set());
   const [partnerLinked,     setPartnerLinked]      = useState(false);
+  const [expandedShared,    setExpandedShared]     = useState(new Set());
+  const [sharedPage,        setSharedPage]         = useState(0);
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef(null);
 
@@ -704,13 +706,14 @@ const wins     = child?.wins      ?? [];
             })}
           </View>
 
-          {/* Partner shared habits/activities */}
+          {/* Partner shared habits/activities — swipe cards */}
           {(() => {
             if (!partnerLinked) return null;
             const sharedByPartner = familyMoments.filter(m =>
-              (m.type === 'shared_habit' || m.type === 'shared_activity')
+              m.type === 'shared_habit' || m.type === 'shared_activity'
             );
             if (!sharedByPartner.length) return null;
+            const CARD_W = SCREEN_WIDTH - 40;
             return (
               <View style={{ marginTop: 20 }}>
                 <View style={styles.familyMomentsHeader}>
@@ -718,35 +721,69 @@ const wins     = child?.wins      ?? [];
                   <Text style={styles.familyMomentsTitle}>Habits & Activities</Text>
                   <Text style={styles.familyMomentsSub}>Shared from a child's dashboard</Text>
                 </View>
-                <View style={styles.familyGoalCard}>
-                  {sharedByPartner.map((entry, idx) => (
-                    <View key={entry.id}>
-                      {idx > 0 && <View style={styles.familyGoalDivider} />}
-                      <View style={styles.familyMomentRow}>
-                        <View style={[styles.familyMomentIconWrap, { backgroundColor: entry.type === 'shared_habit' ? '#EDF7F2' : '#FEF9EE' }]}>
-                          <Text style={{ fontSize: 16 }}>{entry.type === 'shared_habit' ? '🔄' : '🎯'}</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <View style={styles.familyMomentTopRow}>
-                            <View style={[styles.familyMomentChildBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22' }]}>
-                              <Text style={[styles.familyMomentChildName, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
-                            </View>
-                            <Text style={styles.familySharedTypeLabel}>
-                              {entry.type === 'shared_habit' ? 'Habit' : 'Activity'}
-                            </Text>
-                            <Text style={styles.familyMomentDate}>
-                              {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </Text>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  decelerationRate="fast"
+                  style={{ marginHorizontal: -20 }}
+                  contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+                  onMomentumScrollEnd={e => setSharedPage(Math.round(e.nativeEvent.contentOffset.x / (CARD_W + 12)))}
+                >
+                  {sharedByPartner.map(entry => {
+                    const isExpanded = expandedShared.has(entry.id);
+                    const isLong = entry.text?.length > 120;
+                    const isHabit = entry.type === 'shared_habit';
+                    return (
+                      <View key={entry.id} style={[styles.sharedSwipeCard, { width: CARD_W }]}>
+                        <View style={styles.familyMomentTopRow}>
+                          <View style={[styles.familyMomentIconWrap, { backgroundColor: isHabit ? '#EDF7F2' : '#FEF9EE', width: 28, height: 28, borderRadius: 8 }]}>
+                            <Text style={{ fontSize: 13 }}>{isHabit ? '🔄' : '🎯'}</Text>
                           </View>
-                          <Text style={styles.familyMomentText}>{entry.text}</Text>
-                          <Text style={styles.familyMomentSharedBy}>
-                            Shared by {entry.shared_by_name ?? 'Partner'}
+                          <View style={[styles.familyMomentChildBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22', marginLeft: 6 }]}>
+                            <Text style={[styles.familyMomentChildName, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
+                          </View>
+                          <Text style={styles.familySharedTypeLabel}>{isHabit ? 'Habit' : 'Activity'}</Text>
+                          <Text style={styles.familyMomentDate}>
+                            {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </Text>
                         </View>
+                        <Text
+                          style={[styles.sharedSwipeCardText, { marginTop: 10 }]}
+                          numberOfLines={isExpanded ? undefined : 3}
+                        >
+                          {entry.text}
+                        </Text>
+                        {isLong && (
+                          <TouchableOpacity
+                            onPress={() => setExpandedShared(prev => {
+                              const next = new Set(prev);
+                              isExpanded ? next.delete(entry.id) : next.add(entry.id);
+                              return next;
+                            })}
+                            activeOpacity={0.7}
+                            style={{ marginTop: 6 }}
+                          >
+                            <Text style={styles.sharedReadMore}>{isExpanded ? 'Show less' : 'Read more'}</Text>
+                          </TouchableOpacity>
+                        )}
+                        <Text style={[styles.familyMomentSharedBy, { marginTop: 8 }]}>
+                          Shared by {entry.shared_by_name ?? 'Partner'}
+                        </Text>
                       </View>
+                    );
+                  })}
+                </ScrollView>
+                {sharedByPartner.length > 1 && (
+                  <View style={styles.activityDotsWrap}>
+                    <View style={styles.activityDots}>
+                      {sharedByPartner.map((_, i) => (
+                        <View key={i} style={[styles.activityDot, i === sharedPage && { ...styles.activityDotActive, backgroundColor: '#2E7D62' }]} />
+                      ))}
                     </View>
-                  ))}
-                </View>
+                    <Text style={styles.swipeHint}>swipe for more</Text>
+                  </View>
+                )}
               </View>
             );
           })()}
@@ -1422,7 +1459,10 @@ const styles = StyleSheet.create({
   familyMomentText:      { fontSize: 13, color: '#374151', lineHeight: 19, marginBottom: 8 },
   familyMomentReactionRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   familyMomentReactionLabel:  { fontSize: 12, color: '#6B7280', fontWeight: '500' },
-  familyMomentSharedBy:    { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
+  familyMomentSharedBy:    { fontSize: 11, color: '#9CA3AF' },
+  sharedSwipeCard:         { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
+  sharedSwipeCardText:     { fontSize: 13, color: '#374151', lineHeight: 20 },
+  sharedReadMore:          { fontSize: 12, fontWeight: '600', color: '#2E7D62' },
   familySharedTypeLabel:   { fontSize: 11, fontWeight: '600', color: '#9CA3AF', flex: 1, paddingLeft: 6 },
   familyMomentAckNamePill:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
   shareBtn:     { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 8, marginLeft: 2, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 100, borderWidth: 1, borderColor: '#D1FAE5', backgroundColor: '#F0FDF4' },
