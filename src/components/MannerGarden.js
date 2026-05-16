@@ -755,7 +755,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                   <Text style={sc.achieveItem}>🌴 {prog.jannahGardensCompleted} jannah</Text>
                 </View>
               )}
-              <Text style={sc.brand}>tarbiyah.app</Text>
             </View>
 
             <ScrollView contentContainerStyle={cv.scroll} showsVerticalScrollIndicator={false}>
@@ -1013,7 +1012,7 @@ const sc = StyleSheet.create({
   eyebrow:       { fontSize: 9, fontWeight: '800', color: '#2E7D62', letterSpacing: 1.5, marginBottom: 12, textTransform: 'uppercase' },
   name:          { fontSize: 38, fontWeight: '900', color: '#1A1A2E', textAlign: 'center', marginBottom: 4 },
   stageName:     { fontSize: 14, fontWeight: '700', color: '#2E7D62', marginBottom: 20 },
-  treeWrap:      { height: 200, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  treeWrap:      { height: 200, alignItems: 'center', justifyContent: 'center', marginBottom: 64 },
   deedsNumber:   { fontSize: 52, fontWeight: '900', color: '#1B3D2F', lineHeight: 56 },
   deedsLabel:    { fontSize: 13, color: '#6B7280', fontWeight: '500', marginBottom: 16 },
   progressWrap:  { width: '100%', marginBottom: 16 },
@@ -1027,5 +1026,4 @@ const sc = StyleSheet.create({
   achieveRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
   achieveItem:   { fontSize: 12, fontWeight: '600', color: '#374151' },
   achieveSep:    { fontSize: 12, color: '#D1D5DB' },
-  brand:         { fontSize: 11, fontWeight: '600', color: '#9CA3AF', position: 'absolute', bottom: 20 },
 });
