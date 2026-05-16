@@ -727,8 +727,6 @@ const wins     = child?.wins      ?? [];
                   pagingEnabled
                   showsHorizontalScrollIndicator={false}
                   decelerationRate="fast"
-                  style={{ marginHorizontal: -20 }}
-                  contentContainerStyle={{ paddingHorizontal: 20 }}
                   onMomentumScrollEnd={e => setSharedPage(Math.round(e.nativeEvent.contentOffset.x / CARD_W))}
                 >
                   {sharedByPartner.map(entry => {
