@@ -2,6 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import { getFamilyId } from './familyGoals';
 
+const CHILD_PROFILES_KEY = 'tarbiyah_child_profiles';
+
+async function getLocalChildren() {
+  try {
+    const raw = await AsyncStorage.getItem(CHILD_PROFILES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
 const FAMILY_ID_KEY = 'tarbiyah_family_id';
 const PARTNER_CACHE_KEY = 'tarbiyah_partner_cache';
 
@@ -174,13 +183,15 @@ export async function generateInviteCode() {
   let code;
   for (let attempt = 0; attempt < 5; attempt++) {
     code = generateCode();
+    const creatorChildren = await getLocalChildren();
     const { error } = await supabase.from('family_invites').insert({
-      family_id:    familyId,
-      invite_code:  code,
-      created_by:   userId,
-      creator_name: displayName,
-      expires_at:   expiresAt,
-      cancelled:    false,
+      family_id:        familyId,
+      invite_code:      code,
+      created_by:       userId,
+      creator_name:     displayName,
+      creator_children: creatorChildren,
+      expires_at:       expiresAt,
+      cancelled:        false,
     });
     if (!error) break;
     // Retry only on unique constraint violation
@@ -228,13 +239,12 @@ export async function joinFamilyWithCode(code) {
     .update({ used_by: userId, used_at: new Date().toISOString(), joiner_name: displayName })
     .eq('id', invite.id);
 
-  // Migrate goals from old family_id to the shared one
+  // Migrate all family-scoped data from old family_id to the shared one
   const oldFamilyId = await getFamilyId();
   if (oldFamilyId !== invite.family_id) {
-    await supabase
-      .from('family_goals')
-      .update({ family_id: invite.family_id })
-      .eq('family_id', oldFamilyId);
+    await supabase.from('family_goals').update({ family_id: invite.family_id }).eq('family_id', oldFamilyId);
+    await supabase.from('child_garden_actions').update({ family_id: invite.family_id }).eq('family_id', oldFamilyId);
+    await supabase.from('child_garden_settings').update({ family_id: invite.family_id }).eq('family_id', oldFamilyId);
   }
 
   // Join the family
@@ -259,8 +269,9 @@ export async function joinFamilyWithCode(code) {
 
   return {
     success: true,
-    familyId: invite.family_id,
+    familyId:      invite.family_id,
     ownerName,
+    ownerChildren: invite.creator_children ?? [],
     syncResult,
   };
 }

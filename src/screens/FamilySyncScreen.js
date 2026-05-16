@@ -13,6 +13,8 @@ import {
   leaveFamily,
   getCachedSyncStatus,
 } from '../utils/familySync';
+import { getAllChildProfiles } from '../utils/childProfiles';
+import ChildMergeModal from '../components/ChildMergeModal';
 
 export default function FamilySyncScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -31,6 +33,13 @@ export default function FamilySyncScreen({ navigation }) {
   const [codeInput, setCodeInput]   = useState('');
   const [joining, setJoining]       = useState(false);
   const [joinError, setJoinError]   = useState('');
+
+  // Child merge
+  const [mergeVisible,      setMergeVisible]      = useState(false);
+  const [mergeLocalChildren, setMergeLocalChildren] = useState([]);
+  const [mergePartnerChildren, setMergePartnerChildren] = useState([]);
+  const [mergePartnerName,   setMergePartnerName]   = useState('');
+  const [mergeFamilyId,      setMergeFamilyId]      = useState('');
 
   useEffect(() => {
     getFamilySyncStatus().then(status => {
@@ -69,10 +78,19 @@ export default function FamilySyncScreen({ navigation }) {
       setLinked(true);
       setPartner(result.syncResult?.partner ?? { name: result.ownerName });
       setJoinMode(false);
-      // Background refresh to pick up partner name from profiles if not yet set
       getFamilySyncStatus().then(status => {
         if (status.linked && status.partner?.name) setPartner(status.partner);
       });
+      // Show child merge screen if both sides have children
+      const localChildren  = await getAllChildProfiles();
+      const ownerChildren  = result.ownerChildren ?? [];
+      if (localChildren.length > 0 && ownerChildren.length > 0) {
+        setMergeLocalChildren(localChildren);
+        setMergePartnerChildren(ownerChildren);
+        setMergePartnerName(result.ownerName ?? 'Your partner');
+        setMergeFamilyId(result.familyId);
+        setMergeVisible(true);
+      }
     } else {
       setJoinError(result.error);
     }
@@ -109,6 +127,15 @@ export default function FamilySyncScreen({ navigation }) {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safe} edges={[]}>
+
+        <ChildMergeModal
+          visible={mergeVisible}
+          localChildren={mergeLocalChildren}
+          partnerChildren={mergePartnerChildren}
+          partnerName={mergePartnerName}
+          sharedFamilyId={mergeFamilyId}
+          onDone={() => setMergeVisible(false)}
+        />
 
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
