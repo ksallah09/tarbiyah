@@ -3104,6 +3104,42 @@ app.post('/family/notify-partner', requireAuth, async (req: AuthRequest, res: Re
   }
 });
 
+// POST /family/merge-child — migrate all garden data from duplicate child to canonical
+// Uses service role to bypass RLS so cross-user rows are updated
+app.post('/family/merge-child', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { keepChildId, keepChildName, removeChildId } = req.body;
+    if (!keepChildId || !removeChildId) return res.status(400).json({ error: 'Missing child ids' });
+
+    // Migrate all garden actions
+    await supabase
+      .from('child_garden_actions')
+      .update({ child_id: keepChildId, child_name: keepChildName })
+      .eq('child_id', removeChildId);
+
+    // Handle settings: keep canonical's if they exist, promote duplicate's if not
+    const { data: keepSettings } = await supabase
+      .from('child_garden_settings')
+      .select('child_id')
+      .eq('child_id', keepChildId)
+      .maybeSingle();
+
+    if (keepSettings) {
+      await supabase.from('child_garden_settings').delete().eq('child_id', removeChildId);
+    } else {
+      await supabase.from('child_garden_settings').update({ child_id: keepChildId }).eq('child_id', removeChildId);
+    }
+
+    // Remove duplicate from shared family registry
+    await supabase.from('family_children').delete().eq('child_id', removeChildId);
+
+    return res.json({ success: true });
+  } catch (err: any) {
+    console.error('POST /family/merge-child error:', err);
+    return res.status(500).json({ error: err?.message });
+  }
+});
+
 // DELETE /community/requests/replies/:replyId
 app.delete('/community/requests/replies/:replyId', requireAuth, async (req: AuthRequest, res: Response) => {
   try {

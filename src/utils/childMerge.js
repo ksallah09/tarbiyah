@@ -2,57 +2,58 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 
 const STORAGE_KEY = 'tarbiyah_child_profiles';
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
 
 /**
  * Merges a duplicate child into a canonical one post-linking.
- * keepChild and removeChild both have the shared family_id already.
- * Both use { child_id, child_name } shape (from family_children table).
+ * keepChild and removeChild both use { child_id, child_name } shape (family_children table).
+ *
+ * Deed/settings migration goes through the backend (service role) so cross-user
+ * rows are updated regardless of RLS restrictions on the client.
  */
 export async function mergeDuplicateChildren(keepChild, removeChild) {
   const keepId   = keepChild.child_id;
   const removeId = removeChild.child_id;
   const keepName = keepChild.child_name;
 
-  // Move all garden actions from the duplicate to the kept child
-  await supabase
-    .from('child_garden_actions')
-    .update({ child_id: keepId, child_name: keepName })
-    .eq('child_id', removeId);
+  // Delegate all Supabase writes to backend (bypasses RLS for cross-user rows)
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error('Not signed in');
 
-  // Settings: keep canonical's if they exist, otherwise promote duplicate's
-  const { data: keepSettings } = await supabase
-    .from('child_garden_settings')
-    .select('child_id')
-    .eq('child_id', keepId)
-    .maybeSingle();
+  const resp = await fetch(`${API_URL}/family/merge-child`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ keepChildId: keepId, keepChildName: keepName, removeChildId: removeId }),
+  });
+  if (!resp.ok) throw new Error('Backend merge failed');
 
-  if (keepSettings) {
-    await supabase.from('child_garden_settings').delete().eq('child_id', removeId);
-  } else {
-    await supabase.from('child_garden_settings').update({ child_id: keepId }).eq('child_id', removeId);
-  }
-
-  // Remove duplicate from family_children registry
-  await supabase.from('family_children').delete().eq('child_id', removeId);
-
-  // Update local child profiles if the duplicate lives there
+  // Fix local child profiles: replace the duplicate's child_id with the canonical one
+  // so future deeds are logged against the right child
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     const profiles = raw ? JSON.parse(raw) : [];
     const hasRemove = profiles.some(p => p.id === removeId);
     if (hasRemove) {
-      const updated = profiles
-        .filter(p => p.id !== removeId)
-        .map(p => p.id === keepId ? { ...p, id: keepId } : p);
+      const hasKeep = profiles.some(p => p.id === keepId);
+      let updated;
+      if (hasKeep) {
+        // Both in local profile — just drop the duplicate
+        updated = profiles.filter(p => p.id !== removeId);
+      } else {
+        // Only the duplicate is local — remap it to the canonical id so deeds still log correctly
+        updated = profiles.map(p =>
+          p.id === removeId ? { ...p, id: keepId, name: keepName } : p
+        );
+      }
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
       if (userId) {
         await supabase.from('profiles').update({ children_profiles: updated }).eq('user_id', userId);
       }
     }
   } catch (e) {
-    console.warn('[childMerge] mergeDuplicateChildren local update failed:', e.message);
+    console.warn('[childMerge] local profile update failed:', e.message);
   }
 }
 
