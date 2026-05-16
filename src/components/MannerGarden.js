@@ -9,6 +9,20 @@ import { supabase } from '../utils/supabase';
 import { getFamilyId } from '../utils/familyGoals';
 import { notifyPartner } from '../utils/partnerNotify';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function pronoun(gender) {
+  if (gender === 'female') return 'her';
+  if (gender === 'male')   return 'his';
+  return 'their';
+}
+
 // ── Manners ──────────────────────────────────────────────────────────────────
 
 const MANNERS = [
@@ -65,20 +79,18 @@ function getStageFromList(stages, total) {
 
 function computeProgress(total, thresholds) {
   const fruit = thresholds?.fruit ?? DEFAULT_THRESHOLDS.fruit;
-  const currentTreeDeeds         = total % fruit;
-  const completedTrees           = Math.floor(total / fruit);
-  const completedOrchards        = Math.floor(completedTrees / 3);
-  const paradiseGardensCompleted = Math.floor(completedOrchards / 3);
+  const currentTreeDeeds       = total % fruit;
+  const completedTrees         = Math.floor(total / fruit);
+  const completedOrchards      = Math.floor(completedTrees / 3);
+  const jannahGardensCompleted = Math.floor(completedOrchards / 3);
   return {
     currentTreeDeeds,
     completedTrees,
     completedOrchards,
-    paradiseGardensCompleted,
-    treesInCurrentOrchard:     completedTrees % 3,
-    orchardsInCurrentParadise: completedOrchards % 3,
-    treeNumber:     completedTrees + 1,
-    orchardNumber:  completedOrchards + 1,
-    paradiseNumber: paradiseGardensCompleted + 1,
+    jannahGardensCompleted,
+    treeNumber:   completedTrees + 1,
+    orchardNumber: completedOrchards + 1,
+    jannahNumber:  jannahGardensCompleted + 1,
   };
 }
 
@@ -277,8 +289,8 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
     dropY.setValue(0);
     dropOpacity.setValue(1);
     Animated.parallel([
-      Animated.timing(dropY,         { toValue: 90, duration: 700, useNativeDriver: true }),
-      Animated.timing(dropOpacity,   { toValue: 0,  duration: 700, delay: 200, useNativeDriver: true }),
+      Animated.timing(dropY,       { toValue: 90, duration: 700, useNativeDriver: true }),
+      Animated.timing(dropOpacity, { toValue: 0,  duration: 700, delay: 200, useNativeDriver: true }),
     ]).start();
     Animated.sequence([
       Animated.timing(swayAnim, { toValue: 7,  duration: 130, useNativeDriver: true }),
@@ -315,23 +327,24 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
       setSelectedManner(null);
       setNote('');
 
-      const newTotal            = oldTotal + 1;
-      const oldCompletedTrees   = Math.floor(oldTotal / fruitThreshold);
-      const newCompletedTrees   = Math.floor(newTotal / fruitThreshold);
+      const newTotal          = oldTotal + 1;
+      const oldCompletedTrees = Math.floor(oldTotal / fruitThreshold);
+      const newCompletedTrees = Math.floor(newTotal / fruitThreshold);
 
       if (newCompletedTrees > oldCompletedTrees) {
-        const oldCompletedOrchards = Math.floor(oldCompletedTrees / 3);
-        const newCompletedOrchards = Math.floor(newCompletedTrees / 3);
-        if (newCompletedOrchards > oldCompletedOrchards) {
-          const oldParadise = Math.floor(oldCompletedOrchards / 3);
-          const newParadise = Math.floor(newCompletedOrchards / 3);
-          if (newParadise > oldParadise) {
-            setCelebEvent({ type: 'paradise', number: newParadise });
+        const oldOrchards = Math.floor(oldCompletedTrees / 3);
+        const newOrchards = Math.floor(newCompletedTrees / 3);
+        if (newOrchards > oldOrchards) {
+          const oldJannah = Math.floor(oldOrchards / 3);
+          const newJannah = Math.floor(newOrchards / 3);
+          if (newJannah > oldJannah) {
+            setCelebEvent({ type: 'jannah', number: newJannah, orchards: newOrchards });
           } else {
-            setCelebEvent({ type: 'orchard', number: newCompletedOrchards });
+            setCelebEvent({ type: 'orchard', number: newOrchards, trees: newCompletedTrees });
           }
         } else {
-          setCelebEvent({ type: 'tree', number: newCompletedTrees });
+          const treesLeftInOrchard = 3 - (newCompletedTrees % 3);
+          setCelebEvent({ type: 'tree', number: newCompletedTrees, treesLeft: treesLeftInOrchard });
         }
       } else {
         const oldStage = getStageFromList(stages, oldTotal % fruitThreshold);
@@ -360,11 +373,8 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
   const nextStage   = stage.next ? stages[stage.index + 1] : null;
   const nextReward  = nextStage ? settings.rewards?.[nextStage.key] : null;
   const displayName = child?.name?.split(' ')[0] ?? 'Your Child';
+  const childPronoun = pronoun(child?.gender);
   const recentThree = actions.slice(0, 3);
-
-  // For celebration orchard note
-  const treesLeftInOrchard = 3 - (prog.treesInCurrentOrchard);
-  const orchardsLeftInParadise = 3 - prog.orchardsInCurrentParadise;
 
   return (
     <View style={[gs.card, style]}>
@@ -401,30 +411,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         </View>
       </View>
 
-      {/* Orchard progress row */}
-      <View style={gs.orchardRow}>
-        <View style={gs.treeDots}>
-          {[0, 1, 2].map(i => {
-            const done   = i < prog.treesInCurrentOrchard;
-            const active = i === prog.treesInCurrentOrchard;
-            return (
-              <Text key={i} style={{ fontSize: 14, opacity: done ? 1 : active ? 0.6 : 0.2 }}>
-                {done ? '🌳' : active ? '🌱' : '○'}
-              </Text>
-            );
-          })}
-        </View>
-        <Text style={gs.orchardLabel}>
-          {`Tree ${prog.treesInCurrentOrchard + 1}/3`}
-          {prog.completedOrchards > 0 ? ` · Orchard ${prog.orchardsInCurrentParadise + 1}/3` : ''}
-        </Text>
-        {prog.paradiseGardensCompleted > 0 && (
-          <View style={gs.paradiseBadge}>
-            <Text style={gs.paradiseText}>🌴 ×{prog.paradiseGardensCompleted}</Text>
-          </View>
-        )}
-      </View>
-
       {/* Progress to next stage */}
       {stage.next ? (
         <View style={gs.progressWrap}>
@@ -441,6 +427,29 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         </View>
       ) : (
         <Text style={gs.nextTreeHint}>🌱 Next deed starts Tree #{prog.treeNumber + 1}</Text>
+      )}
+
+      {/* Achievements summary — only shown once trees have been completed */}
+      {prog.completedTrees > 0 && (
+        <View style={gs.achieveRow}>
+          <View style={gs.achieveItem}>
+            <Text style={gs.achieveEmoji}>🌳</Text>
+            <Text style={gs.achieveCount}>{prog.completedTrees}</Text>
+            <Text style={gs.achieveLabel}>tree{prog.completedTrees !== 1 ? 's' : ''}</Text>
+          </View>
+          <View style={gs.achieveDivider} />
+          <View style={gs.achieveItem}>
+            <Text style={gs.achieveEmoji}>🌿</Text>
+            <Text style={gs.achieveCount}>{prog.completedOrchards}</Text>
+            <Text style={gs.achieveLabel}>orchard{prog.completedOrchards !== 1 ? 's' : ''}</Text>
+          </View>
+          <View style={gs.achieveDivider} />
+          <View style={gs.achieveItem}>
+            <Text style={gs.achieveEmoji}>🌴</Text>
+            <Text style={gs.achieveCount}>{prog.jannahGardensCompleted}</Text>
+            <Text style={gs.achieveLabel}>jannah</Text>
+          </View>
+        </View>
       )}
 
       {/* Recent deeds */}
@@ -473,7 +482,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
 
       <TouchableOpacity style={gs.showChildBtn} onPress={() => setShowChildView(true)} activeOpacity={0.8}>
         <Ionicons name="eye-outline" size={15} color="#2E7D62" />
-        <Text style={gs.showChildBtnText}>Show {displayName} their garden</Text>
+        <Text style={gs.showChildBtnText}>Show {displayName} {childPronoun} garden</Text>
       </TouchableOpacity>
 
       {/* ── Log deed modal ── */}
@@ -580,24 +589,25 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
       <Modal visible={!!celebEvent} transparent animationType="fade" onRequestClose={() => setCelebEvent(null)}>
         <View style={gs.celebOverlay}>
           <View style={gs.celebCard}>
-            {celebEvent?.type === 'paradise' && (
+            {celebEvent?.type === 'jannah' && (
               <>
                 <Text style={gs.celebEmoji}>🌴</Text>
                 <Text style={gs.celebTitle}>SubhanAllah!</Text>
-                <Text style={gs.celebSub}>You've completed</Text>
-                <Text style={gs.celebStage}>Paradise Garden #{celebEvent.number}</Text>
-                <Text style={gs.celebNote}>A new garden begins — keep growing 🤲</Text>
+                <Text style={gs.celebSub}>{celebEvent.orchards} orchards grown —</Text>
+                <Text style={gs.celebStage}>Jannah Garden #{celebEvent.number}!</Text>
+                <Text style={gs.celebNote}>A new garden begins. May it be accepted 🤲</Text>
               </>
             )}
             {celebEvent?.type === 'orchard' && (
               <>
                 <Text style={gs.celebEmoji}>🌳🌳🌳</Text>
                 <Text style={gs.celebTitle}>Ma Shaa Allah!</Text>
-                <Text style={gs.celebSub}>Orchard #{celebEvent.number} is complete!</Text>
+                <Text style={gs.celebSub}>{celebEvent.trees} trees grown —</Text>
+                <Text style={gs.celebStage}>{ordinal(celebEvent.number)} Orchard complete! 🌿</Text>
                 <Text style={gs.celebNote}>
-                  {orchardsLeftInParadise === 1
-                    ? `1 more orchard to Paradise Garden #${prog.paradiseNumber}`
-                    : `${orchardsLeftInParadise} more orchards to Paradise Garden #${prog.paradiseNumber}`}
+                  {3 - (celebEvent.number % 3 || 3) === 0
+                    ? 'Keep going — a Jannah Garden awaits!'
+                    : `${3 - (celebEvent.number % 3 || 3)} more orchard${3 - (celebEvent.number % 3 || 3) !== 1 ? 's' : ''} to a Jannah Garden`}
                 </Text>
               </>
             )}
@@ -605,12 +615,11 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
               <>
                 <Text style={gs.celebEmoji}>🎉</Text>
                 <Text style={gs.celebTitle}>Ma Shaa Allah!</Text>
-                <Text style={gs.celebSub}>{displayName}'s tree is fruit-bearing!</Text>
-                <Text style={gs.celebStage}>Tree #{celebEvent.number} complete</Text>
+                <Text style={gs.celebSub}>{displayName}'s {ordinal(celebEvent.number)} tree is fruit-bearing!</Text>
                 <Text style={gs.celebNote}>
-                  {treesLeftInOrchard === 1
+                  {celebEvent.treesLeft === 1
                     ? '1 more tree to complete the orchard'
-                    : `${treesLeftInOrchard} more trees to complete the orchard`}
+                    : `${celebEvent.treesLeft} more trees to complete the orchard`}
                 </Text>
               </>
             )}
@@ -632,7 +641,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
               <Text style={gs.celebBtnText}>Wonderful! 🌱</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { setCelebEvent(null); setShowChildView(true); }} activeOpacity={0.75} style={{ marginTop: 12 }}>
-              <Text style={gs.celebShowLink}>Show {displayName} their garden →</Text>
+              <Text style={gs.celebShowLink}>Show {displayName} {childPronoun} garden →</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -667,39 +676,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                 <Text style={cv.deedsLabel}>total good deeds 🌱</Text>
               </View>
 
-              {/* Tree → Orchard → Paradise strip */}
-              <View style={cv.progressStrip}>
-                <View style={cv.stripSection}>
-                  <Text style={cv.stripLabel}>TREE</Text>
-                  <View style={cv.stripDots}>
-                    {[0, 1, 2].map(i => {
-                      const done   = i < prog.treesInCurrentOrchard;
-                      const active = i === prog.treesInCurrentOrchard;
-                      return <Text key={i} style={{ fontSize: 16, opacity: done ? 1 : active ? 0.6 : 0.2 }}>{done ? '🌳' : active ? '🌱' : '○'}</Text>;
-                    })}
-                  </View>
-                  <Text style={cv.stripValue}>{prog.treesInCurrentOrchard + 1}/3</Text>
-                </View>
-                <View style={cv.stripDivider} />
-                <View style={cv.stripSection}>
-                  <Text style={cv.stripLabel}>ORCHARD</Text>
-                  <View style={cv.stripDots}>
-                    {[0, 1, 2].map(i => {
-                      const done   = i < prog.orchardsInCurrentParadise;
-                      const active = i === prog.orchardsInCurrentParadise;
-                      return <Text key={i} style={{ fontSize: 16, opacity: done ? 1 : active ? 0.6 : 0.2 }}>{done ? '🌿' : active ? '🌾' : '○'}</Text>;
-                    })}
-                  </View>
-                  <Text style={cv.stripValue}>{prog.orchardsInCurrentParadise + 1}/3</Text>
-                </View>
-                <View style={cv.stripDivider} />
-                <View style={cv.stripSection}>
-                  <Text style={cv.stripLabel}>PARADISE</Text>
-                  <Text style={{ fontSize: 24, marginVertical: 2 }}>🌴</Text>
-                  <Text style={cv.stripValue}>×{prog.paradiseGardensCompleted}</Text>
-                </View>
-              </View>
-
               {/* Next stage card */}
               {stage.next ? (
                 <View style={cv.nextCard}>
@@ -725,6 +701,28 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                 <View style={cv.nextCard}>
                   <Text style={cv.nextStageName}>🌳 This tree is fruit-bearing!</Text>
                   <Text style={cv.nextDeedsUnit}>One more deed starts Tree #{prog.treeNumber + 1}</Text>
+                </View>
+              )}
+
+              {/* Achievements — shown once at least 1 tree is complete */}
+              {prog.completedTrees > 0 && (
+                <View style={cv.achieveCard}>
+                  <Text style={cv.achieveTitle}>Achievements</Text>
+                  <View style={cv.achieveRow}>
+                    <Text style={cv.achieveEmoji}>🌳</Text>
+                    <Text style={cv.achieveLabel}>Trees completed</Text>
+                    <Text style={cv.achieveCount}>{prog.completedTrees}</Text>
+                  </View>
+                  <View style={[cv.achieveRow, cv.achieveRowBorder]}>
+                    <Text style={cv.achieveEmoji}>🌿</Text>
+                    <Text style={cv.achieveLabel}>Orchards</Text>
+                    <Text style={cv.achieveCount}>{prog.completedOrchards}</Text>
+                  </View>
+                  <View style={cv.achieveRow}>
+                    <Text style={cv.achieveEmoji}>🌴</Text>
+                    <Text style={cv.achieveLabel}>Jannah Gardens</Text>
+                    <Text style={cv.achieveCount}>{prog.jannahGardensCompleted}</Text>
+                  </View>
                 </View>
               )}
 
@@ -787,12 +785,6 @@ const gs = StyleSheet.create({
   deedsCount:        { fontSize: 28, fontWeight: '800', color: '#1A1A2E' },
   deedsLabel:        { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
 
-  orchardRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  treeDots:          { flexDirection: 'row', gap: 4 },
-  orchardLabel:      { flex: 1, fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
-  paradiseBadge:     { backgroundColor: '#FEF9EE', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#F5D97A' },
-  paradiseText:      { fontSize: 11, fontWeight: '700', color: '#7C5900' },
-
   progressWrap:      { marginBottom: 14 },
   progressTrack:     { height: 6, backgroundColor: '#EDF7F2', borderRadius: 100, overflow: 'hidden', marginBottom: 5 },
   progressFill:      { height: 6, backgroundColor: '#2E7D62', borderRadius: 100 },
@@ -800,6 +792,13 @@ const gs = StyleSheet.create({
   rewardRow:         { flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'flex-end' },
   rewardText:        { fontSize: 11, color: '#D4A843', fontWeight: '600' },
   nextTreeHint:      { fontSize: 11, color: '#2E7D62', fontWeight: '600', textAlign: 'center', marginBottom: 14 },
+
+  achieveRow:        { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, marginBottom: 14, gap: 0 },
+  achieveItem:       { flex: 1, alignItems: 'center', gap: 2 },
+  achieveDivider:    { width: 1, height: 32, backgroundColor: '#E5E7EB' },
+  achieveEmoji:      { fontSize: 18 },
+  achieveCount:      { fontSize: 17, fontWeight: '800', color: '#1A1A2E' },
+  achieveLabel:      { fontSize: 10, color: '#9CA3AF', fontWeight: '600' },
 
   recentList:        { marginBottom: 14, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12 },
   recentLabel:       { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 10 },
@@ -879,13 +878,6 @@ const cv = StyleSheet.create({
   deedsNumber:     { fontSize: 60, fontWeight: '900', color: '#1B3D2F', lineHeight: 68 },
   deedsLabel:      { fontSize: 15, color: '#6B7280', fontWeight: '500' },
 
-  progressStrip:   { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 18, padding: 16, alignItems: 'center', width: '100%', marginBottom: 20 },
-  stripSection:    { flex: 1, alignItems: 'center', gap: 4 },
-  stripLabel:      { fontSize: 9, fontWeight: '800', color: '#9CA3AF', letterSpacing: 1 },
-  stripDots:       { flexDirection: 'row', gap: 3 },
-  stripValue:      { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
-  stripDivider:    { width: 1, height: 48, backgroundColor: 'rgba(0,0,0,0.08)' },
-
   nextCard:        { width: '100%', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 20, padding: 20, marginBottom: 20, gap: 14 },
   nextStageName:   { fontSize: 15, fontWeight: '800', color: '#2E7D62' },
   nextDeedsRow:    { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
@@ -897,6 +889,14 @@ const cv = StyleSheet.create({
   rewardEmoji:     { fontSize: 28 },
   rewardPre:       { fontSize: 11, fontWeight: '700', color: '#B99A3A', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
   rewardText:      { fontSize: 16, fontWeight: '800', color: '#7C5900' },
+
+  achieveCard:     { width: '100%', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 18, padding: 16, marginBottom: 20 },
+  achieveTitle:    { fontSize: 11, fontWeight: '800', color: '#9CA3AF', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 },
+  achieveRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  achieveRowBorder:{ borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(0,0,0,0.06)' },
+  achieveEmoji:    { fontSize: 20, width: 28, textAlign: 'center' },
+  achieveLabel:    { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A1A2E' },
+  achieveCount:    { fontSize: 20, fontWeight: '900', color: '#2E7D62' },
 
   recentWrap:      { width: '100%', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 16, padding: 16, marginBottom: 20 },
   recentTitle:     { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 12, textTransform: 'uppercase' },
