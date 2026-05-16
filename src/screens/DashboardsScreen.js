@@ -1143,7 +1143,7 @@ const wins     = child?.wins      ?? [];
                                 >
                                   <Ionicons name={shared ? 'checkmark-circle' : 'share-outline'} size={12} color={shared ? '#9CA3AF' : '#2E7D62'} />
                                   <Text style={[styles.shareBtnText, shared && styles.shareBtnTextDone]}>
-                                    {shared ? 'Shared with partner' : 'Share with partner'}
+                                    {shared ? 'Recommended to partner' : 'Recommend to partner'}
                                   </Text>
                                 </TouchableOpacity>
                               );
@@ -1258,7 +1258,7 @@ const wins     = child?.wins      ?? [];
                                 >
                                   <Ionicons name={shared ? 'checkmark-circle' : 'share-outline'} size={12} color={shared ? '#9CA3AF' : '#2E7D62'} />
                                   <Text style={[styles.shareBtnText, shared && styles.shareBtnTextDone]}>
-                                    {shared ? 'Shared with partner' : 'Share with partner'}
+                                    {shared ? 'Recommended to partner' : 'Recommend to partner'}
                                   </Text>
                                 </TouchableOpacity>
                               );
