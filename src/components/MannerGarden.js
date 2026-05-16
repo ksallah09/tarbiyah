@@ -539,14 +539,15 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
       <Modal visible={showChildView} animationType="fade" presentationStyle="fullScreen" onRequestClose={() => setShowChildView(false)}>
         <LinearGradient colors={['#ECFDF5', '#D1FAE5', '#EFF6FF', '#DBEAFE']} style={{ flex: 1 }}>
           <SafeAreaView style={{ flex: 1 }}>
-            {/* Close */}
-            <TouchableOpacity
-              style={cv.closeBtn}
-              onPress={() => setShowChildView(false)}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Ionicons name="close" size={22} color="rgba(0,0,0,0.35)" />
-            </TouchableOpacity>
+            <View style={cv.header}>
+              <TouchableOpacity
+                style={cv.closeBtn}
+                onPress={() => setShowChildView(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="close" size={22} color="rgba(0,0,0,0.35)" />
+              </TouchableOpacity>
+            </View>
 
             <ScrollView contentContainerStyle={cv.scroll} showsVerticalScrollIndicator={false}>
               {/* Name + stage */}
@@ -729,8 +730,9 @@ const gs = StyleSheet.create({
 // ── Child view styles ─────────────────────────────────────────────────────────
 
 const cv = StyleSheet.create({
-  scroll:        { alignItems: 'center', paddingHorizontal: 24, paddingTop: 24, paddingBottom: 48 },
-  closeBtn:      { position: 'absolute', top: 12, left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
+  header:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  closeBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
+  scroll:        { alignItems: 'center', paddingHorizontal: 24, paddingTop: 8, paddingBottom: 48 },
   childName:     { fontSize: 40, fontWeight: '900', color: '#1A1A2E', textAlign: 'center', marginTop: 24, marginBottom: 4 },
   stageName:     { fontSize: 16, fontWeight: '700', color: '#2E7D62', marginBottom: 28 },
   treeWrap:      { height: 290, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
