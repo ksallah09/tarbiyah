@@ -459,7 +459,7 @@ const gs = StyleSheet.create({
   saveBtnText:   { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 
   // Mini card
-  miniCard:      { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', width: 100, ...CARD_SHADOW },
+  miniCard:      { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', width: 100, borderWidth: 1, borderColor: '#F0F0F0' },
   miniEmoji:     { fontSize: 32, marginBottom: 8 },
   miniNameBadge: { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 4 },
   miniName:      { fontSize: 11, fontWeight: '700' },
