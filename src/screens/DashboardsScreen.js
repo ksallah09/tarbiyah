@@ -718,7 +718,7 @@ const wins     = child?.wins      ?? [];
             return (
               <View style={{ marginTop: 20 }}>
                 <View style={styles.familyMomentsHeader}>
-                  <Text style={styles.familyMomentsEyebrow}>SHARED THIS WEEK</Text>
+                  <Text style={styles.familyMomentsEyebrow}>SHARED BY YOUR PARTNER</Text>
                   <Text style={styles.familyMomentsTitle}>Habits & Activities</Text>
                   <Text style={styles.familyMomentsSub}>Shared from a child's dashboard</Text>
                 </View>
