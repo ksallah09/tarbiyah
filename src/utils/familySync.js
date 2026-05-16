@@ -243,8 +243,23 @@ export async function joinFamilyWithCode(code) {
   const oldFamilyId = await getFamilyId();
   if (oldFamilyId !== invite.family_id) {
     await supabase.from('family_goals').update({ family_id: invite.family_id }).eq('family_id', oldFamilyId);
-    await supabase.from('child_garden_actions').update({ family_id: invite.family_id }).eq('family_id', oldFamilyId);
-    await supabase.from('child_garden_settings').update({ family_id: invite.family_id }).eq('family_id', oldFamilyId);
+    // Use user_id for garden actions — RLS may block family_id filter if the user
+    // was never added to family_members for their personal local family_id
+    await supabase
+      .from('child_garden_actions')
+      .update({ family_id: invite.family_id })
+      .eq('user_id', userId)
+      .neq('family_id', invite.family_id);
+    // Use child_id list for settings (no user_id column)
+    const joinerChildren = await getLocalChildren();
+    const joinerChildIds = joinerChildren.map(c => c.id);
+    if (joinerChildIds.length > 0) {
+      await supabase
+        .from('child_garden_settings')
+        .update({ family_id: invite.family_id })
+        .in('child_id', joinerChildIds)
+        .neq('family_id', invite.family_id);
+    }
   }
 
   // Join the family
