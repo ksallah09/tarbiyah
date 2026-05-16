@@ -9,24 +9,9 @@ import {
   SUGGESTED_GOALS, FREQUENCY_OPTIONS, REMINDER_TIMES,
   saveFamilyGoal, requestNotificationPermission,
 } from '../utils/familyGoals';
-import { supabase } from '../utils/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedSyncStatus } from '../utils/familySync';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
-
-async function notifyPartner(title, body, data = {}) {
-  try {
-    const { data: session } = await supabase.auth.getSession();
-    const token = session?.session?.access_token;
-    if (!token) return;
-    await fetch(`${API_URL}/family/notify-partner`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ title, body, data }),
-    });
-  } catch {}
-}
+import { notifyPartner } from '../utils/partnerNotify';
 
 const STEPS = ['goal', 'frequency', 'reminder', 'confirm'];
 

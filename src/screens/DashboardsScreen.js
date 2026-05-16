@@ -17,25 +17,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HABIT_MESSAGES, ACTIVITY_MESSAGES, GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
 import { ChildWorldCard } from '../components/ChildWorldCard';
+import MannerGarden, { MiniGardenCard } from '../components/MannerGarden';
 import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji, getFamilyId } from '../utils/familyGoals';
 import { getCachedSyncStatus } from '../utils/familySync';
 import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
 import { supabase } from '../utils/supabase';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
-
-async function notifyPartner(title, body, data = {}) {
-  try {
-    const { data: session } = await supabase.auth.getSession();
-    const token = session?.session?.access_token;
-    if (!token) return;
-    await fetch(`${API_URL}/family/notify-partner`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ title, body, data }),
-    });
-  } catch {}
-}
+import { notifyPartner } from '../utils/partnerNotify';
 
 // ── Developmental phase data ──────────────────────────────────────────────────
 
@@ -174,6 +162,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const [familyMoments,     setFamilyMoments]      = useState([]);
   const [sharedItems,       setSharedItems]        = useState(new Set());
   const [partnerLinked,     setPartnerLinked]      = useState(false);
+  const [gardenTotals,      setGardenTotals]       = useState({});
   const [expandedShared,    setExpandedShared]     = useState(new Set());
   const [overflowShared,    setOverflowShared]     = useState(new Set());
   const [sharedPage,        setSharedPage]         = useState(0);
@@ -263,6 +252,18 @@ export default function DashboardsScreen({ navigation, route }) {
       setSharedItems(new Set(raw ? JSON.parse(raw) : []));
     });
     getCachedSyncStatus().then(s => setPartnerLinked(!!s?.linked));
+    // Load garden deed counts for all children (for family view)
+    getFamilyId().then(async familyId => {
+      const { data } = await supabase
+        .from('child_garden_actions')
+        .select('child_id, child_name')
+        .eq('family_id', familyId);
+      if (data) {
+        const totals = {};
+        data.forEach(row => { totals[row.child_id] = (totals[row.child_id] ?? 0) + 1; });
+        setGardenTotals(totals);
+      }
+    }).catch(() => {});
   }, [route?.params?.childId]));
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -707,6 +708,27 @@ const wins     = child?.wins      ?? [];
             })}
           </View>
 
+          {/* Family Garden overview */}
+          {children.length > 0 && (
+            <View style={{ marginTop: 20 }}>
+              <View style={styles.familyMomentsHeader}>
+                <Text style={styles.familyMomentsEyebrow}>MANNERS GARDEN</Text>
+                <Text style={styles.familyMomentsTitle}>Family Trees</Text>
+                <Text style={styles.familyMomentsSub}>Good deeds planted by your children</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                {children.map(c => (
+                  <MiniGardenCard
+                    key={c.id}
+                    childName={c.name}
+                    total={gardenTotals[c.id] ?? 0}
+                    color={c.color}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Partner shared habits/activities — swipe cards */}
           {(() => {
             if (!partnerLinked) return null;
@@ -1047,6 +1069,8 @@ const wins     = child?.wins      ?? [];
           <>
             <View style={{ height: 16 }} />
             <ChildWorldCard child={child} />
+            <View style={{ height: 16 }} />
+            <MannerGarden child={child} myProfileName={myProfileName} partnerLinked={partnerLinked} />
           </>
         )}
 
@@ -1294,6 +1318,14 @@ const wins     = child?.wins      ?? [];
         {/* ── This Week in Youth Culture ── */}
         <View style={{ height: 16 }} />
         <ChildWorldCard child={child} />
+
+        {/* ── Manners Garden ── */}
+        <View style={{ height: 16 }} />
+        <MannerGarden
+          child={child}
+          myProfileName={myProfileName}
+          partnerLinked={partnerLinked}
+        />
 
         {/* Wins */}
         <View style={styles.sectionRow}>
