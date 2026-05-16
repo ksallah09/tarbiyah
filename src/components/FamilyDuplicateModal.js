@@ -164,7 +164,7 @@ const s = StyleSheet.create({
   header:          { flexDirection: 'row', alignItems: 'flex-start', padding: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   title:           { fontSize: 20, fontWeight: '800', color: '#1A1A2E', marginBottom: 4, flex: 1 },
   subtitle:        { fontSize: 13, color: '#6B7280', lineHeight: 19, paddingRight: 32 },
-  closeBtn:        { marginTop: 2 },
+  closeBtn:        { marginTop: 2, marginRight: 4, padding: 4 },
   scroll:          { padding: 20, gap: 8, paddingBottom: 8 },
 
   childRow:        { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F9FAFB', borderRadius: 14, padding: 12, borderWidth: 1.5, borderColor: '#F0F0F0' },
