@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, Animated, Image, ActivityIndicator,
-  Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert,
+  Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, RefreshControl,
 } from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -164,6 +164,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const [partnerLinked,     setPartnerLinked]      = useState(false);
   const [gardenTotals,      setGardenTotals]       = useState({});
   const [familyChildrenList, setFamilyChildrenList] = useState([]);
+  const [familyRefreshing,   setFamilyRefreshing]   = useState(false);
   const [expandedShared,    setExpandedShared]     = useState(new Set());
   const [overflowShared,    setOverflowShared]     = useState(new Set());
   const [sharedPage,        setSharedPage]         = useState(0);
@@ -267,35 +268,33 @@ export default function DashboardsScreen({ navigation, route }) {
     }).catch(() => {});
   }, [route?.params?.childId]));
 
-  // Refresh family data whenever the Family tab is selected (not just on screen focus)
-  useEffect(() => {
-    if (activeChildId !== 'family') return;
+  async function loadFamilyTab() {
     loadFamilyMoments();
     loadFamilyGoalsCached().then(setFamilyGoals);
     loadFamilyGoals().then(setFamilyGoals);
     getCachedSyncStatus().then(s => setPartnerLinked(!!s?.linked));
-    getFamilyId().then(async familyId => {
-      // Load deed counts
-      const { data: actions } = await supabase
-        .from('child_garden_actions')
-        .select('child_id')
-        .eq('family_id', familyId);
-      if (actions) {
+    // Sync local children first, then read — ensures partner sees newly added children
+    const profiles = await getAllChildProfiles();
+    if (profiles.length > 0) await syncChildrenToFamilyGarden(profiles);
+    try {
+      const familyId = await getFamilyId();
+      const [actions, fc] = await Promise.all([
+        supabase.from('child_garden_actions').select('child_id').eq('family_id', familyId),
+        supabase.from('family_children').select('child_id, child_name, child_color, child_gender').eq('family_id', familyId),
+      ]);
+      if (actions.data) {
         const totals = {};
-        actions.forEach(row => { totals[row.child_id] = (totals[row.child_id] ?? 0) + 1; });
+        actions.data.forEach(row => { totals[row.child_id] = (totals[row.child_id] ?? 0) + 1; });
         setGardenTotals(totals);
       }
-      // Load all children registered in the shared family garden
-      const { data: fc } = await supabase
-        .from('family_children')
-        .select('child_id, child_name, child_color, child_gender')
-        .eq('family_id', familyId);
-      if (fc) setFamilyChildrenList(fc);
-    }).catch(() => {});
-    // Auto-sync local children into the shared family garden
-    getAllChildProfiles().then(profiles => {
-      if (profiles.length > 0) syncChildrenToFamilyGarden(profiles);
-    });
+      if (fc.data) setFamilyChildrenList(fc.data);
+    } catch {}
+  }
+
+  // Refresh family data whenever the Family tab is selected (not just on screen focus)
+  useEffect(() => {
+    if (activeChildId !== 'family') return;
+    loadFamilyTab();
   }, [activeChildId]);
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -655,7 +654,18 @@ const wins     = child?.wins      ?? [];
 
       {/* ── Family dashboard ── */}
       {activeChildId === 'family' && (
-        <ScrollView style={{ flex: 1, backgroundColor: '#F5F5F5' }} contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: '#F5F5F5' }}
+          contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={familyRefreshing}
+              onRefresh={async () => { setFamilyRefreshing(true); await loadFamilyTab(); setFamilyRefreshing(false); }}
+              tintColor="#2E7D62"
+            />
+          }
+        >
           <View style={styles.familyDashHeader}>
             <View style={styles.familyDashIconWrap}>
               <Ionicons name="home-outline" size={20} color="#FFFFFF" />
