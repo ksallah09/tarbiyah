@@ -381,25 +381,26 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
   }
 
   function animateTree() {
-    // Water drop
-    dropY.setValue(0);
-    dropOpacity.setValue(1);
-    Animated.parallel([
-      Animated.timing(dropY,       { toValue: 90, duration: 700, useNativeDriver: true }),
-      Animated.timing(dropOpacity, { toValue: 0,  duration: 700, delay: 200, useNativeDriver: true }),
-    ]).start();
-    // Sway
+    // Sway and growth run immediately — they're behind the modal
     Animated.sequence([
       Animated.timing(swayAnim, { toValue: 7,  duration: 130, useNativeDriver: true }),
       Animated.timing(swayAnim, { toValue: -5, duration: 130, useNativeDriver: true }),
       Animated.timing(swayAnim, { toValue: 3,  duration: 120, useNativeDriver: true }),
       Animated.timing(swayAnim, { toValue: 0,  duration: 120, useNativeDriver: true }),
     ]).start();
-    // Growth bounce — tree pulses slightly bigger then settles
     Animated.sequence([
       Animated.timing(growthScale, { toValue: 1.09, duration: 160, useNativeDriver: true }),
       Animated.spring(growthScale,  { toValue: 1,    friction: 5, tension: 60, useNativeDriver: true }),
     ]).start();
+    // Water drop waits for the pageSheet to finish closing (~350ms on iOS)
+    setTimeout(() => {
+      dropY.setValue(0);
+      dropOpacity.setValue(1);
+      Animated.parallel([
+        Animated.timing(dropY,       { toValue: 90, duration: 700, useNativeDriver: true }),
+        Animated.timing(dropOpacity, { toValue: 0,  duration: 700, delay: 200, useNativeDriver: true }),
+      ]).start();
+    }, 380);
   }
 
   async function logDeed() {
