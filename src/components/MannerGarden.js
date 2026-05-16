@@ -38,6 +38,7 @@ const MANNERS = [
   { key: 'forgiving',          label: 'Forgiving',             emoji: '🌸' },
   { key: 'gratitude',          label: 'Gratitude',             emoji: '🌺' },
   { key: 'quran',              label: 'Quran Accomplishment',  emoji: '📖' },
+  { key: 'school',             label: 'School Achievement',    emoji: '🎒' },
   { key: 'other',              label: 'Other',                 emoji: '⭐' },
 ];
 
