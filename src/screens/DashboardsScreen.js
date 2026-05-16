@@ -712,7 +712,7 @@ const wins     = child?.wins      ?? [];
           {children.length > 0 && (
             <View style={{ marginTop: 20 }}>
               <View style={styles.familyMomentsHeader}>
-                <Text style={styles.familyMomentsEyebrow}>GOOD DEEDS GARDEN</Text>
+                <Text style={styles.familyMomentsEyebrow}>FAMILY GARDEN</Text>
                 <Text style={styles.familyMomentsTitle}>Good Deeds Garden</Text>
                 <Text style={styles.familyMomentsSub}>Good deeds planted by your children</Text>
               </View>
