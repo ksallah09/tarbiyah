@@ -567,26 +567,26 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                 <Text style={cv.deedsLabel}>good deeds planted 🌱</Text>
               </View>
 
-              {/* Progress */}
+              {/* Next stage + reward unified card */}
               {stage.next && (
-                <View style={cv.progressWrap}>
+                <View style={cv.nextCard}>
+                  <Text style={cv.nextStageName}>🌿 {nextStage?.name}</Text>
+                  <View style={cv.nextDeedsRow}>
+                    <Text style={cv.nextDeedsNumber}>{toNext}</Text>
+                    <Text style={cv.nextDeedsUnit}>more deed{toNext !== 1 ? 's' : ''} to go</Text>
+                  </View>
                   <View style={cv.progressTrack}>
                     <View style={[cv.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
                   </View>
-                  <Text style={cv.progressLabel}>
-                    {toNext} more deed{toNext !== 1 ? 's' : ''} to {nextStage?.name}
-                  </Text>
-                </View>
-              )}
-
-              {/* Next reward */}
-              {!!nextReward && (
-                <View style={cv.rewardCard}>
-                  <Text style={cv.rewardEmoji}>🎁</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={cv.rewardPre}>Next reward</Text>
-                    <Text style={cv.rewardText}>{nextReward}</Text>
-                  </View>
+                  {!!nextReward && (
+                    <View style={cv.rewardRow}>
+                      <Text style={cv.rewardEmoji}>🎁</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={cv.rewardPre}>Reward when you get there</Text>
+                        <Text style={cv.rewardText}>{nextReward}</Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -739,14 +739,17 @@ const cv = StyleSheet.create({
   deedsWrap:     { alignItems: 'center', marginBottom: 20 },
   deedsNumber:   { fontSize: 60, fontWeight: '900', color: '#1B3D2F', lineHeight: 68 },
   deedsLabel:    { fontSize: 15, color: '#6B7280', fontWeight: '500' },
-  progressWrap:  { width: '100%', marginBottom: 20 },
-  progressTrack: { height: 10, backgroundColor: 'rgba(46,125,98,0.15)', borderRadius: 100, overflow: 'hidden', marginBottom: 8 },
-  progressFill:  { height: 10, backgroundColor: '#2E7D62', borderRadius: 100 },
-  progressLabel: { fontSize: 14, color: '#6B7280', textAlign: 'center', fontWeight: '500' },
-  rewardCard:    { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#FEF9EE', borderRadius: 18, padding: 18, width: '100%', marginBottom: 20, borderWidth: 1.5, borderColor: '#F5D97A' },
-  rewardEmoji:   { fontSize: 32 },
-  rewardPre:     { fontSize: 11, fontWeight: '700', color: '#B99A3A', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
-  rewardText:    { fontSize: 18, fontWeight: '800', color: '#7C5900' },
+  nextCard:        { width: '100%', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 20, padding: 20, marginBottom: 20, gap: 14 },
+  nextStageName:   { fontSize: 15, fontWeight: '800', color: '#2E7D62' },
+  nextDeedsRow:    { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  nextDeedsNumber: { fontSize: 52, fontWeight: '900', color: '#1B3D2F', lineHeight: 56 },
+  nextDeedsUnit:   { fontSize: 15, fontWeight: '600', color: '#6B7280', paddingBottom: 8 },
+  progressTrack:   { height: 10, backgroundColor: 'rgba(46,125,98,0.15)', borderRadius: 100, overflow: 'hidden' },
+  progressFill:    { height: 10, backgroundColor: '#2E7D62', borderRadius: 100 },
+  rewardRow:       { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#FEF9EE', borderRadius: 14, padding: 14, borderWidth: 1.5, borderColor: '#F5D97A' },
+  rewardEmoji:     { fontSize: 28 },
+  rewardPre:       { fontSize: 11, fontWeight: '700', color: '#B99A3A', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
+  rewardText:      { fontSize: 16, fontWeight: '800', color: '#7C5900' },
   recentWrap:    { width: '100%', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 18, padding: 16, marginBottom: 20 },
   recentTitle:   { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 },
   recentRow:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
