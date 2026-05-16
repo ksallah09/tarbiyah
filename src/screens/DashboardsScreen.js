@@ -1502,7 +1502,7 @@ const styles = StyleSheet.create({
   familyMomentReactionRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   familyMomentReactionLabel:  { fontSize: 12, color: '#6B7280', fontWeight: '500' },
   familyMomentSharedBy:    { fontSize: 11, color: '#9CA3AF' },
-  sharedSwipeCard:         { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
+  sharedSwipeCard:         { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F0F0F0' },
   sharedSwipeCardText:     { fontSize: 13, color: '#374151', lineHeight: 20 },
   sharedReadMore:          { fontSize: 12, fontWeight: '600', color: '#2E7D62' },
   familySharedTypeLabel:   { fontSize: 11, fontWeight: '600', color: '#9CA3AF', flex: 1, paddingLeft: 6 },
