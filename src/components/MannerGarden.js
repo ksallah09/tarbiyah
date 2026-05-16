@@ -36,7 +36,7 @@ const DEFAULT_THRESHOLDS = { sprout: 10, sapling: 25, tree: 50, flowering: 100, 
 const STAGE_META = [
   { index: 0, name: 'Seed',               key: 'seed'      },
   { index: 1, name: 'Sprout',             key: 'sprout'    },
-  { index: 2, name: 'Young Tree',          key: 'sapling'   },
+  { index: 2, name: 'Young Tree',         key: 'sapling'   },
   { index: 3, name: 'Growing Tree',       key: 'tree'      },
   { index: 4, name: 'Flowering Tree',     key: 'flowering' },
   { index: 5, name: 'Fruit-bearing Tree', key: 'fruit'     },
@@ -45,12 +45,12 @@ const STAGE_META = [
 function buildStages(thresholds) {
   const t = { ...DEFAULT_THRESHOLDS, ...thresholds };
   return [
-    { ...STAGE_META[0], min: 0,          next: t.sprout    },
-    { ...STAGE_META[1], min: t.sprout,   next: t.sapling   },
-    { ...STAGE_META[2], min: t.sapling,  next: t.tree      },
-    { ...STAGE_META[3], min: t.tree,     next: t.flowering },
-    { ...STAGE_META[4], min: t.flowering,next: t.fruit     },
-    { ...STAGE_META[5], min: t.fruit,    next: null        },
+    { ...STAGE_META[0], min: 0,           next: t.sprout    },
+    { ...STAGE_META[1], min: t.sprout,    next: t.sapling   },
+    { ...STAGE_META[2], min: t.sapling,   next: t.tree      },
+    { ...STAGE_META[3], min: t.tree,      next: t.flowering },
+    { ...STAGE_META[4], min: t.flowering, next: t.fruit     },
+    { ...STAGE_META[5], min: t.fruit,     next: null        },
   ];
 }
 
@@ -59,6 +59,27 @@ function getStageFromList(stages, total) {
     if (total >= stages[i].min) return stages[i];
   }
   return stages[0];
+}
+
+// ── Multi-tree progression ────────────────────────────────────────────────────
+
+function computeProgress(total, thresholds) {
+  const fruit = thresholds?.fruit ?? DEFAULT_THRESHOLDS.fruit;
+  const currentTreeDeeds         = total % fruit;
+  const completedTrees           = Math.floor(total / fruit);
+  const completedOrchards        = Math.floor(completedTrees / 3);
+  const paradiseGardensCompleted = Math.floor(completedOrchards / 3);
+  return {
+    currentTreeDeeds,
+    completedTrees,
+    completedOrchards,
+    paradiseGardensCompleted,
+    treesInCurrentOrchard:     completedTrees % 3,
+    orchardsInCurrentParadise: completedOrchards % 3,
+    treeNumber:     completedTrees + 1,
+    orchardNumber:  completedOrchards + 1,
+    paradiseNumber: paradiseGardensCompleted + 1,
+  };
 }
 
 // ── Tree illustration ─────────────────────────────────────────────────────────
@@ -102,12 +123,12 @@ function TreeIllustration({ stageIndex, swayAnim }) {
               stageIndex === 2 && tree.canopySapling,
               stageIndex === 3 && tree.canopyTree,
               stageIndex === 4 && tree.canopyFlowering,
-              stageIndex === 5 && tree.canopyFruit,
+              stageIndex >= 5 && tree.canopyFruit,
             ]}>
               {stageIndex === 4 && FLOWER_POSITIONS.map((pos, i) => (
                 <View key={i} style={[tree.flowerDot, { top: pos.top, left: pos.left }]} />
               ))}
-              {stageIndex === 5 && FRUIT_POSITIONS.map((pos, i) => (
+              {stageIndex >= 5 && FRUIT_POSITIONS.map((pos, i) => (
                 <View key={i} style={[tree.fruitDot, i % 3 === 0 && tree.fruitDotAlt, { top: pos.top, left: pos.left }]} />
               ))}
             </View>
@@ -126,29 +147,29 @@ function TreeIllustration({ stageIndex, swayAnim }) {
 }
 
 const tree = StyleSheet.create({
-  scene:          { width: 200, height: 170, overflow: 'hidden', borderRadius: 20 },
-  sky:            { ...StyleSheet.absoluteFillObject },
-  earth:          { position: 'absolute', bottom: 0, left: 0, right: 0, height: 28, borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  treeWrap:       { position: 'absolute', bottom: 28, left: 0, right: 0, alignItems: 'center' },
-  seedWrap:       { alignItems: 'center', marginBottom: -10 },
-  seed:           { width: 22, height: 14, borderRadius: 11, backgroundColor: '#92400E' },
-  seedCrack:      { width: 2, height: 8, backgroundColor: '#4ADE80', borderRadius: 1, marginTop: -4 },
-  sproutWrap:     { alignItems: 'center', width: 60 },
-  sproutStem:     { width: 4, height: 38, backgroundColor: '#4ADE80', borderRadius: 2 },
-  sproutLeftLeaf: { position: 'absolute', bottom: 16, left: 6, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '-35deg' }] },
-  sproutRightLeaf:{ position: 'absolute', bottom: 16, right: 6, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '35deg' }] },
-  treeContainer:  { alignItems: 'center' },
-  canopy:         { overflow: 'hidden', position: 'relative' },
-  canopySapling:  { width: 62, height: 55, borderRadius: 31, backgroundColor: '#BBF7D0', marginBottom: -4 },
-  canopyTree:     { width: 95, height: 82, borderRadius: 48, backgroundColor: '#4ADE80', marginBottom: -6 },
-  canopyFlowering:{ width: 98, height: 85, borderRadius: 49, backgroundColor: '#22C55E', marginBottom: -6 },
-  canopyFruit:    { width: 102, height: 90, borderRadius: 51, backgroundColor: '#16A34A', marginBottom: -6 },
-  trunk:          { borderRadius: 4 },
-  trunkSapling:   { width: 10, height: 44 },
-  trunkFull:      { width: 14, height: 62 },
-  flowerDot:      { position: 'absolute', width: 9, height: 9, borderRadius: 5, backgroundColor: '#FEC0D3' },
-  fruitDot:       { position: 'absolute', width: 11, height: 11, borderRadius: 6, backgroundColor: '#FCD34D' },
-  fruitDotAlt:    { backgroundColor: '#FB923C' },
+  scene:           { width: 200, height: 170, overflow: 'hidden', borderRadius: 20 },
+  sky:             { ...StyleSheet.absoluteFillObject },
+  earth:           { position: 'absolute', bottom: 0, left: 0, right: 0, height: 28, borderTopLeftRadius: 4, borderTopRightRadius: 4 },
+  treeWrap:        { position: 'absolute', bottom: 28, left: 0, right: 0, alignItems: 'center' },
+  seedWrap:        { alignItems: 'center', marginBottom: -10 },
+  seed:            { width: 22, height: 14, borderRadius: 11, backgroundColor: '#92400E' },
+  seedCrack:       { width: 2, height: 8, backgroundColor: '#4ADE80', borderRadius: 1, marginTop: -4 },
+  sproutWrap:      { alignItems: 'center', width: 60 },
+  sproutStem:      { width: 4, height: 38, backgroundColor: '#4ADE80', borderRadius: 2 },
+  sproutLeftLeaf:  { position: 'absolute', bottom: 16, left: 6, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '-35deg' }] },
+  sproutRightLeaf: { position: 'absolute', bottom: 16, right: 6, width: 20, height: 12, backgroundColor: '#86EFAC', borderRadius: 10, transform: [{ rotate: '35deg' }] },
+  treeContainer:   { alignItems: 'center' },
+  canopy:          { overflow: 'hidden', position: 'relative' },
+  canopySapling:   { width: 62,  height: 55, borderRadius: 31, backgroundColor: '#BBF7D0', marginBottom: -4 },
+  canopyTree:      { width: 95,  height: 82, borderRadius: 48, backgroundColor: '#4ADE80', marginBottom: -6 },
+  canopyFlowering: { width: 98,  height: 85, borderRadius: 49, backgroundColor: '#22C55E', marginBottom: -6 },
+  canopyFruit:     { width: 102, height: 90, borderRadius: 51, backgroundColor: '#16A34A', marginBottom: -6 },
+  trunk:           { borderRadius: 4 },
+  trunkSapling:    { width: 10, height: 44 },
+  trunkFull:       { width: 14, height: 62 },
+  flowerDot:       { position: 'absolute', width: 9,  height: 9,  borderRadius: 5, backgroundColor: '#FEC0D3' },
+  fruitDot:        { position: 'absolute', width: 11, height: 11, borderRadius: 6, backgroundColor: '#FCD34D' },
+  fruitDotAlt:     { backgroundColor: '#FB923C' },
 });
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -156,32 +177,26 @@ const tree = StyleSheet.create({
 const DEFAULT_SETTINGS = { thresholds: DEFAULT_THRESHOLDS, rewards: {} };
 
 export default function MannerGarden({ child, myProfileName, partnerLinked, style }) {
-  const [actions,        setActions]        = useState([]);
-  const [loading,        setLoading]        = useState(true);
-  const [settings,       setSettings]       = useState(DEFAULT_SETTINGS);
-  const [showModal,      setShowModal]      = useState(false);
-  const [showSettings,   setShowSettings]   = useState(false);
-  const [selectedManner, setSelectedManner] = useState(null);
-  const [note,           setNote]           = useState('');
-  const [saving,         setSaving]         = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
-  // Settings edit state
+  const [actions,         setActions]         = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [settings,        setSettings]        = useState(DEFAULT_SETTINGS);
+  const [showModal,       setShowModal]       = useState(false);
+  const [showSettings,    setShowSettings]    = useState(false);
+  const [selectedManner,  setSelectedManner]  = useState(null);
+  const [note,            setNote]            = useState('');
+  const [saving,          setSaving]          = useState(false);
+  const [savingSettings,  setSavingSettings]  = useState(false);
   const [draftThresholds, setDraftThresholds] = useState({ ...DEFAULT_THRESHOLDS });
   const [draftRewards,    setDraftRewards]    = useState({});
-  // Milestone celebration
-  const [celebStage,     setCelebStage]     = useState(null);
-  // Child view
-  const [showChildView,  setShowChildView]  = useState(false);
+  const [celebEvent,      setCelebEvent]      = useState(null);
+  const [showChildView,   setShowChildView]   = useState(false);
 
   const swayAnim      = useRef(new Animated.Value(0)).current;
   const dropY         = useRef(new Animated.Value(0)).current;
   const dropOpacity   = useRef(new Animated.Value(0)).current;
   const childSwayAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    loadActions();
-    loadSettings();
-  }, [child?.id]);
+  useEffect(() => { loadActions(); loadSettings(); }, [child?.id]);
 
   useEffect(() => {
     if (!showChildView) { childSwayAnim.setValue(0); return; }
@@ -221,7 +236,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
 
   async function saveSettings() {
     if (!child?.id) return;
-    // Validate thresholds are ascending
     const t = draftThresholds;
     if (t.sprout >= t.sapling || t.sapling >= t.tree || t.tree >= t.flowering || t.flowering >= t.fruit) {
       Alert.alert('Invalid thresholds', 'Each stage must require more deeds than the previous one.');
@@ -230,8 +244,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
     setSavingSettings(true);
     try {
       const familyId = await getFamilyId();
-      const { data: sessionRes } = await supabase.auth.getSession();
-      const userId = sessionRes?.session?.user?.id ?? null;
       await supabase.from('child_garden_settings').upsert({
         child_id:   child.id,
         family_id:  familyId,
@@ -265,8 +277,8 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
     dropY.setValue(0);
     dropOpacity.setValue(1);
     Animated.parallel([
-      Animated.timing(dropY, { toValue: 90, duration: 700, useNativeDriver: true }),
-      Animated.timing(dropOpacity, { toValue: 0, duration: 700, delay: 200, useNativeDriver: true }),
+      Animated.timing(dropY,         { toValue: 90, duration: 700, useNativeDriver: true }),
+      Animated.timing(dropOpacity,   { toValue: 0,  duration: 700, delay: 200, useNativeDriver: true }),
     ]).start();
     Animated.sequence([
       Animated.timing(swayAnim, { toValue: 7,  duration: 130, useNativeDriver: true }),
@@ -280,7 +292,8 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
     if (!selectedManner || !child?.id) return;
     setSaving(true);
     try {
-      const stageBefore = getStageFromList(stages, actions.length);
+      const fruitThreshold = settings.thresholds?.fruit ?? DEFAULT_THRESHOLDS.fruit;
+      const oldTotal = actions.length;
       const [familyId, sessionRes] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
       const userId = sessionRes?.data?.session?.user?.id ?? null;
       const manner = MANNERS.find(m => m.key === selectedManner);
@@ -301,12 +314,33 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
       setShowModal(false);
       setSelectedManner(null);
       setNote('');
-      // Check for stage transition
-      const newTotal = actions.length + 1;
-      const stageAfter = getStageFromList(stages, newTotal);
-      if (stageAfter.index > stageBefore.index) {
-        setCelebStage(stageAfter);
+
+      const newTotal            = oldTotal + 1;
+      const oldCompletedTrees   = Math.floor(oldTotal / fruitThreshold);
+      const newCompletedTrees   = Math.floor(newTotal / fruitThreshold);
+
+      if (newCompletedTrees > oldCompletedTrees) {
+        const oldCompletedOrchards = Math.floor(oldCompletedTrees / 3);
+        const newCompletedOrchards = Math.floor(newCompletedTrees / 3);
+        if (newCompletedOrchards > oldCompletedOrchards) {
+          const oldParadise = Math.floor(oldCompletedOrchards / 3);
+          const newParadise = Math.floor(newCompletedOrchards / 3);
+          if (newParadise > oldParadise) {
+            setCelebEvent({ type: 'paradise', number: newParadise });
+          } else {
+            setCelebEvent({ type: 'orchard', number: newCompletedOrchards });
+          }
+        } else {
+          setCelebEvent({ type: 'tree', number: newCompletedTrees });
+        }
+      } else {
+        const oldStage = getStageFromList(stages, oldTotal % fruitThreshold);
+        const newStage = getStageFromList(stages, newTotal % fruitThreshold);
+        if (newStage.index > oldStage.index) {
+          setCelebEvent({ type: 'stage', stage: newStage });
+        }
       }
+
       if (partnerLinked) {
         notifyPartner(
           `${myProfileName || 'Your partner'} logged a good deed for ${child.name}`,
@@ -319,13 +353,18 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
   }
 
   const total       = actions.length;
-  const stage       = getStageFromList(stages, total);
-  const progress    = stage.next ? (total - stage.min) / (stage.next - stage.min) : 1;
-  const toNext      = stage.next ? stage.next - total : 0;
+  const prog        = computeProgress(total, settings.thresholds);
+  const stage       = getStageFromList(stages, prog.currentTreeDeeds);
+  const progress    = stage.next ? (prog.currentTreeDeeds - stage.min) / (stage.next - stage.min) : 1;
+  const toNext      = stage.next ? stage.next - prog.currentTreeDeeds : 0;
   const nextStage   = stage.next ? stages[stage.index + 1] : null;
   const nextReward  = nextStage ? settings.rewards?.[nextStage.key] : null;
   const displayName = child?.name?.split(' ')[0] ?? 'Your Child';
   const recentThree = actions.slice(0, 3);
+
+  // For celebration orchard note
+  const treesLeftInOrchard = 3 - (prog.treesInCurrentOrchard);
+  const orchardsLeftInParadise = 3 - prog.orchardsInCurrentParadise;
 
   return (
     <View style={[gs.card, style]}>
@@ -341,7 +380,11 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         <View style={gs.stagePill}>
           <Text style={gs.stageText}>{stage.name}</Text>
         </View>
-        <TouchableOpacity onPress={() => { setDraftThresholds({ ...settings.thresholds }); setDraftRewards({ ...settings.rewards }); setShowSettings(true); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 8 }}>
+        <TouchableOpacity
+          onPress={() => { setDraftThresholds({ ...settings.thresholds }); setDraftRewards({ ...settings.rewards }); setShowSettings(true); }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ marginLeft: 8 }}
+        >
           <Ionicons name="settings-outline" size={18} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
@@ -353,13 +396,37 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
           <Text style={{ fontSize: 18 }}>💧</Text>
         </Animated.View>
         <View style={gs.deedsCountWrap}>
-          <Text style={gs.deedsCount}>{total}</Text>
-          <Text style={gs.deedsLabel}>good deeds planted</Text>
+          <Text style={gs.deedsCount}>{prog.currentTreeDeeds}</Text>
+          <Text style={gs.deedsLabel}>deeds on this tree</Text>
         </View>
       </View>
 
+      {/* Orchard progress row */}
+      <View style={gs.orchardRow}>
+        <View style={gs.treeDots}>
+          {[0, 1, 2].map(i => {
+            const done   = i < prog.treesInCurrentOrchard;
+            const active = i === prog.treesInCurrentOrchard;
+            return (
+              <Text key={i} style={{ fontSize: 14, opacity: done ? 1 : active ? 0.6 : 0.2 }}>
+                {done ? '🌳' : active ? '🌱' : '○'}
+              </Text>
+            );
+          })}
+        </View>
+        <Text style={gs.orchardLabel}>
+          {`Tree ${prog.treesInCurrentOrchard + 1}/3`}
+          {prog.completedOrchards > 0 ? ` · Orchard ${prog.orchardsInCurrentParadise + 1}/3` : ''}
+        </Text>
+        {prog.paradiseGardensCompleted > 0 && (
+          <View style={gs.paradiseBadge}>
+            <Text style={gs.paradiseText}>🌴 ×{prog.paradiseGardensCompleted}</Text>
+          </View>
+        )}
+      </View>
+
       {/* Progress to next stage */}
-      {stage.next && (
+      {stage.next ? (
         <View style={gs.progressWrap}>
           <View style={gs.progressTrack}>
             <View style={[gs.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
@@ -372,6 +439,8 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
             </View>
           )}
         </View>
+      ) : (
+        <Text style={gs.nextTreeHint}>🌱 Next deed starts Tree #{prog.treeNumber + 1}</Text>
       )}
 
       {/* Recent deeds */}
@@ -402,7 +471,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         <Text style={gs.logBtnText}>Log a good deed</Text>
       </TouchableOpacity>
 
-      {/* Show child their garden */}
       <TouchableOpacity style={gs.showChildBtn} onPress={() => setShowChildView(true)} activeOpacity={0.8}>
         <Ionicons name="eye-outline" size={15} color="#2E7D62" />
         <Text style={gs.showChildBtnText}>Show {displayName} their garden</Text>
@@ -461,8 +529,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={[gs.modalScroll, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
-
-              {/* Thresholds */}
               <Text style={gs.settingsSectionTitle}>Deeds needed per stage</Text>
               <Text style={gs.settingsSectionSub}>How many good deeds to reach each growth stage.</Text>
               {STAGE_KEYS.map((key, i) => {
@@ -484,8 +550,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                   </View>
                 );
               })}
-
-              {/* Rewards */}
               <Text style={[gs.settingsSectionTitle, { marginTop: 28 }]}>Milestone rewards</Text>
               <Text style={gs.settingsSectionSub}>What will you celebrate when your child reaches each stage?</Text>
               {STAGE_KEYS.map((key, i) => {
@@ -512,29 +576,68 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ── Stage reached celebration ── */}
-      <Modal visible={!!celebStage} transparent animationType="fade" onRequestClose={() => setCelebStage(null)}>
+      {/* ── Celebration modal ── */}
+      <Modal visible={!!celebEvent} transparent animationType="fade" onRequestClose={() => setCelebEvent(null)}>
         <View style={gs.celebOverlay}>
           <View style={gs.celebCard}>
-            <Text style={gs.celebEmoji}>🎉</Text>
-            <Text style={gs.celebTitle}>Ma Shaa Allah!</Text>
-            <Text style={gs.celebSub}>{displayName}'s tree is now a</Text>
-            <Text style={gs.celebStage}>{celebStage?.name}</Text>
-            {!!settings.rewards?.[celebStage?.key] && (
-              <View style={gs.celebRewardWrap}>
-                <Ionicons name="gift-outline" size={16} color="#D4A843" />
-                <Text style={gs.celebReward}>{settings.rewards[celebStage.key]}</Text>
-              </View>
+            {celebEvent?.type === 'paradise' && (
+              <>
+                <Text style={gs.celebEmoji}>🌴</Text>
+                <Text style={gs.celebTitle}>SubhanAllah!</Text>
+                <Text style={gs.celebSub}>You've completed</Text>
+                <Text style={gs.celebStage}>Paradise Garden #{celebEvent.number}</Text>
+                <Text style={gs.celebNote}>A new garden begins — keep growing 🤲</Text>
+              </>
             )}
-            <TouchableOpacity style={gs.celebBtn} onPress={() => setCelebStage(null)} activeOpacity={0.85}>
+            {celebEvent?.type === 'orchard' && (
+              <>
+                <Text style={gs.celebEmoji}>🌳🌳🌳</Text>
+                <Text style={gs.celebTitle}>Ma Shaa Allah!</Text>
+                <Text style={gs.celebSub}>Orchard #{celebEvent.number} is complete!</Text>
+                <Text style={gs.celebNote}>
+                  {orchardsLeftInParadise === 1
+                    ? `1 more orchard to Paradise Garden #${prog.paradiseNumber}`
+                    : `${orchardsLeftInParadise} more orchards to Paradise Garden #${prog.paradiseNumber}`}
+                </Text>
+              </>
+            )}
+            {celebEvent?.type === 'tree' && (
+              <>
+                <Text style={gs.celebEmoji}>🎉</Text>
+                <Text style={gs.celebTitle}>Ma Shaa Allah!</Text>
+                <Text style={gs.celebSub}>{displayName}'s tree is fruit-bearing!</Text>
+                <Text style={gs.celebStage}>Tree #{celebEvent.number} complete</Text>
+                <Text style={gs.celebNote}>
+                  {treesLeftInOrchard === 1
+                    ? '1 more tree to complete the orchard'
+                    : `${treesLeftInOrchard} more trees to complete the orchard`}
+                </Text>
+              </>
+            )}
+            {celebEvent?.type === 'stage' && (
+              <>
+                <Text style={gs.celebEmoji}>🎉</Text>
+                <Text style={gs.celebTitle}>Ma Shaa Allah!</Text>
+                <Text style={gs.celebSub}>{displayName}'s tree is now a</Text>
+                <Text style={gs.celebStage}>{celebEvent.stage?.name}</Text>
+                {!!settings.rewards?.[celebEvent.stage?.key] && (
+                  <View style={gs.celebRewardWrap}>
+                    <Ionicons name="gift-outline" size={16} color="#D4A843" />
+                    <Text style={gs.celebReward}>{settings.rewards[celebEvent.stage.key]}</Text>
+                  </View>
+                )}
+              </>
+            )}
+            <TouchableOpacity style={[gs.celebBtn, { marginTop: 16 }]} onPress={() => setCelebEvent(null)} activeOpacity={0.85}>
               <Text style={gs.celebBtnText}>Wonderful! 🌱</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setCelebStage(null); setShowChildView(true); }} activeOpacity={0.75} style={{ marginTop: 12 }}>
+            <TouchableOpacity onPress={() => { setCelebEvent(null); setShowChildView(true); }} activeOpacity={0.75} style={{ marginTop: 12 }}>
               <Text style={gs.celebShowLink}>Show {displayName} their garden →</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
       {/* ── Child view ── */}
       <Modal visible={showChildView} animationType="fade" presentationStyle="fullScreen" onRequestClose={() => setShowChildView(false)}>
         <LinearGradient colors={['#ECFDF5', '#D1FAE5', '#EFF6FF', '#DBEAFE']} style={{ flex: 1 }}>
@@ -550,25 +653,55 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
             </View>
 
             <ScrollView contentContainerStyle={cv.scroll} showsVerticalScrollIndicator={false}>
-              {/* Name + stage */}
               <Text style={cv.childName}>{displayName}</Text>
               <Text style={cv.stageName}>{stage.name}</Text>
 
-              {/* Big tree */}
               <View style={cv.treeWrap}>
                 <View style={{ transform: [{ scale: 1.65 }] }}>
                   <TreeIllustration stageIndex={stage.index} swayAnim={childSwayAnim} />
                 </View>
               </View>
 
-              {/* Deed count */}
               <View style={cv.deedsWrap}>
                 <Text style={cv.deedsNumber}>{total}</Text>
-                <Text style={cv.deedsLabel}>good deeds planted 🌱</Text>
+                <Text style={cv.deedsLabel}>total good deeds 🌱</Text>
               </View>
 
-              {/* Next stage + reward unified card */}
-              {stage.next && (
+              {/* Tree → Orchard → Paradise strip */}
+              <View style={cv.progressStrip}>
+                <View style={cv.stripSection}>
+                  <Text style={cv.stripLabel}>TREE</Text>
+                  <View style={cv.stripDots}>
+                    {[0, 1, 2].map(i => {
+                      const done   = i < prog.treesInCurrentOrchard;
+                      const active = i === prog.treesInCurrentOrchard;
+                      return <Text key={i} style={{ fontSize: 16, opacity: done ? 1 : active ? 0.6 : 0.2 }}>{done ? '🌳' : active ? '🌱' : '○'}</Text>;
+                    })}
+                  </View>
+                  <Text style={cv.stripValue}>{prog.treesInCurrentOrchard + 1}/3</Text>
+                </View>
+                <View style={cv.stripDivider} />
+                <View style={cv.stripSection}>
+                  <Text style={cv.stripLabel}>ORCHARD</Text>
+                  <View style={cv.stripDots}>
+                    {[0, 1, 2].map(i => {
+                      const done   = i < prog.orchardsInCurrentParadise;
+                      const active = i === prog.orchardsInCurrentParadise;
+                      return <Text key={i} style={{ fontSize: 16, opacity: done ? 1 : active ? 0.6 : 0.2 }}>{done ? '🌿' : active ? '🌾' : '○'}</Text>;
+                    })}
+                  </View>
+                  <Text style={cv.stripValue}>{prog.orchardsInCurrentParadise + 1}/3</Text>
+                </View>
+                <View style={cv.stripDivider} />
+                <View style={cv.stripSection}>
+                  <Text style={cv.stripLabel}>PARADISE</Text>
+                  <Text style={{ fontSize: 24, marginVertical: 2 }}>🌴</Text>
+                  <Text style={cv.stripValue}>×{prog.paradiseGardensCompleted}</Text>
+                </View>
+              </View>
+
+              {/* Next stage card */}
+              {stage.next ? (
                 <View style={cv.nextCard}>
                   <Text style={cv.nextStageName}>🌿 Next stage is {nextStage?.name}</Text>
                   <View style={cv.nextDeedsRow}>
@@ -588,9 +721,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                     </View>
                   )}
                 </View>
+              ) : (
+                <View style={cv.nextCard}>
+                  <Text style={cv.nextStageName}>🌳 This tree is fruit-bearing!</Text>
+                  <Text style={cv.nextDeedsUnit}>One more deed starts Tree #{prog.treeNumber + 1}</Text>
+                </View>
               )}
 
-              {/* Recent deeds */}
               {actions.length > 0 && (
                 <View style={cv.recentWrap}>
                   <Text style={cv.recentTitle}>Recent good deeds</Text>
@@ -606,7 +743,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
                 </View>
               )}
 
-              {/* Motivational */}
               <Text style={cv.motivation}>Ma Shaa Allah! Keep growing! 🤲</Text>
             </ScrollView>
           </SafeAreaView>
@@ -620,7 +756,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
 // ── Mini version for family garden view ───────────────────────────────────────
 
 export function MiniGardenCard({ childName, total, color }) {
-  const stage = getStageFromList(buildStages(DEFAULT_THRESHOLDS), total);
+  const stage = getStageFromList(buildStages(DEFAULT_THRESHOLDS), total % DEFAULT_THRESHOLDS.fruit);
   const EMOJIS = ['🌱', '🌿', '🪴', '🌳', '🌸', '🍃'];
   return (
     <View style={gs.miniCard}>
@@ -645,11 +781,17 @@ const gs = StyleSheet.create({
   stagePill:         { backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
   stageText:         { fontSize: 11, fontWeight: '700', color: '#2E7D62' },
 
-  sceneWrap:         { alignItems: 'center', marginBottom: 14, position: 'relative' },
+  sceneWrap:         { alignItems: 'center', marginBottom: 12, position: 'relative' },
   waterDrop:         { position: 'absolute', top: 0, zIndex: 10 },
   deedsCountWrap:    { marginTop: 8, alignItems: 'center' },
   deedsCount:        { fontSize: 28, fontWeight: '800', color: '#1A1A2E' },
   deedsLabel:        { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+
+  orchardRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  treeDots:          { flexDirection: 'row', gap: 4 },
+  orchardLabel:      { flex: 1, fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  paradiseBadge:     { backgroundColor: '#FEF9EE', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#F5D97A' },
+  paradiseText:      { fontSize: 11, fontWeight: '700', color: '#7C5900' },
 
   progressWrap:      { marginBottom: 14 },
   progressTrack:     { height: 6, backgroundColor: '#EDF7F2', borderRadius: 100, overflow: 'hidden', marginBottom: 5 },
@@ -657,6 +799,7 @@ const gs = StyleSheet.create({
   progressLabel:     { fontSize: 11, color: '#9CA3AF', textAlign: 'right', marginBottom: 4 },
   rewardRow:         { flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'flex-end' },
   rewardText:        { fontSize: 11, color: '#D4A843', fontWeight: '600' },
+  nextTreeHint:      { fontSize: 11, color: '#2E7D62', fontWeight: '600', textAlign: 'center', marginBottom: 14 },
 
   recentList:        { marginBottom: 14, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12 },
   recentLabel:       { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 10 },
@@ -669,6 +812,8 @@ const gs = StyleSheet.create({
 
   logBtn:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#EDF7F2', borderRadius: 12, paddingVertical: 13, borderWidth: 1, borderColor: '#BBF7D0' },
   logBtnText:        { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
+  showChildBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 },
+  showChildBtnText:  { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
 
   modalContainer:    { flex: 1, backgroundColor: '#FFFFFF' },
   modalHeader:       { padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', position: 'relative' },
@@ -690,7 +835,6 @@ const gs = StyleSheet.create({
   saveBtn:           { margin: 20, marginTop: 12, backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   saveBtnText:       { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 
-  // Settings
   settingsSectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A1A2E', marginBottom: 4 },
   settingsSectionSub:   { fontSize: 12, color: '#9CA3AF', marginBottom: 16 },
   settingsRow:          { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
@@ -701,24 +845,19 @@ const gs = StyleSheet.create({
   settingsRewardRow:    { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
   settingsRewardInput:  { marginTop: 8, backgroundColor: '#F9FAFB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: '#1A1A2E', borderWidth: 1, borderColor: '#E5E7EB' },
 
-  // Celebration modal
   celebOverlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 32 },
   celebCard:         { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28, alignItems: 'center', width: '100%' },
   celebEmoji:        { fontSize: 48, marginBottom: 12 },
   celebTitle:        { fontSize: 22, fontWeight: '800', color: '#1A1A2E', marginBottom: 6 },
   celebSub:          { fontSize: 14, color: '#6B7280', marginBottom: 4 },
-  celebStage:        { fontSize: 20, fontWeight: '700', color: '#2E7D62', marginBottom: 16 },
-  celebRewardWrap:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FEF9EE', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 20, borderWidth: 1, borderColor: '#F5D97A' },
+  celebStage:        { fontSize: 20, fontWeight: '700', color: '#2E7D62', marginBottom: 8 },
+  celebNote:         { fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginBottom: 4 },
+  celebRewardWrap:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FEF9EE', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 4, borderWidth: 1, borderColor: '#F5D97A' },
   celebReward:       { fontSize: 14, fontWeight: '600', color: '#7C5900', flex: 1 },
   celebBtn:          { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40 },
   celebBtnText:      { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   celebShowLink:     { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
 
-  // Show child button
-  showChildBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 },
-  showChildBtnText:  { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
-
-  // Mini card (defined in cv block below for child view)
   miniCard:          { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', width: 100, borderWidth: 1, borderColor: '#F0F0F0' },
   miniEmoji:         { fontSize: 32, marginBottom: 8 },
   miniNameBadge:     { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 4 },
@@ -730,15 +869,23 @@ const gs = StyleSheet.create({
 // ── Child view styles ─────────────────────────────────────────────────────────
 
 const cv = StyleSheet.create({
-  header:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
-  closeBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
-  scroll:        { alignItems: 'center', paddingHorizontal: 24, paddingTop: 8, paddingBottom: 48 },
-  childName:     { fontSize: 40, fontWeight: '900', color: '#1A1A2E', textAlign: 'center', marginTop: 24, marginBottom: 4 },
-  stageName:     { fontSize: 16, fontWeight: '700', color: '#2E7D62', marginBottom: 28 },
-  treeWrap:      { height: 290, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  deedsWrap:     { alignItems: 'center', marginBottom: 20 },
-  deedsNumber:   { fontSize: 60, fontWeight: '900', color: '#1B3D2F', lineHeight: 68 },
-  deedsLabel:    { fontSize: 15, color: '#6B7280', fontWeight: '500' },
+  header:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  closeBtn:        { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
+  scroll:          { alignItems: 'center', paddingHorizontal: 24, paddingTop: 8, paddingBottom: 48 },
+  childName:       { fontSize: 40, fontWeight: '900', color: '#1A1A2E', textAlign: 'center', marginTop: 24, marginBottom: 4 },
+  stageName:       { fontSize: 16, fontWeight: '700', color: '#2E7D62', marginBottom: 28 },
+  treeWrap:        { height: 290, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  deedsWrap:       { alignItems: 'center', marginBottom: 20 },
+  deedsNumber:     { fontSize: 60, fontWeight: '900', color: '#1B3D2F', lineHeight: 68 },
+  deedsLabel:      { fontSize: 15, color: '#6B7280', fontWeight: '500' },
+
+  progressStrip:   { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 18, padding: 16, alignItems: 'center', width: '100%', marginBottom: 20 },
+  stripSection:    { flex: 1, alignItems: 'center', gap: 4 },
+  stripLabel:      { fontSize: 9, fontWeight: '800', color: '#9CA3AF', letterSpacing: 1 },
+  stripDots:       { flexDirection: 'row', gap: 3 },
+  stripValue:      { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  stripDivider:    { width: 1, height: 48, backgroundColor: 'rgba(0,0,0,0.08)' },
+
   nextCard:        { width: '100%', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 20, padding: 20, marginBottom: 20, gap: 14 },
   nextStageName:   { fontSize: 15, fontWeight: '800', color: '#2E7D62' },
   nextDeedsRow:    { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
@@ -750,11 +897,12 @@ const cv = StyleSheet.create({
   rewardEmoji:     { fontSize: 28 },
   rewardPre:       { fontSize: 11, fontWeight: '700', color: '#B99A3A', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
   rewardText:      { fontSize: 16, fontWeight: '800', color: '#7C5900' },
-  recentWrap:    { width: '100%', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 18, padding: 16, marginBottom: 20 },
-  recentTitle:   { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 },
-  recentRow:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
+
+  recentWrap:      { width: '100%', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 16, padding: 16, marginBottom: 20 },
+  recentTitle:     { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 12, textTransform: 'uppercase' },
+  recentRow:       { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 8 },
   recentRowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
-  recentEmoji:   { fontSize: 22, width: 30, textAlign: 'center' },
-  recentLabel:   { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
-  motivation:    { fontSize: 15, fontWeight: '600', color: '#2E7D62', textAlign: 'center', opacity: 0.8 },
+  recentEmoji:     { fontSize: 22, width: 30, textAlign: 'center' },
+  recentLabel:     { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
+  motivation:      { fontSize: 15, fontWeight: '600', color: '#2E7D62', textAlign: 'center', opacity: 0.8 },
 });
