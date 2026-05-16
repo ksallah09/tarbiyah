@@ -12,17 +12,19 @@ import { notifyPartner } from '../utils/partnerNotify';
 // ── Manners ──────────────────────────────────────────────────────────────────
 
 const MANNERS = [
-  { key: 'truthfulness',       label: 'Truthfulness',       emoji: '🤍' },
-  { key: 'respecting_parents', label: 'Respecting Parents', emoji: '💚' },
-  { key: 'kind_words',         label: 'Kind Words',         emoji: '💬' },
-  { key: 'helping_siblings',   label: 'Helping Siblings',   emoji: '🤝' },
-  { key: 'sharing',            label: 'Sharing',            emoji: '✨' },
-  { key: 'patience',           label: 'Patience',           emoji: '🌿' },
-  { key: 'salam',              label: 'Saying Salām',       emoji: '🌙' },
-  { key: 'cleaning_up',        label: 'Cleaning Up',        emoji: '🧹' },
-  { key: 'apologizing',        label: 'Apologizing',        emoji: '💛' },
-  { key: 'forgiving',          label: 'Forgiving',          emoji: '🌸' },
-  { key: 'gratitude',          label: 'Gratitude',          emoji: '🌺' },
+  { key: 'truthfulness',       label: 'Truthfulness',          emoji: '🤍' },
+  { key: 'respecting_parents', label: 'Respecting Parents',    emoji: '💚' },
+  { key: 'kind_words',         label: 'Kind Words',            emoji: '💬' },
+  { key: 'helping_siblings',   label: 'Helping Siblings',      emoji: '🤝' },
+  { key: 'sharing',            label: 'Sharing',               emoji: '✨' },
+  { key: 'patience',           label: 'Patience',              emoji: '🌿' },
+  { key: 'salam',              label: 'Saying Salām',          emoji: '🌙' },
+  { key: 'cleaning_up',        label: 'Cleaning Up',           emoji: '🧹' },
+  { key: 'apologizing',        label: 'Apologizing',           emoji: '💛' },
+  { key: 'forgiving',          label: 'Forgiving',             emoji: '🌸' },
+  { key: 'gratitude',          label: 'Gratitude',             emoji: '🌺' },
+  { key: 'quran',              label: 'Quran Accomplishment',  emoji: '📖' },
+  { key: 'other',              label: 'Other',                 emoji: '⭐' },
 ];
 
 // ── Stage config ──────────────────────────────────────────────────────────────
@@ -288,16 +290,22 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         </View>
       )}
 
-      {/* Recent deeds */}
+      {/* Recent deeds — full width list */}
       {recentThree.length > 0 && (
-        <View style={gs.recentRow}>
-          <Text style={gs.recentLabel}>Recent</Text>
-          {recentThree.map(a => {
+        <View style={gs.recentList}>
+          <Text style={gs.recentLabel}>Recent deeds</Text>
+          {recentThree.map((a, idx) => {
             const m = MANNERS.find(m => m.key === a.manner);
             return (
-              <View key={a.id} style={gs.recentChip}>
-                <Text style={gs.recentEmoji}>{m?.emoji ?? '✨'}</Text>
-                <Text style={gs.recentChipText}>{m?.label ?? a.manner}</Text>
+              <View key={a.id} style={[gs.recentItem, idx < recentThree.length - 1 && gs.recentItemBorder]}>
+                <Text style={gs.recentItemEmoji}>{m?.emoji ?? '✨'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={gs.recentItemLabel}>{m?.label ?? a.manner}</Text>
+                  {!!a.note && <Text style={gs.recentItemNote}>"{a.note}"</Text>}
+                </View>
+                <Text style={gs.recentItemDate}>
+                  {new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </Text>
               </View>
             );
           })}
@@ -417,11 +425,14 @@ const gs = StyleSheet.create({
   progressFill:  { height: 6, backgroundColor: '#2E7D62', borderRadius: 100 },
   progressLabel: { fontSize: 11, color: '#9CA3AF', textAlign: 'right' },
 
-  recentRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 14 },
-  recentLabel:   { fontSize: 11, fontWeight: '600', color: '#9CA3AF' },
-  recentChip:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F9FAFB', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#E5E7EB' },
-  recentEmoji:   { fontSize: 12 },
-  recentChipText:{ fontSize: 11, fontWeight: '600', color: '#374151' },
+  recentList:       { marginBottom: 14, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12 },
+  recentLabel:      { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 10 },
+  recentItem:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
+  recentItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  recentItemEmoji:  { fontSize: 17, width: 24, textAlign: 'center', marginTop: 1 },
+  recentItemLabel:  { fontSize: 13, fontWeight: '600', color: '#1A1A2E', marginBottom: 2 },
+  recentItemNote:   { fontSize: 12, color: '#6B7280', lineHeight: 18, fontStyle: 'italic' },
+  recentItemDate:   { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
 
   logBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#EDF7F2', borderRadius: 12, paddingVertical: 13, borderWidth: 1, borderColor: '#BBF7D0' },
   logBtnText:    { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
