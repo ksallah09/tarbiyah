@@ -570,7 +570,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
               {/* Next stage + reward unified card */}
               {stage.next && (
                 <View style={cv.nextCard}>
-                  <Text style={cv.nextStageName}>🌿 {nextStage?.name}</Text>
+                  <Text style={cv.nextStageName}>🌿 Next stage is {nextStage?.name}</Text>
                   <View style={cv.nextDeedsRow}>
                     <Text style={cv.nextDeedsNumber}>{toNext}</Text>
                     <Text style={cv.nextDeedsUnit}>more deed{toNext !== 1 ? 's' : ''} to go</Text>
