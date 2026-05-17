@@ -12,6 +12,7 @@ import { supabase } from '../utils/supabase';
 import { getFamilyId } from '../utils/familyGoals';
 import { notifyDeedLogged } from '../utils/partnerNotify';
 import MountainProject from './MountainProject';
+import GardenProject, { GardenRestorationModal, GARDEN_ELEMENTS } from './GardenProject';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -289,6 +290,8 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   const [treeExists,     setTreeExists]     = useState(false);
   const [settings,       setSettings]       = useState(DEFAULT_SETTINGS);
   const [project,        setProject]        = useState('tree');
+  const [projectState,   setProjectState]   = useState({ restoredItems: [], cycleNumber: 1 });
+  const [showGardenRestore, setShowGardenRestore] = useState(false);
   const [showModal,      setShowModal]      = useState(false);
   const [selectedManner, setSelectedManner] = useState(null);
   const [note,           setNote]           = useState('');
@@ -358,7 +361,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     try {
       const { data } = await supabase
         .from('family_trees')
-        .select('thresholds, rewards, project')
+        .select('thresholds, rewards, project, project_state')
         .eq('child_id', child.id)
         .maybeSingle();
       if (data) {
@@ -367,6 +370,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
           rewards:    data.rewards ?? {},
         });
         setProject(data.project ?? 'tree');
+        setProjectState(data.project_state ?? { restoredItems: [], cycleNumber: 1 });
         setTreeExists(true);
       } else {
         setTreeExists(false);
@@ -460,6 +464,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
       await loadActions();
       animateTree(manner?.emoji ?? '✨');
       setShowModal(false);
+      if (project === 'garden') setTimeout(() => setShowGardenRestore(true), 420);
       setSelectedManner(null);
       setNote('');
 
@@ -501,6 +506,22 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     finally { setSaving(false); }
   }
 
+  async function handleGardenRestore(key) {
+    const current  = projectState?.restoredItems ?? [];
+    const allKeys  = GARDEN_ELEMENTS.map(e => e.key);
+    const newItems = [...current, key];
+    const allDone  = allKeys.every(k => newItems.includes(k));
+    const newState = allDone
+      ? { restoredItems: [], cycleNumber: (projectState?.cycleNumber ?? 1) + 1 }
+      : { ...projectState, restoredItems: newItems };
+    setProjectState(newState);
+    try {
+      await supabase.from('family_trees')
+        .update({ project_state: newState, updated_at: new Date().toISOString() })
+        .eq('child_id', child.id);
+    } catch {}
+  }
+
   async function shareGarden() {
     try {
       setSharing(true);
@@ -529,14 +550,24 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
       {/* Header */}
       <View style={gs.cardHeader}>
         <View style={gs.emojiWrap}>
-          <Text style={{ fontSize: 20 }}>{project === 'mountain' ? '⛰️' : '🌱'}</Text>
+          <Text style={{ fontSize: 20 }}>
+            {project === 'mountain' ? '⛰️' : project === 'garden' ? '🌺' : '🌱'}
+          </Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={gs.eyebrow}>GOOD DEEDS GARDEN</Text>
-          <Text style={gs.title}>{displayName}'s {project === 'mountain' ? 'Climb' : 'Tree'}</Text>
+          <Text style={gs.title}>
+            {displayName}'s {project === 'mountain' ? 'Climb' : project === 'garden' ? 'Garden' : 'Tree'}
+          </Text>
         </View>
         <View style={gs.stagePill}>
-          <Text style={gs.stageText}>{project === 'mountain' ? `${Math.round(progress * 100)}% up` : stage.name}</Text>
+          <Text style={gs.stageText}>
+            {project === 'mountain'
+              ? `${Math.round(progress * 100)}% up`
+              : project === 'garden'
+              ? `${(projectState?.restoredItems ?? []).length}/${GARDEN_ELEMENTS.length} restored`
+              : stage.name}
+          </Text>
         </View>
       </View>
 
@@ -553,8 +584,17 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         />
       )}
 
+      {/* ── Garden project ── */}
+      {project === 'garden' && (
+        <GardenProject
+          projectState={projectState}
+          childName={displayName}
+          childColor={child?.color}
+        />
+      )}
+
       {/* ── Tree project (default) ── */}
-      {project !== 'mountain' && (
+      {project !== 'mountain' && project !== 'garden' && (
         <>
           {/* Tree scene */}
           <View style={gs.sceneWrap}>
@@ -920,6 +960,16 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
           </SafeAreaView>
         </LinearGradient>
       </Modal>
+
+      {/* ── Garden restoration modal ── */}
+      <GardenRestorationModal
+        visible={showGardenRestore}
+        projectState={projectState}
+        childName={displayName}
+        childColor={child?.color}
+        onRestore={(key) => handleGardenRestore(key)}
+        onClose={() => setShowGardenRestore(false)}
+      />
 
     </View>
   );

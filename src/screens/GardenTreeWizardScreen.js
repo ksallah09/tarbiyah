@@ -40,7 +40,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
   const PROJECTS = [
     { key: 'tree',     emoji: '🌳', label: 'Grow a Tree',       desc: 'Watch a seed grow into a fruit-bearing tree with every good deed.',         interactive: false, available: true  },
     { key: 'mountain', emoji: '⛰️', label: 'Climb a Mountain',  desc: 'Each deed is a step up — reach the summit to complete the climb.',           interactive: false, available: true  },
-    { key: 'garden',   emoji: '🌺', label: 'Fix the Garden',    desc: 'Bring a lifeless garden back to colour — flowers, trees, and animals.',       interactive: true,  available: false },
+    { key: 'garden',   emoji: '🌺', label: 'Fix the Garden',    desc: 'Bring a lifeless garden back to colour — flowers, trees, and animals.',       interactive: true,  available: true  },
     { key: 'masjid',   emoji: '🕌', label: 'Build a Masjid',    desc: 'Place every tile, wall, and minaret — build the masjid piece by piece.',      interactive: true,  available: false },
     { key: 'village',  emoji: '🏚️', label: 'Fix the Village',   desc: 'Restore a forgotten village back to life — one good deed at a time.',        interactive: true,  available: false },
   ];
