@@ -538,10 +538,8 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         </View>
       </View>
 
-      {/* ── Accomplishment Tree ── */}
-      {(
-          {/* Tree scene */}
-          <View style={gs.sceneWrap}>
+      {/* Tree scene */}
+      <View style={gs.sceneWrap}>
             <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} growthScale={growthScale} progressAnim={progressAnim} />
             <Animated.View style={[gs.waterDrop, { transform: [{ translateY: dropY }], opacity: dropOpacity }]}>
               <Text style={{ fontSize: 18 }}>💧</Text>
@@ -603,7 +601,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
                 <Text style={gs.achieveLabel}>jannah</Text>
               </View>
             </View>
-          )}
       )}
 
       {/* Recent deeds */}
