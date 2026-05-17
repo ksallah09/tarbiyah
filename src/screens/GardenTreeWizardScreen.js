@@ -46,15 +46,30 @@ export default function GardenTreeWizardScreen({ navigation }) {
 
   async function advanceToStep2() {
     if (!selectedChild) return;
-    // Check if a tree already exists for this child
     try {
-      const familyId = await getFamilyId();
       const { data } = await supabase
         .from('family_trees')
-        .select('child_id')
+        .select('child_id, linked_tree_id')
         .eq('child_id', selectedChild.id)
         .maybeSingle();
+
       if (data) {
+        // If this row is a linked tree, check whether the canonical tree it points to still exists
+        if (data.linked_tree_id) {
+          const { data: canonical } = await supabase
+            .from('family_trees')
+            .select('child_id')
+            .eq('child_id', data.linked_tree_id)
+            .maybeSingle();
+
+          if (!canonical) {
+            // Canonical was deleted — stale row, clean it up and proceed
+            await supabase.from('family_trees').delete().eq('child_id', selectedChild.id);
+            setStep(2);
+            return;
+          }
+        }
+
         Alert.alert(
           'Tree already exists',
           `${selectedChild.name.split(' ')[0]} already has a Good Deeds Tree. You can update it from the Family Garden.`,
