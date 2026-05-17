@@ -762,7 +762,6 @@ export default function DashboardsScreen({ navigation, route }) {
                     childName={tree.child_name}
                     total={gardenTotals[tree.child_id] ?? 0}
                     color={children.find(c => c.id === tree.child_id)?.color ?? tree.child_color}
-                    label={tree.created_by === myUserId ? 'You' : partnerName}
                     thresholds={tree.thresholds}
                     onPress={() => navigation.navigate('GardenDetail', { tree })}
                   />

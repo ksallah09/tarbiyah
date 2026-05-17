@@ -841,14 +841,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
 // ── Mini version for family garden view ───────────────────────────────────────
 
-export function MiniGardenCard({ childName, total, color, label, thresholds, onPress }) {
+export function MiniGardenCard({ childName, total, color, thresholds, onPress }) {
   const t     = { ...DEFAULT_THRESHOLDS, ...(thresholds ?? {}) };
   const stage = getStageFromList(buildStages(t), total % t.fruit);
   const EMOJIS = ['🌱', '🌿', '🪴', '🌳', '🌸', '🍃'];
   const Wrapper = onPress ? TouchableOpacity : View;
   return (
     <Wrapper style={gs.miniCard} onPress={onPress} activeOpacity={0.8}>
-      {!!label && <Text style={gs.miniLabel}>{label}</Text>}
       <Text style={gs.miniEmoji}>{EMOJIS[stage.index]}</Text>
       <View style={[gs.miniNameBadge, { backgroundColor: (color ?? '#2E7D62') + '22' }]}>
         <Text style={[gs.miniName, { color: color ?? '#2E7D62' }]} numberOfLines={1} ellipsizeMode="tail">{childName?.split(' ')[0]}</Text>
