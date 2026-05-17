@@ -251,7 +251,7 @@ export async function scheduleGardenReminderNotifications() {
           title: msg.title,
           body:  msg.body,
           sound: true,
-          data:  { screen: 'Dashboards', tab: 'family' },
+          data:  { screen: 'Dashboards', childId: 'family' },
           android: { channelId: 'default' },
         },
         trigger: { type: 'date', date: fireDate },

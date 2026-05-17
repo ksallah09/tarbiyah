@@ -221,6 +221,7 @@ export default function DashboardsScreen({ navigation, route }) {
       setChildren(profiles);
       setLoaded(true);
       setActiveChildId(prev => {
+        if (requestedId === 'family') return 'family';
         if (requestedId && profiles.find(c => c.id === requestedId)) return requestedId;
         if (prev === 'family' || (prev && profiles.find(c => c.id === prev))) return prev;
         return 'family';
@@ -230,6 +231,7 @@ export default function DashboardsScreen({ navigation, route }) {
       getAllChildProfiles().then(profiles => {
         setChildren(profiles);
         setActiveChildId(prev => {
+          if (requestedId === 'family') return 'family';
           if (requestedId && profiles.find(c => c.id === requestedId)) return requestedId;
           if (prev === 'family' || (prev && profiles.find(c => c.id === prev))) return prev;
           return 'family';
