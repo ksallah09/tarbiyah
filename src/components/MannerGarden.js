@@ -279,7 +279,7 @@ function computeProgress(total, thresholds) {
 
 const DEFAULT_SETTINGS = { thresholds: DEFAULT_THRESHOLDS, rewards: {} };
 
-export default function MannerGarden({ child, myProfileName, partnerLinked, style }) {
+export default function MannerGarden({ child, myProfileName, partnerLinked, linkedChildId, style }) {
   const [actions,        setActions]        = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [treeLoaded,     setTreeLoaded]     = useState(false);
@@ -301,7 +301,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
   const staticScale   = useRef(new Animated.Value(1)).current;
   const shareCardRef  = useRef();
 
-  useEffect(() => { loadActions(); loadTree(); }, [child?.id]);
+  useEffect(() => { loadActions(); loadTree(); }, [child?.id, linkedChildId]);
 
   useEffect(() => {
     if (!showChildView) { childSwayAnim.setValue(0); return; }
@@ -345,10 +345,11 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
     setLoading(true);
     try {
       const familyId = await getFamilyId();
+      const childIds = linkedChildId ? [child.id, linkedChildId] : [child.id];
       const { data } = await supabase
         .from('child_garden_actions')
         .select('*')
-        .eq('child_id', child.id)
+        .in('child_id', childIds)
         .eq('family_id', familyId)
         .order('date', { ascending: false });
       if (data) setActions(data);

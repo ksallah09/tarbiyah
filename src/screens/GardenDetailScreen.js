@@ -88,6 +88,7 @@ export default function GardenDetailScreen({ route, navigation }) {
           child={child}
           myProfileName={myProfileName}
           partnerLinked={partnerLinked}
+          linkedChildId={tree.linked_tree_id ?? null}
         />
       </ScrollView>
 
