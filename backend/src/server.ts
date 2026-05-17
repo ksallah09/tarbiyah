@@ -3104,13 +3104,31 @@ app.post('/family/notify-partner', requireAuth, async (req: AuthRequest, res: Re
   }
 });
 
-// DELETE /family/tree/:childId — delete a tree and ALL its deeds (service role bypasses RLS)
+// DELETE /family/tree/:childId — delete a tree, its linked trees, and ALL deeds
 app.delete('/family/tree/:childId', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { childId } = req.params;
     if (!childId) return res.status(400).json({ error: 'Missing childId' });
+
+    // Find any trees that are linked to this one before deleting
+    const { data: linkedTrees } = await supabase
+      .from('family_trees')
+      .select('child_id')
+      .eq('linked_tree_id', childId);
+    const linkedIds = (linkedTrees ?? []).map((t: any) => t.child_id);
+
+    // Delete deeds for the main tree
     await supabase.from('child_garden_actions').delete().eq('child_id', childId);
+
+    // Delete linked trees and their deeds
+    for (const linkedId of linkedIds) {
+      await supabase.from('child_garden_actions').delete().eq('child_id', linkedId);
+      await supabase.from('family_trees').delete().eq('child_id', linkedId);
+    }
+
+    // Delete the main tree row
     await supabase.from('family_trees').delete().eq('child_id', childId);
+
     return res.json({ success: true });
   } catch (err: any) {
     console.error('DELETE /family/tree error:', err);
