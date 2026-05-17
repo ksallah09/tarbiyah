@@ -24,10 +24,11 @@ if (Platform.OS === 'android') {
   });
 }
 
-const DAILY_NOTIF_ID_KEY   = 'tarbiyah_daily_notif_id';
+const DAILY_NOTIF_ID_KEY        = 'tarbiyah_daily_notif_id';
 const WEEKLY_SHARE_NOTIF_ID_KEY = 'tarbiyah_weekly_share_notif_id';
-const DAILY_CACHE_KEY      = 'tarbiyah_daily_cache';
-const PROFILE_KEY          = 'tarbiyah_profile';
+const GARDEN_REMINDER_IDS_KEY   = 'tarbiyah_garden_reminder_ids';
+const DAILY_CACHE_KEY           = 'tarbiyah_daily_cache';
+const PROFILE_KEY               = 'tarbiyah_profile';
 
 // ─── Rotating message pool ────────────────────────────────────────────────────
 const FALLBACK_MESSAGES = [
@@ -184,6 +185,93 @@ export async function cancelWeeklyShareNotification() {
       await Notifications.cancelScheduledNotificationAsync(id);
       await AsyncStorage.removeItem(WEEKLY_SHARE_NOTIF_ID_KEY);
     }
+  } catch {}
+}
+
+// ─── Garden reminder — fires every 3 days, rotating message pool ─────────────
+
+const GARDEN_REMINDER_MESSAGES = [
+  {
+    title: '🌱 Time to visit the garden',
+    body: 'A good deed seen and celebrated by a parent becomes a habit rooted in the heart. Show your child their tree tonight — let them feel what they\'ve built.',
+  },
+  {
+    title: '🌳 The garden is waiting',
+    body: 'Ibn al-Qayyim said: nurture your child to love goodness, not merely to perform it. Opening the Good Deeds Tree together is exactly that — love made visible.',
+  },
+  {
+    title: '💚 A moment that matters',
+    body: 'Your child doesn\'t need perfection — they need presence. A few minutes looking at their growing tree can plant seeds of good character that last a lifetime.',
+  },
+  {
+    title: '🌿 Children grow through recognition',
+    body: 'The Prophet ﷺ always celebrated the good in those around him. Open your child\'s tree today and let them see — and feel — how far they\'ve come.',
+  },
+  {
+    title: '🤲 Small acts, deep roots',
+    body: 'Consistency is the foundation of character. Your child\'s Good Deeds Tree is a living record of real effort — open it together and encourage them to keep going.',
+  },
+  {
+    title: '✨ A gentle nudge from Tarbiyah',
+    body: 'Children need to know their good deeds are noticed. A brief moment today — looking at the tree, naming a deed, saying MashaAllah — is an act of tarbiyah.',
+  },
+];
+
+export async function scheduleGardenReminderNotifications() {
+  try {
+    const profileRaw = await AsyncStorage.getItem(PROFILE_KEY);
+    const profile = profileRaw ? JSON.parse(profileRaw) : {};
+    if (profile.notifications === false) return;
+
+    // Check how many are still pending — only refill when supply is low
+    const raw = await AsyncStorage.getItem(GARDEN_REMINDER_IDS_KEY);
+    if (raw) {
+      const ids = JSON.parse(raw);
+      const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+      const pendingSet = new Set(allScheduled.map(n => n.identifier));
+      const stillPending = ids.filter(id => pendingSet.has(id));
+      if (stillPending.length >= 2) return; // enough ahead, leave them alone
+      // Cancel any stragglers before refilling
+      for (const id of ids) {
+        try { await Notifications.cancelScheduledNotificationAsync(id); } catch {}
+      }
+    }
+
+    // Schedule the next 6 reminders, 3 days apart at 6 PM, with rotating messages
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+    const slotIndex = Math.floor(Date.now() / THREE_DAYS_MS);
+    const ids = [];
+
+    for (let i = 0; i < 6; i++) {
+      const fireDate = new Date(Date.now() + (i + 1) * THREE_DAYS_MS);
+      fireDate.setHours(18, 0, 0, 0);
+      const msg = GARDEN_REMINDER_MESSAGES[(slotIndex + i) % GARDEN_REMINDER_MESSAGES.length];
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: msg.title,
+          body:  msg.body,
+          sound: true,
+          data:  { screen: 'Dashboards', tab: 'family' },
+          android: { channelId: 'default' },
+        },
+        trigger: { type: 'date', date: fireDate },
+      });
+      ids.push(id);
+    }
+
+    await AsyncStorage.setItem(GARDEN_REMINDER_IDS_KEY, JSON.stringify(ids));
+  } catch {}
+}
+
+export async function cancelGardenReminderNotifications() {
+  try {
+    const raw = await AsyncStorage.getItem(GARDEN_REMINDER_IDS_KEY);
+    if (!raw) return;
+    const ids = JSON.parse(raw);
+    for (const id of ids) {
+      try { await Notifications.cancelScheduledNotificationAsync(id); } catch {}
+    }
+    await AsyncStorage.removeItem(GARDEN_REMINDER_IDS_KEY);
   } catch {}
 }
 
@@ -594,6 +682,7 @@ export async function refreshDailyNotification() {
     const reminderTime = profile.reminderTime ?? '8:00 AM';
     await scheduleDailyNotification(reminderTime);
     await scheduleWeeklyShareNotification();
+    await scheduleGardenReminderNotifications();
   } catch {}
 }
 

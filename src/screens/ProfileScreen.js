@@ -41,7 +41,7 @@ const CATEGORY_CONFIG = {
 };
 function catConfig(cat) { return CATEGORY_CONFIG[cat] ?? { color: '#6B7280', icon: 'grid-outline' }; }
 import * as Notifications from 'expo-notifications';
-import { scheduleDailyNotification, cancelDailyNotification, requestNotificationPermission } from '../utils/notifications';
+import { scheduleDailyNotification, cancelDailyNotification, cancelGardenReminderNotifications, requestNotificationPermission } from '../utils/notifications';
 let ImagePicker = null;
 try { ImagePicker = require('expo-image-picker'); } catch {}
 import { uploadPhoto } from '../utils/uploadPhoto';
@@ -1460,6 +1460,7 @@ export default function ProfileScreen() {
                       });
                     } else {
                       cancelDailyNotification();
+                      cancelGardenReminderNotifications();
                     }
                   }}
                   trackColor={{ false: '#E8EAED', true: '#34C759' }}
