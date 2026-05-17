@@ -294,6 +294,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   const [celebEvent,     setCelebEvent]     = useState(null);
   const [showChildView,  setShowChildView]  = useState(false);
   const [sharing,        setSharing]        = useState(false);
+  const [showAllDeeds,   setShowAllDeeds]   = useState(false);
 
   const swayAnim      = useRef(new Animated.Value(0)).current;
   const dropY         = useRef(new Animated.Value(0)).current;
@@ -606,7 +607,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
       {/* Recent deeds */}
       {recentThree.length > 0 && (
         <View style={gs.recentList}>
-          <Text style={gs.recentLabel}>Recent deeds</Text>
+          <Text style={gs.recentLabel}>Recent accomplishments</Text>
           {recentThree.map((a, idx) => {
             const m = MANNERS.find(m => m.key === a.manner);
             return (
@@ -622,6 +623,12 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               </View>
             );
           })}
+          {actions.length > 3 && (
+            <TouchableOpacity style={gs.seeAllBtn} onPress={() => setShowAllDeeds(true)} activeOpacity={0.7}>
+              <Text style={gs.seeAllText}>See all {actions.length} accomplishments</Text>
+              <Ionicons name="chevron-forward" size={13} color="#2E7D62" />
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -901,6 +908,46 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         </LinearGradient>
       </Modal>
 
+      {/* ── All accomplishments modal ── */}
+      <Modal visible={showAllDeeds} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAllDeeds(false)}>
+        <View style={gs.allDeedsContainer}>
+          <View style={gs.allDeedsHeader}>
+            <View>
+              <Text style={gs.allDeedsTitle}>All Accomplishments</Text>
+              <Text style={gs.allDeedsSub}>{displayName} · {actions.length} total</Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowAllDeeds(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close" size={22} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={gs.allDeedsScroll} showsVerticalScrollIndicator={false}>
+            {actions.map((a, idx) => {
+              const m = MANNERS.find(m => m.key === a.manner);
+              const date = new Date(a.date);
+              return (
+                <View key={a.id} style={[gs.allDeedRow, idx < actions.length - 1 && gs.allDeedRowBorder]}>
+                  <View style={gs.allDeedEmojiWrap}>
+                    <Text style={{ fontSize: 18 }}>{m?.emoji ?? '✨'}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={gs.allDeedLabel}>{m?.label ?? a.manner}</Text>
+                    {!!a.note && <Text style={gs.allDeedNote}>"{a.note}"</Text>}
+                    {!!a.logged_by_name && (
+                      <Text style={gs.allDeedBy}>Logged by {a.logged_by_name}</Text>
+                    )}
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={gs.allDeedDate}>
+                      {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </Text>
+                    <Text style={gs.allDeedYear}>{date.getFullYear()}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
 
     </View>
   );
@@ -968,6 +1015,22 @@ const gs = StyleSheet.create({
   recentItemLabel:   { fontSize: 13, fontWeight: '600', color: '#1A1A2E', marginBottom: 2 },
   recentItemNote:    { fontSize: 12, color: '#6B7280', lineHeight: 18, fontStyle: 'italic' },
   recentItemDate:    { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  seeAllBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 12, marginTop: 4 },
+  seeAllText:        { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
+
+  allDeedsContainer: { flex: 1, backgroundColor: '#FFFFFF' },
+  allDeedsHeader:    { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 20, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  allDeedsTitle:     { fontSize: 18, fontWeight: '800', color: '#1A1A2E', marginBottom: 3 },
+  allDeedsSub:       { fontSize: 13, color: '#9CA3AF' },
+  allDeedsScroll:    { padding: 20, paddingBottom: 40 },
+  allDeedRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 14 },
+  allDeedRowBorder:  { borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  allDeedEmojiWrap:  { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
+  allDeedLabel:      { fontSize: 14, fontWeight: '700', color: '#1A1A2E', marginBottom: 2 },
+  allDeedNote:       { fontSize: 12, color: '#6B7280', fontStyle: 'italic', lineHeight: 18, marginBottom: 2 },
+  allDeedBy:         { fontSize: 11, color: '#9CA3AF' },
+  allDeedDate:       { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+  allDeedYear:       { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
 
   logBtn:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1B3D2F', borderRadius: 12, paddingVertical: 13 },
   logBtnText:        { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
