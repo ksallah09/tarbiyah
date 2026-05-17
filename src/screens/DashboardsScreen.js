@@ -739,8 +739,8 @@ export default function DashboardsScreen({ navigation, route }) {
             <View style={[styles.familyMomentsHeader, { flexDirection: 'row', alignItems: 'flex-start' }]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.familyMomentsEyebrow}>FAMILY GARDEN</Text>
-                <Text style={styles.familyMomentsTitle}>Accomplishment Tree</Text>
-                <Text style={styles.familyMomentsSub}>Reward system for your children</Text>
+                <Text style={styles.familyMomentsTitle}>Accomplishment Trees</Text>
+                <Text style={styles.familyMomentsSub}>Track your children's accomplishments</Text>
               </View>
               <TouchableOpacity
                 onPress={() => navigation.navigate('GardenTreeWizard')}
