@@ -862,13 +862,13 @@ export default function DashboardsScreen({ navigation, route }) {
 
           {/* Shared moments feed */}
           {(() => {
-            const allMoments = familyMoments.filter(m => m.type === 'win' || m.type === 'incident');
+            const allMoments = familyMoments.filter(m => m.type === 'incident');
 
             return (
               <View style={{ marginTop: 20 }}>
                 <View style={styles.familyMomentsHeader}>
                   <Text style={styles.familyMomentsEyebrow}>FAMILY LOG</Text>
-                  <Text style={styles.familyMomentsTitle}>Wins & Difficult Moments</Text>
+                  <Text style={styles.familyMomentsTitle}>Difficult Moments</Text>
                   <Text style={styles.familyMomentsSub}>Logged from each child's dashboard</Text>
                 </View>
                 <View style={styles.familyGoalCard}>
@@ -876,72 +876,47 @@ export default function DashboardsScreen({ navigation, route }) {
                     <View style={styles.familyGoalEmpty}>
                       <Ionicons name="journal-outline" size={28} color="#D1D5DB" style={{ marginBottom: 10 }} />
                       <Text style={styles.familyGoalEmptyTitle}>Nothing logged yet</Text>
-                      <Text style={styles.familyGoalEmptySub}>Wins and difficult moments logged on a child's dashboard will appear here for both parents to see.</Text>
+                      <Text style={styles.familyGoalEmptySub}>Difficult moments logged on a child's dashboard will appear here for both parents to see.</Text>
                     </View>
                   ) : allMoments.map((entry, idx) => {
-                    const loveNames = Array.isArray(entry.loves) ? entry.loves : [];
-                    const ackNames  = Array.isArray(entry.acknowledges) ? entry.acknowledges : [];
-                    const loved = lovedWins.has(entry.id) || loveNames.includes(myProfileName);
+                    const ackNames = Array.isArray(entry.acknowledges) ? entry.acknowledges : [];
                     const acked = acknowledgedInc.has(entry.id) || ackNames.includes(myProfileName);
                     return (
                     <View key={entry.id}>
                       {idx > 0 && <View style={styles.familyGoalDivider} />}
                       <View style={styles.familyMomentRow}>
-                        <View style={[styles.familyMomentIconWrap, { backgroundColor: entry.type === 'win' ? '#FEF9EE' : '#FFF8F8' }]}>
-                          <Text style={{ fontSize: 16 }}>{entry.type === 'win' ? '⭐' : '⚠️'}</Text>
+                        <View style={[styles.familyMomentIconWrap, { backgroundColor: '#FFF8F8' }]}>
+                          <Text style={{ fontSize: 16 }}>⚠️</Text>
                         </View>
                         <View style={{ flex: 1 }}>
                           <View style={styles.familyMomentTopRow}>
                             <View style={[styles.familyMomentChildBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22' }]}>
                               <Text style={[styles.familyMomentChildName, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
                             </View>
-                            <Text style={styles.familySharedTypeLabel}>
-                              {entry.type === 'win' ? 'Win' : 'Difficult Moment'}
-                            </Text>
+                            <Text style={styles.familySharedTypeLabel}>Difficult Moment</Text>
                             <Text style={styles.familyMomentDate}>
                               {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </Text>
                           </View>
                           <Text style={styles.familyMomentText}>{entry.text}</Text>
-                          {entry.type === 'win' && (
-                            <View style={styles.familyMomentReactionRow}>
-                              <TouchableOpacity
-                                style={[styles.familyMomentLoveBtn, loved && styles.familyMomentLoveBtnActive]}
-                                onPress={() => handleLoveWin(entry.childId, entry.id)}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons name={loved ? 'heart' : 'heart-outline'} size={14} color={loved ? '#E11D48' : '#9CA3AF'} />
-                                <Text style={[styles.familyMomentLoveCount, loved && styles.familyMomentLoveCountActive]}>
-                                  {loved ? 'Loved' : 'Love'}
-                                </Text>
-                              </TouchableOpacity>
-                              {loveNames.length > 0 && (
-                                <Text style={styles.familyMomentReactionLabel}>
-                                  ❤️ {loveNames.join(' & ')}
-                                </Text>
-                              )}
-                            </View>
-                          )}
-                          {entry.type === 'incident' && (
-                            <View style={styles.familyMomentReactionRow}>
-                              <TouchableOpacity
-                                style={[styles.familyMomentLoveBtn, acked && styles.familyMomentAckBtnActive]}
-                                onPress={() => handleAcknowledgeIncident(entry.childId, entry.id)}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons name={acked ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={acked ? '#2E7D62' : '#9CA3AF'} />
-                                <Text style={[styles.familyMomentLoveCount, acked && styles.familyMomentAckCountActive]}>
-                                  {acked ? 'Acknowledged' : 'Acknowledge'}
-                                </Text>
-                              </TouchableOpacity>
-                              {ackNames.length > 0 && (
-                                <View style={styles.familyMomentAckNamePill}>
-                                  <Ionicons name="checkmark-circle" size={13} color="#2E7D62" />
-                                  <Text style={styles.familyMomentAckNameText}>{ackNames.join(' & ')}</Text>
-                                </View>
-                              )}
-                            </View>
-                          )}
+                          <View style={styles.familyMomentReactionRow}>
+                            <TouchableOpacity
+                              style={[styles.familyMomentLoveBtn, acked && styles.familyMomentAckBtnActive]}
+                              onPress={() => handleAcknowledgeIncident(entry.childId, entry.id)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name={acked ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={acked ? '#2E7D62' : '#9CA3AF'} />
+                              <Text style={[styles.familyMomentLoveCount, acked && styles.familyMomentAckCountActive]}>
+                                {acked ? 'Acknowledged' : 'Acknowledge'}
+                              </Text>
+                            </TouchableOpacity>
+                            {ackNames.length > 0 && (
+                              <View style={styles.familyMomentAckNamePill}>
+                                <Ionicons name="checkmark-circle" size={13} color="#2E7D62" />
+                                <Text style={styles.familyMomentAckNameText}>{ackNames.join(' & ')}</Text>
+                              </View>
+                            )}
+                          </View>
                         </View>
                       </View>
                     </View>
