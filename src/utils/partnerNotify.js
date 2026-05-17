@@ -14,3 +14,16 @@ export async function notifyPartner(title, body, data = {}) {
     });
   } catch {}
 }
+
+export async function notifyDeedLogged({ childName, deedLabel, deedEmoji, gender, loggerName }) {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) return;
+    await fetch(`${API_URL}/family/notify-deed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ childName, deedLabel, deedEmoji, gender, loggerName }),
+    });
+  } catch {}
+}

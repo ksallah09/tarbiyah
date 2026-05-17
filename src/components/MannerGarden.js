@@ -10,7 +10,7 @@ import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { supabase } from '../utils/supabase';
 import { getFamilyId } from '../utils/familyGoals';
-import { notifyPartner } from '../utils/partnerNotify';
+import { notifyDeedLogged } from '../utils/partnerNotify';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -434,13 +434,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         }
       }
 
-      if (partnerLinked) {
-        notifyPartner(
-          `${myProfileName || 'Your partner'} logged a good deed for ${child.name}`,
-          `${manner?.emoji ?? ''} ${manner?.label ?? selectedManner}${note.trim() ? ` · "${note.trim()}"` : ''}`,
-          { screen: 'Dashboards', childId: child.id }
-        );
-      }
+      notifyDeedLogged({
+        childName:  child.name,
+        deedLabel:  manner?.label ?? selectedManner,
+        deedEmoji:  manner?.emoji ?? '',
+        gender:     child.gender ?? null,
+        loggerName: myProfileName || null,
+      });
     } catch { Alert.alert('Error', 'Something went wrong.'); }
     finally { setSaving(false); }
   }

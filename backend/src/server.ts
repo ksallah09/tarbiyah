@@ -3104,6 +3104,85 @@ app.post('/family/notify-partner', requireAuth, async (req: AuthRequest, res: Re
   }
 });
 
+// POST /family/notify-deed — send deed-logged notification to both the logger and their partner
+app.post('/family/notify-deed', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { childName, deedLabel, deedEmoji, gender, loggerName } = req.body;
+    if (!childName) return res.status(400).json({ error: 'childName required' });
+
+    const pronoun = gender === 'male' ? 'his' : gender === 'female' ? 'her' : 'their';
+    const title = `${deedEmoji ? deedEmoji + ' ' : ''}${childName} earned a good deed!`;
+    const body  = `Show ${childName} ${pronoun} growing tree — seeing progress keeps them motivated 🌱`;
+
+    // Find partner user ID
+    const { data: myMembership } = await supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', req.userId)
+      .limit(1)
+      .single();
+
+    let partnerUserId: string | null = null;
+    if (myMembership?.family_id) {
+      const { data: others } = await supabase
+        .from('family_members')
+        .select('user_id')
+        .eq('family_id', myMembership.family_id)
+        .neq('user_id', req.userId!)
+        .limit(1);
+      partnerUserId = others?.[0]?.user_id ?? null;
+    }
+    if (!partnerUserId) {
+      const { data: invite } = await supabase
+        .from('family_invites')
+        .select('used_by')
+        .eq('created_by', req.userId!)
+        .not('used_by', 'is', null)
+        .limit(1)
+        .single();
+      partnerUserId = invite?.used_by ?? null;
+    }
+
+    // Fetch push tokens for self + partner
+    const userIds = [req.userId!, partnerUserId].filter(Boolean) as string[];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, push_token')
+      .in('user_id', userIds);
+
+    const tokens = (profiles ?? []).map((p: any) => p.push_token).filter(Boolean);
+    if (tokens.length === 0) return res.json({ sent: false, reason: 'no push tokens' });
+
+    const partnerTitle = loggerName
+      ? `${loggerName} logged a deed for ${childName} 🌱`
+      : title;
+    const partnerBody = `${deedEmoji ? deedEmoji + ' ' : ''}${deedLabel ?? 'Good deed'}. Share ${pronoun} tree to celebrate!`;
+
+    const notifications = profiles?.map((p: any) => {
+      if (!p.push_token) return null;
+      const isPartner = p.user_id === partnerUserId;
+      return {
+        to:    p.push_token,
+        title: isPartner ? partnerTitle : title,
+        body:  isPartner ? partnerBody  : body,
+        sound: 'default',
+        data:  { screen: 'Dashboards' },
+      };
+    }).filter(Boolean);
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body:    JSON.stringify(notifications),
+    });
+
+    return res.json({ sent: true, count: notifications?.length });
+  } catch (err: any) {
+    console.error('POST /family/notify-deed error:', err);
+    return res.status(500).json({ error: err?.message });
+  }
+});
+
 // DELETE /family/tree/:childId — delete a tree, its linked trees, and ALL deeds
 app.delete('/family/tree/:childId', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
