@@ -1152,7 +1152,6 @@ const wins     = child?.wins      ?? [];
             <View style={{ height: 16 }} />
             <ChildWorldCard child={child} />
             <View style={{ height: 16 }} />
-            <MannerGarden child={child} myProfileName={myProfileName} partnerLinked={partnerLinked} />
           </>
         )}
 
@@ -1400,14 +1399,6 @@ const wins     = child?.wins      ?? [];
         {/* ── This Week in Youth Culture ── */}
         <View style={{ height: 16 }} />
         <ChildWorldCard child={child} />
-
-        {/* ── Good Deeds Garden ── */}
-        <View style={{ height: 16 }} />
-        <MannerGarden
-          child={child}
-          myProfileName={myProfileName}
-          partnerLinked={partnerLinked}
-        />
 
         {/* Wins */}
         <View style={styles.sectionRow}>
