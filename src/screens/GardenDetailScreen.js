@@ -77,11 +77,11 @@ export default function GardenDetailScreen({ route, navigation }) {
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="chevron-back" size={22} color="#1A1A2E" />
+          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{tree.child_name}'s Garden</Text>
         <TouchableOpacity onPress={() => setShowSettings(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="settings-outline" size={20} color="#6B7280" />
+          <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
       </View>
 
@@ -217,8 +217,8 @@ export default function GardenDetailScreen({ route, navigation }) {
 
 const s = StyleSheet.create({
   safe:             { flex: 1, backgroundColor: '#F5F5F5' },
-  header:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  headerTitle:      { fontSize: 16, fontWeight: '800', color: '#1A1A2E' },
+  header:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#1B3D2F', borderBottomWidth: 0 },
+  headerTitle:      { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
   scroll:           { padding: 16, paddingBottom: 48 },
 
   modalContainer:   { flex: 1, backgroundColor: '#FFFFFF' },
