@@ -692,11 +692,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               <TouchableOpacity style={cv.closeBtn} onPress={() => setShowChildView(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                 <Ionicons name="close" size={22} color="rgba(0,0,0,0.35)" />
               </TouchableOpacity>
-              <View style={{ flex: 1 }} />
-              <TouchableOpacity style={[cv.shareBtn, sharing && { opacity: 0.5 }]} onPress={shareGarden} disabled={sharing} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="share-outline" size={20} color="#2E7D62" />
-                <Text style={cv.shareBtnText}>{sharing ? 'Sharing…' : 'Share'}</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Hidden share card */}
@@ -819,6 +814,22 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               )}
 
               <Text style={cv.motivation}>Ma Shaa Allah! Keep growing! 🤲</Text>
+
+              <TouchableOpacity
+                style={[cv.shareCard, sharing && { opacity: 0.5 }]}
+                onPress={shareGarden}
+                disabled={sharing}
+                activeOpacity={0.85}
+              >
+                <View style={cv.shareCardIcon}>
+                  <Ionicons name={sharing ? 'hourglass-outline' : 'share-social-outline'} size={22} color="#2E7D62" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={cv.shareCardTitle}>{sharing ? 'Preparing…' : 'Share Progress Summary'}</Text>
+                  <Text style={cv.shareCardSub}>Send to {displayName} for motivation or share with family</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+              </TouchableOpacity>
             </ScrollView>
           </SafeAreaView>
         </LinearGradient>
@@ -952,8 +963,6 @@ const gs = StyleSheet.create({
 const cv = StyleSheet.create({
   header:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   closeBtn:        { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' },
-  shareBtn:        { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(46,125,98,0.1)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
-  shareBtnText:    { fontSize: 13, fontWeight: '700', color: '#2E7D62' },
   scroll:          { alignItems: 'center', paddingHorizontal: 24, paddingTop: 8, paddingBottom: 48 },
   childName:       { fontSize: 40, fontWeight: '900', color: '#1A1A2E', textAlign: 'center', marginTop: 24, marginBottom: 4 },
   stageName:       { fontSize: 16, fontWeight: '700', color: '#2E7D62', marginBottom: 28 },
@@ -988,7 +997,12 @@ const cv = StyleSheet.create({
   recentRowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' },
   recentEmoji:     { fontSize: 22, width: 30, textAlign: 'center' },
   recentLabel:     { fontSize: 16, fontWeight: '600', color: '#1A1A2E' },
-  motivation:      { fontSize: 15, fontWeight: '600', color: '#2E7D62', textAlign: 'center', opacity: 0.8 },
+  motivation:      { fontSize: 15, fontWeight: '600', color: '#2E7D62', textAlign: 'center', opacity: 0.8, marginBottom: 20 },
+
+  shareCard:       { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 18, padding: 16, marginBottom: 8, borderWidth: 1.5, borderColor: 'rgba(46,125,98,0.2)' },
+  shareCardIcon:   { width: 44, height: 44, borderRadius: 13, backgroundColor: 'rgba(46,125,98,0.12)', alignItems: 'center', justifyContent: 'center' },
+  shareCardTitle:  { fontSize: 15, fontWeight: '800', color: '#1B3D2F', marginBottom: 2 },
+  shareCardSub:    { fontSize: 12, color: '#6B7280', lineHeight: 17 },
 });
 
 // ── Share card styles ─────────────────────────────────────────────────────────
