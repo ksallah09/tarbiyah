@@ -195,10 +195,7 @@ const GARDEN_REMINDER_MESSAGES = [
     title: '🌱 Time to visit the garden',
     body: 'A good deed seen and celebrated becomes a habit rooted in the heart. Open your child\'s tree now and show them how far they\'ve come.',
   },
-  {
-    title: '🌳 The garden is waiting',
-    body: 'Ibn al-Qayyim said: nurture your child to love goodness, not merely to perform it. Tap to open the tree together — love made visible.',
-  },
+
   {
     title: '💚 A moment that matters',
     body: 'Your child doesn\'t need perfection — they need presence. Open their Good Deeds Tree now and spend two minutes celebrating their growth.',
