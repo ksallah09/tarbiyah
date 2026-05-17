@@ -183,15 +183,22 @@ export default function GardenDetailScreen({ route, navigation }) {
                       try {
                         const { data: sessionData } = await supabase.auth.getSession();
                         const token = sessionData?.session?.access_token;
-                        const resp = await fetch(`${API_URL}/family/tree/${tree.child_id}`, {
+                        const url = `${API_URL}/family/tree/${tree.child_id}`;
+                        console.log('[DeleteTree] child_id:', tree.child_id);
+                        console.log('[DeleteTree] token present:', !!token);
+                        console.log('[DeleteTree] url:', url);
+                        const resp = await fetch(url, {
                           method: 'DELETE',
                           headers: { Authorization: `Bearer ${token}` },
                         });
-                        if (!resp.ok) throw new Error('Delete failed');
+                        const body = await resp.text();
+                        console.log('[DeleteTree] status:', resp.status, 'body:', body);
+                        if (!resp.ok) throw new Error(`Delete failed: ${resp.status} ${body}`);
                         setShowSettings(false);
                         navigation.goBack();
-                      } catch {
-                        Alert.alert('Error', 'Could not delete tree. Please try again.');
+                      } catch (err) {
+                        console.error('[DeleteTree] error:', err);
+                        Alert.alert('Error', `Could not delete tree.\n${err?.message ?? err}`);
                       }
                     },
                   },

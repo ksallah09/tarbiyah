@@ -47,29 +47,35 @@ export default function GardenTreeWizardScreen({ navigation }) {
   async function advanceToStep2() {
     if (!selectedChild) return;
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('family_trees')
         .select('child_id, linked_tree_id')
         .eq('child_id', selectedChild.id)
         .maybeSingle();
 
+      console.log('[Wizard] existing row for', selectedChild.id, '→', JSON.stringify(data), 'err:', error?.message);
+
       if (data) {
         // If this row is a linked tree, check whether the canonical tree it points to still exists
         if (data.linked_tree_id) {
-          const { data: canonical } = await supabase
+          const { data: canonical, error: canonErr } = await supabase
             .from('family_trees')
             .select('child_id')
             .eq('child_id', data.linked_tree_id)
             .maybeSingle();
 
+          console.log('[Wizard] canonical check for', data.linked_tree_id, '→', JSON.stringify(canonical), 'err:', canonErr?.message);
+
           if (!canonical) {
             // Canonical was deleted — stale row, clean it up and proceed
-            await supabase.from('family_trees').delete().eq('child_id', selectedChild.id);
+            const { error: delErr } = await supabase.from('family_trees').delete().eq('child_id', selectedChild.id);
+            console.log('[Wizard] deleted stale linked row, err:', delErr?.message);
             setStep(2);
             return;
           }
         }
 
+        console.log('[Wizard] blocking — existing row has linked_tree_id:', data.linked_tree_id);
         Alert.alert(
           'Tree already exists',
           `${selectedChild.name.split(' ')[0]} already has a Good Deeds Tree. You can update it from the Family Garden.`,
@@ -77,7 +83,9 @@ export default function GardenTreeWizardScreen({ navigation }) {
         );
         return;
       }
-    } catch {}
+    } catch (err) {
+      console.error('[Wizard] advanceToStep2 error:', err);
+    }
     setStep(2);
   }
 
