@@ -263,13 +263,14 @@ export default function DashboardsScreen({ navigation, route }) {
         supabase.from('child_garden_actions').select('child_id').eq('family_id', familyId),
       ]);
       const trees = treesRes.data ?? [];
-      const linkedIds = new Set(trees.map(t => t.linked_tree_id).filter(Boolean));
-      setFamilyTrees(trees.filter(t => !linkedIds.has(t.child_id)));
+      // Show canonical trees (no linked_tree_id) — hide linked/duplicate rows
+      setFamilyTrees(trees.filter(t => !t.linked_tree_id));
       const rawTotals = {};
       (actRes.data ?? []).forEach(r => { rawTotals[r.child_id] = (rawTotals[r.child_id] ?? 0) + 1; });
       const combined = { ...rawTotals };
+      // Roll linked tree deed counts up into the canonical tree's total
       trees.forEach(t => {
-        if (t.linked_tree_id) combined[t.child_id] = (combined[t.child_id] ?? 0) + (rawTotals[t.linked_tree_id] ?? 0);
+        if (t.linked_tree_id) combined[t.linked_tree_id] = (combined[t.linked_tree_id] ?? 0) + (rawTotals[t.child_id] ?? 0);
       });
       setGardenTotals(combined);
     }).catch(() => {});
@@ -292,16 +293,15 @@ export default function DashboardsScreen({ navigation, route }) {
         supabase.from('child_garden_actions').select('child_id').eq('family_id', familyId),
       ]);
       const trees = treesRes.data ?? [];
-      // Exclude trees that are linked-into (only show canonical trees)
-      const linkedIds = new Set(trees.map(t => t.linked_tree_id).filter(Boolean));
-      setFamilyTrees(trees.filter(t => !linkedIds.has(t.child_id)));
-      // Deed totals — combine linked tree counts into canonical
+      // Show canonical trees (no linked_tree_id) — hide linked/duplicate rows
+      setFamilyTrees(trees.filter(t => !t.linked_tree_id));
+      // Deed totals — roll linked tree counts up into the canonical tree
       const rawTotals = {};
       (actionsRes.data ?? []).forEach(r => { rawTotals[r.child_id] = (rawTotals[r.child_id] ?? 0) + 1; });
       const combined = { ...rawTotals };
       trees.forEach(t => {
         if (t.linked_tree_id) {
-          combined[t.child_id] = (combined[t.child_id] ?? 0) + (rawTotals[t.linked_tree_id] ?? 0);
+          combined[t.linked_tree_id] = (combined[t.linked_tree_id] ?? 0) + (rawTotals[t.child_id] ?? 0);
         }
       });
       setGardenTotals(combined);
