@@ -301,10 +301,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   const staticScale   = useRef(new Animated.Value(1)).current;
   const shareCardRef  = useRef();
 
-  const [burstEmoji, setBurstEmoji] = useState(null);
-  const floatY       = useRef(new Animated.Value(0)).current;
-  const floatOpacity = useRef(new Animated.Value(0)).current;
-  const floatScale   = useRef(new Animated.Value(1)).current;
 
   const PARTICLE_DIRS = [
     { x: -72, y: -85 },
@@ -403,21 +399,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         Animated.timing(dropOpacity, { toValue: 0,  duration: 700, delay: 200, useNativeDriver: true }),
       ]).start();
 
-      // Floating deed emoji
-      if (emoji) {
-        setBurstEmoji(emoji);
-        floatY.setValue(0);
-        floatOpacity.setValue(1);
-        floatScale.setValue(0.6);
-        Animated.parallel([
-          Animated.timing(floatY,       { toValue: -130, duration: 950, useNativeDriver: true }),
-          Animated.timing(floatOpacity, { toValue: 0,    duration: 950, delay: 350, useNativeDriver: true }),
-          Animated.sequence([
-            Animated.timing(floatScale, { toValue: 1.5, duration: 220, useNativeDriver: true }),
-            Animated.timing(floatScale, { toValue: 1.2, duration: 730, useNativeDriver: true }),
-          ]),
-        ]).start(() => setBurstEmoji(null));
-      }
 
       // Leaf particle burst
       particles.forEach((p, i) => {
@@ -564,18 +545,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
           </Animated.View>
         ))}
 
-        {/* Floating deed emoji */}
-        {burstEmoji && (
-          <Animated.View
-            pointerEvents="none"
-            style={[gs.floatEmoji, {
-              opacity: floatOpacity,
-              transform: [{ translateY: floatY }, { scale: floatScale }],
-            }]}
-          >
-            <Text style={{ fontSize: 32 }}>{burstEmoji}</Text>
-          </Animated.View>
-        )}
 
         <View style={gs.deedsCountWrap}>
           <Text style={gs.deedsCount}>{prog.currentTreeDeeds}</Text>
@@ -959,7 +928,6 @@ const gs = StyleSheet.create({
 
   sceneWrap:         { alignItems: 'center', marginBottom: 12, position: 'relative', overflow: 'visible' },
   particle:          { position: 'absolute', top: '30%', left: '50%' },
-  floatEmoji:        { position: 'absolute', top: '50%', left: '50%', marginLeft: -16 },
   waterDrop:         { position: 'absolute', top: 0, zIndex: 10 },
   deedsCountWrap:    { marginTop: 8, alignItems: 'center' },
   deedsCount:        { fontSize: 28, fontWeight: '800', color: '#1A1A2E' },
