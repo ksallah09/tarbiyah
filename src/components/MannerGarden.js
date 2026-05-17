@@ -829,12 +829,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
 
 // ── Mini version for family garden view ───────────────────────────────────────
 
-export function MiniGardenCard({ childName, total, color, label, thresholds }) {
+export function MiniGardenCard({ childName, total, color, label, thresholds, onPress }) {
   const t     = { ...DEFAULT_THRESHOLDS, ...(thresholds ?? {}) };
   const stage = getStageFromList(buildStages(t), total % t.fruit);
   const EMOJIS = ['🌱', '🌿', '🪴', '🌳', '🌸', '🍃'];
+  const Wrapper = onPress ? TouchableOpacity : View;
   return (
-    <View style={gs.miniCard}>
+    <Wrapper style={gs.miniCard} onPress={onPress} activeOpacity={0.8}>
       {!!label && <Text style={gs.miniLabel}>{label}</Text>}
       <Text style={gs.miniEmoji}>{EMOJIS[stage.index]}</Text>
       <View style={[gs.miniNameBadge, { backgroundColor: (color ?? '#2E7D62') + '22' }]}>
@@ -842,7 +843,8 @@ export function MiniGardenCard({ childName, total, color, label, thresholds }) {
       </View>
       <Text style={gs.miniStage}>{stage.name}</Text>
       <Text style={gs.miniCount}>{total} deeds</Text>
-    </View>
+      {!!onPress && <Ionicons name="chevron-forward" size={10} color="#9CA3AF" style={{ marginTop: 4 }} />}
+    </Wrapper>
   );
 }
 
