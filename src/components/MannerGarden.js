@@ -851,7 +851,7 @@ export function MiniGardenCard({ childName, total, color, label, thresholds, onP
       {!!label && <Text style={gs.miniLabel}>{label}</Text>}
       <Text style={gs.miniEmoji}>{EMOJIS[stage.index]}</Text>
       <View style={[gs.miniNameBadge, { backgroundColor: (color ?? '#2E7D62') + '22' }]}>
-        <Text style={[gs.miniName, { color: color ?? '#2E7D62' }]}>{childName?.split(' ')[0]}</Text>
+        <Text style={[gs.miniName, { color: color ?? '#2E7D62' }]} numberOfLines={1} ellipsizeMode="tail">{childName?.split(' ')[0]}</Text>
       </View>
       <Text style={gs.miniStage}>{stage.name}</Text>
       <Text style={gs.miniCount}>{total} deeds</Text>
@@ -951,7 +951,7 @@ const gs = StyleSheet.create({
 
   miniCard:          { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', width: 100, borderWidth: 1, borderColor: '#F0F0F0' },
   miniEmoji:         { fontSize: 32, marginBottom: 8 },
-  miniNameBadge:     { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 4 },
+  miniNameBadge:     { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 4, maxWidth: 84 },
   miniName:          { fontSize: 11, fontWeight: '700' },
   miniStage:         { fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginBottom: 2 },
   miniCount:         { fontSize: 10, fontWeight: '600', color: '#2E7D62' },
