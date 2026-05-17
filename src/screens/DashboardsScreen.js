@@ -256,17 +256,21 @@ export default function DashboardsScreen({ navigation, route }) {
       setSharedItems(new Set(raw ? JSON.parse(raw) : []));
     });
     getCachedSyncStatus().then(s => setPartnerLinked(!!s?.linked));
-    // Load garden deed counts for all children (for family view)
+    // Load garden deed counts — combine linked children into canonical
     getFamilyId().then(async familyId => {
-      const { data } = await supabase
-        .from('child_garden_actions')
-        .select('child_id, child_name')
-        .eq('family_id', familyId);
-      if (data) {
-        const totals = {};
-        data.forEach(row => { totals[row.child_id] = (totals[row.child_id] ?? 0) + 1; });
-        setGardenTotals(totals);
-      }
+      const [actRes, fcRes] = await Promise.all([
+        supabase.from('child_garden_actions').select('child_id').eq('family_id', familyId),
+        supabase.from('family_children').select('child_id, linked_child_id').eq('family_id', familyId),
+      ]);
+      const rawTotals = {};
+      (actRes.data ?? []).forEach(row => { rawTotals[row.child_id] = (rawTotals[row.child_id] ?? 0) + 1; });
+      const combined = { ...rawTotals };
+      (fcRes.data ?? []).forEach(entry => {
+        if (entry.linked_child_id) {
+          combined[entry.child_id] = (combined[entry.child_id] ?? 0) + (rawTotals[entry.linked_child_id] ?? 0);
+        }
+      });
+      setGardenTotals(combined);
     }).catch(() => {});
   }, [route?.params?.childId]));
 
@@ -282,13 +286,18 @@ export default function DashboardsScreen({ navigation, route }) {
       const familyId = await getFamilyId();
       const [actions, fc] = await Promise.all([
         supabase.from('child_garden_actions').select('child_id').eq('family_id', familyId),
-        supabase.from('family_children').select('child_id, child_name, child_color, child_gender').eq('family_id', familyId),
+        supabase.from('family_children').select('child_id, child_name, child_color, child_gender, linked_child_id').eq('family_id', familyId),
       ]);
-      if (actions.data) {
-        const totals = {};
-        actions.data.forEach(row => { totals[row.child_id] = (totals[row.child_id] ?? 0) + 1; });
-        setGardenTotals(totals);
-      }
+      // Build raw counts then fold linked children into their canonical entry
+      const rawTotals = {};
+      (actions.data ?? []).forEach(row => { rawTotals[row.child_id] = (rawTotals[row.child_id] ?? 0) + 1; });
+      const combined = { ...rawTotals };
+      (fc.data ?? []).forEach(entry => {
+        if (entry.linked_child_id) {
+          combined[entry.child_id] = (combined[entry.child_id] ?? 0) + (rawTotals[entry.linked_child_id] ?? 0);
+        }
+      });
+      setGardenTotals(combined);
       if (fc.data) setFamilyChildrenList(fc.data);
     } catch {}
   }
