@@ -149,10 +149,8 @@ export default function DashboardsScreen({ navigation, route }) {
   const [activityPages, setActivityPages]           = useState({});
   const [completionCounts, setCompletionCounts]     = useState({});
   const [phaseExpanded,        setPhaseExpanded]        = useState(false);
-  const [winModalVisible,      setWinModalVisible]      = useState(false);
   const [incidentModalVisible, setIncidentModalVisible] = useState(false);
   const [encouragement,        setEncouragement]        = useState(null);
-  const [winText,      setWinText]      = useState('');
   const [incidentText, setIncidentText] = useState('');
   const [coachingResponses, setCoachingResponses] = useState({});
   const [coachingLoading,   setCoachingLoading]   = useState(new Set());
@@ -329,43 +327,8 @@ export default function DashboardsScreen({ navigation, route }) {
   });
   const primaryArea = focusAreas.find(a => a.weekHabits.length > 0) ?? focusAreas[0] ?? null;
   const activeArea  = focusAreas[Math.min(activeAreaIndex, Math.max(focusAreas.length - 1, 0))] ?? primaryArea;
-const wins     = child?.wins      ?? [];
   const incidents = child?.incidents ?? [];
 
-  async function addWin() {
-    const text = winText.trim();
-    if (!text || !child) return;
-    const entry = { id: `w_${Date.now()}`, text, date: new Date().toISOString() };
-    const updated = [...wins, entry];
-    await updateChildProfile(child.id, { wins: updated });
-    setWinText('');
-    setWinModalVisible(false);
-    getAllChildProfiles().then(setChildren);
-    // Mirror to shared family_moments table
-    try {
-      const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
-      await supabase.from('family_moments').insert({
-        id: entry.id, family_id: familyId, child_id: child.id,
-        child_name: child.name, child_color: child.color,
-        type: 'win', text: entry.text, date: entry.date,
-        user_id: session?.user?.id ?? null,
-      });
-      loadFamilyMoments();
-      if (partnerLinked) notifyPartner(
-        `${myProfileName || 'Your partner'} logged a win for ${child.name} ⭐`,
-        entry.text.length > 100 ? entry.text.slice(0, 97) + '…' : entry.text,
-        { screen: 'Dashboards', childId: child.id }
-      );
-    } catch {}
-  }
-
-  async function deleteWin(id) {
-    if (!child) return;
-    const updated = wins.filter(w => w.id !== id);
-    await updateChildProfile(child.id, { wins: updated });
-    getAllChildProfiles().then(setChildren);
-    supabase.from('family_moments').delete().eq('id', id).then(() => loadFamilyMoments());
-  }
 
   async function handleLoveWin(childId, winId) {
     const name = myProfileName || 'You';
@@ -422,10 +385,6 @@ const wins     = child?.wins      ?? [];
         .slice(-5)
         .map(i => i.text);
 
-      const recentWins = (currentChild?.wins ?? [])
-        .slice(-3)
-        .map(w => w.text);
-
       const res = await fetch('https://tarbiyah-production.up.railway.app/incident/coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -440,7 +399,6 @@ const wins     = child?.wins      ?? [];
           specialNeeds: currentChild?.specialNeeds ?? [],
           growthAreas,
           pastIncidents,
-          recentWins,
           familyStructure,
         }),
       });
@@ -1400,32 +1358,6 @@ const wins     = child?.wins      ?? [];
         <View style={{ height: 16 }} />
         <ChildWorldCard child={child} />
 
-        {/* Wins */}
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionLabel}>WINS THIS WEEK</Text>
-          <TouchableOpacity onPress={() => setWinModalVisible(true)}><Text style={styles.sectionLink}>+ Add</Text></TouchableOpacity>
-        </View>
-        {wins.length === 0 ? (
-          <View style={styles.emptyPrompt}>
-            <View style={styles.emptyPromptIcon}><Text style={{ fontSize: 18 }}>⭐</Text></View>
-            <View style={styles.emptyPromptText}>
-              <Text style={styles.emptyPromptTitle}>No wins logged yet</Text>
-              <Text style={styles.emptyPromptBody}>Noting moments of growth — however small — builds a more accurate picture of {child.name}.</Text>
-            </View>
-          </View>
-        ) : wins.map(w => (
-          <View key={w.id} style={styles.winCard}>
-            <View style={styles.winIconWrap}><Text style={{ fontSize: 15 }}>⭐</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.entryText}>{w.text}</Text>
-              <Text style={styles.entryDate}>{new Date(w.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
-            </View>
-            <TouchableOpacity onPress={() => Alert.alert('Delete win', 'Remove this entry?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteWin(w.id) }])}>
-              <Ionicons name="trash-outline" size={15} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
-        ))}
-
         {/* Incidents */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>DIFFICULT MOMENTS</Text>
@@ -1481,20 +1413,6 @@ const wins     = child?.wins      ?? [];
             </View>
           );
         })}
-
-        {/* Wins modal */}
-        <Modal visible={winModalVisible} transparent animationType="fade" onRequestClose={() => setWinModalVisible(false)}>
-          <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Log a win</Text>
-              <TextInput style={styles.modalInput} placeholder={`What went well with ${child?.name}?`} placeholderTextColor="#9CA3AF" value={winText} onChangeText={setWinText} multiline autoFocus />
-              <View style={styles.modalBtns}>
-                <TouchableOpacity style={styles.modalCancel} onPress={() => { setWinModalVisible(false); setWinText(''); }}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.modalSave} onPress={addWin}><Text style={styles.modalSaveText}>Save</Text></TouchableOpacity>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
 
         {/* Incident modal */}
         <Modal visible={incidentModalVisible} transparent animationType="fade" onRequestClose={() => setIncidentModalVisible(false)}>
@@ -1972,15 +1890,6 @@ const styles = StyleSheet.create({
   },
   addChipText: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
 
-  // Wins
-  winRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#FFF', borderRadius: 12, padding: 12, marginBottom: 6,
-    ...CARD_SHADOW, borderWidth: 1, borderColor: '#EEF0F2',
-  },
-  winText: { flex: 1, fontSize: 13, color: '#374151', lineHeight: 19 },
-  winWhen: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginTop: 2 },
-
   // Incidents
   incidentCard: {
     backgroundColor: '#FFF', borderRadius: 14, padding: 12, marginBottom: 6,
@@ -2043,15 +1952,6 @@ const styles = StyleSheet.create({
   emptyPromptTitle: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
   emptyPromptBody:  { fontSize: 12, color: '#6B7280', lineHeight: 18 },
 
-  winCard: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, marginBottom: 8,
-    ...CARD_SHADOW,
-  },
-  winIconWrap: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center',
-  },
   incidentEntryCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, marginBottom: 8,
