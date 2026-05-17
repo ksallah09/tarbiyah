@@ -198,7 +198,7 @@ const GARDEN_REMINDER_MESSAGES = [
 
   {
     title: '💚 A moment that matters',
-    body: 'Your child doesn\'t need perfection — they need presence. Open their Good Deeds Tree now and spend two minutes celebrating their growth.',
+    body: 'Your child doesn\'t need perfection — they need presence. Open their Accomplishment Tree now and spend two minutes celebrating their growth.',
   },
   {
     title: '🌿 Children grow through recognition',
@@ -206,7 +206,7 @@ const GARDEN_REMINDER_MESSAGES = [
   },
   {
     title: '🤲 Small acts, deep roots',
-    body: 'Consistency is the foundation of character. Open the Good Deeds Tree together tonight and encourage your child to keep going.',
+    body: 'Consistency is the foundation of character. Open the Accomplishment Tree together tonight and encourage your child to keep going.',
   },
   {
     title: '✨ A gentle nudge from Tarbiyah',

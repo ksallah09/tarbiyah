@@ -11,8 +11,6 @@ import * as Sharing from 'expo-sharing';
 import { supabase } from '../utils/supabase';
 import { getFamilyId } from '../utils/familyGoals';
 import { notifyDeedLogged } from '../utils/partnerNotify';
-import MountainProject from './MountainProject';
-import GardenProject, { GardenRestorationModal, GARDEN_ELEMENTS } from './GardenProject';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -289,9 +287,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   const [treeLoaded,     setTreeLoaded]     = useState(false);
   const [treeExists,     setTreeExists]     = useState(false);
   const [settings,       setSettings]       = useState(DEFAULT_SETTINGS);
-  const [project,        setProject]        = useState('tree');
-  const [projectState,   setProjectState]   = useState({ restoredItems: [], cycleNumber: 1 });
-  const [showGardenRestore, setShowGardenRestore] = useState(false);
   const [showModal,      setShowModal]      = useState(false);
   const [selectedManner, setSelectedManner] = useState(null);
   const [note,           setNote]           = useState('');
@@ -361,7 +356,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     try {
       const { data } = await supabase
         .from('family_trees')
-        .select('thresholds, rewards, project, project_state')
+        .select('thresholds, rewards')
         .eq('child_id', child.id)
         .maybeSingle();
       if (data) {
@@ -369,8 +364,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
           thresholds: { ...DEFAULT_THRESHOLDS, ...(data.thresholds ?? {}) },
           rewards:    data.rewards ?? {},
         });
-        setProject(data.project ?? 'tree');
-        setProjectState(data.project_state ?? { restoredItems: [], cycleNumber: 1 });
         setTreeExists(true);
       } else {
         setTreeExists(false);
@@ -464,7 +457,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
       await loadActions();
       animateTree(manner?.emoji ?? '✨');
       setShowModal(false);
-      if (project === 'garden') setTimeout(() => setShowGardenRestore(true), 420);
       setSelectedManner(null);
       setNote('');
 
@@ -506,27 +498,12 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     finally { setSaving(false); }
   }
 
-  async function handleGardenRestore(key) {
-    const current  = projectState?.restoredItems ?? [];
-    const allKeys  = GARDEN_ELEMENTS.map(e => e.key);
-    const newItems = [...current, key];
-    const allDone  = allKeys.every(k => newItems.includes(k));
-    const newState = allDone
-      ? { restoredItems: [], cycleNumber: (projectState?.cycleNumber ?? 1) + 1 }
-      : { ...projectState, restoredItems: newItems };
-    setProjectState(newState);
-    try {
-      await supabase.from('family_trees')
-        .update({ project_state: newState, updated_at: new Date().toISOString() })
-        .eq('child_id', child.id);
-    } catch {}
-  }
 
   async function shareGarden() {
     try {
       setSharing(true);
       const uri = await captureRef(shareCardRef, { format: 'png', quality: 1 });
-      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: `${displayName}'s Good Deeds Garden` });
+      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: `${displayName}'s Accomplishment Tree` });
     } catch { Alert.alert('Could not share', 'Please try again.'); }
     finally { setSharing(false); }
   }
@@ -550,52 +527,19 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
       {/* Header */}
       <View style={gs.cardHeader}>
         <View style={gs.emojiWrap}>
-          <Text style={{ fontSize: 20 }}>
-            {project === 'mountain' ? '⛰️' : project === 'garden' ? '🌺' : '🌱'}
-          </Text>
+          <Text style={{ fontSize: 20 }}>🌱</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={gs.eyebrow}>GOOD DEEDS GARDEN</Text>
-          <Text style={gs.title}>
-            {displayName}'s {project === 'mountain' ? 'Climb' : project === 'garden' ? 'Garden' : 'Tree'}
-          </Text>
+          <Text style={gs.eyebrow}>ACCOMPLISHMENT TREE</Text>
+          <Text style={gs.title}>{displayName}'s Tree</Text>
         </View>
         <View style={gs.stagePill}>
-          <Text style={gs.stageText}>
-            {project === 'mountain'
-              ? `${Math.round(progress * 100)}% up`
-              : project === 'garden'
-              ? `${(projectState?.restoredItems ?? []).length}/${GARDEN_ELEMENTS.length} restored`
-              : stage.name}
-          </Text>
+          <Text style={gs.stageText}>{stage.name}</Text>
         </View>
       </View>
 
-      {/* ── Mountain project ── */}
-      {project === 'mountain' && (
-        <MountainProject
-          prog={prog}
-          stage={stage}
-          total={total}
-          progress={progress}
-          swayAnim={swayAnim}
-          growthScale={growthScale}
-          nextReward={nextReward}
-        />
-      )}
-
-      {/* ── Garden project ── */}
-      {project === 'garden' && (
-        <GardenProject
-          projectState={projectState}
-          childName={displayName}
-          childColor={child?.color}
-        />
-      )}
-
-      {/* ── Tree project (default) ── */}
-      {project !== 'mountain' && project !== 'garden' && (
-        <>
+      {/* ── Accomplishment Tree ── */}
+      {(
           {/* Tree scene */}
           <View style={gs.sceneWrap}>
             <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} growthScale={growthScale} progressAnim={progressAnim} />
@@ -616,7 +560,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
             ))}
             <View style={gs.deedsCountWrap}>
               <Text style={gs.deedsCount}>{prog.currentTreeDeeds}</Text>
-              <Text style={gs.deedsLabel}>deeds on this tree</Text>
+              <Text style={gs.deedsLabel}>accomplishments</Text>
             </View>
           </View>
 
@@ -660,7 +604,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               </View>
             </View>
           )}
-        </>
       )}
 
       {/* Recent deeds */}
@@ -687,7 +630,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
       <TouchableOpacity style={gs.logBtn} onPress={() => setShowModal(true)} activeOpacity={0.85}>
         <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
-        <Text style={gs.logBtnText}>Log a good deed</Text>
+        <Text style={gs.logBtnText}>Log an accomplishment</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={gs.showChildBtn} onPress={() => setShowChildView(true)} activeOpacity={0.8}>
@@ -700,7 +643,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={gs.modalContainer}>
             <View style={gs.modalHeader}>
-              <Text style={gs.modalTitle}>Log a good deed</Text>
+              <Text style={gs.modalTitle}>Log an accomplishment</Text>
               <Text style={gs.modalSub}>What did {displayName} do today?</Text>
               <TouchableOpacity style={gs.modalClose} onPress={() => { setShowModal(false); setSelectedManner(null); setNote(''); }}>
                 <Ionicons name="close" size={22} color="#6B7280" />
@@ -730,7 +673,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               />
             </ScrollView>
             <TouchableOpacity style={[gs.saveBtn, (!selectedManner || saving) && { opacity: 0.5 }]} onPress={logDeed} disabled={!selectedManner || saving} activeOpacity={0.85}>
-              <Text style={gs.saveBtnText}>{saving ? 'Saving…' : 'Plant this deed 🌱'}</Text>
+              <Text style={gs.saveBtnText}>{saving ? 'Saving…' : 'Add to tree 🌱'}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -823,7 +766,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
             {/* Hidden share card */}
             <View ref={shareCardRef} style={sc.card} collapsable={false}>
               <LinearGradient colors={['#ECFDF5', '#D1FAE5', '#EFF6FF', '#DBEAFE']} style={StyleSheet.absoluteFill} />
-              <Text style={sc.eyebrow}>GOOD DEEDS GARDEN · TARBIYAH</Text>
+              <Text style={sc.eyebrow}>ACCOMPLISHMENT TREE · TARBIYAH</Text>
               <Text style={sc.name}>{displayName}</Text>
               <Text style={sc.stageName}>{stage.name}</Text>
               <View style={sc.treeWrap}>
@@ -832,7 +775,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
                 </View>
               </View>
               <Text style={sc.deedsNumber}>{total}</Text>
-              <Text style={sc.deedsLabel}>good deeds planted 🌱</Text>
+              <Text style={sc.deedsLabel}>accomplishments 🌱</Text>
               {stage.next && (
                 <View style={sc.progressWrap}>
                   <View style={sc.progressTrack}>
@@ -873,7 +816,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
               <View style={cv.deedsWrap}>
                 <Text style={cv.deedsNumber}>{total}</Text>
-                <Text style={cv.deedsLabel}>total good deeds 🌱</Text>
+                <Text style={cv.deedsLabel}>total accomplishments 🌱</Text>
               </View>
 
               {stage.next ? (
@@ -926,7 +869,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
               {actions.length > 0 && (
                 <View style={cv.recentWrap}>
-                  <Text style={cv.recentTitle}>Recent good deeds</Text>
+                  <Text style={cv.recentTitle}>Recent accomplishments</Text>
                   {actions.slice(0, 5).map((a, idx) => {
                     const m = MANNERS.find(m => m.key === a.manner);
                     return (
@@ -961,15 +904,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         </LinearGradient>
       </Modal>
 
-      {/* ── Garden restoration modal ── */}
-      <GardenRestorationModal
-        visible={showGardenRestore}
-        projectState={projectState}
-        childName={displayName}
-        childColor={child?.color}
-        onRestore={(key) => handleGardenRestore(key)}
-        onClose={() => setShowGardenRestore(false)}
-      />
 
     </View>
   );
@@ -977,16 +911,15 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
 // ── Mini version for family garden view ───────────────────────────────────────
 
-const PROJECT_EMOJIS = { tree: ['🌱','🌿','🪴','🌳','🌸','🍃'], mountain: ['🥾','🥾','⛰️','⛰️','🏔️','🏔️'] };
+const STAGE_EMOJIS = ['🌱','🌿','🪴','🌳','🌸','🍃'];
 
-export function MiniGardenCard({ childName, total, color, thresholds, project, onPress }) {
+export function MiniGardenCard({ childName, total, color, thresholds, onPress }) {
   const t     = { ...DEFAULT_THRESHOLDS, ...(thresholds ?? {}) };
   const stage = getStageFromList(buildStages(t), total % t.fruit);
-  const emojis = PROJECT_EMOJIS[project] ?? PROJECT_EMOJIS.tree;
   const Wrapper = onPress ? TouchableOpacity : View;
   return (
     <Wrapper style={gs.miniCard} onPress={onPress} activeOpacity={0.8}>
-      <Text style={gs.miniEmoji}>{emojis[stage.index]}</Text>
+      <Text style={gs.miniEmoji}>{STAGE_EMOJIS[stage.index]}</Text>
       <View style={[gs.miniNameBadge, { backgroundColor: (color ?? '#2E7D62') + '22' }]}>
         <Text style={[gs.miniName, { color: color ?? '#2E7D62' }]} numberOfLines={1} ellipsizeMode="tail">{childName?.split(' ')[0]}</Text>
       </View>

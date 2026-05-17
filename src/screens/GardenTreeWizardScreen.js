@@ -26,7 +26,6 @@ export default function GardenTreeWizardScreen({ navigation }) {
   const [step,          setStep]          = useState(1);
   const [children,      setChildren]      = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
-  const [selectedProject, setSelectedProject] = useState(null);
   const [thresholds,    setThresholds]    = useState({ ...DEFAULT_THRESHOLDS });
   const [rewards,       setRewards]       = useState({});
   const [existingTrees, setExistingTrees] = useState([]);
@@ -36,14 +35,6 @@ export default function GardenTreeWizardScreen({ navigation }) {
   const [partnerName,   setPartnerName]   = useState('Your partner');
   const [loadingTrees,  setLoadingTrees]  = useState(false);
   const [gardenTotals,  setGardenTotals]  = useState({});
-
-  const PROJECTS = [
-    { key: 'tree',     emoji: '🌳', label: 'Grow a Tree',       desc: 'Watch a seed grow into a fruit-bearing tree with every good deed.',         interactive: false, available: true  },
-    { key: 'mountain', emoji: '⛰️', label: 'Climb a Mountain',  desc: 'Each deed is a step up — reach the summit to complete the climb.',           interactive: false, available: true  },
-    { key: 'garden',   emoji: '🌺', label: 'Fix the Garden',    desc: 'Bring a lifeless garden back to colour — flowers, trees, and animals.',       interactive: true,  available: true  },
-    { key: 'masjid',   emoji: '🕌', label: 'Build a Masjid',    desc: 'Place every tile, wall, and minaret — build the masjid piece by piece.',      interactive: true,  available: false },
-    { key: 'village',  emoji: '🏚️', label: 'Fix the Village',   desc: 'Restore a forgotten village back to life — one good deed at a time.',        interactive: true,  available: false },
-  ];
 
   useEffect(() => {
     getAllChildProfiles().then(setChildren);
@@ -66,7 +57,6 @@ export default function GardenTreeWizardScreen({ navigation }) {
 
       if (data) {
         if (data.linked_tree_id) {
-          // Linked row — check whether the canonical tree it points to still exists
           const { data: canonical, error: canonErr } = await supabase
             .from('family_trees')
             .select('child_id')
@@ -82,7 +72,6 @@ export default function GardenTreeWizardScreen({ navigation }) {
             return;
           }
         } else {
-          // Canonical row (no linked_tree_id) — check if it's orphaned (no deeds, or user explicitly wants to recreate)
           const { count } = await supabase
             .from('child_garden_actions')
             .select('id', { count: 'exact', head: true })
@@ -91,7 +80,6 @@ export default function GardenTreeWizardScreen({ navigation }) {
           console.log('[Wizard] canonical row deed count:', count);
 
           if (!count) {
-            // No deeds — treat as stale, delete and proceed
             const { error: delErr } = await supabase.from('family_trees').delete().eq('child_id', selectedChild.id);
             console.log('[Wizard] deleted stale canonical row, err:', delErr?.message);
             if (!delErr) { setStep(2); return; }
@@ -101,7 +89,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
         console.log('[Wizard] blocking — existing row has linked_tree_id:', data.linked_tree_id);
         Alert.alert(
           'Tree already exists',
-          `${selectedChild.name.split(' ')[0]} already has a Good Deeds Tree. You can update it from the Family Garden.`,
+          `${selectedChild.name.split(' ')[0]} already has an Accomplishment Tree. You can update it from the Family Garden.`,
           [{ text: 'OK' }]
         );
         return;
@@ -113,14 +101,9 @@ export default function GardenTreeWizardScreen({ navigation }) {
   }
 
   async function advanceToStep3() {
-    if (!selectedProject) return;
-    setStep(3);
-  }
-
-  async function advanceToStep4() {
     const t = thresholds;
     if (t.sprout >= t.sapling || t.sapling >= t.tree || t.tree >= t.flowering || t.flowering >= t.fruit) {
-      Alert.alert('Invalid settings', 'Each stage must require more deeds than the previous one.');
+      Alert.alert('Invalid settings', 'Each stage must require more accomplishments than the previous one.');
       return;
     }
     setLoadingTrees(true);
@@ -138,7 +121,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
       if (trees.length === 0) {
         await handleCreate(null);
       } else {
-        setStep(4);
+        setStep(3);
       }
     } catch {
       Alert.alert('Error', 'Could not load existing trees.');
@@ -158,7 +141,6 @@ export default function GardenTreeWizardScreen({ navigation }) {
         child_id:       selectedChild.id,
         child_name:     selectedChild.name,
         created_by:     userId,
-        project:        selectedProject ?? 'tree',
         thresholds,
         rewards,
         linked_tree_id: linkTo ?? null,
@@ -184,9 +166,9 @@ export default function GardenTreeWizardScreen({ navigation }) {
             <Ionicons name="chevron-back" size={22} color="#1A1A2E" />
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={s.headerTitle}>Add a Good Deeds Tree</Text>
+            <Text style={s.headerTitle}>Add an Accomplishment Tree</Text>
             <View style={s.stepDots}>
-              {[1, 2, 3, 4].map(n => (
+              {[1, 2, 3].map(n => (
                 <View key={n} style={[s.dot, step >= n && s.dotActive]} />
               ))}
             </View>
@@ -198,7 +180,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
         {step === 1 && (
           <ScrollView contentContainerStyle={s.scroll}>
             <Text style={s.stepTitle}>Which child is this tree for?</Text>
-            <Text style={s.stepSub}>Select one of your children to start growing their Good Deeds Tree.</Text>
+            <Text style={s.stepSub}>Select one of your children to start growing their Accomplishment Tree.</Text>
             {children.length === 0 && (
               <View style={s.emptyCard}>
                 <Text style={s.emptyText}>No children added yet. Add a child from your dashboard first.</Text>
@@ -222,49 +204,13 @@ export default function GardenTreeWizardScreen({ navigation }) {
           </ScrollView>
         )}
 
-        {/* ── Step 2: Choose project ── */}
+        {/* ── Step 2: Configure ── */}
         {step === 2 && (
           <ScrollView contentContainerStyle={s.scroll}>
-            <Text style={s.stepTitle}>Choose a reward project</Text>
-            <Text style={s.stepSub}>
-              {selectedChild?.name?.split(' ')[0]} will work toward completing this project with every good deed.
-            </Text>
-            {PROJECTS.map(p => {
-              const selected = selectedProject === p.key;
-              return (
-                <TouchableOpacity
-                  key={p.key}
-                  style={[s.projectCard, selected && s.projectCardSelected, !p.available && { opacity: 0.5 }]}
-                  onPress={() => p.available && setSelectedProject(p.key)}
-                  activeOpacity={p.available ? 0.8 : 1}
-                >
-                  <Text style={s.projectEmoji}>{p.emoji}</Text>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                      <Text style={[s.projectLabel, selected && { color: '#2E7D62' }]}>{p.label}</Text>
-                      {!p.available && (
-                        <View style={s.soonPill}><Text style={s.soonText}>Coming soon</Text></View>
-                      )}
-                      {p.available && !p.interactive && (
-                        <View style={s.passivePill}><Text style={s.passiveText}>Passive</Text></View>
-                      )}
-                    </View>
-                    <Text style={s.projectDesc}>{p.desc}</Text>
-                  </View>
-                  {selected && <Ionicons name="checkmark-circle" size={22} color="#2E7D62" />}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
-
-        {/* ── Step 3: Configure ── */}
-        {step === 3 && (
-          <ScrollView contentContainerStyle={s.scroll}>
             <Text style={s.stepTitle}>Set up {displayName}'s tree</Text>
-            <Text style={s.stepSub}>How many good deeds does it take to reach each growth stage?</Text>
+            <Text style={s.stepSub}>How many accomplishments does it take to reach each growth stage?</Text>
 
-            <Text style={s.sectionLabel}>DEEDS PER STAGE</Text>
+            <Text style={s.sectionLabel}>ACCOMPLISHMENTS PER STAGE</Text>
             {STAGE_KEYS.map((sk, i) => (
               <View key={sk.key} style={s.settingsRow}>
                 <View style={{ flex: 1 }}>
@@ -280,7 +226,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
                   onChangeText={v => setThresholds(prev => ({ ...prev, [sk.key]: parseInt(v) || 0 }))}
                   maxLength={4}
                 />
-                <Text style={s.numUnit}>deeds</Text>
+                <Text style={s.numUnit}>acts</Text>
               </View>
             ))}
 
@@ -302,8 +248,8 @@ export default function GardenTreeWizardScreen({ navigation }) {
           </ScrollView>
         )}
 
-        {/* ── Step 4: Existing trees / merge ── */}
-        {step === 4 && (
+        {/* ── Step 3: Link existing tree ── */}
+        {step === 3 && (
           <ScrollView contentContainerStyle={s.scroll}>
             <Text style={s.stepTitle}>Does {displayName} already have a tree?</Text>
             <Text style={s.stepSub}>
@@ -312,9 +258,9 @@ export default function GardenTreeWizardScreen({ navigation }) {
             </Text>
 
             {existingTrees.map(tree => {
-              const isLinked    = linkedTreeId === tree.child_id;
-              const isYours     = tree.created_by === myUserId;
-              const deeds       = gardenTotals[tree.child_id] ?? 0;
+              const isLinked = linkedTreeId === tree.child_id;
+              const isYours  = tree.created_by === myUserId;
+              const deeds    = gardenTotals[tree.child_id] ?? 0;
               return (
                 <TouchableOpacity
                   key={tree.child_id}
@@ -325,7 +271,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
                   <View style={{ flex: 1 }}>
                     <Text style={[s.treeName, isLinked && { color: '#2E7D62' }]}>{tree.child_name}</Text>
                     <Text style={s.treeMeta}>
-                      {isYours ? 'Added by you' : `Added by ${partnerName}`} · {deeds} deed{deeds !== 1 ? 's' : ''}
+                      {isYours ? 'Added by you' : `Added by ${partnerName}`} · {deeds} act{deeds !== 1 ? 's' : ''}
                     </Text>
                   </View>
                   <View style={[s.linkCheck, isLinked && s.linkCheckActive]}>
@@ -361,24 +307,18 @@ export default function GardenTreeWizardScreen({ navigation }) {
             </TouchableOpacity>
           )}
           {step === 2 && (
-            <TouchableOpacity style={[s.btn, !selectedProject && { opacity: 0.4 }]} onPress={advanceToStep3} disabled={!selectedProject} activeOpacity={0.85}>
-              <Text style={s.btnText}>Next</Text>
-              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-          {step === 3 && (
-            <TouchableOpacity style={[s.btn, loadingTrees && { opacity: 0.6 }]} onPress={advanceToStep4} disabled={loadingTrees} activeOpacity={0.85}>
+            <TouchableOpacity style={[s.btn, loadingTrees && { opacity: 0.6 }]} onPress={advanceToStep3} disabled={loadingTrees} activeOpacity={0.85}>
               {loadingTrees
                 ? <ActivityIndicator color="#FFFFFF" size="small" />
                 : <><Text style={s.btnText}>Next</Text><Ionicons name="arrow-forward" size={16} color="#FFFFFF" /></>
               }
             </TouchableOpacity>
           )}
-          {step === 4 && (
+          {step === 3 && (
             <TouchableOpacity style={[s.btn, saving && { opacity: 0.6 }]} onPress={() => handleCreate(linkedTreeId)} disabled={saving} activeOpacity={0.85}>
               {saving
                 ? <ActivityIndicator color="#FFFFFF" size="small" />
-                : <><Text style={s.btnText}>Start the project 🌱</Text></>
+                : <><Text style={s.btnText}>Add Tree 🌱</Text></>
               }
             </TouchableOpacity>
           )}
@@ -417,16 +357,6 @@ const s = StyleSheet.create({
   numUnit:          { fontSize: 12, color: '#9CA3AF' },
   rewardRow:        { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
   rewardInput:      { marginTop: 6, backgroundColor: '#F9FAFB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: '#1A1A2E', borderWidth: 1, borderColor: '#E5E7EB' },
-
-  projectCard:      { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F9FAFB', borderRadius: 16, padding: 16, borderWidth: 1.5, borderColor: '#F0F0F0' },
-  projectCardSelected: { backgroundColor: '#EDF7F2', borderColor: '#2E7D62' },
-  projectEmoji:     { fontSize: 32, width: 44, textAlign: 'center' },
-  projectLabel:     { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
-  projectDesc:      { fontSize: 12, color: '#6B7280', lineHeight: 17 },
-  soonPill:         { backgroundColor: '#F3F4F6', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 2 },
-  soonText:         { fontSize: 10, fontWeight: '700', color: '#9CA3AF' },
-  passivePill:      { backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 2 },
-  passiveText:      { fontSize: 10, fontWeight: '700', color: '#2E7D62' },
 
   treeCard:         { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F9FAFB', borderRadius: 14, padding: 16, borderWidth: 1.5, borderColor: '#E5E7EB' },
   treeCardLinked:   { backgroundColor: '#EDF7F2', borderColor: '#2E7D62' },

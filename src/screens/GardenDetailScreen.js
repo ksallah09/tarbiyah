@@ -101,7 +101,7 @@ export default function GardenDetailScreen({ route, navigation }) {
             <View style={s.modalHeader}>
               <View>
                 <Text style={s.modalTitle}>Tree Settings</Text>
-                <Text style={s.modalSub}>{tree.child_name}'s Good Deeds Tree</Text>
+                <Text style={s.modalSub}>{tree.child_name}'s Accomplishment Tree</Text>
               </View>
               <TouchableOpacity onPress={() => setShowSettings(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="close" size={22} color="#6B7280" />
@@ -173,7 +173,7 @@ export default function GardenDetailScreen({ route, navigation }) {
               style={s.deleteBtn}
               onPress={() => Alert.alert(
                 'Delete Tree',
-                `This will permanently delete ${tree.child_name}'s Good Deeds Tree and all logged deeds. This cannot be undone.`,
+                `This will permanently delete ${tree.child_name}'s Accomplishment Tree and all logged deeds. This cannot be undone.`,
                 [
                   { text: 'Cancel', style: 'cancel' },
                   {

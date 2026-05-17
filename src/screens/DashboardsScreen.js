@@ -739,7 +739,7 @@ export default function DashboardsScreen({ navigation, route }) {
             <View style={[styles.familyMomentsHeader, { flexDirection: 'row', alignItems: 'flex-start' }]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.familyMomentsEyebrow}>FAMILY GARDEN</Text>
-                <Text style={styles.familyMomentsTitle}>Good Deeds Garden</Text>
+                <Text style={styles.familyMomentsTitle}>Accomplishment Tree</Text>
                 <Text style={styles.familyMomentsSub}>Reward system for your children</Text>
               </View>
               <TouchableOpacity
@@ -759,7 +759,7 @@ export default function DashboardsScreen({ navigation, route }) {
               >
                 <Text style={{ fontSize: 32, marginBottom: 8 }}>🌱</Text>
                 <Text style={styles.emptyGardenTitle}>No trees yet</Text>
-                <Text style={styles.emptyGardenSub}>Tap "Add Tree" to start your child's Good Deeds Garden</Text>
+                <Text style={styles.emptyGardenSub}>Tap "Add Tree" to start your child's Accomplishment Tree</Text>
               </TouchableOpacity>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
@@ -770,7 +770,6 @@ export default function DashboardsScreen({ navigation, route }) {
                     total={gardenTotals[tree.child_id] ?? 0}
                     color={children.find(c => c.id === tree.child_id)?.color ?? tree.child_color}
                     thresholds={tree.thresholds}
-                    project={tree.project ?? 'tree'}
                     onPress={() => navigation.navigate('GardenDetail', { tree })}
                   />
                 ))}
