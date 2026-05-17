@@ -646,7 +646,7 @@ export default function DashboardsScreen({ navigation, route }) {
           {partnerLinked && (
             <View style={styles.partnerBanner}>
               <Ionicons name="people" size={13} color="#2E7D62" />
-              <Text style={styles.partnerBannerText}>Shared with {partnerName} · both of you see this board</Text>
+              <Text style={styles.partnerBannerText}>Shared with {partnerName} · both of you can see and manage this board</Text>
             </View>
           )}
 
