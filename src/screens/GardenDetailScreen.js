@@ -12,6 +12,8 @@ import { getAllChildProfiles } from '../utils/childProfiles';
 import { getFamilyId } from '../utils/familyGoals';
 import { supabase } from '../utils/supabase';
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
+
 const DEFAULT_THRESHOLDS = { sprout: 10, sapling: 25, tree: 50, flowering: 100, fruit: 200 };
 
 const STAGE_KEYS = [
@@ -179,8 +181,13 @@ export default function GardenDetailScreen({ route, navigation }) {
                     style: 'destructive',
                     onPress: async () => {
                       try {
-                        await supabase.from('family_trees').delete().eq('child_id', tree.child_id);
-                        await supabase.from('child_garden_actions').delete().eq('child_id', tree.child_id);
+                        const { data: sessionData } = await supabase.auth.getSession();
+                        const token = sessionData?.session?.access_token;
+                        const resp = await fetch(`${API_URL}/family/tree/${tree.child_id}`, {
+                          method: 'DELETE',
+                          headers: { Authorization: `Bearer ${token}` },
+                        });
+                        if (!resp.ok) throw new Error('Delete failed');
                         setShowSettings(false);
                         navigation.goBack();
                       } catch {

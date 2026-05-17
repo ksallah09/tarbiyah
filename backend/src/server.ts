@@ -3104,6 +3104,20 @@ app.post('/family/notify-partner', requireAuth, async (req: AuthRequest, res: Re
   }
 });
 
+// DELETE /family/tree/:childId — delete a tree and ALL its deeds (service role bypasses RLS)
+app.delete('/family/tree/:childId', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { childId } = req.params;
+    if (!childId) return res.status(400).json({ error: 'Missing childId' });
+    await supabase.from('child_garden_actions').delete().eq('child_id', childId);
+    await supabase.from('family_trees').delete().eq('child_id', childId);
+    return res.json({ success: true });
+  } catch (err: any) {
+    console.error('DELETE /family/tree error:', err);
+    return res.status(500).json({ error: err?.message });
+  }
+});
+
 // POST /family/merge-child — migrate all garden data from duplicate child to canonical
 // Uses service role to bypass RLS so cross-user rows are updated
 app.post('/family/merge-child', requireAuth, async (req: AuthRequest, res: Response) => {
