@@ -193,27 +193,27 @@ export async function cancelWeeklyShareNotification() {
 const GARDEN_REMINDER_MESSAGES = [
   {
     title: '🌱 Time to visit the garden',
-    body: 'A good deed seen and celebrated by a parent becomes a habit rooted in the heart. Show your child their tree tonight — let them feel what they\'ve built.',
+    body: 'A good deed seen and celebrated becomes a habit rooted in the heart. Open your child\'s tree now and show them how far they\'ve come.',
   },
   {
     title: '🌳 The garden is waiting',
-    body: 'Ibn al-Qayyim said: nurture your child to love goodness, not merely to perform it. Opening the Good Deeds Tree together is exactly that — love made visible.',
+    body: 'Ibn al-Qayyim said: nurture your child to love goodness, not merely to perform it. Tap to open the tree together — love made visible.',
   },
   {
     title: '💚 A moment that matters',
-    body: 'Your child doesn\'t need perfection — they need presence. A few minutes looking at their growing tree can plant seeds of good character that last a lifetime.',
+    body: 'Your child doesn\'t need perfection — they need presence. Open their Good Deeds Tree now and spend two minutes celebrating their growth.',
   },
   {
     title: '🌿 Children grow through recognition',
-    body: 'The Prophet ﷺ always celebrated the good in those around him. Open your child\'s tree today and let them see — and feel — how far they\'ve come.',
+    body: 'The Prophet ﷺ always celebrated the good in those around him. Tap to open your child\'s tree and let them see how far they\'ve come.',
   },
   {
     title: '🤲 Small acts, deep roots',
-    body: 'Consistency is the foundation of character. Your child\'s Good Deeds Tree is a living record of real effort — open it together and encourage them to keep going.',
+    body: 'Consistency is the foundation of character. Open the Good Deeds Tree together tonight and encourage your child to keep going.',
   },
   {
     title: '✨ A gentle nudge from Tarbiyah',
-    body: 'Children need to know their good deeds are noticed. A brief moment today — looking at the tree, naming a deed, saying MashaAllah — is an act of tarbiyah.',
+    body: 'Children repeat what they\'re recognised for. Tap to open your child\'s tree, name a deed together, and say MashaAllah — that\'s tarbiyah.',
   },
 ];
 
