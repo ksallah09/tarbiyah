@@ -56,8 +56,8 @@ export default function GardenTreeWizardScreen({ navigation }) {
       console.log('[Wizard] existing row for', selectedChild.id, '→', JSON.stringify(data), 'err:', error?.message);
 
       if (data) {
-        // If this row is a linked tree, check whether the canonical tree it points to still exists
         if (data.linked_tree_id) {
+          // Linked row — check whether the canonical tree it points to still exists
           const { data: canonical, error: canonErr } = await supabase
             .from('family_trees')
             .select('child_id')
@@ -67,11 +67,25 @@ export default function GardenTreeWizardScreen({ navigation }) {
           console.log('[Wizard] canonical check for', data.linked_tree_id, '→', JSON.stringify(canonical), 'err:', canonErr?.message);
 
           if (!canonical) {
-            // Canonical was deleted — stale row, clean it up and proceed
             const { error: delErr } = await supabase.from('family_trees').delete().eq('child_id', selectedChild.id);
             console.log('[Wizard] deleted stale linked row, err:', delErr?.message);
             setStep(2);
             return;
+          }
+        } else {
+          // Canonical row (no linked_tree_id) — check if it's orphaned (no deeds, or user explicitly wants to recreate)
+          const { count } = await supabase
+            .from('child_garden_actions')
+            .select('id', { count: 'exact', head: true })
+            .eq('child_id', selectedChild.id);
+
+          console.log('[Wizard] canonical row deed count:', count);
+
+          if (!count) {
+            // No deeds — treat as stale, delete and proceed
+            const { error: delErr } = await supabase.from('family_trees').delete().eq('child_id', selectedChild.id);
+            console.log('[Wizard] deleted stale canonical row, err:', delErr?.message);
+            if (!delErr) { setStep(2); return; }
           }
         }
 
