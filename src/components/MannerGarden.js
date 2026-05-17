@@ -568,7 +568,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               <View style={gs.progressTrack}>
                 <View style={[gs.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
               </View>
-              <Text style={gs.progressLabel}>{toNext} deed{toNext !== 1 ? 's' : ''} to {nextStage?.name}</Text>
+              <Text style={gs.progressLabel}>{toNext} more deed{toNext !== 1 ? 's' : ''} to {nextStage?.name}</Text>
               {!!nextReward && (
                 <View style={gs.rewardRow}>
                   <Ionicons name="gift-outline" size={12} color="#D4A843" />
