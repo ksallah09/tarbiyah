@@ -770,6 +770,7 @@ export default function DashboardsScreen({ navigation, route }) {
                     total={gardenTotals[tree.child_id] ?? 0}
                     color={children.find(c => c.id === tree.child_id)?.color ?? tree.child_color}
                     thresholds={tree.thresholds}
+                    project={tree.project ?? 'tree'}
                     onPress={() => navigation.navigate('GardenDetail', { tree })}
                   />
                 ))}

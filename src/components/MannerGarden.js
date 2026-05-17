@@ -11,6 +11,7 @@ import * as Sharing from 'expo-sharing';
 import { supabase } from '../utils/supabase';
 import { getFamilyId } from '../utils/familyGoals';
 import { notifyDeedLogged } from '../utils/partnerNotify';
+import MountainProject from './MountainProject';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -285,6 +286,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   const [treeLoaded,     setTreeLoaded]     = useState(false);
   const [treeExists,     setTreeExists]     = useState(false);
   const [settings,       setSettings]       = useState(DEFAULT_SETTINGS);
+  const [project,        setProject]        = useState('tree');
   const [showModal,      setShowModal]      = useState(false);
   const [selectedManner, setSelectedManner] = useState(null);
   const [note,           setNote]           = useState('');
@@ -343,7 +345,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     try {
       const { data } = await supabase
         .from('family_trees')
-        .select('thresholds, rewards')
+        .select('thresholds, rewards, project')
         .eq('child_id', child.id)
         .maybeSingle();
       if (data) {
@@ -351,6 +353,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
           thresholds: { ...DEFAULT_THRESHOLDS, ...(data.thresholds ?? {}) },
           rewards:    data.rewards ?? {},
         });
+        setProject(data.project ?? 'tree');
         setTreeExists(true);
       } else {
         setTreeExists(false);
@@ -513,84 +516,98 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
       {/* Header */}
       <View style={gs.cardHeader}>
         <View style={gs.emojiWrap}>
-          <Text style={{ fontSize: 20 }}>🌱</Text>
+          <Text style={{ fontSize: 20 }}>{project === 'mountain' ? '⛰️' : '🌱'}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={gs.eyebrow}>GOOD DEEDS GARDEN</Text>
-          <Text style={gs.title}>{displayName}'s Tree</Text>
+          <Text style={gs.title}>{displayName}'s {project === 'mountain' ? 'Climb' : 'Tree'}</Text>
         </View>
         <View style={gs.stagePill}>
-          <Text style={gs.stageText}>{stage.name}</Text>
+          <Text style={gs.stageText}>{project === 'mountain' ? `${Math.round(progress * 100)}% up` : stage.name}</Text>
         </View>
       </View>
 
-      {/* Tree scene */}
-      <View style={gs.sceneWrap}>
-        <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} growthScale={growthScale} progress={progress} />
-        <Animated.View style={[gs.waterDrop, { transform: [{ translateY: dropY }], opacity: dropOpacity }]}>
-          <Text style={{ fontSize: 18 }}>💧</Text>
-        </Animated.View>
-
-        {/* Leaf particle burst */}
-        {particles.map((p, i) => (
-          <Animated.View
-            key={i}
-            pointerEvents="none"
-            style={[gs.particle, {
-              opacity: p.opacity,
-              transform: [{ translateX: p.x }, { translateY: p.y }, { scale: p.scale }],
-            }]}
-          >
-            <Text style={{ fontSize: 15 }}>{PARTICLE_EMOJIS[i]}</Text>
-          </Animated.View>
-        ))}
-
-
-        <View style={gs.deedsCountWrap}>
-          <Text style={gs.deedsCount}>{prog.currentTreeDeeds}</Text>
-          <Text style={gs.deedsLabel}>deeds on this tree</Text>
-        </View>
-      </View>
-
-      {/* Progress */}
-      {stage.next ? (
-        <View style={gs.progressWrap}>
-          <View style={gs.progressTrack}>
-            <View style={[gs.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-          </View>
-          <Text style={gs.progressLabel}>{toNext} deed{toNext !== 1 ? 's' : ''} to {nextStage?.name}</Text>
-          {!!nextReward && (
-            <View style={gs.rewardRow}>
-              <Ionicons name="gift-outline" size={12} color="#D4A843" />
-              <Text style={gs.rewardText}>Reward: {nextReward}</Text>
-            </View>
-          )}
-        </View>
-      ) : (
-        <Text style={gs.nextTreeHint}>🌱 Next deed starts Tree #{prog.treeNumber + 1}</Text>
+      {/* ── Mountain project ── */}
+      {project === 'mountain' && (
+        <MountainProject
+          prog={prog}
+          stage={stage}
+          total={total}
+          progress={progress}
+          swayAnim={swayAnim}
+          growthScale={growthScale}
+          nextReward={nextReward}
+        />
       )}
 
-      {/* Achievements summary */}
-      {prog.completedTrees > 0 && (
-        <View style={gs.achieveRow}>
-          <View style={gs.achieveItem}>
-            <Text style={gs.achieveEmoji}>🌳</Text>
-            <Text style={gs.achieveCount}>{prog.completedTrees}</Text>
-            <Text style={gs.achieveLabel}>tree{prog.completedTrees !== 1 ? 's' : ''}</Text>
+      {/* ── Tree project (default) ── */}
+      {project !== 'mountain' && (
+        <>
+          {/* Tree scene */}
+          <View style={gs.sceneWrap}>
+            <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} growthScale={growthScale} progress={progress} />
+            <Animated.View style={[gs.waterDrop, { transform: [{ translateY: dropY }], opacity: dropOpacity }]}>
+              <Text style={{ fontSize: 18 }}>💧</Text>
+            </Animated.View>
+            {particles.map((p, i) => (
+              <Animated.View
+                key={i}
+                pointerEvents="none"
+                style={[gs.particle, {
+                  opacity: p.opacity,
+                  transform: [{ translateX: p.x }, { translateY: p.y }, { scale: p.scale }],
+                }]}
+              >
+                <Text style={{ fontSize: 15 }}>{PARTICLE_EMOJIS[i]}</Text>
+              </Animated.View>
+            ))}
+            <View style={gs.deedsCountWrap}>
+              <Text style={gs.deedsCount}>{prog.currentTreeDeeds}</Text>
+              <Text style={gs.deedsLabel}>deeds on this tree</Text>
+            </View>
           </View>
-          <View style={gs.achieveDivider} />
-          <View style={gs.achieveItem}>
-            <Text style={gs.achieveEmoji}>🌿</Text>
-            <Text style={gs.achieveCount}>{prog.completedOrchards}</Text>
-            <Text style={gs.achieveLabel}>orchard{prog.completedOrchards !== 1 ? 's' : ''}</Text>
-          </View>
-          <View style={gs.achieveDivider} />
-          <View style={gs.achieveItem}>
-            <Text style={gs.achieveEmoji}>🌴</Text>
-            <Text style={gs.achieveCount}>{prog.jannahGardensCompleted}</Text>
-            <Text style={gs.achieveLabel}>jannah</Text>
-          </View>
-        </View>
+
+          {/* Progress */}
+          {stage.next ? (
+            <View style={gs.progressWrap}>
+              <View style={gs.progressTrack}>
+                <View style={[gs.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+              </View>
+              <Text style={gs.progressLabel}>{toNext} deed{toNext !== 1 ? 's' : ''} to {nextStage?.name}</Text>
+              {!!nextReward && (
+                <View style={gs.rewardRow}>
+                  <Ionicons name="gift-outline" size={12} color="#D4A843" />
+                  <Text style={gs.rewardText}>Reward: {nextReward}</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <Text style={gs.nextTreeHint}>🌱 Next deed starts Tree #{prog.treeNumber + 1}</Text>
+          )}
+
+          {/* Achievements summary */}
+          {prog.completedTrees > 0 && (
+            <View style={gs.achieveRow}>
+              <View style={gs.achieveItem}>
+                <Text style={gs.achieveEmoji}>🌳</Text>
+                <Text style={gs.achieveCount}>{prog.completedTrees}</Text>
+                <Text style={gs.achieveLabel}>tree{prog.completedTrees !== 1 ? 's' : ''}</Text>
+              </View>
+              <View style={gs.achieveDivider} />
+              <View style={gs.achieveItem}>
+                <Text style={gs.achieveEmoji}>🌿</Text>
+                <Text style={gs.achieveCount}>{prog.completedOrchards}</Text>
+                <Text style={gs.achieveLabel}>orchard{prog.completedOrchards !== 1 ? 's' : ''}</Text>
+              </View>
+              <View style={gs.achieveDivider} />
+              <View style={gs.achieveItem}>
+                <Text style={gs.achieveEmoji}>🌴</Text>
+                <Text style={gs.achieveCount}>{prog.jannahGardensCompleted}</Text>
+                <Text style={gs.achieveLabel}>jannah</Text>
+              </View>
+            </View>
+          )}
+        </>
       )}
 
       {/* Recent deeds */}
@@ -897,14 +914,16 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
 // ── Mini version for family garden view ───────────────────────────────────────
 
-export function MiniGardenCard({ childName, total, color, thresholds, onPress }) {
+const PROJECT_EMOJIS = { tree: ['🌱','🌿','🪴','🌳','🌸','🍃'], mountain: ['🥾','🥾','⛰️','⛰️','🏔️','🏔️'] };
+
+export function MiniGardenCard({ childName, total, color, thresholds, project, onPress }) {
   const t     = { ...DEFAULT_THRESHOLDS, ...(thresholds ?? {}) };
   const stage = getStageFromList(buildStages(t), total % t.fruit);
-  const EMOJIS = ['🌱', '🌿', '🪴', '🌳', '🌸', '🍃'];
+  const emojis = PROJECT_EMOJIS[project] ?? PROJECT_EMOJIS.tree;
   const Wrapper = onPress ? TouchableOpacity : View;
   return (
     <Wrapper style={gs.miniCard} onPress={onPress} activeOpacity={0.8}>
-      <Text style={gs.miniEmoji}>{EMOJIS[stage.index]}</Text>
+      <Text style={gs.miniEmoji}>{emojis[stage.index]}</Text>
       <View style={[gs.miniNameBadge, { backgroundColor: (color ?? '#2E7D62') + '22' }]}>
         <Text style={[gs.miniName, { color: color ?? '#2E7D62' }]} numberOfLines={1} ellipsizeMode="tail">{childName?.split(' ')[0]}</Text>
       </View>
