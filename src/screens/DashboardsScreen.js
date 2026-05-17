@@ -643,6 +643,13 @@ export default function DashboardsScreen({ navigation, route }) {
             />
           }
         >
+          {partnerLinked && (
+            <View style={styles.partnerBanner}>
+              <Ionicons name="people" size={13} color="#2E7D62" />
+              <Text style={styles.partnerBannerText}>Shared with {partnerName} · both of you see this board</Text>
+            </View>
+          )}
+
           <View style={styles.familyDashHeader}>
             <View style={styles.familyDashIconWrap}>
               <Ionicons name="home-outline" size={20} color="#FFFFFF" />
@@ -1427,6 +1434,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#1B3D2F' },
 
   // Family dashboard
+  partnerBanner:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EDF7F2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16, alignSelf: 'flex-start' },
+  partnerBannerText: { fontSize: 12, fontWeight: '600', color: '#2E7D62' },
+
   familyDashHeader:  { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   familyDashIconWrap:{ width: 42, height: 42, borderRadius: 12, backgroundColor: '#2E7D62', alignItems: 'center', justifyContent: 'center' },
   familyDashEyebrow: { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
