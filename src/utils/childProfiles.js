@@ -1,7 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
-import { getFamilyId } from './familyGoals';
-import { getCachedSyncStatus } from './familySync';
 
 const STORAGE_KEY = 'tarbiyah_child_profiles';
 
@@ -73,7 +71,6 @@ export async function saveChildProfile(profile) {
   const updated = [...all, entry];
   await setCached(updated);
   syncToSupabase(updated);
-  syncChildrenToFamilyGarden(updated);
   return entry;
 }
 
@@ -110,29 +107,6 @@ export async function updateGrowthArea(childId, growthAreaId, updates) {
   return updateChildProfile(childId, { growthAreas: areas });
 }
 
-export async function syncChildrenToFamilyGarden(children) {
-  try {
-    const status = await getCachedSyncStatus();
-    if (!status?.linked) return;
-    const familyId = await getFamilyId();
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData?.session?.user?.id;
-    if (!userId || !familyId) return;
-    const rows = children.map(c => ({
-      family_id:   familyId,
-      child_id:    c.id,
-      child_name:  c.name,
-      child_color: c.color ?? null,
-      child_gender: c.gender ?? null,
-      added_by:    userId,
-    }));
-    await supabase
-      .from('family_children')
-      .upsert(rows, { onConflict: 'family_id,child_id' });
-  } catch (e) {
-    console.warn('[childProfiles] syncChildrenToFamilyGarden:', e.message);
-  }
-}
 
 async function syncToSupabase(profiles) {
   try {

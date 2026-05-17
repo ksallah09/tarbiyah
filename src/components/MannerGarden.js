@@ -280,20 +280,18 @@ function computeProgress(total, thresholds) {
 const DEFAULT_SETTINGS = { thresholds: DEFAULT_THRESHOLDS, rewards: {} };
 
 export default function MannerGarden({ child, myProfileName, partnerLinked, style }) {
-  const [actions,         setActions]         = useState([]);
-  const [loading,         setLoading]         = useState(true);
-  const [settings,        setSettings]        = useState(DEFAULT_SETTINGS);
-  const [showModal,       setShowModal]       = useState(false);
-  const [showSettings,    setShowSettings]    = useState(false);
-  const [selectedManner,  setSelectedManner]  = useState(null);
-  const [note,            setNote]            = useState('');
-  const [saving,          setSaving]          = useState(false);
-  const [savingSettings,  setSavingSettings]  = useState(false);
-  const [draftThresholds, setDraftThresholds] = useState({ ...DEFAULT_THRESHOLDS });
-  const [draftRewards,    setDraftRewards]    = useState({});
-  const [celebEvent,      setCelebEvent]      = useState(null);
-  const [showChildView,   setShowChildView]   = useState(false);
-  const [sharing,         setSharing]         = useState(false);
+  const [actions,        setActions]        = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [treeLoaded,     setTreeLoaded]     = useState(false);
+  const [treeExists,     setTreeExists]     = useState(false);
+  const [settings,       setSettings]       = useState(DEFAULT_SETTINGS);
+  const [showModal,      setShowModal]      = useState(false);
+  const [selectedManner, setSelectedManner] = useState(null);
+  const [note,           setNote]           = useState('');
+  const [saving,         setSaving]         = useState(false);
+  const [celebEvent,     setCelebEvent]     = useState(null);
+  const [showChildView,  setShowChildView]  = useState(false);
+  const [sharing,        setSharing]        = useState(false);
 
   const swayAnim      = useRef(new Animated.Value(0)).current;
   const dropY         = useRef(new Animated.Value(0)).current;
@@ -303,7 +301,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
   const staticScale   = useRef(new Animated.Value(1)).current;
   const shareCardRef  = useRef();
 
-  useEffect(() => { loadActions(); loadSettings(); }, [child?.id]);
+  useEffect(() => { loadActions(); loadTree(); }, [child?.id]);
 
   useEffect(() => {
     if (!showChildView) { childSwayAnim.setValue(0); return; }
@@ -321,47 +319,25 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
 
   const stages = buildStages(settings.thresholds);
 
-  async function loadSettings() {
+  async function loadTree() {
     if (!child?.id) return;
     try {
       const { data } = await supabase
-        .from('child_garden_settings')
+        .from('family_trees')
         .select('thresholds, rewards')
         .eq('child_id', child.id)
-        .single();
+        .maybeSingle();
       if (data) {
-        const s = {
+        setSettings({
           thresholds: { ...DEFAULT_THRESHOLDS, ...(data.thresholds ?? {}) },
           rewards:    data.rewards ?? {},
-        };
-        setSettings(s);
-        setDraftThresholds({ ...s.thresholds });
-        setDraftRewards({ ...s.rewards });
+        });
+        setTreeExists(true);
+      } else {
+        setTreeExists(false);
       }
     } catch {}
-  }
-
-  async function saveSettings() {
-    if (!child?.id) return;
-    const t = draftThresholds;
-    if (t.sprout >= t.sapling || t.sapling >= t.tree || t.tree >= t.flowering || t.flowering >= t.fruit) {
-      Alert.alert('Invalid thresholds', 'Each stage must require more deeds than the previous one.');
-      return;
-    }
-    setSavingSettings(true);
-    try {
-      const familyId = await getFamilyId();
-      await supabase.from('child_garden_settings').upsert({
-        child_id:   child.id,
-        family_id:  familyId,
-        thresholds: draftThresholds,
-        rewards:    draftRewards,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'child_id' });
-      setSettings({ thresholds: { ...draftThresholds }, rewards: { ...draftRewards } });
-      setShowSettings(false);
-    } catch { Alert.alert('Error', 'Could not save settings.'); }
-    finally { setSavingSettings(false); }
+    setTreeLoaded(true);
   }
 
   async function loadActions() {
@@ -477,6 +453,9 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
     finally { setSharing(false); }
   }
 
+  // Hide until tree is explicitly created via the wizard
+  if (treeLoaded && !treeExists) return null;
+
   const total        = actions.length;
   const prog         = computeProgress(total, settings.thresholds);
   const stage        = getStageFromList(stages, prog.currentTreeDeeds);
@@ -502,13 +481,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
         <View style={gs.stagePill}>
           <Text style={gs.stageText}>{stage.name}</Text>
         </View>
-        <TouchableOpacity
-          onPress={() => { setDraftThresholds({ ...settings.thresholds }); setDraftRewards({ ...settings.rewards }); setShowSettings(true); }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={{ marginLeft: 8 }}
-        >
-          <Ionicons name="settings-outline" size={18} color="#9CA3AF" />
-        </TouchableOpacity>
       </View>
 
       {/* Tree scene */}
@@ -632,77 +604,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
             </ScrollView>
             <TouchableOpacity style={[gs.saveBtn, (!selectedManner || saving) && { opacity: 0.5 }]} onPress={logDeed} disabled={!selectedManner || saving} activeOpacity={0.85}>
               <Text style={gs.saveBtnText}>{saving ? 'Saving…' : 'Plant this deed 🌱'}</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ── Settings modal ── */}
-      <Modal visible={showSettings} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSettings(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={gs.modalContainer}>
-            <View style={gs.modalHeader}>
-              <Text style={gs.modalTitle}>Garden Settings</Text>
-              <Text style={gs.modalSub}>Customise growth stages and milestone rewards</Text>
-              <TouchableOpacity style={gs.modalClose} onPress={() => setShowSettings(false)}>
-                <Ionicons name="close" size={22} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={[gs.modalScroll, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
-              <Text style={gs.settingsSectionTitle}>Deeds needed per stage</Text>
-              <Text style={gs.settingsSectionSub}>How many good deeds to reach each growth stage.</Text>
-              {STAGE_KEYS.map((key, i) => (
-                <View key={key} style={gs.settingsRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={gs.settingsRowLabel}>{STAGE_META[i + 1].name}</Text>
-                    {i > 0 && <Text style={gs.settingsRowSub}>Must be more than {draftThresholds[STAGE_KEYS[i - 1]] || '—'}</Text>}
-                  </View>
-                  <TextInput
-                    style={gs.settingsNumInput}
-                    keyboardType="number-pad"
-                    value={String(draftThresholds[key] ?? '')}
-                    onChangeText={v => setDraftThresholds(prev => ({ ...prev, [key]: parseInt(v) || 0 }))}
-                    maxLength={4}
-                  />
-                  <Text style={gs.settingsUnit}>deeds</Text>
-                </View>
-              ))}
-              <Text style={[gs.settingsSectionTitle, { marginTop: 28 }]}>Milestone rewards</Text>
-              <Text style={gs.settingsSectionSub}>What will you celebrate when your child reaches each stage?</Text>
-              {STAGE_KEYS.map((key, i) => (
-                <View key={key} style={gs.settingsRewardRow}>
-                  <Text style={gs.settingsRowLabel}>{STAGE_META[i + 1].name}</Text>
-                  <TextInput
-                    style={gs.settingsRewardInput}
-                    placeholder={`e.g. "Trip to the park"`}
-                    placeholderTextColor="#9CA3AF"
-                    value={draftRewards[key] ?? ''}
-                    onChangeText={v => setDraftRewards(prev => ({ ...prev, [key]: v }))}
-                    maxLength={80}
-                  />
-                </View>
-              ))}
-              <Text style={[gs.settingsSectionTitle, { marginTop: 28 }]}>Orchard & Jannah rewards</Text>
-              <Text style={gs.settingsSectionSub}>Special celebrations for bigger milestones.</Text>
-              {[
-                { key: 'orchard', label: 'Orchard complete 🌿', placeholder: 'e.g. "Family dinner out"' },
-                { key: 'jannah',  label: 'Jannah Garden 🌴',    placeholder: 'e.g. "Special family trip"' },
-              ].map(({ key, label, placeholder }) => (
-                <View key={key} style={gs.settingsRewardRow}>
-                  <Text style={gs.settingsRowLabel}>{label}</Text>
-                  <TextInput
-                    style={gs.settingsRewardInput}
-                    placeholder={placeholder}
-                    placeholderTextColor="#9CA3AF"
-                    value={draftRewards[key] ?? ''}
-                    onChangeText={v => setDraftRewards(prev => ({ ...prev, [key]: v }))}
-                    maxLength={80}
-                  />
-                </View>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={[gs.saveBtn, savingSettings && { opacity: 0.5 }]} onPress={saveSettings} disabled={savingSettings} activeOpacity={0.85}>
-              <Text style={gs.saveBtnText}>{savingSettings ? 'Saving…' : 'Save Settings'}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -928,11 +829,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, styl
 
 // ── Mini version for family garden view ───────────────────────────────────────
 
-export function MiniGardenCard({ childName, total, color }) {
-  const stage = getStageFromList(buildStages(DEFAULT_THRESHOLDS), total % DEFAULT_THRESHOLDS.fruit);
+export function MiniGardenCard({ childName, total, color, label, thresholds }) {
+  const t     = { ...DEFAULT_THRESHOLDS, ...(thresholds ?? {}) };
+  const stage = getStageFromList(buildStages(t), total % t.fruit);
   const EMOJIS = ['🌱', '🌿', '🪴', '🌳', '🌸', '🍃'];
   return (
     <View style={gs.miniCard}>
+      {!!label && <Text style={gs.miniLabel}>{label}</Text>}
       <Text style={gs.miniEmoji}>{EMOJIS[stage.index]}</Text>
       <View style={[gs.miniNameBadge, { backgroundColor: (color ?? '#2E7D62') + '22' }]}>
         <Text style={[gs.miniName, { color: color ?? '#2E7D62' }]}>{childName?.split(' ')[0]}</Text>
@@ -1038,6 +941,7 @@ const gs = StyleSheet.create({
   miniName:          { fontSize: 11, fontWeight: '700' },
   miniStage:         { fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginBottom: 2 },
   miniCount:         { fontSize: 10, fontWeight: '600', color: '#2E7D62' },
+  miniLabel:         { fontSize: 9, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 },
 });
 
 // ── Child view styles ─────────────────────────────────────────────────────────

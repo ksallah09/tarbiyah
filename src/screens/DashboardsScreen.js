@@ -11,14 +11,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile, syncChildrenToFamilyGarden } from '../utils/childProfiles';
+import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile } from '../utils/childProfiles';
 import { logCompletion } from '../utils/childCompletions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HABIT_MESSAGES, ACTIVITY_MESSAGES, GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
 import { ChildWorldCard } from '../components/ChildWorldCard';
 import MannerGarden, { MiniGardenCard } from '../components/MannerGarden';
-import FamilyDuplicateModal from '../components/FamilyDuplicateModal';
 import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji, getFamilyId } from '../utils/familyGoals';
 import { getCachedSyncStatus } from '../utils/familySync';
 import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
@@ -163,10 +162,11 @@ export default function DashboardsScreen({ navigation, route }) {
   const [familyMoments,     setFamilyMoments]      = useState([]);
   const [sharedItems,       setSharedItems]        = useState(new Set());
   const [partnerLinked,     setPartnerLinked]      = useState(false);
-  const [gardenTotals,      setGardenTotals]       = useState({});
-  const [familyChildrenList,  setFamilyChildrenList]  = useState([]);
-  const [familyRefreshing,    setFamilyRefreshing]    = useState(false);
-  const [showDuplicateModal,  setShowDuplicateModal]  = useState(false);
+  const [gardenTotals,  setGardenTotals]  = useState({});
+  const [familyTrees,   setFamilyTrees]   = useState([]);
+  const [familyRefreshing, setFamilyRefreshing] = useState(false);
+  const [myUserId,      setMyUserId]      = useState(null);
+  const [partnerName,   setPartnerName]   = useState('Partner');
   const [expandedShared,    setExpandedShared]     = useState(new Set());
   const [overflowShared,    setOverflowShared]     = useState(new Set());
   const [sharedPage,        setSharedPage]         = useState(0);
@@ -256,19 +256,20 @@ export default function DashboardsScreen({ navigation, route }) {
       setSharedItems(new Set(raw ? JSON.parse(raw) : []));
     });
     getCachedSyncStatus().then(s => setPartnerLinked(!!s?.linked));
-    // Load garden deed counts — combine linked children into canonical
+    // Load family trees and deed counts
     getFamilyId().then(async familyId => {
-      const [actRes, fcRes] = await Promise.all([
+      const [treesRes, actRes] = await Promise.all([
+        supabase.from('family_trees').select('*').eq('family_id', familyId),
         supabase.from('child_garden_actions').select('child_id').eq('family_id', familyId),
-        supabase.from('family_children').select('child_id, linked_child_id').eq('family_id', familyId),
       ]);
+      const trees = treesRes.data ?? [];
+      const linkedIds = new Set(trees.map(t => t.linked_tree_id).filter(Boolean));
+      setFamilyTrees(trees.filter(t => !linkedIds.has(t.child_id)));
       const rawTotals = {};
-      (actRes.data ?? []).forEach(row => { rawTotals[row.child_id] = (rawTotals[row.child_id] ?? 0) + 1; });
+      (actRes.data ?? []).forEach(r => { rawTotals[r.child_id] = (rawTotals[r.child_id] ?? 0) + 1; });
       const combined = { ...rawTotals };
-      (fcRes.data ?? []).forEach(entry => {
-        if (entry.linked_child_id) {
-          combined[entry.child_id] = (combined[entry.child_id] ?? 0) + (rawTotals[entry.linked_child_id] ?? 0);
-        }
+      trees.forEach(t => {
+        if (t.linked_tree_id) combined[t.child_id] = (combined[t.child_id] ?? 0) + (rawTotals[t.linked_tree_id] ?? 0);
       });
       setGardenTotals(combined);
     }).catch(() => {});
@@ -278,27 +279,32 @@ export default function DashboardsScreen({ navigation, route }) {
     loadFamilyMoments();
     loadFamilyGoalsCached().then(setFamilyGoals);
     loadFamilyGoals().then(setFamilyGoals);
-    getCachedSyncStatus().then(s => setPartnerLinked(!!s?.linked));
-    // Sync local children first, then read — ensures partner sees newly added children
-    const profiles = await getAllChildProfiles();
-    if (profiles.length > 0) await syncChildrenToFamilyGarden(profiles);
+    const syncStatus = await getCachedSyncStatus();
+    setPartnerLinked(!!syncStatus?.linked);
+    if (syncStatus?.partner?.name) setPartnerName(syncStatus.partner.name.split(' ')[0]);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData?.session?.user?.id ?? null;
+    setMyUserId(uid);
     try {
       const familyId = await getFamilyId();
-      const [actions, fc] = await Promise.all([
+      const [treesRes, actionsRes] = await Promise.all([
+        supabase.from('family_trees').select('*').eq('family_id', familyId),
         supabase.from('child_garden_actions').select('child_id').eq('family_id', familyId),
-        supabase.from('family_children').select('child_id, child_name, child_color, child_gender, linked_child_id').eq('family_id', familyId),
       ]);
-      // Build raw counts then fold linked children into their canonical entry
+      const trees = treesRes.data ?? [];
+      // Exclude trees that are linked-into (only show canonical trees)
+      const linkedIds = new Set(trees.map(t => t.linked_tree_id).filter(Boolean));
+      setFamilyTrees(trees.filter(t => !linkedIds.has(t.child_id)));
+      // Deed totals — combine linked tree counts into canonical
       const rawTotals = {};
-      (actions.data ?? []).forEach(row => { rawTotals[row.child_id] = (rawTotals[row.child_id] ?? 0) + 1; });
+      (actionsRes.data ?? []).forEach(r => { rawTotals[r.child_id] = (rawTotals[r.child_id] ?? 0) + 1; });
       const combined = { ...rawTotals };
-      (fc.data ?? []).forEach(entry => {
-        if (entry.linked_child_id) {
-          combined[entry.child_id] = (combined[entry.child_id] ?? 0) + (rawTotals[entry.linked_child_id] ?? 0);
+      trees.forEach(t => {
+        if (t.linked_tree_id) {
+          combined[t.child_id] = (combined[t.child_id] ?? 0) + (rawTotals[t.linked_tree_id] ?? 0);
         }
       });
       setGardenTotals(combined);
-      if (fc.data) setFamilyChildrenList(fc.data);
     } catch {}
   }
 
@@ -762,43 +768,47 @@ const wins     = child?.wins      ?? [];
           </View>
 
           {/* Family Garden overview */}
-          {(familyChildrenList.length > 0 || children.length > 0) && (
-            <View style={{ marginTop: 20 }}>
-              <View style={[styles.familyMomentsHeader, { flexDirection: 'row', alignItems: 'flex-start' }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.familyMomentsEyebrow}>FAMILY GARDEN</Text>
-                  <Text style={styles.familyMomentsTitle}>Good Deeds Garden</Text>
-                  <Text style={styles.familyMomentsSub}>Good deeds planted by your children</Text>
-                </View>
-                {familyChildrenList.length > 1 && (
-                  <TouchableOpacity
-                    onPress={() => setShowDuplicateModal(true)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={{ marginTop: 4 }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#2E7D62' }}>Manage</Text>
-                  </TouchableOpacity>
-                )}
+          <View style={{ marginTop: 20 }}>
+            <View style={[styles.familyMomentsHeader, { flexDirection: 'row', alignItems: 'flex-start' }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.familyMomentsEyebrow}>FAMILY GARDEN</Text>
+                <Text style={styles.familyMomentsTitle}>Good Deeds Garden</Text>
+                <Text style={styles.familyMomentsSub}>Good deeds planted by your children</Text>
               </View>
-
-              <FamilyDuplicateModal
-                visible={showDuplicateModal}
-                children={familyChildrenList}
-                gardenTotals={gardenTotals}
-                onDone={() => { setShowDuplicateModal(false); loadFamilyTab(); }}
-              />
+              <TouchableOpacity
+                onPress={() => navigation.navigate('GardenTreeWizard')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.addTreeBtn}
+              >
+                <Ionicons name="add" size={14} color="#2E7D62" />
+                <Text style={styles.addTreeBtnText}>Add Tree</Text>
+              </TouchableOpacity>
+            </View>
+            {familyTrees.length === 0 ? (
+              <TouchableOpacity
+                style={styles.emptyGardenCard}
+                onPress={() => navigation.navigate('GardenTreeWizard')}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>🌱</Text>
+                <Text style={styles.emptyGardenTitle}>No trees yet</Text>
+                <Text style={styles.emptyGardenSub}>Tap "Add Tree" to start your child's Good Deeds Garden</Text>
+              </TouchableOpacity>
+            ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-                {(familyChildrenList.length > 0 ? familyChildrenList : children).map(c => (
+                {familyTrees.map(tree => (
                   <MiniGardenCard
-                    key={c.child_id ?? c.id}
-                    childName={c.child_name ?? c.name}
-                    total={gardenTotals[c.child_id ?? c.id] ?? 0}
-                    color={c.child_color ?? c.color}
+                    key={tree.child_id}
+                    childName={tree.child_name}
+                    total={gardenTotals[tree.child_id] ?? 0}
+                    color={children.find(c => c.id === tree.child_id)?.color}
+                    label={tree.created_by === myUserId ? 'You' : partnerName}
+                    thresholds={tree.thresholds}
                   />
                 ))}
               </ScrollView>
-            </View>
-          )}
+            )}
+          </View>
 
           {/* Partner shared habits/activities — swipe cards */}
           {(() => {
@@ -1560,6 +1570,11 @@ const styles = StyleSheet.create({
 
   // Shared moments feed
   familyMomentsHeader:   { marginBottom: 12 },
+  addTreeBtn:            { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EDF7F2', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginTop: 2 },
+  addTreeBtnText:        { fontSize: 12, fontWeight: '700', color: '#2E7D62' },
+  emptyGardenCard:       { backgroundColor: '#F9FAFB', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: '#E5E7EB', borderStyle: 'dashed', marginBottom: 12 },
+  emptyGardenTitle:      { fontSize: 15, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
+  emptyGardenSub:        { fontSize: 12, color: '#9CA3AF', textAlign: 'center', lineHeight: 18 },
   familyMomentsEyebrow:  { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
   familyMomentsTitle:    { fontSize: 16, fontWeight: '800', color: '#1A1A2E', marginBottom: 2 },
   familyMomentsSub:      { fontSize: 12, color: '#9CA3AF' },
