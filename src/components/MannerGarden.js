@@ -157,11 +157,13 @@ function FruitTreeStage({ progress }) {
 
 // ── Tree illustration ─────────────────────────────────────────────────────────
 
-function TreeIllustration({ stageIndex, swayAnim, growthScale, progress = 0 }) {
+function TreeIllustration({ stageIndex, swayAnim, growthScale, progressAnim }) {
+  const riseY  = progressAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0]  });
+  const riseS  = progressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.78, 1.0] });
   return (
     <Animated.View style={[
       ts.scene,
-      { transform: [{ translateX: swayAnim }, { scale: growthScale }] },
+      { transform: [{ translateX: swayAnim }, { translateY: riseY }, { scale: Animated.multiply(growthScale, riseS) }] },
     ]}>
       <Svg width={200} height={170}>
         <Defs>
@@ -299,6 +301,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   const dropY         = useRef(new Animated.Value(0)).current;
   const dropOpacity   = useRef(new Animated.Value(0)).current;
   const growthScale   = useRef(new Animated.Value(1)).current;
+  const progressAnim  = useRef(new Animated.Value(0)).current;
   const childSwayAnim = useRef(new Animated.Value(0)).current;
   const staticScale   = useRef(new Animated.Value(1)).current;
   const shareCardRef  = useRef();
@@ -323,6 +326,16 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   ).current;
 
   useEffect(() => { loadActions(); loadTree(); }, [child?.id, linkedChildId]);
+
+  // Keep progressAnim in sync — drives the persistent tree rise/scale
+  useEffect(() => {
+    const stgs   = buildStages(settings.thresholds);
+    const total  = actions.length;
+    const prog   = computeProgress(total, settings.thresholds);
+    const stage  = getStageFromList(stgs, prog.currentTreeDeeds);
+    const p      = stage.next ? (prog.currentTreeDeeds - stage.min) / (stage.next - stage.min) : 1;
+    Animated.timing(progressAnim, { toValue: p, duration: 500, useNativeDriver: true }).start();
+  }, [actions.length, settings.thresholds]);
 
   useEffect(() => {
     if (!showChildView) { childSwayAnim.setValue(0); return; }
@@ -545,7 +558,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         <>
           {/* Tree scene */}
           <View style={gs.sceneWrap}>
-            <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} growthScale={growthScale} progress={progress} />
+            <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} growthScale={growthScale} progressAnim={progressAnim} />
             <Animated.View style={[gs.waterDrop, { transform: [{ translateY: dropY }], opacity: dropOpacity }]}>
               <Text style={{ fontSize: 18 }}>💧</Text>
             </Animated.View>
@@ -775,7 +788,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               <Text style={sc.stageName}>{stage.name}</Text>
               <View style={sc.treeWrap}>
                 <View style={{ transform: [{ scale: 1.7 }] }}>
-                  <TreeIllustration stageIndex={stage.index} swayAnim={staticScale} growthScale={staticScale} progress={progress} />
+                  <TreeIllustration stageIndex={stage.index} swayAnim={staticScale} growthScale={staticScale} progressAnim={staticScale} />
                 </View>
               </View>
               <Text style={sc.deedsNumber}>{total}</Text>
@@ -814,7 +827,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
               <View style={cv.treeWrap}>
                 <View style={{ transform: [{ scale: 1.65 }] }}>
-                  <TreeIllustration stageIndex={stage.index} swayAnim={childSwayAnim} growthScale={growthScale} progress={progress} />
+                  <TreeIllustration stageIndex={stage.index} swayAnim={childSwayAnim} growthScale={growthScale} progressAnim={progressAnim} />
                 </View>
               </View>
 
