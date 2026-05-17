@@ -301,6 +301,29 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   const staticScale   = useRef(new Animated.Value(1)).current;
   const shareCardRef  = useRef();
 
+  const [burstEmoji, setBurstEmoji] = useState(null);
+  const floatY       = useRef(new Animated.Value(0)).current;
+  const floatOpacity = useRef(new Animated.Value(0)).current;
+  const floatScale   = useRef(new Animated.Value(1)).current;
+
+  const PARTICLE_DIRS = [
+    { x: -72, y: -85 },
+    { x:   0, y: -105 },
+    { x:  72, y: -85 },
+    { x: -90, y: -35 },
+    { x:  90, y: -35 },
+    { x:   0, y: -55 },
+  ];
+  const PARTICLE_EMOJIS = ['🍃', '✨', '🌿', '⭐', '🍃', '✨'];
+  const particles = useRef(
+    Array.from({ length: 6 }, () => ({
+      x:       new Animated.Value(0),
+      y:       new Animated.Value(0),
+      opacity: new Animated.Value(0),
+      scale:   new Animated.Value(0),
+    }))
+  ).current;
+
   useEffect(() => { loadActions(); loadTree(); }, [child?.id, linkedChildId]);
 
   useEffect(() => {
@@ -357,26 +380,62 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     setLoading(false);
   }
 
-  function animateTree() {
-    // Sway and growth run immediately — they're behind the modal
+  function animateTree(emoji) {
+    // Bigger scale punch + sway — fire immediately behind the closing modal
     Animated.sequence([
-      Animated.timing(swayAnim, { toValue: 7,  duration: 130, useNativeDriver: true }),
-      Animated.timing(swayAnim, { toValue: -5, duration: 130, useNativeDriver: true }),
-      Animated.timing(swayAnim, { toValue: 3,  duration: 120, useNativeDriver: true }),
-      Animated.timing(swayAnim, { toValue: 0,  duration: 120, useNativeDriver: true }),
+      Animated.timing(swayAnim,    { toValue: 12, duration: 120, useNativeDriver: true }),
+      Animated.timing(swayAnim,    { toValue: -9, duration: 120, useNativeDriver: true }),
+      Animated.timing(swayAnim,    { toValue: 5,  duration: 110, useNativeDriver: true }),
+      Animated.timing(swayAnim,    { toValue: 0,  duration: 110, useNativeDriver: true }),
     ]).start();
     Animated.sequence([
-      Animated.timing(growthScale, { toValue: 1.09, duration: 160, useNativeDriver: true }),
-      Animated.spring(growthScale,  { toValue: 1,    friction: 5, tension: 60, useNativeDriver: true }),
+      Animated.timing(growthScale, { toValue: 1.3, duration: 170, useNativeDriver: true }),
+      Animated.spring(growthScale, { toValue: 1,   friction: 4, tension: 50, useNativeDriver: true }),
     ]).start();
-    // Water drop waits for the pageSheet to finish closing (~350ms on iOS)
+
+    // All particle / float effects after the pageSheet finishes closing
     setTimeout(() => {
+      // Water drop
       dropY.setValue(0);
       dropOpacity.setValue(1);
       Animated.parallel([
         Animated.timing(dropY,       { toValue: 90, duration: 700, useNativeDriver: true }),
         Animated.timing(dropOpacity, { toValue: 0,  duration: 700, delay: 200, useNativeDriver: true }),
       ]).start();
+
+      // Floating deed emoji
+      if (emoji) {
+        setBurstEmoji(emoji);
+        floatY.setValue(0);
+        floatOpacity.setValue(1);
+        floatScale.setValue(0.6);
+        Animated.parallel([
+          Animated.timing(floatY,       { toValue: -130, duration: 950, useNativeDriver: true }),
+          Animated.timing(floatOpacity, { toValue: 0,    duration: 950, delay: 350, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.timing(floatScale, { toValue: 1.5, duration: 220, useNativeDriver: true }),
+            Animated.timing(floatScale, { toValue: 1.2, duration: 730, useNativeDriver: true }),
+          ]),
+        ]).start(() => setBurstEmoji(null));
+      }
+
+      // Leaf particle burst
+      particles.forEach((p, i) => {
+        p.x.setValue(0);
+        p.y.setValue(0);
+        p.opacity.setValue(0);
+        p.scale.setValue(0);
+        Animated.sequence([
+          Animated.delay(i * 40),
+          Animated.parallel([
+            Animated.timing(p.opacity, { toValue: 1,                    duration: 120, useNativeDriver: true }),
+            Animated.timing(p.scale,   { toValue: 1,                    duration: 150, useNativeDriver: true }),
+            Animated.timing(p.x,       { toValue: PARTICLE_DIRS[i].x,   duration: 650, easing: t => t * (2 - t), useNativeDriver: true }),
+            Animated.timing(p.y,       { toValue: PARTICLE_DIRS[i].y,   duration: 650, easing: t => t * (2 - t), useNativeDriver: true }),
+          ]),
+          Animated.timing(p.opacity,   { toValue: 0, duration: 220, useNativeDriver: true }),
+        ]).start();
+      });
     }, 380);
   }
 
@@ -402,7 +461,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
       });
       if (error) { Alert.alert('Error', 'Could not save. Please try again.'); return; }
       await loadActions();
-      animateTree();
+      animateTree(manner?.emoji ?? '✨');
       setShowModal(false);
       setSelectedManner(null);
       setNote('');
@@ -490,6 +549,34 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         <Animated.View style={[gs.waterDrop, { transform: [{ translateY: dropY }], opacity: dropOpacity }]}>
           <Text style={{ fontSize: 18 }}>💧</Text>
         </Animated.View>
+
+        {/* Leaf particle burst */}
+        {particles.map((p, i) => (
+          <Animated.View
+            key={i}
+            pointerEvents="none"
+            style={[gs.particle, {
+              opacity: p.opacity,
+              transform: [{ translateX: p.x }, { translateY: p.y }, { scale: p.scale }],
+            }]}
+          >
+            <Text style={{ fontSize: 15 }}>{PARTICLE_EMOJIS[i]}</Text>
+          </Animated.View>
+        ))}
+
+        {/* Floating deed emoji */}
+        {burstEmoji && (
+          <Animated.View
+            pointerEvents="none"
+            style={[gs.floatEmoji, {
+              opacity: floatOpacity,
+              transform: [{ translateY: floatY }, { scale: floatScale }],
+            }]}
+          >
+            <Text style={{ fontSize: 32 }}>{burstEmoji}</Text>
+          </Animated.View>
+        )}
+
         <View style={gs.deedsCountWrap}>
           <Text style={gs.deedsCount}>{prog.currentTreeDeeds}</Text>
           <Text style={gs.deedsLabel}>deeds on this tree</Text>
@@ -870,7 +957,9 @@ const gs = StyleSheet.create({
   stagePill:         { backgroundColor: '#EDF7F2', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
   stageText:         { fontSize: 11, fontWeight: '700', color: '#2E7D62' },
 
-  sceneWrap:         { alignItems: 'center', marginBottom: 12, position: 'relative' },
+  sceneWrap:         { alignItems: 'center', marginBottom: 12, position: 'relative', overflow: 'visible' },
+  particle:          { position: 'absolute', top: '30%', left: '50%' },
+  floatEmoji:        { position: 'absolute', top: '50%', left: '50%', marginLeft: -16 },
   waterDrop:         { position: 'absolute', top: 0, zIndex: 10 },
   deedsCountWrap:    { marginTop: 8, alignItems: 'center' },
   deedsCount:        { fontSize: 28, fontWeight: '800', color: '#1A1A2E' },
