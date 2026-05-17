@@ -167,6 +167,33 @@ export default function GardenDetailScreen({ route, navigation }) {
                 : <Text style={s.saveBtnText}>Save Settings</Text>
               }
             </TouchableOpacity>
+            <TouchableOpacity
+              style={s.deleteBtn}
+              onPress={() => Alert.alert(
+                'Delete Tree',
+                `This will permanently delete ${tree.child_name}'s Good Deeds Tree and all logged deeds. This cannot be undone.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await supabase.from('family_trees').delete().eq('child_id', tree.child_id);
+                        await supabase.from('child_garden_actions').delete().eq('child_id', tree.child_id);
+                        setShowSettings(false);
+                        navigation.goBack();
+                      } catch {
+                        Alert.alert('Error', 'Could not delete tree. Please try again.');
+                      }
+                    },
+                  },
+                ]
+              )}
+              activeOpacity={0.7}
+            >
+              <Text style={s.deleteBtnText}>Delete this tree</Text>
+            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -197,4 +224,6 @@ const s = StyleSheet.create({
 
   saveBtn:          { margin: 20, marginTop: 12, backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   saveBtnText:      { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  deleteBtn:        { alignItems: 'center', marginBottom: 24 },
+  deleteBtnText:    { fontSize: 13, color: '#9CA3AF', textDecorationLine: 'underline' },
 });
