@@ -85,7 +85,7 @@ export default function GardenDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.scrollView} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <MannerGarden
           child={child}
           myProfileName={myProfileName}
@@ -216,9 +216,10 @@ export default function GardenDetailScreen({ route, navigation }) {
 }
 
 const s = StyleSheet.create({
-  safe:             { flex: 1, backgroundColor: '#F5F5F5' },
+  safe:             { flex: 1, backgroundColor: '#1B3D2F' },
   header:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#1B3D2F', borderBottomWidth: 0 },
   headerTitle:      { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  scrollView:       { flex: 1, backgroundColor: '#F5F5F5' },
   scroll:           { padding: 16, paddingBottom: 48 },
 
   modalContainer:   { flex: 1, backgroundColor: '#FFFFFF' },
