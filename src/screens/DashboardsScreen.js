@@ -160,7 +160,6 @@ export default function DashboardsScreen({ navigation, route }) {
   const [acknowledgedInc,   setAcknowledgedInc]    = useState(new Set());
   const [myProfileName,     setMyProfileName]      = useState('');
   const [familyMoments,     setFamilyMoments]      = useState([]);
-  const [familySubTab,      setFamilySubTab]       = useState('summary');
   const [sharedItems,       setSharedItems]        = useState(new Set());
   const [partnerLinked,     setPartnerLinked]      = useState(false);
   const [gardenTotals,  setGardenTotals]  = useState({});
@@ -646,24 +645,6 @@ export default function DashboardsScreen({ navigation, route }) {
             />
           }
         >
-          {/* Segment control */}
-          <View style={styles.segmentWrap}>
-            {['summary', 'configure'].map(tab => (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.segmentTab, familySubTab === tab && styles.segmentTabActive]}
-                onPress={() => setFamilySubTab(tab)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.segmentText, familySubTab === tab && styles.segmentTextActive]}>
-                  {tab === 'summary' ? 'Summary Board' : 'Configure'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* ── Summary Board — full original family dashboard ── */}
-          {familySubTab === 'summary' && <>
           {partnerLinked && (
             <View style={styles.partnerBanner}>
               <Ionicons name="people" size={13} color="#2E7D62" />
@@ -961,83 +942,6 @@ export default function DashboardsScreen({ navigation, route }) {
             onChallenge={() => navigation.navigate('ChallengeWizard')}
           />
           <LeaderboardCard navigation={navigation} />
-          </>}
-
-          {/* ── Configure ── */}
-          {familySubTab === 'configure' && <>
-
-            {/* Family Goals */}
-            <View style={styles.configSection}>
-              <Text style={styles.configEyebrow}>FAMILY GOALS</Text>
-              <Text style={styles.configTitle}>Shared Goals</Text>
-              <Text style={styles.configSub}>Goals both parents work toward together</Text>
-              <TouchableOpacity style={styles.configBtn} onPress={() => navigation.navigate('FamilyGoalWizard')} activeOpacity={0.85}>
-                <Ionicons name="add-circle-outline" size={15} color="#1B3D2F" />
-                <Text style={styles.configBtnText}>Add Family Goal</Text>
-              </TouchableOpacity>
-              {familyGoals.length > 0 && (
-                <View style={[styles.familyGoalCard, { marginTop: 12 }]}>
-                  {familyGoals.map((goal, idx) => (
-                    <View key={goal.id}>
-                      {idx > 0 && <View style={styles.familyGoalDivider} />}
-                      <View style={[styles.familyGoalRow, { paddingVertical: 12 }]}>
-                        <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
-                        <View style={{ flex: 1, marginLeft: 12 }}>
-                          <Text style={styles.familyGoalTitle}>{goal.title}</Text>
-                          <Text style={styles.familyGoalStatus}>{goal.frequencyLabel}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Children */}
-            <View style={styles.configSection}>
-              <Text style={styles.configEyebrow}>CHILDREN</Text>
-              <Text style={styles.configTitle}>Your Children</Text>
-              <Text style={styles.configSub}>Tap a child to open their dashboard</Text>
-              <TouchableOpacity style={styles.configBtn} onPress={() => navigation.navigate('AddChildWizard')} activeOpacity={0.85}>
-                <Ionicons name="person-add-outline" size={15} color="#1B3D2F" />
-                <Text style={styles.configBtnText}>Add Child</Text>
-              </TouchableOpacity>
-              {children.length > 0 && (
-                <View style={[styles.familyGoalCard, { marginTop: 12 }]}>
-                  {children.map((child, idx) => (
-                    <View key={child.id}>
-                      {idx > 0 && <View style={styles.familyGoalDivider} />}
-                      <TouchableOpacity style={[styles.familyGoalRow, { paddingVertical: 14 }]} onPress={() => setActiveChildId(child.id)} activeOpacity={0.8}>
-                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: (child.color ?? '#2E7D62') + '30', alignItems: 'center', justifyContent: 'center' }}>
-                          <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: child.color ?? '#2E7D62' }} />
-                        </View>
-                        <View style={{ flex: 1, marginLeft: 12 }}>
-                          <Text style={styles.familyGoalTitle}>{child.name}</Text>
-                          {!!child.age && <Text style={styles.familyGoalStatus}>{child.age} years old</Text>}
-                        </View>
-                        <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Partner sync */}
-            <View style={styles.configSection}>
-              <Text style={styles.configEyebrow}>PARTNER</Text>
-              <Text style={styles.configTitle}>Partner Sync</Text>
-              <Text style={styles.configSub}>
-                {partnerLinked ? `Linked with ${partnerName}` : 'Link with your partner to share the family board'}
-              </Text>
-              <TouchableOpacity style={[styles.configBtn, partnerLinked && { borderColor: '#2E7D62' }]} onPress={() => navigation.navigate('FamilySync')} activeOpacity={0.85}>
-                <Ionicons name="link-outline" size={15} color="#1B3D2F" />
-                <Text style={styles.configBtnText}>{partnerLinked ? 'Manage partner link' : 'Sync with partner'}</Text>
-              </TouchableOpacity>
-            </View>
-
-          </>}
-
         </ScrollView>
       )}
 
@@ -1538,19 +1442,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#1B3D2F' },
 
   // Family dashboard
-  segmentWrap:       { flexDirection: 'row', backgroundColor: '#E8EAEd', borderRadius: 12, padding: 3, marginBottom: 20 },
-  segmentTab:        { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
-  segmentTabActive:  { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
-  segmentText:       { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
-  segmentTextActive: { color: '#1B3D2F', fontWeight: '700' },
-
-  configSection:  { marginBottom: 24 },
-  configEyebrow:  { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
-  configTitle:    { fontSize: 16, fontWeight: '800', color: '#1A1A2E', marginBottom: 2 },
-  configSub:      { fontSize: 12, color: '#9CA3AF', marginBottom: 12 },
-  configBtn:      { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', backgroundColor: '#FFFFFF', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1.5, borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
-  configBtnText:  { fontSize: 13, fontWeight: '600', color: '#1B3D2F' },
-
   partnerBanner:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EDF7F2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16, alignSelf: 'flex-start' },
   partnerBannerText: { fontSize: 12, fontWeight: '600', color: '#2E7D62' },
 
