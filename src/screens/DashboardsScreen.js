@@ -651,8 +651,6 @@ export default function DashboardsScreen({ navigation, route }) {
             </View>
           )}
 
-          <LeaderboardCard navigation={navigation} />
-
           <View style={styles.familyDashHeader}>
             <View style={styles.familyDashIconWrap}>
               <Ionicons name="home-outline" size={20} color="#FFFFFF" />
@@ -937,6 +935,8 @@ export default function DashboardsScreen({ navigation, route }) {
               </View>
             );
           })()}
+
+          <LeaderboardCard navigation={navigation} />
         </ScrollView>
       )}
 
