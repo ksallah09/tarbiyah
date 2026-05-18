@@ -24,6 +24,7 @@ import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { updateFamilyGoalReminder } from '../utils/notifications';
 import { getWeekCompletions, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
+import FamilySummaryBoard from '../components/FamilySummaryBoard';
 import { rs, hp } from '../utils/responsive';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
@@ -67,6 +68,7 @@ export default function ProgressScreen({ navigation }) {
   const [prtHabAct,     setPrtHabAct]     = useState({ habits: 0, activities: 0 });
   const [partnerSyncOn, setPartnerSyncOn] = useState(true);
   const [refreshing,  setRefreshing]       = useState(false);
+  const [familyTab,   setFamilyTab]        = useState('summary');
   const hasMountedRef = useRef(false);
 
   const refreshAll = useCallback(() => {
@@ -172,19 +174,6 @@ export default function ProgressScreen({ navigation }) {
       <StatusBar style="light" />
       <View style={styles.bgTop} />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#4ADE80"
-            colors={['#4ADE80']}
-          />
-        }
-      >
         {/* ── Green header with hadith ── */}
         <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <Text style={styles.hadithArabic}>خَيْرُكُمْ خَيْرُكُمْ لِأَهْلِهِ</Text>
@@ -193,6 +182,35 @@ export default function ProgressScreen({ navigation }) {
           <Text style={styles.hadithSource}>— Prophet Muhammad ﷺ</Text>
         </View>
 
+        {/* ── Segment control ── */}
+        <View style={styles.segmentOuter}>
+          <View style={styles.segmentWrap}>
+            {[['summary', 'Summary Board'], ['configure', 'Configure']].map(([key, label]) => (
+              <TouchableOpacity
+                key={key}
+                style={[styles.segmentTab, familyTab === key && styles.segmentTabActive]}
+                onPress={() => setFamilyTab(key)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.segmentText, familyTab === key && styles.segmentTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* ── Summary Board ── */}
+        {familyTab === 'summary' && (
+          <FamilySummaryBoard navigation={navigation} />
+        )}
+
+        {/* ── Configure (existing ProgressScreen content) ── */}
+        {familyTab === 'configure' && (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4ADE80" colors={['#4ADE80']} />}
+        >
         {/* ── Light sheet ── */}
         <View style={styles.sheet}>
         <View style={styles.content}>
@@ -532,7 +550,9 @@ export default function ProgressScreen({ navigation }) {
         <View style={{ height: 32 }} />
         </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+        )}
+
       <EncouragementModal
         visible={!!encouragement}
         emoji={encouragement?.emoji}
@@ -547,6 +567,14 @@ export default function ProgressScreen({ navigation }) {
 const styles = StyleSheet.create({
   safe:          { flex: 1, backgroundColor: '#1B3D2F' },
   bgTop:         { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
+
+  segmentOuter:      { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: '#1B3D2F' },
+  segmentWrap:       { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 3 },
+  segmentTab:        { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
+  segmentTabActive:  { backgroundColor: '#FFFFFF' },
+  segmentText:       { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  segmentTextActive: { color: '#1B3D2F', fontWeight: '700' },
+
   scroll:        { flex: 1 },
   scrollContent: { flexGrow: 1 },
   header: {

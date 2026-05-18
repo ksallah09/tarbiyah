@@ -140,7 +140,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [children, setChildren] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const [activeChildId, setActiveChildId] = useState('family');
+  const [activeChildId, setActiveChildId] = useState(null);
   const [familyGoals,   setFamilyGoals]   = useState([]);
   const [goalCompletions, setGoalCompletions] = useState([]);
   const [activeAreaIndex, setActiveAreaIndex]       = useState(0);
@@ -223,20 +223,18 @@ export default function DashboardsScreen({ navigation, route }) {
       setChildren(profiles);
       setLoaded(true);
       setActiveChildId(prev => {
-        if (requestedId === 'family') return 'family';
         if (requestedId && profiles.find(c => c.id === requestedId)) return requestedId;
-        if (prev === 'family' || (prev && profiles.find(c => c.id === prev))) return prev;
-        return 'family';
+        if (prev && profiles.find(c => c.id === prev)) return prev;
+        return profiles[0]?.id ?? null;
       });
     });
     syncChildProfilesFromSupabase().then(() =>
       getAllChildProfiles().then(profiles => {
         setChildren(profiles);
         setActiveChildId(prev => {
-          if (requestedId === 'family') return 'family';
           if (requestedId && profiles.find(c => c.id === requestedId)) return requestedId;
-          if (prev === 'family' || (prev && profiles.find(c => c.id === prev))) return prev;
-          return 'family';
+          if (prev && profiles.find(c => c.id === prev)) return prev;
+          return profiles[0]?.id ?? null;
         });
       })
     );
@@ -312,7 +310,7 @@ export default function DashboardsScreen({ navigation, route }) {
 
   // Refresh family data whenever the Family tab is selected (not just on screen focus)
   useEffect(() => {
-    if (activeChildId !== 'family') return;
+    if (activeChildId !== '__family__') return; // family tab removed — never fires
     loadFamilyTab();
   }, [activeChildId]);
 
@@ -504,7 +502,7 @@ export default function DashboardsScreen({ navigation, route }) {
   };
 
   // Only block render if we have no children AND we're not on the family tab
-  if (!child && activeChildId !== 'family' && loaded) return null;
+  if (!child && loaded) return null;
 
   const renderWeekItem = ({ item, index, keyPrefix, total, isActivity }) => {
     const key       = `${keyPrefix}_${index}`;
@@ -600,18 +598,6 @@ export default function DashboardsScreen({ navigation, route }) {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabRow}
         >
-          {/* Family tab — always first */}
-          <TouchableOpacity
-            style={[styles.childPill, activeChildId === 'family' && { backgroundColor: '#2E7D62', borderColor: '#FFFFFF', borderWidth: 2 }]}
-            onPress={() => setActiveChildId('family')}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="home-outline" size={12} color={activeChildId === 'family' ? '#FFFFFF' : 'rgba(255,255,255,0.5)'} />
-            <Text style={[styles.childPillText, activeChildId === 'family' && styles.childPillTextActive]}>
-              Family
-            </Text>
-          </TouchableOpacity>
-
           {children.map(c => {
             const active = c.id === activeChildId;
             return (
