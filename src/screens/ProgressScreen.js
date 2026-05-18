@@ -174,12 +174,9 @@ export default function ProgressScreen({ navigation }) {
       <StatusBar style="light" />
       <View style={styles.bgTop} />
 
-        {/* ── Green header with hadith ── */}
-        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-          <Text style={styles.hadithArabic}>خَيْرُكُمْ خَيْرُكُمْ لِأَهْلِهِ</Text>
-          <View style={styles.hadithDivider} />
-          <Text style={styles.hadithEnglish}>"The best of you are the best to their families."</Text>
-          <Text style={styles.hadithSource}>— Prophet Muhammad ﷺ</Text>
+        {/* ── Green header ── */}
+        <View style={[styles.header, { paddingTop: insets.top + 6, paddingBottom: 10 }]}>
+          <Text style={styles.headerTitle}>Family</Text>
         </View>
 
         {/* ── Segment control ── */}
@@ -580,9 +577,10 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#1B3D2F',
     paddingHorizontal: 24,
-    paddingBottom: 18,
+    paddingBottom: 10,
     alignItems: 'center',
   },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
