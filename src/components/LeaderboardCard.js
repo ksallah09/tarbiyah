@@ -8,11 +8,11 @@ import { getPartnerMonthCounts } from '../utils/readInsights';
 import { getWeekCompletions, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
 
 const ROWS_CONFIG = [
-  { label: 'Spiritual',   icon: 'moon',                  color: '#4ADE80' },
-  { label: 'Research',    icon: 'bulb-outline',          color: '#F59E0B' },
-  { label: 'Quran',       icon: 'book-outline',          color: '#93C5FD' },
-  { label: 'Habits',      icon: 'repeat-outline',        color: '#86EFAC' },
-  { label: 'Activities',  icon: 'color-palette-outline', color: '#FCD34D' },
+  { label: 'Spiritual reads',   key: 'Spiritual',   icon: 'moon',                  color: '#4ADE80' },
+  { label: 'Research reads',    key: 'Research',    icon: 'bulb-outline',          color: '#F59E0B' },
+  { label: 'Quran reads',       key: 'Quran',       icon: 'book-outline',          color: '#93C5FD' },
+  { label: 'Habits done',       key: 'Habits',      icon: 'repeat-outline',        color: '#86EFAC' },
+  { label: 'Activities done',   key: 'Activities',  icon: 'color-palette-outline', color: '#FCD34D' },
 ];
 
 export default function LeaderboardCard({ navigation }) {
@@ -84,12 +84,12 @@ export default function LeaderboardCard({ navigation }) {
           <View style={{ flex: 1 }} />
           <Text style={[s.colLabel, { color: 'rgba(255,255,255,0.25)' }]}>PARTNER</Text>
         </View>
-        {ROWS_CONFIG.map(({ label, icon, color }) => (
-          <View key={label} style={s.row}>
+        {ROWS_CONFIG.map(({ label, key, icon, color }) => (
+          <View key={key} style={s.row}>
             <Text style={s.score}>{(() => {
-              if (label === 'Habits')     return myHabAct.habits;
-              if (label === 'Activities') return myHabAct.activities;
-              const idx = ['Spiritual','Research','Quran'].indexOf(label);
+              if (key === 'Habits')     return myHabAct.habits;
+              if (key === 'Activities') return myHabAct.activities;
+              const idx = ['Spiritual','Research','Quran'].indexOf(key);
               return idx >= 0 ? [mySpir, mySci, myQuran][idx] : '—';
             })()}</Text>
             <View style={s.mid}>
