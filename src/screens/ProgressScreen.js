@@ -408,7 +408,7 @@ export default function ProgressScreen({ navigation }) {
           </TouchableOpacity>
         ))}
 
-        {partnerSyncOn && !syncStatus.linked && (
+        {false && !syncStatus.linked && (
           <View style={styles.leaderboardPreview}>
             <View style={styles.leaderboardPreviewHeader}>
               <Ionicons name="trophy" size={13} color="#C9A84C" />
@@ -464,7 +464,7 @@ export default function ProgressScreen({ navigation }) {
           </View>
         )}
 
-        {partnerSyncOn && syncStatus.linked && (() => {
+        {false && syncStatus.linked && (() => {
           const partnerFirstName = syncStatus.partner?.name?.split(' ')[0] ?? 'Partner';
           const mySpir   = spirMonth.filter(d => d.completed).length;
           const mySci    = sciMonth.filter(d => d.completed).length;

@@ -24,6 +24,7 @@ import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logG
 import { supabase } from '../utils/supabase';
 
 import { notifyPartner } from '../utils/partnerNotify';
+import LeaderboardCard from '../components/LeaderboardCard';
 
 // ── Developmental phase data ──────────────────────────────────────────────────
 
@@ -649,6 +650,8 @@ export default function DashboardsScreen({ navigation, route }) {
               <Text style={styles.partnerBannerText}>Shared with {partnerName} · both of you can manage this board</Text>
             </View>
           )}
+
+          <LeaderboardCard navigation={navigation} />
 
           <View style={styles.familyDashHeader}>
             <View style={styles.familyDashIconWrap}>
