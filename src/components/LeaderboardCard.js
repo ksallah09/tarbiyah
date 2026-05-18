@@ -127,7 +127,7 @@ export default function LeaderboardCard({ navigation }) {
   return (
     <>
       <View style={s.sectionHeader}>
-        <Text style={s.sectionEyebrow}>FAMILY LOG</Text>
+        <Text style={s.sectionEyebrow}>PARTNER COMPETITION</Text>
         <Text style={s.sectionTitle}>Monthly Leaderboard</Text>
         <Text style={s.sectionSub}>How you and your partner are doing this month</Text>
       </View>
