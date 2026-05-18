@@ -64,7 +64,13 @@ export default function LeaderboardCard({ navigation }) {
   // ── Locked (not synced) ──
   if (!syncStatus.linked) {
     return (
-      <View style={s.card}>
+      <>
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionEyebrow}>FAMILY LOG</Text>
+          <Text style={s.sectionTitle}>Monthly Leaderboard</Text>
+          <Text style={s.sectionSub}>How you and your partner are doing this month</Text>
+        </View>
+        <View style={s.card}>
         <View style={s.headerRow}>
           <Ionicons name="trophy" size={13} color="#C9A84C" />
           <Text style={s.headerText}>MONTHLY LEADERBOARD</Text>
@@ -107,6 +113,7 @@ export default function LeaderboardCard({ navigation }) {
           <Text style={s.unlockText}>Sync with your partner to see the leaderboard</Text>
         </TouchableOpacity>
       </View>
+      </>
     );
   }
 
@@ -118,7 +125,13 @@ export default function LeaderboardCard({ navigation }) {
       : { text: "You're tied — great effort, both of you!",     icon: 'people-outline',  iconColor: '#93C5FD' };
 
   return (
-    <View style={s.card}>
+    <>
+      <View style={s.sectionHeader}>
+        <Text style={s.sectionEyebrow}>FAMILY LOG</Text>
+        <Text style={s.sectionTitle}>Monthly Leaderboard</Text>
+        <Text style={s.sectionSub}>How you and your partner are doing this month</Text>
+      </View>
+      <View style={s.card}>
       <View style={s.headerRow}>
         <Ionicons name="trophy" size={13} color="#C9A84C" />
         <Text style={s.headerText}>MONTHLY LEADERBOARD</Text>
@@ -160,10 +173,16 @@ export default function LeaderboardCard({ navigation }) {
         <Text style={s.winner}>{winnerData.text}</Text>
       </View>
     </View>
+    </>
   );
 }
 
 const s = StyleSheet.create({
+  sectionHeader: { marginTop: 20, marginBottom: 0 },
+  sectionEyebrow:{ fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
+  sectionTitle:  { fontSize: 16, fontWeight: '800', color: '#1A1A2E', marginBottom: 2 },
+  sectionSub:    { fontSize: 12, color: '#9CA3AF' },
+
   card:       { backgroundColor: '#1B3D2F', borderRadius: 18, padding: 18, marginTop: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 14, elevation: 5 },
   headerRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   headerText: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#C9A84C' },
