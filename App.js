@@ -28,6 +28,7 @@ import InsightDetailScreen      from './src/screens/InsightDetailScreen';
 import VerseDetailScreen         from './src/screens/VerseDetailScreen';
 import FamilyGoalWizardScreen    from './src/screens/FamilyGoalWizardScreen';
 import GardenTreeWizardScreen    from './src/screens/GardenTreeWizardScreen';
+import ChallengeWizardScreen     from './src/screens/ChallengeWizardScreen';
 import GardenDetailScreen        from './src/screens/GardenDetailScreen';
 import FamilySyncScreen          from './src/screens/FamilySyncScreen';
 import AboutScreen               from './src/screens/AboutScreen';
@@ -261,6 +262,11 @@ function MainApp() {
       <Stack.Screen
         name="FamilyGoalWizard"
         component={FamilyGoalWizardScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="ChallengeWizard"
+        component={ChallengeWizardScreen}
         options={{ animation: 'slide_from_bottom' }}
       />
       <Stack.Screen

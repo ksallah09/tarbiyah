@@ -25,6 +25,7 @@ import { supabase } from '../utils/supabase';
 
 import { notifyPartner } from '../utils/partnerNotify';
 import LeaderboardCard from '../components/LeaderboardCard';
+import ChallengeCard from '../components/ChallengeCard';
 
 // ── Developmental phase data ──────────────────────────────────────────────────
 
@@ -936,6 +937,10 @@ export default function DashboardsScreen({ navigation, route }) {
             );
           })()}
 
+          <ChallengeCard
+            navigation={navigation}
+            onChallenge={() => navigation.navigate('ChallengeWizard')}
+          />
           <LeaderboardCard navigation={navigation} />
         </ScrollView>
       )}
