@@ -844,6 +844,77 @@ Respond with JSON only — no markdown, no preamble:
   }
 });
 
+// ─── POST /suggest-growth-areas ──────────────────────────────────────────────
+
+app.post('/suggest-growth-areas', async (req: Request, res: Response) => {
+  try {
+    const { child, completedArea, incidents } = req.body as {
+      child: { name?: string; age?: number; gender?: string; temperaments?: string[]; interests?: string[]; strengths?: string[] };
+      completedArea: { title: string; issue?: string; description?: string };
+      incidents?: string[];
+    };
+
+    if (!completedArea?.title) return res.status(400).json({ error: 'completedArea.title is required.' });
+
+    const childName = child?.name ?? 'the child';
+    const age = child?.age ?? 'unknown';
+
+    const lines: string[] = [];
+    if (child?.temperaments?.length) lines.push(`Temperament: ${child.temperaments.join(', ')}`);
+    if (child?.interests?.length) lines.push(`Interests: ${child.interests.join(', ')}`);
+    if (child?.strengths?.length) lines.push(`Strengths: ${child.strengths.join(', ')}`);
+
+    const profileSection = lines.length ? `\nCHILD PROFILE:\nAge: ${age} | Gender: ${child?.gender ?? 'not specified'}\n${lines.join('\n')}\n` : `\nAge: ${age}\n`;
+
+    const incidentSection = incidents?.length
+      ? `\nDIFFICULT MOMENTS LOGGED (most recent):\n${incidents.slice(-8).map(i => `  - "${i}"`).join('\n')}\n`
+      : '';
+
+    const systemPrompt = `You are Tarbiyah AI, a Muslim parenting coach. You suggest the next growth areas for a parent to work on with their child — grounded in Islamic child development principles and awareness of modern parenting challenges (screen time, social media, identity, peer pressure, mental health, etc).`;
+
+    const userPrompt = `A parent just completed a 4-week growth plan for ${childName}.
+
+COMPLETED PLAN:
+- Area: "${completedArea.title}"
+- Issue they described: "${completedArea.issue ?? 'not recorded'}"
+- Plan overview: "${completedArea.description ?? 'not recorded'}"
+${profileSection}${incidentSection}
+Based on:
+1. What they just worked on (suggest natural progressions or related challenges)
+2. Any patterns visible in the difficult moments logged
+3. Common parenting challenges facing Muslim families today (screens, identity, mental health, peer influence, deen habits)
+4. The child's age, temperament, and interests
+
+Suggest exactly 3 new growth area topics — each a short, clear phrase (4-8 words) that a parent would recognise as a real challenge. Do not repeat the completed area. Make them distinct from each other.
+
+Respond with JSON only:
+{ "suggestions": ["Topic 1", "Topic 2", "Topic 3"] }`;
+
+    function cleanJson(raw: string): string {
+      let s = raw.trim();
+      if (s.startsWith('```')) s = s.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '').trim();
+      const start = s.indexOf('{');
+      if (start > 0) s = s.slice(start);
+      return s;
+    }
+
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_FAST, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    } catch {
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
+
+    const parsed = JSON.parse(cleanJson(raw));
+    if (!Array.isArray(parsed.suggestions)) throw new Error('Invalid response shape');
+    return res.json({ suggestions: parsed.suggestions.slice(0, 3) });
+  } catch (err) {
+    console.error('POST /suggest-growth-areas error:', err);
+    return res.status(500).json({ error: 'Failed to generate suggestions.' });
+  }
+});
+
 // ─── GET /trending/challenges ─────────────────────────────────────────────────
 
 const CHALLENGE_CATEGORIES = [
@@ -3111,7 +3182,7 @@ app.post('/family/notify-deed', requireAuth, async (req: AuthRequest, res: Respo
     if (!childName) return res.status(400).json({ error: 'childName required' });
 
     const pronoun = gender === 'male' ? 'his' : gender === 'female' ? 'her' : 'their';
-    const title = `${deedEmoji ? deedEmoji + ' ' : ''}${childName} earned a good deed!`;
+    const title = `${deedEmoji ? deedEmoji + ' ' : ''}${childName} logged an accomplishment!`;
     const body  = `Show ${childName} ${pronoun} growing tree — seeing progress keeps them motivated 🌱`;
 
     // Find partner user ID
@@ -3154,9 +3225,9 @@ app.post('/family/notify-deed', requireAuth, async (req: AuthRequest, res: Respo
     if (tokens.length === 0) return res.json({ sent: false, reason: 'no push tokens' });
 
     const partnerTitle = loggerName
-      ? `${loggerName} logged a deed for ${childName} 🌱`
+      ? `${loggerName} logged an accomplishment for ${childName} 🌱`
       : title;
-    const partnerBody = `${deedEmoji ? deedEmoji + ' ' : ''}${deedLabel ?? 'Good deed'}. Share ${pronoun} tree to celebrate!`;
+    const partnerBody = `${deedEmoji ? deedEmoji + ' ' : ''}${deedLabel ?? 'Accomplishment'}. Share ${pronoun} tree to celebrate!`;
 
     const notifications = profiles?.map((p: any) => {
       if (!p.push_token) return null;
