@@ -36,11 +36,13 @@ import { refreshDailyNotification, scheduleChildHabitNotifications } from '../ut
 import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
 import { getAllChildProfiles } from '../utils/childProfiles';
-import { getWeekCompletions, getChildWeeklyCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
+import { getLocalCounts, getChildWeeklyCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
 import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
+import ChallengeCard from '../components/ChallengeCard';
 import { loadCompletions } from '../utils/goalCompletions';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
+import { useAuth } from '../../App';
 
 
 const SCIENCE_IMAGES = [
@@ -126,6 +128,7 @@ async function getProfileName() {
 }
 
 export default function HomeScreen({ navigation }) {
+  const { hasChildren, hasFamilyGoals } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [dailyData, setDailyData]            = useState(null);
@@ -147,7 +150,7 @@ export default function HomeScreen({ navigation }) {
   const [sciStreak,   setSciStreak]   = useState(0);
   const [quranStreak, setQuranStreak] = useState(0);
   const [syncStatus,        setSyncStatus]        = useState({ linked: false, partner: null });
-  const [partnerSyncOn,     setPartnerSyncOn]     = useState(true);
+  const [partnerSyncOn,     setPartnerSyncOn]     = useState(false);
   const [myMonthTotal,      setMyMonthTotal]      = useState(0);
   const [partnerMonthTotal, setPartnerMonthTotal] = useState(0);
   const [children,        setChildren]        = useState([]);
@@ -160,6 +163,7 @@ export default function HomeScreen({ navigation }) {
   const [myHabAct,        setMyHabAct]        = useState({ habits: 0, activities: 0 });
   const [prtHabAct,       setPrtHabAct]       = useState({ habits: 0, activities: 0 });
   const [duaSharing, setDuaSharing] = useState(false);
+  const [challengeFocus, setChallengeF] = useState(0);
   const duaShareCardRef = useRef(null);
   const insightIdsRef     = useRef({ spiritual: null, scientific: null });
   const partnerChannelRef = useRef(null);
@@ -289,6 +293,7 @@ export default function HomeScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      setChallengeF(n => n + 1);
       getWeekReadDays('spiritual').then(setSpiritualReadWeek);
       getWeekReadDays('scientific').then(setScientificReadWeek);
       getWeekReadDays('quran').then(setQuranReadWeek);
@@ -297,7 +302,7 @@ export default function HomeScreen({ navigation }) {
       getStreak('quran').then(setQuranStreak);
       isReadToday('quran', dailyAyah.reference).then(setAyahRead);
       getAllChildProfiles().then(setChildren);
-      getWeekCompletions().then(counts => {
+      getLocalCounts().then(counts => {
         setWeekCompletions(counts);
         setMyHabAct(getMonthlyHabitActivityTotals(counts));
       });
@@ -333,7 +338,7 @@ export default function HomeScreen({ navigation }) {
       getMonthTotal().then(setMyMonthTotal);
       AsyncStorage.getItem('tarbiyah_partner_sync_on').then(val => {
         if (val === 'false') { setPartnerSyncOn(false); return; }
-        setPartnerSyncOn(true);
+        getCachedSyncStatus().then(status => setPartnerSyncOn(!!status?.linked));
         function applyPartnerStatus(status) {
           setSyncStatus(status);
           if (status.linked && status.partner?.userId) {
@@ -476,9 +481,34 @@ export default function HomeScreen({ navigation }) {
           <Animated.View style={[styles.sheet, { opacity: sheetOpacity, transform: [{ translateY: sheetSlide }] }]}>
             <View style={styles.contentPad}>
 
+              {/* Setup banner — shown until children are added */}
+              {(!hasChildren || !hasFamilyGoals) && (
+                <TouchableOpacity
+                  style={styles.setupBanner}
+                  onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'configure' } })}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.setupBannerIcon}>
+                    <Text style={{ fontSize: 20 }}>🌱</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.setupBannerTitle}>Finish setting up your family</Text>
+                    <Text style={styles.setupBannerSub}>
+                      {!hasChildren && !hasFamilyGoals
+                        ? 'Add your children and set family goals to complete setup.'
+                        : !hasChildren
+                          ? 'Add your children to unlock personalised dashboards and growth plans.'
+                          : 'Set family goals to complete setup.'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#2E7D62" />
+                </TouchableOpacity>
+              )}
+
               {/* TODAY'S PARENTING INSIGHTS */}
               <View style={styles.sectionTitleWrap}>
-                <Text style={styles.sectionTitle}>TODAY'S PARENTING INSIGHTS</Text>
+                <Text style={styles.sectionEyebrow}>DAILY</Text>
+                <Text style={styles.sectionTitle}>Today's Insights</Text>
               </View>
 
 
@@ -572,78 +602,6 @@ export default function HomeScreen({ navigation }) {
 
 
 
-              {/* PROGRESS THIS WEEK section title */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
-                <Text style={styles.sectionTitle}>PROGRESS THIS WEEK</Text>
-              </View>
-
-              {/* Growth Support Tracker card moved above Family Goals */}
-              <View style={styles.cpCard}>
-                <View style={styles.cpCardHeader}>
-                  <View style={styles.powerDotOuter}>
-                    <View style={styles.powerDotInner} />
-                  </View>
-                  <View>
-                    <Text style={styles.cpCardHeaderText}>Your Wins</Text>
-                    <Text style={styles.cpCardHeaderSub}>Track habits & activities from each child's dashboard</Text>
-                  </View>
-                </View>
-
-                {children.length === 0 ? (
-                  <View style={styles.cpCardEmpty}>
-                    <View style={styles.childEmptyIconWrap}>
-                      <Ionicons name="people-outline" size={22} color="#1B3D2F" />
-                    </View>
-                    <Text style={styles.childEmptyLabel}>Add your children</Text>
-                    <Text style={styles.childEmptySub}>Track habits, activities, and growth — all in one place.</Text>
-                    <TouchableOpacity style={styles.childEmptyBtn} onPress={() => navigation.navigate('AddChildWizard')} activeOpacity={0.75}>
-                      <Ionicons name="add-circle-outline" size={15} color="#1B3D2F" />
-                      <Text style={styles.childEmptyBtnText}>Add a Child</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : children.map((child, idx) => {
-                  const hasAreas = (child.growthAreas ?? []).length > 0;
-                  const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
-                  const isLast = idx === children.length - 1;
-                  return (
-                    <TouchableOpacity
-                      key={child.id}
-                      style={[styles.cpRow, !isLast && styles.cpRowBorder]}
-                      onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })}
-                      activeOpacity={0.75}
-                    >
-                      <View style={[styles.cpAvatar, { backgroundColor: child.color }]}>
-                        {child.photo
-                          ? <Image source={{ uri: child.photo }} style={styles.cpAvatarPhoto} />
-                          : <Text style={styles.cpAvatarInitial}>{child.name[0]}</Text>
-                        }
-                      </View>
-                      <View style={styles.cpInfo}>
-                        <Text style={styles.cpName}>{child.name}</Text>
-                        <View style={styles.cpAgePill}>
-                          <Text style={styles.cpAgeText}>Age {child.age}</Text>
-                        </View>
-                      </View>
-                      {hasAreas ? (
-                        <View style={styles.cpStats}>
-                          <View style={styles.cpStatItem}>
-                            <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{habits}</Text>
-                            <Text style={styles.cpStatLabel}>Habits Logged</Text>
-                          </View>
-                          <View style={styles.cpStatDivider} />
-                          <View style={styles.cpStatItem}>
-                            <Text style={[styles.cpStatNum, { color: '#1B3D2F' }]}>{activities}</Text>
-                            <Text style={styles.cpStatLabel}>Activities Done</Text>
-                          </View>
-                        </View>
-                      ) : (
-                        <Text style={styles.cpNoAreas}>No growth area yet</Text>
-                      )}
-                      <Ionicons name="chevron-forward" size={13} color="#C3DDD6" />
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
 
 
 
@@ -667,7 +625,8 @@ export default function HomeScreen({ navigation }) {
                   return (
                     <>
                       <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
-                        <Text style={styles.sectionTitle}>MONTHLY LEADERBOARD</Text>
+                        <Text style={styles.sectionEyebrow}>THIS MONTH</Text>
+                        <Text style={styles.sectionTitle}>Monthly Leaderboard</Text>
                       </View>
                       <View style={styles.homeLeaderCard}>
                         <View style={styles.homeLbColRow}>
@@ -714,7 +673,8 @@ export default function HomeScreen({ navigation }) {
                 return (
                   <>
                     <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
-                      <Text style={styles.sectionTitle}>MONTHLY LEADERBOARD</Text>
+                      <Text style={styles.sectionEyebrow}>THIS MONTH</Text>
+                      <Text style={styles.sectionTitle}>Monthly Leaderboard</Text>
                     </View>
                     <View style={styles.homeLeaderCard}>
                       <View style={styles.homeLbColRow}>
@@ -759,11 +719,14 @@ export default function HomeScreen({ navigation }) {
                 );
               })()}
 
+              <ChallengeCard navigation={navigation} onChallenge={() => navigation.navigate('ChallengeWizard')} focusCount={challengeFocus} />
+
               {/* YOU'RE NOT ALONE — hidden, re-enable in future release */}
 
               {/* VERSES OF THE DAY */}
               <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
-                <Text style={styles.sectionTitle}>VERSES OF THE DAY</Text>
+                <Text style={styles.sectionEyebrow}>QURAN</Text>
+                <Text style={styles.sectionTitle}>Verses of the Day</Text>
               </View>
               <TouchableOpacity
                 activeOpacity={0.88}
@@ -819,7 +782,8 @@ export default function HomeScreen({ navigation }) {
 
               {/* DUA OF THE DAY */}
               <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
-                <Text style={styles.sectionTitle}>DUA OF THE DAY</Text>
+                <Text style={styles.sectionEyebrow}>DAILY</Text>
+                <Text style={styles.sectionTitle}>Dua of the Day</Text>
               </View>
               <ImageBackground
                 source={require('../../assets/spiritual-5.jpg')}
@@ -1101,16 +1065,27 @@ const styles = StyleSheet.create({
   contentPad: { paddingHorizontal: hp, paddingTop: 8, paddingBottom: 36 },
 
   // ── Section titles ──
+  setupBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#EDF7F2', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#C6E8DA', marginBottom: 4,
+  },
+  setupBannerIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+  },
+  setupBannerTitle: { fontSize: 14, fontWeight: '800', color: '#1B3D2F', marginBottom: 2 },
+  setupBannerSub:   { fontSize: 12, color: '#4B7A60', lineHeight: 17 },
   sectionTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
     marginTop: 20,
     marginBottom: 14,
   },
+  sectionEyebrow: {
+    fontSize: 10, fontWeight: '700',
+    color: '#2E7D62', letterSpacing: 1, marginBottom: 2,
+  },
   sectionTitle: {
-    fontSize: 15, fontWeight: '700',
-    color: '#1B3D2F', letterSpacing: 0.3,
+    fontSize: 16, fontWeight: '800', color: '#1B3D2F',
   },
   sectionUnderline: {
     width: 3, height: 13, borderRadius: 2,
@@ -1269,7 +1244,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'right',
     lineHeight: 60,
-    fontFamily: 'Amiri_700Bold',
+    fontFamily: 'KFGQPCHafs',
     marginBottom: 2,
   },
   islamicDivider: {
@@ -1343,8 +1318,8 @@ const styles = StyleSheet.create({
     fontSize: rs(20),
     color: '#FFFFFF',
     textAlign: 'right',
-    lineHeight: 40,
-    fontFamily: 'Amiri_400Regular',
+    lineHeight: 52,
+    fontFamily: 'KFGQPCHafs',
     marginBottom: 14,
   },
   verseDivider: {
@@ -1540,7 +1515,7 @@ const styles = StyleSheet.create({
   duaShareCardPillText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1.4 },
   duaShareCardBody: { gap: 12 },
   duaShareCardTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
-  duaShareCardArabic: { fontSize: 26, fontFamily: 'Amiri_700Bold', color: '#FFFFFF', textAlign: 'right', lineHeight: 48 },
+  duaShareCardArabic: { fontSize: 26, fontFamily: 'KFGQPCHafs', color: '#FFFFFF', textAlign: 'right', lineHeight: 56 },
   duaShareCardTranslit: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' },
   duaShareCardTranslation: { fontSize: 15, color: 'rgba(255,255,255,0.85)', lineHeight: 24, fontStyle: 'italic' },
   duaShareCardRef: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },

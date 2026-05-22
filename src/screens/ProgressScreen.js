@@ -23,11 +23,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { loadCompletions, countThisWeek, isCompletedToday, logCompletion } from '../utils/goalCompletions';
 import { updateFamilyGoalReminder } from '../utils/notifications';
-import { getWeekCompletions, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
+import { getLocalCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
 import FamilySummaryBoard from '../components/FamilySummaryBoard';
+import FamilyTourOverlay from '../components/FamilyTourOverlay';
 import { rs, hp } from '../utils/responsive';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
+import { useAuth } from '../../App';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -50,8 +52,9 @@ function getMotivationText(done, total) {
   return 'Ma Shaa Allah! Keep it up';
 }
 
-export default function ProgressScreen({ navigation }) {
+export default function ProgressScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const { refreshHasFamilyGoals, hasChildren, hasFamilyGoals } = useAuth();
   const [children,    setChildren]         = useState(_childrenCache);
   const [spirMonth,   setSpiritualMonth]   = useState(_spirCache);
   const [sciMonth,    setScientificMonth]  = useState(_sciCache);
@@ -68,7 +71,8 @@ export default function ProgressScreen({ navigation }) {
   const [prtHabAct,     setPrtHabAct]     = useState({ habits: 0, activities: 0 });
   const [partnerSyncOn, setPartnerSyncOn] = useState(true);
   const [refreshing,  setRefreshing]       = useState(false);
-  const [familyTab,   setFamilyTab]        = useState('summary');
+  const [familyTab,       setFamilyTab]       = useState(route?.params?.tab === 'configure' ? 'configure' : 'summary');
+  const [segmentLayout,   setSegmentLayout]   = useState(null);
   const hasMountedRef = useRef(false);
 
   const refreshAll = useCallback(() => {
@@ -89,7 +93,7 @@ export default function ProgressScreen({ navigation }) {
     loadCompletions().then(v => { _completionsCache = v; setCompletions(v); });
 
     // My monthly habit/activity totals
-    getWeekCompletions().then(counts => setMyHabAct(getMonthlyHabitActivityTotals(counts)));
+    getLocalCounts().then(counts => setMyHabAct(getMonthlyHabitActivityTotals(counts)));
 
     // Phase 2: sync status (AsyncStorage instant → Supabase background)
     getCachedSyncStatus().then(cached => {
@@ -121,9 +125,10 @@ export default function ProgressScreen({ navigation }) {
   // Re-sync on subsequent focuses to pick up reads/updates from other tabs
   // Skip the very first focus since useEffect already handles initial load
   useFocusEffect(useCallback(() => {
+    if (route?.params?.tab === 'configure') setFamilyTab('configure');
     if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
     refreshAll();
-  }, [refreshAll]));
+  }, [refreshAll, route?.params?.tab]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -173,25 +178,32 @@ export default function ProgressScreen({ navigation }) {
     <SafeAreaView style={styles.safe} edges={[]}>
       <StatusBar style="light" />
       <View style={styles.bgTop} />
+      {familyTab === 'configure' && <View style={styles.bgBottom} />}
 
         {/* ── Green header ── */}
-        <View style={[styles.header, { paddingTop: insets.top + 6, paddingBottom: 10 }]}>
-          <Text style={styles.headerTitle}>Family</Text>
-        </View>
+        <View style={[styles.header, { paddingTop: insets.top + 6, paddingBottom: 10 }]} />
 
         {/* ── Segment control ── */}
-        <View style={styles.segmentOuter}>
+        <View style={styles.segmentOuter} onLayout={e => setSegmentLayout(e.nativeEvent.layout)}>
           <View style={styles.segmentWrap}>
-            {[['summary', 'Summary Board'], ['configure', 'Configure']].map(([key, label]) => (
+            {[['summary', 'Progress Board'], ['configure', 'Configure']].map(([key, label]) => {
+              const showSetupDot    = key === 'configure' && (!hasChildren || !hasFamilyGoals) && familyTab !== 'configure';
+              const showProgressDot = key === 'summary' && hasChildren && hasFamilyGoals;
+              return (
               <TouchableOpacity
                 key={key}
                 style={[styles.segmentTab, familyTab === key && styles.segmentTabActive]}
                 onPress={() => setFamilyTab(key)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.segmentText, familyTab === key && styles.segmentTextActive]}>{label}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.segmentText, familyTab === key && styles.segmentTextActive]}>{label}</Text>
+                  {showSetupDot    && <View style={styles.segmentDot} />}
+                  {showProgressDot && <View style={styles.segmentDot} />}
+                </View>
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
         </View>
 
@@ -216,6 +228,7 @@ export default function ProgressScreen({ navigation }) {
         <View style={styles.sectionTitleRow}>
           <Text style={styles.sectionTitle}>YOUR CHILDREN</Text>
         </View>
+        <Text style={styles.sectionSub}>Add your children, configure their profiles, and manage their growth areas.</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -256,114 +269,6 @@ export default function ProgressScreen({ navigation }) {
           <View style={{ width: hp }} />
         </ScrollView>
 
-        {/* ── Family Goals ── */}
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
-          <TouchableOpacity
-            style={styles.addGoalBtn}
-            onPress={() => navigation.navigate('FamilyGoalWizard')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={14} color="#FFFFFF" />
-            <Text style={styles.addGoalBtnText}>Add Goal</Text>
-          </TouchableOpacity>
-        </View>
-
-        {familyGoals.length === 0 ? (
-          <TouchableOpacity
-            style={styles.familyEmptyCard}
-            onPress={() => navigation.navigate('FamilyGoalWizard')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.familyEmptyIcon}>
-              <Ionicons name="people" size={28} color="#2E7D62" />
-            </View>
-            <Text style={styles.familyEmptyTitle}>Set your first family goal</Text>
-            <Text style={styles.familyEmptySubtitle}>
-              Pray together, eat together, read Quran — build habits that matter
-            </Text>
-            <View style={styles.familyEmptyBtn}>
-              <Text style={styles.familyEmptyBtnText}>Get started</Text>
-              <Ionicons name="arrow-forward" size={13} color="#1B3D2F" />
-            </View>
-          </TouchableOpacity>
-        ) : (
-          familyGoals.map(goal => {
-            const target    = goal.frequency ?? 1;
-            const count     = countThisWeek(completions, goal.id);
-            const doneToday = isCompletedToday(completions, goal.id);
-            const goalMet   = count >= target;
-            const dotCount  = Math.min(target, 7);
-            return (
-              <View key={goal.id} style={[styles.familyGoalCard, { alignItems: 'flex-start' }]}>
-                <View style={[styles.familyGoalIconWrap, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '20', marginTop: 2 }]}>
-                  <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
-                </View>
-                <View style={styles.familyGoalBody}>
-                  <Text style={styles.familyGoalTitle}>{goal.title}</Text>
-                  <View style={styles.familyGoalMeta}>
-                    <Ionicons name="repeat-outline" size={11} color="#9CA3AF" />
-                    <Text style={styles.familyGoalMetaText}>{goal.frequencyLabel}</Text>
-                    {goal.reminderEnabled && (
-                      <>
-                        <View style={styles.familyGoalMetaDot} />
-                        <Ionicons name="notifications-outline" size={11} color="#9CA3AF" />
-                        <Text style={styles.familyGoalMetaText}>Reminder on</Text>
-                      </>
-                    )}
-                  </View>
-
-                  {/* ── Completion tracker ── */}
-                  <View style={styles.trackerStrip}>
-                    <View style={styles.trackerDots}>
-                      {Array.from({ length: dotCount }).map((_, i) => (
-                        <View key={i} style={[styles.trackerDot, i < count && styles.trackerDotFilled]} />
-                      ))}
-                    </View>
-                    <Text style={styles.trackerCount}>{count}/{target} this week</Text>
-                    <View style={styles.trackerSpacer} />
-                    {goalMet ? (
-                      <View style={styles.trackerMetPill}>
-                        <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
-                        <Text style={styles.trackerMetText}>Goal met</Text>
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        style={[styles.trackerLogBtn, doneToday && styles.trackerLogBtnDone]}
-                        onPress={() => handleLogCompletion(goal.id)}
-                        disabled={doneToday}
-                        activeOpacity={0.75}
-                      >
-                        <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#FFFFFF'} />
-                        <Text style={[styles.trackerLogBtnText, doneToday && { color: '#2E7D62' }]}>
-                          {doneToday ? 'Done today' : 'Log it'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-                <View style={[styles.familyGoalActions, { marginTop: 2 }]}>
-                  <TouchableOpacity
-                    style={styles.familyGoalEditBtn}
-                    onPress={() => navigation.navigate('FamilyGoalWizard', { goal })}
-                  >
-                    <Ionicons name="pencil-outline" size={14} color="#6B7C45" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.familyGoalDeleteBtn}
-                    onPress={async () => {
-                      await deleteFamilyGoal(goal.id);
-                      setFamilyGoals(prev => prev.filter(g => g.id !== goal.id));
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })
-        )}
-
         {/* ── Partner Sync ── */}
         <View style={styles.sectionTitleRow}>
           <Text style={styles.sectionTitle}>PARTNER SYNC</Text>
@@ -378,6 +283,7 @@ export default function ProgressScreen({ navigation }) {
             style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
           />
         </View>
+        <Text style={styles.sectionSub}>Connect with your partner to share progress, family goals, and compete on the leaderboard.</Text>
 
         {partnerSyncOn && (syncStatus.linked ? (
           <View style={styles.syncLinkedCard}>
@@ -544,6 +450,117 @@ export default function ProgressScreen({ navigation }) {
           );
         })()}
 
+        {/* ── Family Goals ── */}
+        <View style={[styles.sectionTitleRow, { marginTop: 24 }]}>
+          <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
+          <TouchableOpacity
+            style={styles.addGoalBtn}
+            onPress={() => navigation.navigate('FamilyGoalWizard')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={14} color="#FFFFFF" />
+            <Text style={styles.addGoalBtnText}>Add Goal</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.sectionSub}>Set shared goals your family works towards together each week.</Text>
+
+        {familyGoals.length === 0 ? (
+          <TouchableOpacity
+            style={styles.familyEmptyCard}
+            onPress={() => navigation.navigate('FamilyGoalWizard')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.familyEmptyIcon}>
+              <Ionicons name="people" size={28} color="#2E7D62" />
+            </View>
+            <Text style={styles.familyEmptyTitle}>Set your first family goal</Text>
+            <Text style={styles.familyEmptySubtitle}>
+              Pray together, eat together, read Quran — build habits that matter
+            </Text>
+            <View style={styles.familyEmptyBtn}>
+              <Text style={styles.familyEmptyBtnText}>Get started</Text>
+              <Ionicons name="arrow-forward" size={13} color="#1B3D2F" />
+            </View>
+          </TouchableOpacity>
+        ) : (
+          familyGoals.map(goal => {
+            const target    = goal.frequency ?? 1;
+            const count     = countThisWeek(completions, goal.id);
+            const doneToday = isCompletedToday(completions, goal.id);
+            const goalMet   = count >= target;
+            const dotCount  = Math.min(target, 7);
+            return (
+              <View key={goal.id} style={[styles.familyGoalCard, { alignItems: 'flex-start' }]}>
+                <View style={[styles.familyGoalIconWrap, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '20', marginTop: 2 }]}>
+                  <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
+                </View>
+                <View style={styles.familyGoalBody}>
+                  <Text style={styles.familyGoalTitle}>{goal.title}</Text>
+                  <View style={styles.familyGoalMeta}>
+                    <Ionicons name="repeat-outline" size={11} color="#9CA3AF" />
+                    <Text style={styles.familyGoalMetaText}>{goal.frequencyLabel}</Text>
+                    {goal.reminderEnabled && (
+                      <>
+                        <View style={styles.familyGoalMetaDot} />
+                        <Ionicons name="notifications-outline" size={11} color="#9CA3AF" />
+                        <Text style={styles.familyGoalMetaText}>Reminder on</Text>
+                      </>
+                    )}
+                  </View>
+
+                  {/* ── Completion tracker ── */}
+                  <View style={styles.trackerStrip}>
+                    <View style={styles.trackerDots}>
+                      {Array.from({ length: dotCount }).map((_, i) => (
+                        <View key={i} style={[styles.trackerDot, i < count && styles.trackerDotFilled]} />
+                      ))}
+                    </View>
+                    <Text style={styles.trackerCount}>{count}/{target} this week</Text>
+                    <View style={styles.trackerSpacer} />
+                    {goalMet ? (
+                      <View style={styles.trackerMetPill}>
+                        <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
+                        <Text style={styles.trackerMetText}>Goal met</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.trackerLogBtn, doneToday && styles.trackerLogBtnDone]}
+                        onPress={() => handleLogCompletion(goal.id)}
+                        disabled={doneToday}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#FFFFFF'} />
+                        <Text style={[styles.trackerLogBtnText, doneToday && { color: '#2E7D62' }]}>
+                          {doneToday ? 'Done today' : 'Log it'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+                <View style={[styles.familyGoalActions, { marginTop: 2 }]}>
+                  <TouchableOpacity
+                    style={styles.familyGoalEditBtn}
+                    onPress={() => navigation.navigate('FamilyGoalWizard', { goal })}
+                  >
+                    <Ionicons name="pencil-outline" size={14} color="#6B7C45" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.familyGoalDeleteBtn}
+                    onPress={async () => {
+                      await deleteFamilyGoal(goal.id);
+                      const updated = familyGoals.filter(g => g.id !== goal.id);
+                      setFamilyGoals(updated);
+                      if (updated.length === 0) refreshHasFamilyGoals();
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={14} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        )}
+
         <View style={{ height: 32 }} />
         </View>
         </View>
@@ -557,6 +574,10 @@ export default function ProgressScreen({ navigation }) {
         body={encouragement?.body}
         onClose={() => setEncouragement(null)}
       />
+      <FamilyTourOverlay
+        segmentY={segmentLayout?.y}
+        segmentH={segmentLayout?.height}
+      />
     </SafeAreaView>
   );
 }
@@ -564,6 +585,7 @@ export default function ProgressScreen({ navigation }) {
 const styles = StyleSheet.create({
   safe:          { flex: 1, backgroundColor: '#1B3D2F' },
   bgTop:         { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
+  bgBottom:      { position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', backgroundColor: '#F5F6F8' },
 
   segmentOuter:      { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: '#1B3D2F' },
   segmentWrap:       { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 3 },
@@ -571,9 +593,10 @@ const styles = StyleSheet.create({
   segmentTabActive:  { backgroundColor: '#FFFFFF' },
   segmentText:       { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
   segmentTextActive: { color: '#1B3D2F', fontWeight: '700' },
+  segmentDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
 
-  scroll:        { flex: 1 },
-  scrollContent: { flexGrow: 1 },
+  scroll:        { flex: 1, backgroundColor: '#F5F6F8' },
+  scrollContent: { flexGrow: 1, backgroundColor: '#F5F6F8' },
   header: {
     backgroundColor: '#1B3D2F',
     paddingHorizontal: 24,
@@ -584,9 +607,6 @@ const styles = StyleSheet.create({
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
   },
   content: { paddingHorizontal: hp, paddingTop: 24, paddingBottom: 40 },
 
@@ -625,6 +645,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  sectionSub: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    lineHeight: 18,
     marginBottom: 14,
   },
   sectionTitle: {

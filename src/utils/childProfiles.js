@@ -107,6 +107,15 @@ export async function updateGrowthArea(childId, growthAreaId, updates) {
   return updateChildProfile(childId, { growthAreas: areas });
 }
 
+export async function replaceGrowthArea(childId, replaceAreaId, newGrowthArea) {
+  const child = await getChildProfile(childId);
+  if (!child) return null;
+  const areas = (child.growthAreas ?? []).map(a =>
+    a.id === replaceAreaId ? newGrowthArea : a
+  );
+  return updateChildProfile(childId, { growthAreas: areas });
+}
+
 
 async function syncToSupabase(profiles) {
   try {

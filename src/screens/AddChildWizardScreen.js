@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 let ImagePicker = null;
 try { ImagePicker = require('expo-image-picker'); } catch {}
 import { saveChildProfile } from '../utils/childProfiles';
+import { useAuth } from '../../App';
 import { uploadPhoto } from '../utils/uploadPhoto';
 import { supabase } from '../utils/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -91,6 +92,7 @@ function ChipSelector({ options, selected, onToggle, color = '#1B3D2F', bg = '#E
 
 export default function AddChildWizardScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const { refreshHasChildren } = useAuth();
   const isEdit = !!route?.params?.child;
   const existingChild = route?.params?.child;
 
@@ -230,6 +232,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
         })();
       }
 
+      refreshHasChildren();
       if (route?.params?.afterOnboarding) {
         navigation.replace('GrowthAreaWizard', { child: saved, isFirstTime: true, afterOnboarding: true });
       } else {

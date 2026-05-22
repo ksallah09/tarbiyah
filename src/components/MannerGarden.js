@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Modal,
-  TextInput, ScrollView, Animated, KeyboardAvoidingView, Platform, Alert, SafeAreaView,
+  View, Text, TouchableOpacity, StyleSheet, Modal, Image,
+  TextInput, ScrollView, Animated, KeyboardAvoidingView, Platform, Alert, SafeAreaView, Keyboard,
 } from 'react-native';
 import Svg, { Path, Circle, G, Defs, LinearGradient as SvgGrad, Stop, Rect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../utils/supabase';
 import { getFamilyId } from '../utils/familyGoals';
-import { notifyDeedLogged } from '../utils/partnerNotify';
+import { notifyDeedLogged, notifyPartner } from '../utils/partnerNotify';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -104,10 +105,15 @@ function FloweringTreeStage({ progress }) {
   const rx = 46 + progress * 4;
   const ry = 35 + progress * 3;
   const cy = 58 - progress * 2;
-  const flowers = [
-    [83, 50], [117, 46], [133, 64], [129, 82],
-    [109, 96], [80, 91], [65, 73], [73, 55],
+
+  // Flowers placed on the canopy surface using polar coords relative to (100, cy)
+  // [angle_deg, radial_fraction] → maps onto the ellipse edge
+  const flowerSpots = [
+    [0,   0.82], [40,  0.78], [80,  0.72], [120, 0.76],
+    [160, 0.80], [200, 0.78], [240, 0.72], [280, 0.76],
+    [320, 0.80], [20,  0.55], [100, 0.50], [260, 0.52],
   ];
+
   return (
     <G>
       <Path d={trunkPath(100, cy + ry - 12, 142, 11, 15)} fill="#7C3A12" />
@@ -116,12 +122,22 @@ function FloweringTreeStage({ progress }) {
       <Path d={blob(100, cy, rx, ry)} fill="url(#canopyC)" />
       <Path d={blob(100, cy - 10, rx * 0.38, ry * 0.37)} fill="#22C55E" />
       <Path d={blob(90,  cy - 12, rx * 0.24, ry * 0.26)} fill="rgba(255,255,255,0.15)" />
-      {flowers.map(([x, y], i) => (
-        <G key={i}>
-          <Circle cx={x} cy={y} r={4.5} fill="#FBCFE8" />
-          <Circle cx={x} cy={y} r={1.8} fill="#F472B6" />
-        </G>
-      ))}
+
+      {flowerSpots.map(([deg, frac], i) => {
+        const rad = deg * Math.PI / 180;
+        const fx  = 100 + Math.sin(rad) * rx * frac;
+        const fy  = cy  - Math.cos(rad) * ry * frac;
+        return (
+          <G key={i}>
+            <Circle cx={fx}       cy={fy - 4.5}  r={3.4} fill="rgba(255,255,255,0.92)" />
+            <Circle cx={fx + 4.3} cy={fy - 1.4}  r={3.4} fill="rgba(255,255,255,0.92)" />
+            <Circle cx={fx + 2.7} cy={fy + 3.6}  r={3.4} fill="rgba(255,255,255,0.92)" />
+            <Circle cx={fx - 2.7} cy={fy + 3.6}  r={3.4} fill="rgba(255,255,255,0.92)" />
+            <Circle cx={fx - 4.3} cy={fy - 1.4}  r={3.4} fill="rgba(255,255,255,0.92)" />
+            <Circle cx={fx}       cy={fy}         r={2.2} fill="#FDE68A" />
+          </G>
+        );
+      })}
     </G>
   );
 }
@@ -156,9 +172,9 @@ function FruitTreeStage({ progress }) {
 
 // ── Tree illustration ─────────────────────────────────────────────────────────
 
-function TreeIllustration({ stageIndex, swayAnim, growthScale, progressAnim }) {
-  const riseY  = progressAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0]  });
-  const riseS  = progressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.78, 1.0] });
+function TreeIllustration({ stageIndex, swayAnim, growthScale, progressAnim, progress = 0 }) {
+  const riseY  = progressAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0]  });
+  const riseS  = progressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1.06] });
   return (
     <Animated.View style={[
       ts.scene,
@@ -207,7 +223,7 @@ const ts = StyleSheet.create({
 
 // ── Manners ──────────────────────────────────────────────────────────────────
 
-const MANNERS = [
+export const MANNERS = [
   { key: 'truthfulness',       label: 'Truthfulness',          emoji: '❤️' },
   { key: 'respecting_parents', label: 'Respecting Parents',    emoji: '💚' },
   { key: 'kind_words',         label: 'Kind Words',            emoji: '💬' },
@@ -295,7 +311,12 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   const [showChildView,  setShowChildView]  = useState(false);
   const [sharing,        setSharing]        = useState(false);
   const [showAllDeeds,   setShowAllDeeds]   = useState(false);
+  const [progressValue,  setProgressValue]  = useState(0);
+  const [lovedActions,   setLovedActions]   = useState(new Set());
+  const familyIdRef = useRef(null);
 
+  const modalScrollRef    = useRef(null);
+  const progressInitRef   = useRef(false);
   const swayAnim      = useRef(new Animated.Value(0)).current;
   const dropY         = useRef(new Animated.Value(0)).current;
   const dropOpacity   = useRef(new Animated.Value(0)).current;
@@ -324,7 +345,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     }))
   ).current;
 
-  useEffect(() => { loadActions(); loadTree(); }, [child?.id, linkedChildId]);
+  useEffect(() => { progressInitRef.current = false; loadActions(); loadTree(); }, [child?.id, linkedChildId]);
 
   // Keep progressAnim in sync — drives the persistent tree rise/scale
   useEffect(() => {
@@ -333,7 +354,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     const prog   = computeProgress(total, settings.thresholds);
     const stage  = getStageFromList(stgs, prog.currentTreeDeeds);
     const p      = stage.next ? (prog.currentTreeDeeds - stage.min) / (stage.next - stage.min) : 1;
-    Animated.timing(progressAnim, { toValue: p, duration: 500, useNativeDriver: true }).start();
+    setProgressValue(p);
+    if (!progressInitRef.current) {
+      progressAnim.setValue(p);
+      progressInitRef.current = true;
+    } else {
+      Animated.spring(progressAnim, { toValue: p, friction: 3, tension: 80, useNativeDriver: true }).start();
+    }
   }, [actions.length, settings.thresholds]);
 
   useEffect(() => {
@@ -357,10 +384,15 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     try {
       const { data } = await supabase
         .from('family_trees')
-        .select('thresholds, rewards')
+        .select('family_id, thresholds, rewards')
         .eq('child_id', child.id)
         .maybeSingle();
       if (data) {
+        if (data.family_id) {
+          familyIdRef.current = data.family_id;
+        } else if (!familyIdRef.current) {
+          getFamilyId().then(id => { if (id) familyIdRef.current = id; }).catch(() => {});
+        }
         setSettings({
           thresholds: { ...DEFAULT_THRESHOLDS, ...(data.thresholds ?? {}) },
           rewards:    data.rewards ?? {},
@@ -377,17 +409,42 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     if (!child?.id) return;
     setLoading(true);
     try {
-      const familyId = await getFamilyId();
       const childIds = linkedChildId ? [child.id, linkedChildId] : [child.id];
       const { data } = await supabase
         .from('child_garden_actions')
         .select('*')
         .in('child_id', childIds)
-        .eq('family_id', familyId)
         .order('date', { ascending: false });
       if (data) setActions(data);
     } catch {}
     setLoading(false);
+    // Load loved state after — never blocks the main fetch
+    AsyncStorage.getItem('tarbiyah_loved_actions').then(raw => {
+      try { if (raw) setLovedActions(new Set(JSON.parse(raw))); } catch {}
+    });
+  }
+
+  async function handleLoveAccomplishment(actionId, childName, mannerLabel) {
+    const name = myProfileName || 'You';
+    const alreadyLoved = lovedActions.has(actionId);
+    const next = new Set(lovedActions);
+    alreadyLoved ? next.delete(actionId) : next.add(actionId);
+    setLovedActions(next);
+    await AsyncStorage.setItem('tarbiyah_loved_actions', JSON.stringify([...next]));
+    const action = actions.find(a => a.id === actionId);
+    const currentLoves = Array.isArray(action?.loved_by) ? action.loved_by : [];
+    const newLoves = alreadyLoved ? currentLoves.filter(n => n !== name) : [...currentLoves, name];
+    setActions(prev => prev.map(a => a.id === actionId ? { ...a, loved_by: newLoves } : a));
+    try {
+      await supabase.from('child_garden_actions').update({ loved_by: newLoves }).eq('id', actionId);
+      if (!alreadyLoved && partnerLinked) {
+        notifyPartner(
+          `${name} loved an accomplishment ❤️`,
+          `They loved "${mannerLabel}" logged for ${childName}.`,
+          { screen: 'Family' }
+        );
+      }
+    } catch {}
   }
 
   function animateTree(emoji) {
@@ -434,14 +491,31 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
     }, 380);
   }
 
+  async function deleteAccomplishment(id) {
+    Alert.alert('Delete accomplishment', 'Remove this from the tree?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        const { error } = await supabase.from('child_garden_actions').delete().eq('id', id);
+        if (error) {
+          console.error('[deleteAccomplishment] error:', error);
+          Alert.alert('Error', error.message ?? 'Could not delete. Please try again.');
+          return;
+        }
+        await loadActions();
+      }},
+    ]);
+  }
+
   async function logDeed() {
     if (!selectedManner || !child?.id) return;
     setSaving(true);
     try {
       const fruitThreshold = settings.thresholds?.fruit ?? DEFAULT_THRESHOLDS.fruit;
       const oldTotal = actions.length;
-      const [familyId, sessionRes] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
-      const userId = sessionRes?.data?.session?.user?.id ?? null;
+      const familyId = familyIdRef.current ?? await getFamilyId();
+      if (familyId) familyIdRef.current = familyId;
+      const { data: sessionRes } = await supabase.auth.getSession();
+      const userId = sessionRes?.session?.user?.id ?? null;
       const manner = MANNERS.find(m => m.key === selectedManner);
       const { error } = await supabase.from('child_garden_actions').insert({
         id:             `ga_${Date.now()}`,
@@ -478,24 +552,27 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
           }
         } else {
           const treesLeftInOrchard = 3 - (newCompletedTrees % 3);
+          progressAnim.setValue(0);
           setCelebEvent({ type: 'tree', number: newCompletedTrees, treesLeft: treesLeftInOrchard });
         }
       } else {
         const oldStage = getStageFromList(stages, oldTotal % fruitThreshold);
         const newStage = getStageFromList(stages, newTotal % fruitThreshold);
         if (newStage.index > oldStage.index) {
+          progressAnim.setValue(0);
           setCelebEvent({ type: 'stage', stage: newStage });
         }
       }
 
       notifyDeedLogged({
+        childId:    child.id,
         childName:  child.name,
         deedLabel:  manner?.label ?? selectedManner,
         deedEmoji:  manner?.emoji ?? '',
         gender:     child.gender ?? null,
         loggerName: myProfileName || null,
       });
-    } catch { Alert.alert('Error', 'Something went wrong.'); }
+    } catch (e) { console.error('[logDeed] caught:', e?.message, e); Alert.alert('Error', 'Something went wrong.'); }
     finally { setSaving(false); }
   }
 
@@ -541,7 +618,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
       {/* Tree scene */}
       <View style={gs.sceneWrap}>
-            <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} growthScale={growthScale} progressAnim={progressAnim} />
+            <TreeIllustration stageIndex={stage.index} swayAnim={swayAnim} growthScale={growthScale} progressAnim={progressAnim} progress={progressValue} />
             <Animated.View style={[gs.waterDrop, { transform: [{ translateY: dropY }], opacity: dropOpacity }]}>
               <Text style={{ fontSize: 18 }}>💧</Text>
             </Animated.View>
@@ -591,7 +668,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               </View>
               <View style={gs.achieveDivider} />
               <View style={gs.achieveItem}>
-                <Text style={gs.achieveEmoji}>🌿</Text>
+                <Text style={gs.achieveEmoji}>🍎</Text>
                 <Text style={gs.achieveCount}>{prog.completedOrchards}</Text>
                 <Text style={gs.achieveLabel}>orchard{prog.completedOrchards !== 1 ? 's' : ''}</Text>
               </View>
@@ -601,6 +678,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
                 <Text style={gs.achieveCount}>{prog.jannahGardensCompleted}</Text>
                 <Text style={gs.achieveLabel}>jannah</Text>
               </View>
+              <TouchableOpacity
+                style={gs.achieveInfoBtn}
+                onPress={() => Alert.alert('How it works', '🌳 Complete 3 trees to grow an orchard 🍎\n\n🍎 Complete 3 orchards to unlock a Jannah Garden 🌴')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="information-circle-outline" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
             </View>
       )}
 
@@ -610,16 +694,25 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
           <Text style={gs.recentLabel}>Recent accomplishments</Text>
           {recentThree.map((a, idx) => {
             const m = MANNERS.find(m => m.key === a.manner);
+            const loved = lovedActions.has(a.id);
+            const loveNames = Array.isArray(a.loved_by) ? a.loved_by : [];
             return (
               <View key={a.id} style={[gs.recentItem, idx < recentThree.length - 1 && gs.recentItemBorder]}>
                 <Text style={gs.recentItemEmoji}>{m?.emoji ?? '✨'}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={gs.recentItemLabel}>{m?.label ?? a.manner}</Text>
                   {!!a.note && <Text style={gs.recentItemNote}>"{a.note}"</Text>}
+                  {loveNames.length > 0 && <Text style={gs.recentItemLoveNames}>❤️ {loveNames.join(', ')}</Text>}
                 </View>
                 <Text style={gs.recentItemDate}>
                   {new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </Text>
+                <TouchableOpacity onPress={() => handleLoveAccomplishment(a.id, child?.name?.split(' ')[0] ?? 'Child', m?.label ?? a.manner)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }} style={{ marginLeft: 8 }}>
+                  <Ionicons name={loved ? 'heart' : 'heart-outline'} size={16} color={loved ? '#E11D48' : '#D1D5DB'} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteAccomplishment(a.id)} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }} style={{ marginLeft: 6 }}>
+                  <Ionicons name="trash-outline" size={15} color="#D1D5DB" />
+                </TouchableOpacity>
               </View>
             );
           })}
@@ -644,7 +737,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
       {/* ── Log deed modal ── */}
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'height' : 'padding'}>
           <View style={gs.modalContainer}>
             <View style={gs.modalHeader}>
               <Text style={gs.modalTitle}>Log an accomplishment</Text>
@@ -653,7 +746,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
                 <Ionicons name="close" size={22} color="#6B7280" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={gs.modalScroll} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              ref={modalScrollRef}
+              contentContainerStyle={gs.modalScroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={() => Keyboard.dismiss()}
+            >
               <View style={gs.mannerGrid}>
                 {MANNERS.map(m => {
                   const active = selectedManner === m.key;
@@ -674,11 +773,14 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
                 onChangeText={setNote}
                 multiline
                 maxLength={200}
+                returnKeyType="done"
+                blurOnSubmit
+                onFocus={() => setTimeout(() => modalScrollRef.current?.scrollToEnd({ animated: true }), 500)}
               />
+              <TouchableOpacity style={[gs.saveBtn, (!selectedManner || saving) && { opacity: 0.5 }]} onPress={logDeed} disabled={!selectedManner || saving} activeOpacity={0.85}>
+                <Text style={gs.saveBtnText}>{saving ? 'Saving…' : 'Add to tree 🌱'}</Text>
+              </TouchableOpacity>
             </ScrollView>
-            <TouchableOpacity style={[gs.saveBtn, (!selectedManner || saving) && { opacity: 0.5 }]} onPress={logDeed} disabled={!selectedManner || saving} activeOpacity={0.85}>
-              <Text style={gs.saveBtnText}>{saving ? 'Saving…' : 'Add to tree 🌱'}</Text>
-            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -707,7 +809,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
                 <Text style={gs.celebEmoji}>🌳🌳🌳</Text>
                 <Text style={gs.celebTitle}>Ma Shaa Allah!</Text>
                 <Text style={gs.celebSub}>{celebEvent.trees} trees grown —</Text>
-                <Text style={gs.celebStage}>{ordinal(celebEvent.number)} Orchard complete! 🌿</Text>
+                <Text style={gs.celebStage}>{ordinal(celebEvent.number)} Orchard complete! 🍎</Text>
                 <Text style={gs.celebNote}>
                   {3 - (celebEvent.number % 3 || 3) === 0
                     ? 'Keep going — a Jannah Garden awaits!'
@@ -775,7 +877,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               <Text style={sc.stageName}>{stage.name}</Text>
               <View style={sc.treeWrap}>
                 <View style={{ transform: [{ scale: 1.7 }] }}>
-                  <TreeIllustration stageIndex={stage.index} swayAnim={staticScale} growthScale={staticScale} progressAnim={staticScale} />
+                  <TreeIllustration stageIndex={stage.index} swayAnim={staticScale} growthScale={staticScale} progressAnim={staticScale} progress={progressValue} />
                 </View>
               </View>
               <Text style={sc.deedsNumber}>{total}</Text>
@@ -801,7 +903,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
                 <View style={sc.achieveRow}>
                   <Text style={sc.achieveItem}>🌳 {prog.completedTrees} tree{prog.completedTrees !== 1 ? 's' : ''}</Text>
                   <Text style={sc.achieveSep}>·</Text>
-                  <Text style={sc.achieveItem}>🌿 {prog.completedOrchards} orchard{prog.completedOrchards !== 1 ? 's' : ''}</Text>
+                  <Text style={sc.achieveItem}>🍎 {prog.completedOrchards} orchard{prog.completedOrchards !== 1 ? 's' : ''}</Text>
                   <Text style={sc.achieveSep}>·</Text>
                   <Text style={sc.achieveItem}>🌴 {prog.jannahGardensCompleted} jannah</Text>
                 </View>
@@ -814,7 +916,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
               <View style={cv.treeWrap}>
                 <View style={{ transform: [{ scale: 1.65 }] }}>
-                  <TreeIllustration stageIndex={stage.index} swayAnim={childSwayAnim} growthScale={growthScale} progressAnim={progressAnim} />
+                  <TreeIllustration stageIndex={stage.index} swayAnim={childSwayAnim} growthScale={growthScale} progressAnim={progressAnim} progress={progressValue} />
                 </View>
               </View>
 
@@ -859,7 +961,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
                     <Text style={cv.achieveCount}>{prog.completedTrees}</Text>
                   </View>
                   <View style={[cv.achieveRow, cv.achieveRowBorder]}>
-                    <Text style={cv.achieveEmoji}>🌿</Text>
+                    <Text style={cv.achieveEmoji}>🍎</Text>
                     <Text style={cv.achieveLabel}>Orchards</Text>
                     <Text style={cv.achieveCount}>{prog.completedOrchards}</Text>
                   </View>
@@ -924,6 +1026,8 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
             {actions.map((a, idx) => {
               const m = MANNERS.find(m => m.key === a.manner);
               const date = new Date(a.date);
+              const loved = lovedActions.has(a.id);
+              const loveNames = Array.isArray(a.loved_by) ? a.loved_by : [];
               return (
                 <View key={a.id} style={[gs.allDeedRow, idx < actions.length - 1 && gs.allDeedRowBorder]}>
                   <View style={gs.allDeedEmojiWrap}>
@@ -935,12 +1039,19 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
                     {!!a.logged_by_name && (
                       <Text style={gs.allDeedBy}>Logged by {a.logged_by_name}</Text>
                     )}
+                    {loveNames.length > 0 && <Text style={gs.allDeedLoveNames}>❤️ {loveNames.join(', ')}</Text>}
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
+                  <View style={{ alignItems: 'flex-end', gap: 8 }}>
                     <Text style={gs.allDeedDate}>
                       {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </Text>
                     <Text style={gs.allDeedYear}>{date.getFullYear()}</Text>
+                    <TouchableOpacity onPress={() => handleLoveAccomplishment(a.id, child?.name?.split(' ')[0] ?? 'Child', m?.label ?? a.manner)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name={loved ? 'heart' : 'heart-outline'} size={16} color={loved ? '#E11D48' : '#D1D5DB'} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteAccomplishment(a.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name="trash-outline" size={15} color="#D1D5DB" />
+                    </TouchableOpacity>
                   </View>
                 </View>
               );
@@ -957,18 +1068,28 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
 
 const STAGE_EMOJIS = ['🌱','🌿','🪴','🌳','🌸','🍃'];
 
-export function MiniGardenCard({ childName, total, color, thresholds, onPress }) {
+export function MiniGardenCard({ childName, total, color, thresholds, photo, onPress }) {
   const t     = { ...DEFAULT_THRESHOLDS, ...(thresholds ?? {}) };
   const stage = getStageFromList(buildStages(t), total % t.fruit);
   const Wrapper = onPress ? TouchableOpacity : View;
+  const initial = (childName ?? '?')[0].toUpperCase();
+  const avatarColor = color ?? '#2E7D62';
   return (
     <Wrapper style={gs.miniCard} onPress={onPress} activeOpacity={0.8}>
-      <Text style={gs.miniEmoji}>{STAGE_EMOJIS[stage.index]}</Text>
-      <View style={[gs.miniNameBadge, { backgroundColor: (color ?? '#2E7D62') + '22' }]}>
-        <Text style={[gs.miniName, { color: color ?? '#2E7D62' }]} numberOfLines={1} ellipsizeMode="tail">{childName?.split(' ')[0]}</Text>
+      {photo
+        ? <Image source={{ uri: photo }} style={gs.miniAvatar} />
+        : (
+          <View style={[gs.miniAvatarFallback, { backgroundColor: avatarColor }]}>
+            <Text style={gs.miniAvatarInitial}>{initial}</Text>
+          </View>
+        )
+      }
+      <View style={[gs.miniNameBadge, { backgroundColor: avatarColor + '22' }]}>
+        <Text style={[gs.miniName, { color: avatarColor }]} numberOfLines={1} ellipsizeMode="tail">{childName?.split(' ')[0]}</Text>
       </View>
+      <Text style={gs.miniEmoji}>{STAGE_EMOJIS[stage.index]}</Text>
       <Text style={gs.miniStage}>{stage.name}</Text>
-      <Text style={gs.miniCount}>{total} deeds</Text>
+      <Text style={gs.miniCount}>{total} wins</Text>
       {!!onPress && <Ionicons name="chevron-forward" size={10} color="#9CA3AF" style={{ marginTop: 4 }} />}
     </Wrapper>
   );
@@ -1007,14 +1128,17 @@ const gs = StyleSheet.create({
   achieveCount:      { fontSize: 17, fontWeight: '800', color: '#1A1A2E' },
   achieveLabel:      { fontSize: 10, color: '#9CA3AF', fontWeight: '600' },
 
+  achieveInfoBtn:    { paddingLeft: 6 },
+
   recentList:        { marginBottom: 14, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12 },
   recentLabel:       { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 10 },
   recentItem:        { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
   recentItemBorder:  { borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   recentItemEmoji:   { fontSize: 17, width: 24, textAlign: 'center', marginTop: 1 },
   recentItemLabel:   { fontSize: 13, fontWeight: '600', color: '#1A1A2E', marginBottom: 2 },
-  recentItemNote:    { fontSize: 12, color: '#6B7280', lineHeight: 18, fontStyle: 'italic' },
-  recentItemDate:    { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  recentItemNote:      { fontSize: 12, color: '#6B7280', lineHeight: 18, fontStyle: 'italic' },
+  recentItemDate:      { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  recentItemLoveNames: { fontSize: 11, color: '#E11D48', marginTop: 2, fontWeight: '500' },
   seeAllBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 12, marginTop: 4 },
   seeAllText:        { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
 
@@ -1029,6 +1153,7 @@ const gs = StyleSheet.create({
   allDeedLabel:      { fontSize: 14, fontWeight: '700', color: '#1A1A2E', marginBottom: 2 },
   allDeedNote:       { fontSize: 12, color: '#6B7280', fontStyle: 'italic', lineHeight: 18, marginBottom: 2 },
   allDeedBy:         { fontSize: 11, color: '#9CA3AF' },
+  allDeedLoveNames:  { fontSize: 11, color: '#E11D48', marginTop: 2, fontWeight: '500' },
   allDeedDate:       { fontSize: 12, fontWeight: '600', color: '#6B7280' },
   allDeedYear:       { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
 
@@ -1042,7 +1167,7 @@ const gs = StyleSheet.create({
   modalTitle:        { fontSize: 18, fontWeight: '800', color: '#1A1A2E', marginBottom: 2 },
   modalSub:          { fontSize: 13, color: '#9CA3AF' },
   modalClose:        { position: 'absolute', right: 20, top: 20 },
-  modalScroll:       { padding: 20, paddingBottom: 8 },
+  modalScroll:       { padding: 20, paddingBottom: 40 },
 
   mannerGrid:        { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   mannerBtn:         { width: '30%', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, backgroundColor: '#F9FAFB', borderRadius: 14, borderWidth: 1.5, borderColor: '#E5E7EB', gap: 4 },
@@ -1080,12 +1205,15 @@ const gs = StyleSheet.create({
   celebBtnText:      { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   celebShowLink:     { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
 
-  miniCard:          { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', width: 100, borderWidth: 1, borderColor: '#F0F0F0' },
-  miniEmoji:         { fontSize: 32, marginBottom: 8 },
-  miniNameBadge:     { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 4, maxWidth: 84 },
-  miniName:          { fontSize: 11, fontWeight: '700' },
-  miniStage:         { fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginBottom: 2 },
-  miniCount:         { fontSize: 10, fontWeight: '600', color: '#2E7D62' },
+  miniCard:            { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, alignItems: 'center', width: 100, borderWidth: 1, borderColor: '#F0F0F0' },
+  miniAvatar:          { width: 40, height: 40, borderRadius: 20, marginBottom: 6 },
+  miniAvatarFallback:  { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  miniAvatarInitial:   { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  miniNameBadge:       { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 4, maxWidth: 84 },
+  miniName:            { fontSize: 11, fontWeight: '700' },
+  miniEmoji:           { fontSize: 28, marginBottom: 4 },
+  miniStage:           { fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginBottom: 2 },
+  miniCount:           { fontSize: 10, fontWeight: '600', color: '#2E7D62' },
   miniLabel:         { fontSize: 9, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 },
 });
 

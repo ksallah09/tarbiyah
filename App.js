@@ -10,7 +10,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFonts, Amiri_400Regular, Amiri_700Bold } from '@expo-google-fonts/amiri';
+import { useFonts } from 'expo-font';
+import { Amiri_400Regular, Amiri_700Bold } from '@expo-google-fonts/amiri';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 SplashScreen.preventAutoHideAsync();
@@ -59,112 +60,127 @@ import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission, savePushTokenToSupabase } from './src/utils/notifications';
-import { syncChildProfilesFromSupabase } from './src/utils/childProfiles';
+import { syncChildProfilesFromSupabase, getAllChildProfiles } from './src/utils/childProfiles';
 import { getFamilySyncStatus } from './src/utils/familySync';
 import { initializePurchases, checkEntitlement, loginRevenueCat, logoutRevenueCat } from './src/utils/purchases';
 import PaywallScreen from './src/screens/PaywallScreen';
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
+const WORLD_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+
+async function prewarmYouthCulture() {
+  try {
+    const [children, { data: sessionData }] = await Promise.all([
+      getAllChildProfiles(),
+      supabase.auth.getSession(),
+    ]);
+    const token = sessionData?.session?.access_token;
+    if (!token || !children?.length) return;
+
+    for (const child of children) {
+      if (!child?.id) continue;
+      const cacheKey  = `tarbiyah_world_${child.id}`;
+      const jobKey    = `tarbiyah_world_job_${child.id}`;
+
+      // Skip if live cache is still fresh
+      try {
+        const raw = await AsyncStorage.getItem(cacheKey);
+        if (raw) {
+          const { generatedAt } = JSON.parse(raw);
+          if (Date.now() - new Date(generatedAt).getTime() < WORLD_CACHE_TTL) continue;
+        }
+      } catch {}
+
+      // Skip if a job is already pending
+      const pending = await AsyncStorage.getItem(jobKey);
+      if (pending) continue;
+
+      // Fire background generation
+      try {
+        const res = await fetch(`${API_URL}/child-world/async`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            childId:   child.id,
+            age:       child.age,
+            gender:    child.gender ?? undefined,
+            name:      child.name?.split(' ')[0] ?? undefined,
+            interests: child.interests?.join(',') ?? undefined,
+          }),
+        });
+        if (res.ok) {
+          const { jobId } = await res.json();
+          await AsyncStorage.setItem(jobKey, jobId);
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
 // ─── App splash overlay ───────────────────────────────────────────────────────
 
-const TYPEWRITER_WORD = 'Tarbiyah';
-const TYPEWRITER_SPEED = 110; // ms per letter
-
 function AppSplashOverlay({ onDismiss }) {
-  const [visible, setVisible]       = useState(true);
-  const [typewriterText, setTypewriterText] = useState('');
-  const [typewriterDone, setTypewriterDone] = useState(false);
+  const [visible, setVisible]   = useState(true);
   const screenOpacity   = useRef(new Animated.Value(1)).current;
+  const logoOpacity     = useRef(new Animated.Value(0)).current;
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
-  const quoteOpacity    = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    let startTimer;
-    let interval;
-
-    startTimer = setTimeout(() => {
-      let i = 0;
-      interval = setInterval(() => {
-        i++;
-        setTypewriterText(TYPEWRITER_WORD.slice(0, i));
-        if (i >= TYPEWRITER_WORD.length) {
-          clearInterval(interval);
-          setTypewriterDone(true);
-        }
-      }, TYPEWRITER_SPEED);
-    }, 700);
-
-    return () => { clearTimeout(startTimer); clearInterval(interval); };
-  }, []);
-
-  useEffect(() => {
-    if (!typewriterDone) return;
-
     Animated.sequence([
-      Animated.delay(350),
+      Animated.timing(logoOpacity,     { toValue: 1, duration: 900, useNativeDriver: true }),
+      Animated.delay(300),
       Animated.timing(subtitleOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.delay(400),
-      Animated.timing(quoteOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.delay(2800),
-      Animated.timing(screenOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+      Animated.delay(1800),
+      Animated.timing(screenOpacity,   { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start(() => { setVisible(false); onDismiss(); });
-  }, [typewriterDone]);
+  }, []);
 
   if (!visible) return null;
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, { opacity: screenOpacity, zIndex: 999, backgroundColor: '#1B3D2F', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }]}>
-      <Text style={splashStyles.appName}>{typewriterText}</Text>
-
-      <Animated.View style={{ opacity: subtitleOpacity, marginTop: 8, flexDirection: 'row' }}>
-        <Text style={splashStyles.subtitle}>Your Guide to </Text>
-        <Text style={[splashStyles.subtitle, { color: '#C9A84C', marginLeft: 4 }]}>Prophetic Parenting</Text>
-      </Animated.View>
-
-      <Animated.View style={[splashStyles.quoteWrap, { opacity: quoteOpacity }]}>
-        <Text style={splashStyles.quoteText}>{'\u201C'}There has certainly been for you in the Messenger of Allah an excellent example.{'\u201D'}</Text>
-        <Text style={splashStyles.quoteSource}>QURAN 33:21</Text>
+    <Animated.View style={[StyleSheet.absoluteFill, splashStyles.container, { opacity: screenOpacity }]}>
+      <Animated.Image
+        source={require('./assets/app-icons-1/logo-horizontal-bigger-Picsart-BackgroundRemover.png')}
+        style={[splashStyles.logo, { opacity: logoOpacity }]}
+        resizeMode="contain"
+      />
+      <Animated.View style={{ opacity: subtitleOpacity, alignItems: 'center', marginTop: 10 }}>
+        <View style={splashStyles.divider} />
+        <Text style={splashStyles.subtitleLine1}>Parenting Support</Text>
+        <Text style={splashStyles.subtitleLine1}>for Muslim Families</Text>
       </Animated.View>
     </Animated.View>
   );
 }
 
 const splashStyles = StyleSheet.create({
-  appName: {
-    fontSize: 44,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    lineHeight: 52,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-    letterSpacing: 0.3,
-  },
-  quoteWrap: {
-    position: 'absolute',
-    bottom: 100,
-    left: 32,
-    right: 32,
+  container: {
+    zIndex: 999,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
+    paddingHorizontal: 32,
+    paddingBottom: 60,
   },
-  quoteText: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: 'rgba(255,255,255,0.7)',
-    lineHeight: 22,
-    textAlign: 'center',
-    fontStyle: 'italic',
+  logo: {
+    width: 340,
+    height: 130,
   },
-  quoteSource: {
-    fontSize: 11,
+  divider: {
+    width: 36,
+    height: 1.5,
+    backgroundColor: '#D1D5DB',
+    borderRadius: 1,
+    marginBottom: 8,
+  },
+  subtitleLine1: {
+    fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 1.5,
+    color: '#3D3D3D',
     textAlign: 'center',
+    letterSpacing: 2.2,
+    textTransform: 'uppercase',
+    lineHeight: 22,
   },
 });
 
@@ -184,13 +200,15 @@ const TAB_CONFIG = {
 
 function CustomTabBar({ state, navigation }) {
   const insets = useSafeAreaInsets();
+  const { hasChildren, hasFamilyGoals } = useAuth();
+  const showFamilyDot = !hasChildren || !hasFamilyGoals;
   return (
     <View style={[styles.tabBar, { paddingBottom: insets.bottom || 14 }]}>
-      {/* Subtle top separator */}
       <View style={styles.tabSeparator} />
       {state.routes.map((route, index) => {
         const focused = state.index === index;
         const cfg     = TAB_CONFIG[route.name];
+        const showDot = route.name === 'Family' && showFamilyDot && !focused;
         return (
           <TouchableOpacity
             key={route.key}
@@ -200,11 +218,14 @@ function CustomTabBar({ state, navigation }) {
           >
             <>
               {focused && <View style={styles.tabPill} />}
-              <Ionicons
-                name={focused ? cfg.filled : cfg.outline}
-                size={22}
-                color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.35)'}
-              />
+              <View>
+                <Ionicons
+                  name={focused ? cfg.filled : cfg.outline}
+                  size={22}
+                  color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.35)'}
+                />
+                {showDot && <View style={styles.tabDot} />}
+              </View>
               <Text style={[styles.tabLabel, { color: focused ? '#FFFFFF' : 'rgba(255,255,255,0.35)' }]}>
                 {route.name}
               </Text>
@@ -350,7 +371,7 @@ function OnboardingStack() {
 
 // ─── Root — decides onboarding vs main app ────────────────────────────────────
 
-export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {} });
+export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {}, hasChildren: false, hasFamilyGoals: false, refreshHasChildren: () => {}, refreshHasFamilyGoals: () => {} });
 export function useAuth() { return useContext(AuthContext); }
 
 export default function App() {
@@ -358,12 +379,43 @@ export default function App() {
   const [onboarded, setOnboarded]     = useState(false);
   const [hasAccess, setHasAccess]     = useState(__DEV__); // skip paywall in dev
   const [showAppSplash, setShowAppSplash] = useState(false);
+  const [hasChildren,     setHasChildren]     = useState(false);
+  const [hasFamilyGoals,  setHasFamilyGoals]  = useState(false);
+
+  async function refreshHasChildren() {
+    const { getAllChildProfiles } = await import('./src/utils/childProfiles');
+    const profiles = await getAllChildProfiles();
+    setHasChildren(profiles.length > 0);
+  }
+
+  async function refreshHasFamilyGoals() {
+    const { loadFamilyGoalsCached } = await import('./src/utils/familyGoals');
+    const goals = await loadFamilyGoalsCached();
+    setHasFamilyGoals(goals.length > 0);
+  }
   const navigationRef                 = useRef(null);
   const notifResponseListener         = useRef(null);
-  useFonts({ Amiri_400Regular, Amiri_700Bold });
+  useFonts({
+    Amiri_400Regular,
+    Amiri_700Bold,
+    KFGQPCHafs: require('./assets/fonts/KFGQPCHafs.ttf'),
+  });
 
-  function handleNotifNavigation({ screen, childId } = {}) {
-    if (screen === 'Family') {
+  async function handleNotifNavigation({ screen, childId } = {}) {
+    if (screen === 'GardenDetail' && childId) {
+      try {
+        const { data: tree } = await supabase
+          .from('family_trees')
+          .select('*')
+          .eq('child_id', childId)
+          .maybeSingle();
+        if (tree) {
+          navigationRef.current?.navigate('GardenDetail', { tree });
+          return;
+        }
+      } catch {}
+      navigationRef.current?.navigate('Tabs', { screen: 'Family' });
+    } else if (screen === 'Family') {
       navigationRef.current?.navigate('Tabs', { screen: 'Family' });
     } else if (screen === 'Community') {
       navigationRef.current?.navigate('Tabs', { screen: 'Community' });
@@ -387,6 +439,9 @@ export default function App() {
         await initializePurchases(userId);
 
         setOnboarded(complete);
+        refreshHasChildren();
+        refreshHasFamilyGoals();
+        prewarmYouthCulture();
         if (complete) {
           // Check entitlement before showing the app
           if (!__DEV__) {
@@ -442,6 +497,8 @@ export default function App() {
         syncChildProfilesFromSupabase().catch(() => {});
         // Pre-warm partner sync status cache so Home leaderboard loads on first focus
         getFamilySyncStatus().catch(() => {});
+        // Pre-generate youth culture content for all children
+        prewarmYouthCulture();
         // Log in to RevenueCat and recheck entitlement
         if (session?.user?.id) {
           loginRevenueCat(session.user.id).catch(() => {});
@@ -487,7 +544,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess }}>
+    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals }}>
       <NavigationContainer
         ref={navigationRef}
         onReady={() => {
@@ -549,5 +606,10 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  tabDot: {
+    position: 'absolute', top: -1, right: -3,
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: '#4ADE80',
   },
 });

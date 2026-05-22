@@ -198,8 +198,8 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#FFFFFF',
     textAlign: 'right',
-    lineHeight: 56,
-    fontFamily: 'Amiri_400Regular',
+    lineHeight: 64,
+    fontFamily: 'KFGQPCHafs',
     marginBottom: 14,
   },
 

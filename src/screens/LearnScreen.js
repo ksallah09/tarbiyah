@@ -22,6 +22,7 @@ const SUGGESTED_PROMPTS = [
   'My child has a lot of anger and tantrums',
   'I want to build a stronger connection with my teen',
   'My child is struggling with screen time',
+  'I lose patience with my kids too quickly',
   'How do I raise a child with strong Islamic identity?',
   'My child is anxious and lacks confidence',
   'Navigating puberty with my child',
@@ -114,7 +115,10 @@ export default function LearnScreen({ navigation, route }) {
             {/* Section header */}
             <View style={styles.sectionRow}>
               <View style={styles.sectionLeft}>
-                <Text style={styles.sectionTitle}>YOUR MODULES</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionEyebrow}>LEARN ON DEMAND</Text>
+                  <Text style={styles.sectionTitle}>Your Modules</Text>
+                </View>
                 {modules.length > 0 && (
                   <View style={styles.sectionBadge}>
                     <Text style={styles.sectionBadgeText}>{modules.length}</Text>
@@ -183,7 +187,7 @@ export default function LearnScreen({ navigation, route }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.startCardTitle}>Start your first module</Text>
-                    <Text style={styles.startCardSub}>Pick a topic and get a personalised lesson plan built around it</Text>
+                    <Text style={styles.startCardSub}>Write your own topic and get a personalised lesson plan built around it</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#2E7D62" />
                 </TouchableOpacity>
@@ -307,8 +311,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', marginBottom: 16,
   },
   sectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  sectionEyebrow: { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
   sectionTitle: {
-    fontSize: 15, fontWeight: '700', color: '#1B3D2F', letterSpacing: 0.3,
+    fontSize: 16, fontWeight: '800', color: '#1B3D2F',
   },
   sectionBadge: {
     backgroundColor: '#1B3D2F', borderRadius: 10,
@@ -319,6 +324,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: '#2E7D62', borderRadius: 20,
     paddingHorizontal: 14, paddingVertical: 8,
+    marginLeft: 12,
   },
   newTopicBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 

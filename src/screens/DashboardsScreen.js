@@ -134,6 +134,25 @@ function getCurrentWeekContent(area) {
   return area.plan[Math.max(0, weekIdx)];
 }
 
+function isPlanComplete(area) {
+  const daysSince = Math.floor((Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000);
+  return daysSince >= 28;
+}
+
+const AREA_SUGGESTIONS = [
+  { maxAge: 6,  areas: ['Managing big emotions', 'Morning and bedtime routines', 'Listening and following instructions'] },
+  { maxAge: 10, areas: ['Prayer consistency (Salah)', 'Responsibility and daily chores', 'Building confidence'] },
+  { maxAge: 14, areas: ['Dealing with peer pressure', 'Strengthening Islamic identity', 'Organisation and focus'] },
+  { maxAge: 99, areas: ['Emotional self-regulation', 'Purpose and direction', 'Navigating relationships'] },
+];
+
+function getSuggestedAreas(childAge, currentAreaTitles) {
+  const age = childAge ?? 10;
+  const bucket = AREA_SUGGESTIONS.find(b => age <= b.maxAge) ?? AREA_SUGGESTIONS[AREA_SUGGESTIONS.length - 1];
+  const lower = (currentAreaTitles ?? []).map(t => t.toLowerCase());
+  return bucket.areas.filter(a => !lower.some(t => t.includes(a.toLowerCase().slice(0, 6)))).slice(0, 3);
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function DashboardsScreen({ navigation, route }) {
@@ -151,11 +170,17 @@ export default function DashboardsScreen({ navigation, route }) {
   const [activityPages, setActivityPages]           = useState({});
   const [completionCounts, setCompletionCounts]     = useState({});
   const [phaseExpanded,        setPhaseExpanded]        = useState(false);
+  const [phaseModalVisible,    setPhaseModalVisible]    = useState(false);
+  const [childTab,             setChildTab]             = useState('week');
+  const [youthCultureDot,      setYouthCultureDot]      = useState(false);
   const [incidentModalVisible, setIncidentModalVisible] = useState(false);
   const [encouragement,        setEncouragement]        = useState(null);
-  const [incidentText, setIncidentText] = useState('');
+  const [incidentText,        setIncidentText]        = useState('');
+  const [incidentConsequence, setIncidentConsequence] = useState('');
   const [coachingResponses, setCoachingResponses] = useState({});
   const [coachingLoading,   setCoachingLoading]   = useState(new Set());
+  const [areaSuggestions,   setAreaSuggestions]   = useState({});
+  const [suggestionsLoading, setSuggestionsLoading] = useState(new Set());
   const [lovedWins,         setLovedWins]          = useState(new Set());
   const [acknowledgedInc,   setAcknowledgedInc]    = useState(new Set());
   const [myProfileName,     setMyProfileName]      = useState('');
@@ -312,6 +337,7 @@ export default function DashboardsScreen({ navigation, route }) {
   useEffect(() => {
     if (activeChildId !== '__family__') return; // family tab removed — never fires
     loadFamilyTab();
+    if (activeChildId) checkYouthCultureDot(activeChildId);
   }, [activeChildId]);
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -325,12 +351,19 @@ export default function DashboardsScreen({ navigation, route }) {
       aiOverview: area.description ?? '',
       weekHabits: week?.habits ?? [],
       weekActivities: week?.activities ?? [],
+      isComplete: isPlanComplete(area),
     };
   });
+  const activeAreas = focusAreas.filter(a => !a.isComplete);
+  const completedAreas = focusAreas.filter(a => a.isComplete);
   const primaryArea = focusAreas.find(a => a.weekHabits.length > 0) ?? focusAreas[0] ?? null;
   const activeArea  = focusAreas[Math.min(activeAreaIndex, Math.max(focusAreas.length - 1, 0))] ?? primaryArea;
   const incidents = child?.incidents ?? [];
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    completedAreas.forEach(area => fetchSuggestions(area, child));
+  }, [child?.id, focusAreas.map(a => a.id + String(a.isComplete)).join(',')]);
 
   async function handleLoveWin(childId, winId) {
     const name = myProfileName || 'You';
@@ -367,7 +400,49 @@ export default function DashboardsScreen({ navigation, route }) {
     setFamilyMoments(prev => prev.map(m => m.id === incidentId ? { ...m, acknowledges: next } : m));
     try {
       await supabase.from('family_moments').update({ acknowledges: next }).eq('id', incidentId);
+      if (!alreadyAck && partnerLinked) {
+        const childName = moment?.child_name ?? 'your child';
+        notifyPartner(
+          `${name} acknowledged a difficult moment`,
+          `They've seen and acknowledged the moment logged for ${childName}.`,
+          { screen: 'Dashboards', childId }
+        );
+      }
     } catch {}
+  }
+
+  async function fetchSuggestions(area, currentChild) {
+    if (areaSuggestions[area.id] || suggestionsLoading.has(area.id)) return;
+    setSuggestionsLoading(prev => new Set([...prev, area.id]));
+    try {
+      const res = await fetch('https://tarbiyah-production.up.railway.app/suggest-growth-areas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          child: {
+            name:         currentChild?.name,
+            age:          currentChild?.age,
+            gender:       currentChild?.gender,
+            temperaments: currentChild?.temperaments ?? [],
+            interests:    currentChild?.interests ?? [],
+            strengths:    currentChild?.strengths ?? [],
+          },
+          completedArea: {
+            title:       area.title,
+            issue:       area.issue,
+            description: area.description,
+          },
+          incidents: (currentChild?.incidents ?? []).slice(-8).map(i => i.text).filter(Boolean),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const { suggestions } = await res.json();
+      setAreaSuggestions(prev => ({ ...prev, [area.id]: suggestions }));
+    } catch {
+      setAreaSuggestions(prev => ({ ...prev, [area.id]: getSuggestedAreas(currentChild?.age, (currentChild?.growthAreas ?? []).map(a => a.title)) }));
+    } finally {
+      setSuggestionsLoading(prev => { const next = new Set(prev); next.delete(area.id); return next; });
+    }
   }
 
   async function fetchCoaching(entryId, text, currentChild) {
@@ -417,10 +492,12 @@ export default function DashboardsScreen({ navigation, route }) {
   async function addIncident() {
     const text = incidentText.trim();
     if (!text || !child) return;
-    const entry = { id: `i_${Date.now()}`, text, date: new Date().toISOString() };
+    const consequence = incidentConsequence.trim();
+    const entry = { id: `i_${Date.now()}`, text, date: new Date().toISOString(), ...(consequence ? { consequence } : {}) };
     const updated = [...incidents, entry];
     await updateChildProfile(child.id, { incidents: updated });
     setIncidentText('');
+    setIncidentConsequence('');
     setIncidentModalVisible(false);
     getAllChildProfiles().then(setChildren);
     // Mirror to shared family_moments table
@@ -430,6 +507,7 @@ export default function DashboardsScreen({ navigation, route }) {
         id: entry.id, family_id: familyId, child_id: child.id,
         child_name: child.name, child_color: child.color,
         type: 'incident', text: entry.text, date: entry.date,
+        consequence: entry.consequence ?? null,
         user_id: session?.user?.id ?? null,
       });
       loadFamilyMoments();
@@ -483,8 +561,23 @@ export default function DashboardsScreen({ navigation, route }) {
     }
   };
 
+  async function checkYouthCultureDot(childId) {
+    try {
+      const [worldRaw, seenRaw] = await Promise.all([
+        AsyncStorage.getItem(`tarbiyah_world_${childId}`),
+        AsyncStorage.getItem(`tarbiyah_world_seen_${childId}`),
+      ]);
+      if (!worldRaw) { setYouthCultureDot(false); return; }
+      const world = JSON.parse(worldRaw);
+      const generatedAt = world.generatedAt ? new Date(world.generatedAt).getTime() : 0;
+      const seenAt = seenRaw ? new Date(seenRaw).getTime() : 0;
+      setYouthCultureDot(generatedAt > seenAt);
+    } catch { setYouthCultureDot(false); }
+  }
+
   const switchChild = (id) => {
     if (id === activeChildId) return;
+    setChildTab('week');
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
@@ -501,8 +594,7 @@ export default function DashboardsScreen({ navigation, route }) {
     setCompletionCounts({});
   };
 
-  // Only block render if we have no children AND we're not on the family tab
-  if (!child && loaded) return null;
+  if (!child) return null;
 
   const renderWeekItem = ({ item, index, keyPrefix, total, isActivity }) => {
     const key       = `${keyPrefix}_${index}`;
@@ -933,6 +1025,8 @@ export default function DashboardsScreen({ navigation, route }) {
 
       {/* ── Scrollable content ── */}
       {activeChildId !== 'family' && (
+      <>
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', backgroundColor: '#F5F6F8' }} pointerEvents="none" />
       <Animated.ScrollView
         ref={scrollRef}
         style={{ flex: 1, opacity: fadeAnim }}
@@ -948,6 +1042,22 @@ export default function DashboardsScreen({ navigation, route }) {
               </Text>
               <Text style={styles.headerChildName}>{child.name}</Text>
               <Text style={styles.headerChildMeta}>Age {child.age} · {child.stage}</Text>
+              {(() => {
+                const phase = getDevPhase(child.age);
+                if (!phase) return null;
+                return (
+                  <TouchableOpacity style={styles.phasePill} onPress={() => setPhaseModalVisible(true)} activeOpacity={0.75}>
+                    <Text style={styles.phasePillEmoji}>{phase.emoji}</Text>
+                    <View>
+                      <Text style={styles.phasePillEyebrow}>DEVELOPMENTAL PHASE</Text>
+                      <Text style={styles.phasePillText}>{phase.phase}</Text>
+                    </View>
+                    <View style={styles.phasePillArrow}>
+                      <Ionicons name="chevron-forward" size={12} color="#1B3D2F" />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })()}
             </View>
             <View style={[styles.activeAvatarRing, { borderColor: child.color }]}>
               <View style={[styles.activeAvatarCircle, { backgroundColor: child.color }]}>
@@ -961,97 +1071,82 @@ export default function DashboardsScreen({ navigation, route }) {
         </View>
 
         {/* White rounded sheet */}
-        <View style={styles.sheet}><View style={styles.content}>
+        <View style={styles.sheet}>
 
-        {/* ── Developmental phase card ── */}
-        {(() => {
-          const phase = getDevPhase(child.age);
-          if (!phase) return null;
-          return (
-            <TouchableOpacity
-              style={styles.phaseCard}
-              onPress={() => setPhaseExpanded(p => !p)}
-              activeOpacity={0.88}
-            >
-              <View style={styles.phaseTopRow}>
-                <View style={styles.phaseEmojiWrap}>
-                  <Text style={styles.phaseEmoji}>{phase.emoji}</Text>
+        {/* ── Child tab segment ── */}
+        <View style={styles.childSegmentOuter}>
+          <View style={styles.childSegmentWrap}>
+            {[['week', 'This Week'], ['culture', '🌍 Youth Culture']].map(([key, label]) => (
+              <TouchableOpacity
+                key={key}
+                style={[styles.childSegmentTab, childTab === key && styles.childSegmentTabActive]}
+                onPress={() => {
+                  setChildTab(key);
+                  if (key === 'culture' && youthCultureDot) {
+                    setYouthCultureDot(false);
+                    AsyncStorage.setItem(`tarbiyah_world_seen_${child?.id}`, new Date().toISOString());
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Text style={[styles.childSegmentText, childTab === key && styles.childSegmentTextActive]}>{label}</Text>
+                  {key === 'culture' && (
+                    <View style={styles.youthCultureDot} />
+                  )}
                 </View>
-                <View style={styles.phaseTitleBlock}>
-                  <Text style={styles.phaseEyebrow}>DEVELOPMENTAL PHASE · AGE {child.age}</Text>
-                  <Text style={styles.phaseTitle}>{phase.phase}</Text>
-                </View>
-                <Ionicons
-                  name={phaseExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color="#2E7D62"
-                />
-              </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
-              {(child.specialNeeds ?? []).length > 0 && (
-                <View style={styles.specialNeedsNote}>
-                  <Ionicons name="information-circle-outline" size={14} color="#D4871A" />
-                  <Text style={styles.specialNeedsNoteText}>
-                    Developmental milestones can vary — {child.name}'s special needs may affect how these phases present. Always follow their individual pace.
-                  </Text>
-                </View>
-              )}
+        {childTab === 'culture' && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }}>
+            <ChildWorldCard child={child} />
+          </View>
+        )}
 
-              {phaseExpanded && (
-                <View style={styles.phaseDetail}>
-                  <View style={styles.phaseDetailDivider} />
+        {childTab === 'week' && <View style={[styles.content, { paddingTop: 12 }]}>
 
-                  <View style={styles.phaseShiftRow}>
-                    <Text style={styles.phaseShift}>{phase.shift}</Text>
-                  </View>
-                  <View style={styles.phaseInsightBox}>
-                    <Text style={styles.phaseInsightText}>"{phase.keyInsight}"</Text>
-                  </View>
-                  <View style={styles.phaseDetailDivider} />
-
-                  <Text style={styles.phaseDetailLabel}>WHAT'S DEVELOPING</Text>
-                  <View style={styles.phaseDetailBullets}>
-                    {phase.developing.map((item, i) => (
-                      <View key={i} style={styles.phaseBulletRow}>
-                        <View style={styles.phaseBulletDot} />
-                        <Text style={styles.phaseBulletText}>{item}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  <Text style={styles.phaseDetailLabel}>BRAIN REALITY</Text>
-                  <Text style={styles.phaseBrainText}>{phase.brainReality}</Text>
-                </View>
-              )}
-
-              {focusAreas.length > 0 && (
+        {/* ── Growth areas (phase detail now in modal via hero pill) ── */}
+        {focusAreas.length > 0 && (
+                <View style={styles.growthCard}>
                 <View style={styles.phaseGrowthSection}>
                   <View style={styles.phaseGrowthHeader}>
-                    <Text style={styles.phaseEyebrow}>CURRENT GROWTH AREAS</Text>
+                    <View>
+                      <Text style={styles.phaseEyebrow}>GROWTH FOCUS</Text>
+                      <Text style={styles.phaseGrowthTitle}>Current Growth Areas</Text>
+                    </View>
                     <TouchableOpacity onPress={() => navigation.navigate('ChildDashboard', { child })} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                       <Text style={styles.phaseGrowthEdit}>Edit</Text>
                     </TouchableOpacity>
                   </View>
                   {focusAreas.map((area, index) => {
                     const expanded = expandedAreas.has(area.id);
+                    const areaEmoji = area.emoji ?? '🌱';
                     return (
-                      <TouchableOpacity key={area.id} onPress={() => toggleExpand(area.id)} activeOpacity={0.7} style={[styles.focusAreaRow, index < focusAreas.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#EDF7F2' }]}>
+                      <TouchableOpacity key={area.id} onPress={() => !area.isComplete && toggleExpand(area.id)} activeOpacity={area.isComplete ? 1 : 0.7} style={[styles.focusAreaRow, index < focusAreas.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#EDF7F2' }]}>
                         <View style={styles.focusAreaNumBadge}>
-                          <Text style={styles.focusAreaNum}>{index + 1}</Text>
+                          <Text style={{ fontSize: 16 }}>{areaEmoji}</Text>
                         </View>
                         <View style={styles.focusAreaText}>
                           <Text style={styles.focusAreaName}>{area.title}</Text>
-                          {expanded && <Text style={styles.focusAreaOverview}>{area.aiOverview}</Text>}
+                          {expanded && !area.isComplete && <Text style={styles.focusAreaOverview}>{area.aiOverview}</Text>}
                         </View>
-                        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#2E7D62" />
+                        {area.isComplete ? (
+                          <View style={styles.areaCompleteBadge}>
+                            <Ionicons name="checkmark" size={11} color="#2E7D62" />
+                            <Text style={styles.areaCompleteBadgeText}>Complete</Text>
+                          </View>
+                        ) : (
+                          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#2E7D62" />
+                        )}
                       </TouchableOpacity>
                     );
                   })}
                 </View>
+                </View>
               )}
-            </TouchableOpacity>
-          );
-        })()}
 
         {/* ── Empty state — no growth areas ── */}
         {focusAreas.length === 0 && (
@@ -1081,20 +1176,66 @@ export default function DashboardsScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Youth culture card — under phase when no growth areas */}
-        {focusAreas.length === 0 && (
-          <>
-            <View style={{ height: 16 }} />
-            <ChildWorldCard child={child} />
-            <View style={{ height: 16 }} />
-          </>
-        )}
+
+        {/* Plan Completion Cards */}
+        {completedAreas.map(area => {
+          const suggestions = areaSuggestions[area.id] ?? [];
+          const loadingSuggestions = suggestionsLoading.has(area.id);
+          return (
+            <View key={`complete_${area.id}`} style={styles.planCompleteCard}>
+              <View style={styles.planCompleteHeader}>
+                <View style={styles.planCompleteIconRing}>
+                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.planCompleteEyebrow}>4-WEEK PLAN COMPLETE</Text>
+                  <Text style={styles.planCompleteTitle}>{area.title}</Text>
+                </View>
+              </View>
+              <Text style={styles.planCompleteSub}>
+                What would you like to work on next with {child?.name}?
+              </Text>
+
+              <TouchableOpacity
+                style={styles.planRenewBtn}
+                onPress={() => navigation.navigate('GrowthAreaWizard', { child, fromDashboard: true, prefilledIssue: area.issue ?? area.title, replaceAreaId: area.id })}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="refresh-outline" size={16} color="#2E7D62" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.planRenewBtnText}>Renew this area</Text>
+                  <Text style={styles.planRenewBtnSub}>Continue working on {area.title}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#2E7D62" />
+              </TouchableOpacity>
+
+              <Text style={styles.planSuggestLabel}>OR TRY SOMETHING NEW</Text>
+              {loadingSuggestions ? (
+                <View style={styles.planSuggestLoading}>
+                  <ActivityIndicator size="small" color="#2E7D62" />
+                  <Text style={styles.planSuggestLoadingText}>Personalising suggestions...</Text>
+                </View>
+              ) : suggestions.map(s => (
+                <TouchableOpacity
+                  key={s}
+                  style={styles.planSuggestChip}
+                  onPress={() => navigation.navigate('GrowthAreaWizard', { child, fromDashboard: true, prefilledIssue: s, replaceAreaId: area.id })}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="leaf-outline" size={14} color="#2E7D62" />
+                  <Text style={styles.planSuggestChipText}>{s}</Text>
+                  <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        })}
 
         {/* Current Focus */}
         {focusAreas.length > 0 && (<>
 
         {/* This Week */}
-        {focusAreas.length > 0 && (
+        {activeAreas.length > 0 && (
           <>
             <Text style={styles.sectionLabel}>THIS WEEK</Text>
 
@@ -1113,14 +1254,14 @@ export default function DashboardsScreen({ navigation, route }) {
               </View>
 
               <View style={styles.weekBlockSwipeClip}>
-              {focusAreas.map((area, areaIdx) => {
+              {activeAreas.map((area, areaIdx) => {
                 const habits     = area.weekHabits ?? [];
-                const isLastArea = areaIdx === focusAreas.length - 1;
+                const isLastArea = areaIdx === activeAreas.length - 1;
                 if (!habits.length) return null;
                 const currentPage = activityPages[`h_${area.id}`] ?? 0;
                 return (
                   <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#EDF7F2', paddingBottom: 4, marginBottom: 4 }]}>
-                    {focusAreas.length > 1 && (
+                    {activeAreas.length > 1 && (
                       <View style={styles.habitAreaLabel}>
                         <View style={[styles.habitAreaDot, { backgroundColor: child.color }]} />
                         <Text style={[styles.habitAreaTitle, { color: child.color }]} numberOfLines={1}>{area.title}</Text>
@@ -1228,14 +1369,14 @@ export default function DashboardsScreen({ navigation, route }) {
               </View>
 
               <View style={styles.weekBlockSwipeClip}>
-              {focusAreas.map((area, areaIdx) => {
+              {activeAreas.map((area, areaIdx) => {
                 const activities = area.weekActivities ?? [];
                 if (!activities.length) return null;
                 const currentPage = activityPages[area.id] ?? 0;
-                const isLastArea  = areaIdx === focusAreas.length - 1;
+                const isLastArea  = areaIdx === activeAreas.length - 1;
                 return (
                   <View key={area.id} style={[!isLastArea && { borderBottomWidth: 1, borderBottomColor: '#EDF7F2', paddingBottom: 12, marginBottom: 4 }]}>
-                    {focusAreas.length > 1 && (
+                    {activeAreas.length > 1 && (
                       <View style={styles.habitAreaLabel}>
                         <View style={[styles.habitAreaDot, { backgroundColor: '#2E7D62' }]} />
                         <Text style={[styles.habitAreaTitle, { color: '#2E7D62' }]} numberOfLines={1}>{area.title}</Text>
@@ -1331,10 +1472,6 @@ export default function DashboardsScreen({ navigation, route }) {
           </>
         )}
 
-        {/* ── This Week in Youth Culture ── */}
-        <View style={{ height: 16 }} />
-        <ChildWorldCard child={child} />
-
         {/* Incidents */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>DIFFICULT MOMENTS</Text>
@@ -1357,6 +1494,12 @@ export default function DashboardsScreen({ navigation, route }) {
                 <View style={styles.incidentIconWrap}><Text style={{ fontSize: 15 }}>⚠️</Text></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.entryText}>{inc.text}</Text>
+                  {!!inc.consequence && (
+                    <View style={styles.consequencePill}>
+                      <Ionicons name="shield-checkmark-outline" size={11} color="#B45309" />
+                      <Text style={styles.consequenceText}>{inc.consequence}</Text>
+                    </View>
+                  )}
                   <Text style={styles.entryDate}>{new Date(inc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
                 </View>
                 <TouchableOpacity onPress={() => Alert.alert('Delete report', 'Remove this entry?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteIncident(inc.id) }])}>
@@ -1391,14 +1534,71 @@ export default function DashboardsScreen({ navigation, route }) {
           );
         })}
 
+        {/* ── Phase detail modal ── */}
+        {(() => {
+          const phase = getDevPhase(child.age);
+          if (!phase) return null;
+          return (
+            <Modal visible={phaseModalVisible} transparent animationType="slide" onRequestClose={() => setPhaseModalVisible(false)}>
+              <View style={styles.phaseModalOverlay}>
+                <View style={styles.phaseModalSheet}>
+                  <View style={styles.phaseModalHandle} />
+                  <View style={styles.phaseModalHeader}>
+                    <Text style={styles.phaseEmoji}>{phase.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.phaseEyebrow}>DEVELOPMENTAL PHASE · AGE {child.age}</Text>
+                      <Text style={styles.phaseTitle}>{phase.phase}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setPhaseModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Ionicons name="close" size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    {(child.specialNeeds ?? []).length > 0 && (
+                      <View style={[styles.specialNeedsNote, { marginBottom: 16 }]}>
+                        <Ionicons name="information-circle-outline" size={14} color="#D4871A" />
+                        <Text style={styles.specialNeedsNoteText}>
+                          Developmental milestones can vary — {child.name}'s special needs may affect how these phases present. Always follow their individual pace.
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.phaseShiftRow}>
+                      <Text style={styles.phaseShift}>{phase.shift}</Text>
+                    </View>
+                    <View style={styles.phaseInsightBox}>
+                      <Text style={styles.phaseInsightText}>"{phase.keyInsight}"</Text>
+                    </View>
+                    <View style={styles.phaseDetailDivider} />
+                    <Text style={styles.phaseDetailLabel}>WHAT'S DEVELOPING</Text>
+                    <View style={styles.phaseDetailBullets}>
+                      {phase.developing.map((item, i) => (
+                        <View key={i} style={styles.phaseBulletRow}>
+                          <View style={styles.phaseBulletDot} />
+                          <Text style={styles.phaseBulletText}>{item}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={styles.phaseDetailLabel}>BRAIN REALITY</Text>
+                    <Text style={styles.phaseBrainText}>{phase.brainReality}</Text>
+                    <View style={{ height: 32 }} />
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
+          );
+        })()}
+
         {/* Incident modal */}
         <Modal visible={incidentModalVisible} transparent animationType="fade" onRequestClose={() => setIncidentModalVisible(false)}>
           <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>Log a difficult moment</Text>
               <TextInput style={styles.modalInput} placeholder={`What happened with ${child?.name}?`} placeholderTextColor="#9CA3AF" value={incidentText} onChangeText={setIncidentText} multiline autoFocus />
+              <Text style={styles.modalConsequenceLabel}>Consequence implemented (optional)</Text>
+              <TextInput style={[styles.modalInput, { marginTop: 0, minHeight: 60 }]} placeholder={`e.g. "Screen time removed for the evening"`} placeholderTextColor="#9CA3AF" value={incidentConsequence} onChangeText={setIncidentConsequence} multiline />
               <View style={styles.modalBtns}>
-                <TouchableOpacity style={styles.modalCancel} onPress={() => { setIncidentModalVisible(false); setIncidentText(''); }}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.modalCancel} onPress={() => { setIncidentModalVisible(false); setIncidentText(''); setIncidentConsequence(''); }}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
                 <TouchableOpacity style={styles.modalSave} onPress={addIncident}><Text style={styles.modalSaveText}>Save</Text></TouchableOpacity>
               </View>
             </View>
@@ -1407,10 +1607,11 @@ export default function DashboardsScreen({ navigation, route }) {
 
         <View style={{ height: 40 }} />
         </>)}
-        </View>
+        </View>}
         </View>
       </Animated.ScrollView>
-      )}
+      </>)}
+
       <EncouragementModal
         visible={!!encouragement}
         emoji={encouragement?.emoji}
@@ -1540,6 +1741,14 @@ const styles = StyleSheet.create({
 
   // Sheet
   sheet: { flexGrow: 1, backgroundColor: '#F5F6F8', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+
+  youthCultureDot:       { width: 7, height: 7, borderRadius: 4, backgroundColor: '#2E7D62' },
+  childSegmentOuter:     { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
+  childSegmentWrap:      { flexDirection: 'row', backgroundColor: '#E8EEF0', borderRadius: 12, padding: 3 },
+  childSegmentTab:       { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
+  childSegmentTabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  childSegmentText:      { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
+  childSegmentTextActive:{ fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
 
   // Sections
@@ -1552,6 +1761,16 @@ const styles = StyleSheet.create({
 
 
   // Developmental phase card
+  phasePill:        { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', marginTop: 10, marginRight: 80, backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
+  phasePillEmoji:   { fontSize: 18 },
+  phasePillEyebrow: { fontSize: 9, fontWeight: '700', color: '#2E7D62', letterSpacing: 0.8, marginBottom: 1 },
+  phasePillText:    { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  phasePillArrow:   { width: 22, height: 22, borderRadius: 11, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
+  phaseModalOverlay:{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  phaseModalSheet:  { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 0, maxHeight: '80%' },
+  phaseModalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
+  phaseModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
+
   phaseCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -1619,8 +1838,10 @@ const styles = StyleSheet.create({
   },
   specialNeedsNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 10, backgroundColor: '#FEF9EE', borderRadius: 8, padding: 10 },
   specialNeedsNoteText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
-  phaseGrowthSection: { marginTop: 14, borderTopWidth: 1, borderTopColor: '#EDF7F2', paddingTop: 12 },
-  phaseGrowthHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  growthCard:         { backgroundColor: '#FFFFFF', borderRadius: 18, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2, marginBottom: 4 },
+  phaseGrowthSection: { padding: 16 },
+  phaseGrowthHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  phaseGrowthTitle:   { fontSize: 15, fontWeight: '800', color: '#1A1A2E' },
   phaseGrowthEdit:    { fontSize: 12, fontWeight: '700', color: '#2E7D62' },
   phaseDetail: { marginTop: 14 },
   phaseDetailDivider: {
@@ -1685,9 +1906,10 @@ const styles = StyleSheet.create({
   focusEditLink: { fontSize: 12, fontWeight: '700' },
   focusAreaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   focusAreaNumBadge: {
-    width: 26, height: 26, borderRadius: 8,
+    width: 36, height: 36, borderRadius: 10,
     backgroundColor: '#EDF7F2',
     alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
   },
   focusAreaNum:      { fontSize: 12, fontWeight: '800', color: '#2E7D62' },
   focusAreaText:     { flex: 1 },
@@ -1917,6 +2139,41 @@ const styles = StyleSheet.create({
   emptyBtnText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
   emptyProfileLink: { fontSize: 13, color: '#9CA3AF', fontWeight: '500' },
 
+  // Area complete badge
+  areaCompleteBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EDF7F2', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4 },
+  areaCompleteBadgeText: { fontSize: 11, fontWeight: '700', color: '#2E7D62' },
+
+  // Plan completion card
+  planCompleteCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 20, marginBottom: 16,
+    borderWidth: 1, borderColor: '#D1FAE5',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+  },
+  planCompleteHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  planCompleteIconRing: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#2E7D62',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  planCompleteEyebrow: { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1.2, marginBottom: 2 },
+  planCompleteTitle: { fontSize: 15, fontWeight: '800', color: '#1A1A2E' },
+  planCompleteSub: { fontSize: 13, color: '#6B7280', lineHeight: 19, marginBottom: 16 },
+  planRenewBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#EDF7F2', borderRadius: 14, padding: 14, marginBottom: 14,
+    borderWidth: 1, borderColor: '#D1FAE5',
+  },
+  planRenewBtnText: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
+  planRenewBtnSub: { fontSize: 12, color: '#6B7280', marginTop: 1 },
+  planSuggestLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1.2, marginBottom: 10 },
+  planSuggestChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  planSuggestChipText: { flex: 1, fontSize: 14, color: '#374151', fontWeight: '500' },
+  planSuggestLoading: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  planSuggestLoadingText: { fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' },
+
   // Empty states
   emptyPrompt: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
@@ -1966,6 +2223,9 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
   modalTitle: { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 16 },
+  modalConsequenceLabel: { fontSize: 12, fontWeight: '600', color: '#6B7280', marginTop: 12, marginBottom: 8 },
+  consequencePill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginTop: 6, marginBottom: 4, alignSelf: 'flex-start' },
+  consequenceText: { fontSize: 11, color: '#92400E', fontWeight: '500', flexShrink: 1 },
   modalInput: {
     borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12,
     padding: 14, fontSize: 14, color: '#1A1A2E', minHeight: 100,

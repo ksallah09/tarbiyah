@@ -17,17 +17,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const CHALLENGE_TYPES = [
   {
     key:   'accomplishment_race',
-    emoji: '🌱',
-    label: 'Accomplishment Race',
-    desc:  'First parent to log the most accomplishments for their child wins.',
+    emoji: '🔄',
+    label: 'Habits Race',
+    desc:  'Race to build consistency. The first parent to log the target number of habits wins — small daily actions, big results.',
     color: '#2E7D62',
-  },
-  {
-    key:   'streak',
-    emoji: '⚡',
-    label: 'Streak Challenge',
-    desc:  'Both keep a daily habit streak going — whoever breaks it first loses.',
-    color: '#F59E0B',
   },
   {
     key:   'category_blitz',
@@ -36,29 +29,13 @@ const CHALLENGE_TYPES = [
     desc:  'Pick a category and compete for the most completions in a short window.',
     color: '#6366F1',
   },
-  {
-    key:   'goal_sprint',
-    emoji: '🏃',
-    label: 'Family Goal Sprint',
-    desc:  'Race to complete a shared family goal the most times by the deadline.',
-    color: '#EC4899',
-  },
 ];
 
 const BLITZ_CATEGORIES = [
-  { key: 'habits',     label: 'Habits',          icon: 'repeat-outline' },
-  { key: 'activities', label: 'Activities',       icon: 'color-palette-outline' },
-  { key: 'quran',      label: 'Quran reads',      icon: 'book-outline' },
-  { key: 'spiritual',  label: 'Spiritual reads',  icon: 'moon-outline' },
-  { key: 'research',   label: 'Research reads',   icon: 'bulb-outline' },
+  { key: 'habits',     label: 'Habits',      icon: 'repeat-outline' },
+  { key: 'activities', label: 'Activities',  icon: 'color-palette-outline' },
 ];
 
-const STREAK_CATEGORIES = [
-  { key: 'habits',    label: 'Habits',          icon: 'repeat-outline' },
-  { key: 'quran',     label: 'Quran',           icon: 'book-outline' },
-  { key: 'spiritual', label: 'Spiritual reads', icon: 'moon-outline' },
-  { key: 'research',  label: 'Research reads',  icon: 'bulb-outline' },
-];
 
 // ── Chip selector ──────────────────────────────────────────────────────────────
 
@@ -113,9 +90,7 @@ export default function ChallengeWizardScreen({ navigation }) {
   function configIsValid() {
     if (!type) return false;
     if (type === 'accomplishment_race') return !!config.target && !!config.duration_days;
-    if (type === 'streak')              return !!config.category && !!config.duration_days;
     if (type === 'category_blitz')      return !!config.category && !!config.duration_hours;
-    if (type === 'goal_sprint')         return !!config.goal_id && !!config.target && !!config.duration_days;
     return false;
   }
 
@@ -150,7 +125,7 @@ export default function ChallengeWizardScreen({ navigation }) {
       await notifyPartner(
         `${myName || 'Your partner'} has challenged you! 🏆`,
         desc,
-        { screen: 'Dashboards', tab: 'family' }
+        { screen: 'Home' }
       );
 
       navigation.goBack();
@@ -222,11 +197,11 @@ export default function ChallengeWizardScreen({ navigation }) {
             </View>
             <Text style={cs.stepTitle}>Set it up</Text>
 
-            {/* Accomplishment Race */}
+            {/* Habits Race */}
             {type === 'accomplishment_race' && (
               <>
-                <Text style={cs.configLabel}>TARGET ACCOMPLISHMENTS</Text>
-                <Text style={cs.configSub}>First parent to log this many accomplishments for their child wins</Text>
+                <Text style={cs.configLabel}>TARGET HABITS</Text>
+                <Text style={cs.configSub}>First parent to log this many habits wins</Text>
                 <ChipRow
                   options={[
                     { label: '5',  value: 5  },
@@ -249,35 +224,6 @@ export default function ChallengeWizardScreen({ navigation }) {
               </>
             )}
 
-            {/* Streak Challenge */}
-            {type === 'streak' && (
-              <>
-                <Text style={cs.configLabel}>STREAK CATEGORY</Text>
-                <Text style={cs.configSub}>Both must complete this daily — first to miss a day loses</Text>
-                {STREAK_CATEGORIES.map(cat => (
-                  <TouchableOpacity
-                    key={cat.key}
-                    style={[cs.catCard, config.category === cat.key && cs.catCardActive]}
-                    onPress={() => setConfigKey('category', cat.key)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name={cat.icon} size={18} color={config.category === cat.key ? '#2E7D62' : '#9CA3AF'} />
-                    <Text style={[cs.catLabel, config.category === cat.key && { color: '#2E7D62' }]}>{cat.label}</Text>
-                    {config.category === cat.key && <Ionicons name="checkmark-circle" size={18} color="#2E7D62" />}
-                  </TouchableOpacity>
-                ))}
-                <Text style={[cs.configLabel, { marginTop: 24 }]}>STREAK LENGTH</Text>
-                <ChipRow
-                  options={[
-                    { label: '3 days', value: 3 },
-                    { label: '5 days', value: 5 },
-                    { label: '7 days', value: 7 },
-                  ]}
-                  selected={config.duration_days}
-                  onSelect={v => setConfigKey('duration_days', v)}
-                />
-              </>
-            )}
 
             {/* Category Blitz */}
             {type === 'category_blitz' && (
@@ -309,49 +255,6 @@ export default function ChallengeWizardScreen({ navigation }) {
               </>
             )}
 
-            {/* Family Goal Sprint */}
-            {type === 'goal_sprint' && (
-              <>
-                <Text style={cs.configLabel}>PICK A FAMILY GOAL</Text>
-                <Text style={cs.configSub}>Race to complete this goal the most times</Text>
-                {goals.length === 0 ? (
-                  <View style={cs.emptyGoals}>
-                    <Text style={cs.emptyGoalsText}>No family goals yet. Add one from the Family dashboard first.</Text>
-                  </View>
-                ) : goals.map(g => (
-                  <TouchableOpacity
-                    key={g.id}
-                    style={[cs.catCard, config.goal_id === g.id && cs.catCardActive]}
-                    onPress={() => { setConfigKey('goal_id', g.id); setConfigKey('goal_label', g.title); }}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={{ fontSize: 20 }}>{getGoalEmoji(g)}</Text>
-                    <Text style={[cs.catLabel, config.goal_id === g.id && { color: '#EC4899' }]}>{g.title}</Text>
-                    {config.goal_id === g.id && <Ionicons name="checkmark-circle" size={18} color="#EC4899" />}
-                  </TouchableOpacity>
-                ))}
-                <Text style={[cs.configLabel, { marginTop: 24 }]}>TARGET COMPLETIONS</Text>
-                <ChipRow
-                  options={[
-                    { label: '3×',  value: 3  },
-                    { label: '5×',  value: 5  },
-                    { label: '7×',  value: 7  },
-                    { label: '10×', value: 10 },
-                  ]}
-                  selected={config.target}
-                  onSelect={v => setConfigKey('target', v)}
-                />
-                <Text style={[cs.configLabel, { marginTop: 24 }]}>DURATION</Text>
-                <ChipRow
-                  options={[
-                    { label: '3 days', value: 3 },
-                    { label: '7 days', value: 7 },
-                  ]}
-                  selected={config.duration_days}
-                  onSelect={v => setConfigKey('duration_days', v)}
-                />
-              </>
-            )}
           </ScrollView>
         )}
 
@@ -423,20 +326,12 @@ export default function ChallengeWizardScreen({ navigation }) {
 
 function challengeDescription(type, config, goals) {
   if (type === 'accomplishment_race') {
-    return `First to log ${config.target} accomplishments for your child in ${config.duration_days} days wins.`;
-  }
-  if (type === 'streak') {
-    const cat = STREAK_CATEGORIES.find(c => c.key === config.category)?.label ?? config.category;
-    return `Both keep up ${cat} every day for ${config.duration_days} days. First to miss a day loses.`;
+    return `First to log ${config.target} habits in ${config.duration_days} days wins.`;
   }
   if (type === 'category_blitz') {
     const cat = BLITZ_CATEGORIES.find(c => c.key === config.category)?.label ?? config.category;
-    return `Most ${cat} completions in ${config.duration_hours} hours wins.`;
-  }
-  if (type === 'goal_sprint') {
-    const goal = goals.find(g => g.id === config.goal_id);
-    const label = goal?.title ?? config.goal_label ?? 'the family goal';
-    return `Race to complete "${label}" ${config.target} times in ${config.duration_days} days.`;
+    const durLabel = config.duration_hours < 1 ? `${Math.round(config.duration_hours * 60)} min` : `${config.duration_hours}h`;
+    return `Most ${cat} completions in ${durLabel} wins.`;
   }
   return '';
 }
@@ -475,8 +370,9 @@ const cs = StyleSheet.create({
   chipTextActive: { color: '#1B3D2F' },
 
   catCard:     { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F9FAFB', borderRadius: 14, padding: 14, borderWidth: 1.5, borderColor: '#F0F0F0' },
+  catSub:      { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
   catCardActive: { backgroundColor: '#F0FDF4', borderColor: '#2E7D62' },
-  catLabel:    { flex: 1, fontSize: 14, fontWeight: '600', color: '#1A1A2E' },
+  catLabel:    { fontSize: 14, fontWeight: '600', color: '#1A1A2E' },
 
   emptyGoals:     { backgroundColor: '#FEF9EE', borderRadius: 12, padding: 16 },
   emptyGoalsText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center' },

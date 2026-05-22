@@ -15,7 +15,7 @@ export async function notifyPartner(title, body, data = {}) {
   } catch {}
 }
 
-export async function notifyDeedLogged({ childName, deedLabel, deedEmoji, gender, loggerName }) {
+export async function notifyDeedLogged({ childId, childName, deedLabel, deedEmoji, gender, loggerName }) {
   try {
     const { data: session } = await supabase.auth.getSession();
     const token = session?.session?.access_token;
@@ -23,7 +23,7 @@ export async function notifyDeedLogged({ childName, deedLabel, deedEmoji, gender
     await fetch(`${API_URL}/family/notify-deed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ childName, deedLabel, deedEmoji, gender, loggerName }),
+      body: JSON.stringify({ childId, childName, deedLabel, deedEmoji, gender, loggerName }),
     });
   } catch {}
 }

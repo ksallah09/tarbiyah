@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../App';
 import {
   SUGGESTED_GOALS, FREQUENCY_OPTIONS, REMINDER_TIMES,
   saveFamilyGoal, requestNotificationPermission,
@@ -33,6 +34,7 @@ const dots = StyleSheet.create({
 
 export default function FamilyGoalWizardScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const { refreshHasFamilyGoals } = useAuth();
   const editGoal = route.params?.goal ?? null;
 
   const [step, setStep] = useState(0);
@@ -116,6 +118,7 @@ export default function FamilyGoalWizardScreen({ navigation, route }) {
     } catch (err) {
       console.warn('Save goal error:', err.message);
     }
+    refreshHasFamilyGoals();
     navigation.goBack();
   }
 

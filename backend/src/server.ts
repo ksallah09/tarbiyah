@@ -3229,6 +3229,7 @@ app.post('/family/notify-deed', requireAuth, async (req: AuthRequest, res: Respo
       : title;
     const partnerBody = `${deedEmoji ? deedEmoji + ' ' : ''}${deedLabel ?? 'Accomplishment'}. Share ${pronoun} tree to celebrate!`;
 
+    const { childId } = req.body;
     const notifications = profiles?.map((p: any) => {
       if (!p.push_token) return null;
       const isPartner = p.user_id === partnerUserId;
@@ -3237,7 +3238,7 @@ app.post('/family/notify-deed', requireAuth, async (req: AuthRequest, res: Respo
         title: isPartner ? partnerTitle : title,
         body:  isPartner ? partnerBody  : body,
         sound: 'default',
-        data:  { screen: 'Dashboards' },
+        data:  { screen: 'GardenDetail', childId: childId ?? null },
       };
     }).filter(Boolean);
 

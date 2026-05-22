@@ -14,7 +14,7 @@ import { supabase } from '../utils/supabase';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
 
-const DEFAULT_THRESHOLDS = { sprout: 10, sapling: 25, tree: 50, flowering: 100, fruit: 200 };
+const DEFAULT_THRESHOLDS = { sprout: 5, sapling: 10, tree: 20, flowering: 35, fruit: 50 };
 
 const STAGE_KEYS = [
   { key: 'sprout',     label: 'Sprout'             },
@@ -49,7 +49,7 @@ export default function GardenDetailScreen({ route, navigation }) {
   async function saveSettings() {
     const t = draftThresholds;
     if (t.sprout >= t.sapling || t.sapling >= t.tree || t.tree >= t.flowering || t.flowering >= t.fruit) {
-      Alert.alert('Invalid settings', 'Each stage must require more deeds than the previous one.');
+      Alert.alert('Invalid settings', 'Each stage must require more accomplishments than the previous one.');
       return;
     }
     setSaving(true);
@@ -109,7 +109,12 @@ export default function GardenDetailScreen({ route, navigation }) {
             </View>
 
             <ScrollView contentContainerStyle={s.modalScroll} showsVerticalScrollIndicator={false}>
-              <Text style={s.sectionLabel}>DEEDS PER STAGE</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={s.sectionLabel}>ACCOMPLISHMENTS PER STAGE</Text>
+                <TouchableOpacity onPress={() => setDraftThresholds({ ...DEFAULT_THRESHOLDS })} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={{ fontSize: 12, color: '#2E7D62', fontWeight: '600' }}>Reset to defaults</Text>
+                </TouchableOpacity>
+              </View>
               {STAGE_KEYS.map((sk, i) => (
                 <View key={sk.key} style={s.settingsRow}>
                   <View style={{ flex: 1 }}>
@@ -125,7 +130,7 @@ export default function GardenDetailScreen({ route, navigation }) {
                     onChangeText={v => setDraftThresholds(prev => ({ ...prev, [sk.key]: parseInt(v) || 0 }))}
                     maxLength={4}
                   />
-                  <Text style={s.numUnit}>deeds</Text>
+                  <Text style={s.numUnit}>accomplishments</Text>
                 </View>
               ))}
 
@@ -173,7 +178,7 @@ export default function GardenDetailScreen({ route, navigation }) {
               style={s.deleteBtn}
               onPress={() => Alert.alert(
                 'Delete Tree',
-                `This will permanently delete ${tree.child_name}'s Accomplishment Tree and all logged deeds. This cannot be undone.`,
+                `This will permanently delete ${tree.child_name}'s Accomplishment Tree and all logged accomplishments. This cannot be undone.`,
                 [
                   { text: 'Cancel', style: 'cancel' },
                   {

@@ -95,6 +95,23 @@ export default function GrowthAreaPlanScreen({ navigation, route }) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* Begin Daily Tracking CTA */}
+        <TouchableOpacity
+          style={styles.ctaBtn}
+          activeOpacity={0.88}
+          onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child?.id } })}
+        >
+          <View style={styles.ctaBtnInner}>
+            <View>
+              <Text style={styles.ctaLabel}>Begin Daily Tracking</Text>
+              <Text style={styles.ctaSub}>Open {child?.name ?? 'Child'}'s Dashboard</Text>
+            </View>
+            <View style={styles.ctaArrow}>
+              <Ionicons name="arrow-forward" size={18} color="#1B3D2F" />
+            </View>
+          </View>
+        </TouchableOpacity>
+
         {/* Description */}
         {!!area.description && (
           <View style={styles.descCard}>
@@ -208,7 +225,7 @@ export default function GrowthAreaPlanScreen({ navigation, route }) {
           </>
         )}
 
-        <View style={{ height: 48 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -326,13 +343,13 @@ const styles = StyleSheet.create({
     padding: 14, marginBottom: 8,
     borderLeftWidth: 3, ...CARD_SHADOW,
   },
-  itemTop:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  itemTop:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10, flex: 1 },
   itemBadge: {
     width: 26, height: 26, borderRadius: 8,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   itemBadgeNum: { fontSize: 12, fontWeight: '800' },
-  itemText: { flex: 1, fontSize: 13, color: '#1A1A2E', lineHeight: 20 },
+  itemText: { flex: 1, flexShrink: 1, fontSize: 13, color: '#1A1A2E', lineHeight: 20 },
 
   // Wisdom
   wisdomToggle: {
@@ -345,4 +362,22 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
   },
   wisdomText: { fontSize: 12, lineHeight: 19 },
+
+  ctaBtn: {
+    backgroundColor: '#1B3D2F',
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  ctaBtnInner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  ctaLabel: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', marginBottom: 2 },
+  ctaSub:   { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
+  ctaArrow: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: '#4ADE80',
+    alignItems: 'center', justifyContent: 'center',
+  },
 });

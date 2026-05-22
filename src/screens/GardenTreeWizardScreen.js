@@ -7,10 +7,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { getAllChildProfiles } from '../utils/childProfiles';
 import { getFamilyId } from '../utils/familyGoals';
-import { getCachedSyncStatus } from '../utils/familySync';
 import { supabase } from '../utils/supabase';
 
-const DEFAULT_THRESHOLDS = { sprout: 10, sapling: 25, tree: 50, flowering: 100, fruit: 200 };
+const DEFAULT_THRESHOLDS = { sprout: 5, sapling: 10, tree: 20, flowering: 35, fruit: 50 };
 
 const STAGE_KEYS = [
   { key: 'sprout',     label: 'Sprout'             },
@@ -28,123 +27,36 @@ export default function GardenTreeWizardScreen({ navigation }) {
   const [selectedChild, setSelectedChild] = useState(null);
   const [thresholds,    setThresholds]    = useState({ ...DEFAULT_THRESHOLDS });
   const [rewards,       setRewards]       = useState({});
-  const [existingTrees, setExistingTrees] = useState([]);
-  const [linkedTreeId,  setLinkedTreeId]  = useState(null);
   const [saving,        setSaving]        = useState(false);
-  const [myUserId,      setMyUserId]      = useState(null);
-  const [partnerName,   setPartnerName]   = useState('Your partner');
-  const [loadingTrees,  setLoadingTrees]  = useState(false);
-  const [gardenTotals,  setGardenTotals]  = useState({});
 
   useEffect(() => {
     getAllChildProfiles().then(setChildren);
-    supabase.auth.getSession().then(({ data }) => setMyUserId(data?.session?.user?.id));
-    getCachedSyncStatus().then(s => {
-      if (s?.partner?.name) setPartnerName(s.partner.name.split(' ')[0]);
-    });
   }, []);
 
   async function advanceToStep2() {
     if (!selectedChild) return;
-    try {
-      const { data, error } = await supabase
-        .from('family_trees')
-        .select('child_id, linked_tree_id')
-        .eq('child_id', selectedChild.id)
-        .maybeSingle();
-
-      console.log('[Wizard] existing row for', selectedChild.id, '→', JSON.stringify(data), 'err:', error?.message);
-
-      if (data) {
-        if (data.linked_tree_id) {
-          const { data: canonical, error: canonErr } = await supabase
-            .from('family_trees')
-            .select('child_id')
-            .eq('child_id', data.linked_tree_id)
-            .maybeSingle();
-
-          console.log('[Wizard] canonical check for', data.linked_tree_id, '→', JSON.stringify(canonical), 'err:', canonErr?.message);
-
-          if (!canonical) {
-            const { error: delErr } = await supabase.from('family_trees').delete().eq('child_id', selectedChild.id);
-            console.log('[Wizard] deleted stale linked row, err:', delErr?.message);
-            setStep(2);
-            return;
-          }
-        } else {
-          const { count } = await supabase
-            .from('child_garden_actions')
-            .select('id', { count: 'exact', head: true })
-            .eq('child_id', selectedChild.id);
-
-          console.log('[Wizard] canonical row deed count:', count);
-
-          if (!count) {
-            const { error: delErr } = await supabase.from('family_trees').delete().eq('child_id', selectedChild.id);
-            console.log('[Wizard] deleted stale canonical row, err:', delErr?.message);
-            if (!delErr) { setStep(2); return; }
-          }
-        }
-
-        console.log('[Wizard] blocking — existing row has linked_tree_id:', data.linked_tree_id);
-        Alert.alert(
-          'Tree already exists',
-          `${selectedChild.name.split(' ')[0]} already has an Accomplishment Tree. You can update it from the Family Garden.`,
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-    } catch (err) {
-      console.error('[Wizard] advanceToStep2 error:', err);
-    }
     setStep(2);
   }
 
-  async function advanceToStep3() {
+  async function handleCreate() {
     const t = thresholds;
     if (t.sprout >= t.sapling || t.sapling >= t.tree || t.tree >= t.flowering || t.flowering >= t.fruit) {
       Alert.alert('Invalid settings', 'Each stage must require more accomplishments than the previous one.');
       return;
     }
-    setLoadingTrees(true);
-    try {
-      const familyId = await getFamilyId();
-      const [treesRes, actionsRes] = await Promise.all([
-        supabase.from('family_trees').select('*').eq('family_id', familyId),
-        supabase.from('child_garden_actions').select('child_id').eq('family_id', familyId),
-      ]);
-      const trees = (treesRes.data ?? []).filter(t => t.child_id !== selectedChild?.id);
-      setExistingTrees(trees);
-      const totals = {};
-      (actionsRes.data ?? []).forEach(r => { totals[r.child_id] = (totals[r.child_id] ?? 0) + 1; });
-      setGardenTotals(totals);
-      if (trees.length === 0) {
-        await handleCreate(null);
-      } else {
-        setStep(3);
-      }
-    } catch {
-      Alert.alert('Error', 'Could not load existing trees.');
-    } finally {
-      setLoadingTrees(false);
-    }
-  }
-
-  async function handleCreate(linkTo) {
     setSaving(true);
     try {
       const familyId = await getFamilyId();
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
       await supabase.from('family_trees').upsert({
-        family_id:      familyId,
-        child_id:       selectedChild.id,
-        child_name:     selectedChild.name,
-        created_by:     userId,
+        family_id:  familyId,
+        child_id:   selectedChild.id,
+        child_name: selectedChild.name,
+        created_by: userId,
         thresholds,
         rewards,
-        linked_tree_id: linkTo ?? null,
-        updated_at:     new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }, { onConflict: 'child_id' });
       navigation.goBack();
     } catch {
@@ -168,7 +80,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text style={s.headerTitle}>Add an Accomplishment Tree</Text>
             <View style={s.stepDots}>
-              {[1, 2, 3].map(n => (
+              {[1, 2].map(n => (
                 <View key={n} style={[s.dot, step >= n && s.dotActive]} />
               ))}
             </View>
@@ -226,7 +138,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
                   onChangeText={v => setThresholds(prev => ({ ...prev, [sk.key]: parseInt(v) || 0 }))}
                   maxLength={4}
                 />
-                <Text style={s.numUnit}>acts</Text>
+                <Text style={s.numUnit}>accomplishments</Text>
               </View>
             ))}
 
@@ -248,56 +160,6 @@ export default function GardenTreeWizardScreen({ navigation }) {
           </ScrollView>
         )}
 
-        {/* ── Step 3: Link existing tree ── */}
-        {step === 3 && (
-          <ScrollView contentContainerStyle={s.scroll}>
-            <Text style={s.stepTitle}>Does {displayName} already have a tree?</Text>
-            <Text style={s.stepSub}>
-              Your family garden has {existingTrees.length} other tree{existingTrees.length !== 1 ? 's' : ''}.
-              If {displayName} is the same child as one of them, link them to share progress.
-            </Text>
-
-            {existingTrees.map(tree => {
-              const isLinked = linkedTreeId === tree.child_id;
-              const isYours  = tree.created_by === myUserId;
-              const deeds    = gardenTotals[tree.child_id] ?? 0;
-              return (
-                <TouchableOpacity
-                  key={tree.child_id}
-                  style={[s.treeCard, isLinked && s.treeCardLinked]}
-                  onPress={() => setLinkedTreeId(isLinked ? null : tree.child_id)}
-                  activeOpacity={0.8}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.treeName, isLinked && { color: '#2E7D62' }]}>{tree.child_name}</Text>
-                    <Text style={s.treeMeta}>
-                      {isYours ? 'Added by you' : `Added by ${partnerName}`} · {deeds} act{deeds !== 1 ? 's' : ''}
-                    </Text>
-                  </View>
-                  <View style={[s.linkCheck, isLinked && s.linkCheckActive]}>
-                    {isLinked
-                      ? <Ionicons name="git-merge-outline" size={16} color="#FFFFFF" />
-                      : <Text style={s.linkCheckText}>Link</Text>
-                    }
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-
-            <TouchableOpacity
-              style={[s.treeCard, !linkedTreeId && s.treeCardLinked, { borderStyle: 'dashed' }]}
-              onPress={() => setLinkedTreeId(null)}
-              activeOpacity={0.8}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[s.treeName, !linkedTreeId && { color: '#2E7D62' }]}>Start fresh</Text>
-                <Text style={s.treeMeta}>Keep {displayName}'s tree separate</Text>
-              </View>
-              {!linkedTreeId && <Ionicons name="checkmark-circle" size={20} color="#2E7D62" />}
-            </TouchableOpacity>
-          </ScrollView>
-        )}
-
         {/* Footer CTA */}
         <View style={[s.footer, { paddingBottom: insets.bottom + 12 }]}>
           {step === 1 && (
@@ -307,15 +169,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
             </TouchableOpacity>
           )}
           {step === 2 && (
-            <TouchableOpacity style={[s.btn, loadingTrees && { opacity: 0.6 }]} onPress={advanceToStep3} disabled={loadingTrees} activeOpacity={0.85}>
-              {loadingTrees
-                ? <ActivityIndicator color="#FFFFFF" size="small" />
-                : <><Text style={s.btnText}>Next</Text><Ionicons name="arrow-forward" size={16} color="#FFFFFF" /></>
-              }
-            </TouchableOpacity>
-          )}
-          {step === 3 && (
-            <TouchableOpacity style={[s.btn, saving && { opacity: 0.6 }]} onPress={() => handleCreate(linkedTreeId)} disabled={saving} activeOpacity={0.85}>
+            <TouchableOpacity style={[s.btn, saving && { opacity: 0.6 }]} onPress={handleCreate} disabled={saving} activeOpacity={0.85}>
               {saving
                 ? <ActivityIndicator color="#FFFFFF" size="small" />
                 : <><Text style={s.btnText}>Add Tree 🌱</Text></>

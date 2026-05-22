@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addGrowthArea } from '../utils/childProfiles';
+import { addGrowthArea, replaceGrowthArea } from '../utils/childProfiles';
 import { supabase } from '../utils/supabase';
 import { notifyGrowthPlanReady, scheduleChildHabitNotifications } from '../utils/notifications';
 
@@ -72,10 +72,10 @@ const pb = StyleSheet.create({
 });
 
 export default function GrowthAreaWizardScreen({ navigation, route }) {
-  const { child, isFirstTime = false, fromDashboard = false, afterOnboarding = false } = route?.params ?? {};
+  const { child, isFirstTime = false, fromDashboard = false, afterOnboarding = false, prefilledIssue = '', replaceAreaId = null } = route?.params ?? {};
 
-  const [step, setStep]             = useState(STEP_INTRO);
-  const [issue, setIssue]           = useState('');
+  const [step, setStep]             = useState(prefilledIssue ? STEP_ISSUE : STEP_INTRO);
+  const [issue, setIssue]           = useState(prefilledIssue ?? '');
   const [analysis, setAnalysis]     = useState('');
   const [savedArea, setSavedArea]   = useState(null);
   const [error, setError]           = useState('');
@@ -212,7 +212,11 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
             createdAt:         new Date().toISOString(),
           };
 
-          await addGrowthArea(child.id, growthArea);
+          if (replaceAreaId) {
+            await replaceGrowthArea(child.id, replaceAreaId, growthArea);
+          } else {
+            await addGrowthArea(child.id, growthArea);
+          }
           setSavedArea(growthArea);
           setAreasSaved(n => n + 1);
           notifyGrowthPlanReady(childName);
@@ -322,7 +326,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           What you're about to see is an overview of the full 4-week plan.
         </Text>
         <Text style={styles.bridgeBody}>
-          {displayName}'s Child Dashboard — found in the <Text style={{ color: '#4ADE80', fontWeight: '700' }}>Dashboards</Text> tab — will guide you through it week by week, surfacing the right habits, activities, and a daily coaching tip to keep you on track.
+          {displayName}'s Child Dashboard — found in the <Text style={{ color: '#4ADE80', fontWeight: '700' }}>Dashboards</Text> tab — will guide you through it week by week, surfacing the right habits and activities to keep you on track.
         </Text>
         <TouchableOpacity style={styles.bridgeBtn} onPress={handleBridgeContinue} activeOpacity={0.85}>
           <Text style={styles.bridgeBtnText}>Got it!</Text>
