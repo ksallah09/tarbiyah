@@ -440,7 +440,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
       if (!alreadyLoved && partnerLinked) {
         notifyPartner(
           `${name} loved an accomplishment ❤️`,
-          `They loved "${mannerLabel}" logged for ${childName}.`,
+          `${name} loved "${mannerLabel}" logged for ${childName}.`,
           { screen: 'Family' }
         );
       }
@@ -876,7 +876,7 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
               <Text style={sc.name}>{displayName}</Text>
               <Text style={sc.stageName}>{stage.name}</Text>
               <View style={sc.treeWrap}>
-                <View style={{ transform: [{ scale: 1.7 }] }}>
+                <View style={{ transform: [{ scale: 1.3 }] }}>
                   <TreeIllustration stageIndex={stage.index} swayAnim={staticScale} growthScale={staticScale} progressAnim={staticScale} progress={progressValue} />
                 </View>
               </View>
@@ -1271,7 +1271,7 @@ const sc = StyleSheet.create({
   eyebrow:       { fontSize: 9, fontWeight: '800', color: '#2E7D62', letterSpacing: 1.5, marginBottom: 12, textTransform: 'uppercase' },
   name:          { fontSize: 38, fontWeight: '900', color: '#1A1A2E', textAlign: 'center', marginBottom: 4 },
   stageName:     { fontSize: 14, fontWeight: '700', color: '#2E7D62', marginBottom: 20 },
-  treeWrap:      { height: 200, alignItems: 'center', justifyContent: 'center', marginBottom: 64 },
+  treeWrap:      { height: 230, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   deedsNumber:   { fontSize: 52, fontWeight: '900', color: '#1B3D2F', lineHeight: 56 },
   deedsLabel:    { fontSize: 13, color: '#6B7280', fontWeight: '500', marginBottom: 16 },
   progressWrap:  { width: '100%', marginBottom: 16 },

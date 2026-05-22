@@ -514,7 +514,7 @@ export default function DashboardsScreen({ navigation, route }) {
       if (partnerLinked) notifyPartner(
         `${myProfileName || 'Your partner'} logged a difficult moment for ${child.name}`,
         entry.text.length > 100 ? entry.text.slice(0, 97) + '…' : entry.text,
-        { screen: 'Dashboards', childId: child.id }
+        { screen: 'Family' }
       );
     } catch {}
   }

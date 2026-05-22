@@ -157,6 +157,13 @@ export default function FamilySummaryBoard({ navigation }) {
         consequence: consequence ?? null,
         user_id: session?.user?.id ?? null,
       });
+      if (partnerLinked) {
+        notifyPartner(
+          `${myProfileName || 'Your partner'} logged a difficult moment for ${logChild.name}`,
+          entry.text.length > 100 ? entry.text.slice(0, 97) + '…' : entry.text,
+          { screen: 'Family' }
+        );
+      }
       await load();
       closeLogModal();
     } catch {
@@ -200,7 +207,7 @@ export default function FamilySummaryBoard({ navigation }) {
         const childName = moment?.child_name ?? 'your child';
         notifyPartner(
           `${name} acknowledged a difficult moment`,
-          `They've seen and acknowledged the moment logged for ${childName}.`,
+          `${name} has seen and acknowledged the moment logged for ${childName}.`,
           { screen: 'Family' }
         );
       }
@@ -224,7 +231,7 @@ export default function FamilySummaryBoard({ navigation }) {
       if (!alreadyLoved && partnerLinked) {
         notifyPartner(
           `${name} loved an accomplishment ❤️`,
-          `They loved "${mannerLabel}" logged for ${childName}.`,
+          `${name} loved "${mannerLabel}" logged for ${childName}.`,
           { screen: 'Family' }
         );
       }
