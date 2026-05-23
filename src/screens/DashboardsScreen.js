@@ -159,6 +159,7 @@ export default function DashboardsScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [children, setChildren] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [synced, setSynced] = useState(false);
   const [activeChildId, setActiveChildId] = useState(null);
   const [familyGoals,   setFamilyGoals]   = useState([]);
   const [goalCompletions, setGoalCompletions] = useState([]);
@@ -261,8 +262,9 @@ export default function DashboardsScreen({ navigation, route }) {
           if (prev && profiles.find(c => c.id === prev)) return prev;
           return profiles[0]?.id ?? null;
         });
+        setSynced(true);
       })
-    );
+    ).catch(() => setSynced(true));
     // Load family goals
     loadFamilyGoalsCached().then(setFamilyGoals);
     loadFamilyGoals().then(setFamilyGoals);
@@ -586,6 +588,7 @@ export default function DashboardsScreen({ navigation, route }) {
     setActiveChildId(id);
     setActiveAreaIndex(0);
     setPhaseExpanded(false);
+    setPhaseModalVisible(false);
     setExpandedAreas(new Set());
     setExpandedWisdom(new Set());
     setMarkedDone(new Set());
@@ -594,7 +597,31 @@ export default function DashboardsScreen({ navigation, route }) {
     setCompletionCounts({});
   };
 
-  if (!child) return null;
+  if (!child) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F5F6F8', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        {!synced ? (
+          <>
+            <ActivityIndicator size="large" color="#2E7D62" />
+            <Text style={{ marginTop: 14, fontSize: 14, color: '#9CA3AF', textAlign: 'center' }}>Loading your dashboard…</Text>
+          </>
+        ) : (
+          <>
+            <Ionicons name="leaf-outline" size={40} color="#2E7D62" style={{ marginBottom: 14 }} />
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 8, textAlign: 'center' }}>No children yet</Text>
+            <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 24 }}>Add a child profile to get started with personalised guidance.</Text>
+            <TouchableOpacity
+              style={{ backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32 }}
+              onPress={() => navigation.navigate('AddChildWizard')}
+              activeOpacity={0.85}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>Add a Child</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
+  }
 
   const renderWeekItem = ({ item, index, keyPrefix, total, isActivity }) => {
     const key       = `${keyPrefix}_${index}`;
@@ -1534,61 +1561,6 @@ export default function DashboardsScreen({ navigation, route }) {
           );
         })}
 
-        {/* ── Phase detail modal ── */}
-        {(() => {
-          const phase = getDevPhase(child.age);
-          if (!phase) return null;
-          return (
-            <Modal visible={phaseModalVisible} transparent animationType="slide" onRequestClose={() => setPhaseModalVisible(false)}>
-              <View style={styles.phaseModalOverlay}>
-                <View style={styles.phaseModalSheet}>
-                  <View style={styles.phaseModalHandle} />
-                  <View style={styles.phaseModalHeader}>
-                    <Text style={styles.phaseEmoji}>{phase.emoji}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.phaseEyebrow}>DEVELOPMENTAL PHASE · AGE {child.age}</Text>
-                      <Text style={styles.phaseTitle}>{phase.phase}</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => setPhaseModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                      <Ionicons name="close" size={20} color="#9CA3AF" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <ScrollView showsVerticalScrollIndicator={false}>
-                    {(child.specialNeeds ?? []).length > 0 && (
-                      <View style={[styles.specialNeedsNote, { marginBottom: 16 }]}>
-                        <Ionicons name="information-circle-outline" size={14} color="#D4871A" />
-                        <Text style={styles.specialNeedsNoteText}>
-                          Developmental milestones can vary — {child.name}'s special needs may affect how these phases present. Always follow their individual pace.
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.phaseShiftRow}>
-                      <Text style={styles.phaseShift}>{phase.shift}</Text>
-                    </View>
-                    <View style={styles.phaseInsightBox}>
-                      <Text style={styles.phaseInsightText}>"{phase.keyInsight}"</Text>
-                    </View>
-                    <View style={styles.phaseDetailDivider} />
-                    <Text style={styles.phaseDetailLabel}>WHAT'S DEVELOPING</Text>
-                    <View style={styles.phaseDetailBullets}>
-                      {phase.developing.map((item, i) => (
-                        <View key={i} style={styles.phaseBulletRow}>
-                          <View style={styles.phaseBulletDot} />
-                          <Text style={styles.phaseBulletText}>{item}</Text>
-                        </View>
-                      ))}
-                    </View>
-                    <Text style={styles.phaseDetailLabel}>BRAIN REALITY</Text>
-                    <Text style={styles.phaseBrainText}>{phase.brainReality}</Text>
-                    <View style={{ height: 32 }} />
-                  </ScrollView>
-                </View>
-              </View>
-            </Modal>
-          );
-        })()}
-
         {/* Incident modal */}
         <Modal visible={incidentModalVisible} transparent animationType="fade" onRequestClose={() => setIncidentModalVisible(false)}>
           <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -1611,6 +1583,59 @@ export default function DashboardsScreen({ navigation, route }) {
         </View>
       </Animated.ScrollView>
       </>)}
+
+      {(() => {
+        const phase = child ? getDevPhase(child.age) : null;
+        if (!phase) return null;
+        return (
+          <Modal visible={phaseModalVisible} transparent animationType="slide" onRequestClose={() => setPhaseModalVisible(false)}>
+            <View style={styles.phaseModalOverlay}>
+              <View style={styles.phaseModalSheet}>
+                <View style={styles.phaseModalHandle} />
+                <View style={styles.phaseModalHeader}>
+                  <Text style={styles.phaseEmoji}>{phase.emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.phaseEyebrow}>DEVELOPMENTAL PHASE · AGE {child.age}</Text>
+                    <Text style={styles.phaseTitle}>{phase.phase}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setPhaseModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Ionicons name="close" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {(child.specialNeeds ?? []).length > 0 && (
+                    <View style={[styles.specialNeedsNote, { marginBottom: 16 }]}>
+                      <Ionicons name="information-circle-outline" size={14} color="#D4871A" />
+                      <Text style={styles.specialNeedsNoteText}>
+                        Developmental milestones can vary — {child.name}'s special needs may affect how these phases present. Always follow their individual pace.
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.phaseShiftRow}>
+                    <Text style={styles.phaseShift}>{phase.shift}</Text>
+                  </View>
+                  <View style={styles.phaseInsightBox}>
+                    <Text style={styles.phaseInsightText}>"{phase.keyInsight}"</Text>
+                  </View>
+                  <View style={styles.phaseDetailDivider} />
+                  <Text style={styles.phaseDetailLabel}>WHAT'S DEVELOPING</Text>
+                  <View style={styles.phaseDetailBullets}>
+                    {phase.developing.map((item, i) => (
+                      <View key={i} style={styles.phaseBulletRow}>
+                        <View style={styles.phaseBulletDot} />
+                        <Text style={styles.phaseBulletText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={styles.phaseDetailLabel}>BRAIN REALITY</Text>
+                  <Text style={styles.phaseBrainText}>{phase.brainReality}</Text>
+                  <View style={{ height: 32 }} />
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
 
       <EncouragementModal
         visible={!!encouragement}
@@ -1766,8 +1791,8 @@ const styles = StyleSheet.create({
   phasePillEyebrow: { fontSize: 9, fontWeight: '700', color: '#2E7D62', letterSpacing: 0.8, marginBottom: 1 },
   phasePillText:    { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
   phasePillArrow:   { width: 22, height: 22, borderRadius: 11, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
-  phaseModalOverlay:{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  phaseModalSheet:  { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 0, maxHeight: '80%' },
+  phaseModalOverlay:{ flex: 1, backgroundColor: 'transparent', justifyContent: 'flex-end' },
+  phaseModalSheet:  { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 0, maxHeight: '80%', shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 20 },
   phaseModalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
   phaseModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
 

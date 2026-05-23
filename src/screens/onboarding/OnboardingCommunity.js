@@ -17,11 +17,19 @@ const PLACES_KEY = 'AIzaSyAAzZUrCRvsauWBVNUnIf9HgH-CR8ub4Ig';
 
 const SEARCH_TYPES = 'mosque|islamic_center';
 
+function fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal })
+    .then(r => r.json())
+    .finally(() => clearTimeout(id));
+}
+
 async function fetchNearby(lat, lng) {
   const base = `https://maps.googleapis.com/maps/api/place/nearbysearch/json`;
   const [r1, r2] = await Promise.all([
-    fetch(`${base}?location=${lat},${lng}&radius=20000&type=mosque&key=${PLACES_KEY}`).then(r => r.json()),
-    fetch(`${base}?location=${lat},${lng}&radius=20000&keyword=islamic+centre+masjid&key=${PLACES_KEY}`).then(r => r.json()),
+    fetchWithTimeout(`${base}?location=${lat},${lng}&radius=20000&type=mosque&key=${PLACES_KEY}`),
+    fetchWithTimeout(`${base}?location=${lat},${lng}&radius=20000&keyword=islamic+centre+masjid&key=${PLACES_KEY}`),
   ]);
   console.log('[Places nearby type=mosque]', r1.status, 'count:', r1.results?.length);
   console.log('[Places nearby keyword]', r2.status, 'count:', r2.results?.length);
@@ -38,8 +46,7 @@ async function fetchSearch(query) {
   const url =
     `https://maps.googleapis.com/maps/api/place/textsearch/json` +
     `?query=${encodeURIComponent(query + ' mosque islamic center')}&key=${PLACES_KEY}`;
-  const res  = await fetch(url);
-  const json = await res.json();
+  const json = await fetchWithTimeout(url);
   console.log('[Places text search]', json.status, 'count:', json.results?.length, json.error_message ?? '');
   return (json.results ?? []).map(normPlace);
 }
@@ -78,7 +85,7 @@ export default function OnboardingCommunity({ navigation, route }) {
         if (!Location) { setApiError('Location unavailable — search by name above.'); setLocLoading(false); return; }
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, timeout: 10000 });
           const places = await fetchNearby(loc.coords.latitude, loc.coords.longitude);
           setNearby(places);
           if (places.length === 0) setApiError('No mosques found nearby — try searching by name.');

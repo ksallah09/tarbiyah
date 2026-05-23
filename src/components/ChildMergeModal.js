@@ -6,28 +6,28 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { mergeGardenData } from '../utils/childMerge';
 
+const NONE_SENTINEL = { id: '__none__', name: 'None of these' };
+
 export default function ChildMergeModal({ visible, localChildren, partnerChildren, partnerName, sharedFamilyId, onDone }) {
-  // matches: { [localChildId]: canonicalChild | null }
-  const [matches, setMatches] = useState({});
-  const [saving, setSaving] = useState(false);
+  const [matches, setMatches]       = useState({});
+  const [saving, setSaving]         = useState(false);
+  const [pickerFor, setPickerFor]   = useState(null); // localChildId being picked for
 
   const matchedCanonicalIds = new Set(
-    Object.values(matches).filter(Boolean).map(c => c.id)
+    Object.values(matches).filter(m => m && m.id !== '__none__').map(c => c.id)
   );
 
-  function setMatch(localId, canonicalChild) {
-    setMatches(prev => ({
-      ...prev,
-      [localId]: prev[localId]?.id === canonicalChild?.id ? null : canonicalChild,
-    }));
+  function selectMatch(localId, canonicalChild) {
+    setMatches(prev => ({ ...prev, [localId]: canonicalChild }));
+    setPickerFor(null);
   }
 
   async function handleConfirm() {
     setSaving(true);
     try {
       const matchArray = localChildren.map(child => ({
-        localChild:    child,
-        canonicalChild: matches[child.id] ?? null,
+        localChild:     child,
+        canonicalChild: (matches[child.id]?.id === '__none__') ? null : matches[child.id] ?? null,
       }));
       await mergeGardenData(matchArray, sharedFamilyId);
       onDone();
@@ -41,7 +41,7 @@ export default function ChildMergeModal({ visible, localChildren, partnerChildre
   function handleSkip() {
     Alert.alert(
       'Skip for now?',
-      "You can always do this later, but your good deeds history won't be shared until children are matched.",
+      "You can always do this later, but your accomplishment history won't be shared until children are matched.",
       [
         { text: 'Go back', style: 'cancel' },
         { text: 'Skip', onPress: onDone },
@@ -54,14 +54,13 @@ export default function ChildMergeModal({ visible, localChildren, partnerChildre
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleSkip}>
       <View style={s.container}>
+
         {/* Header */}
         <View style={s.header}>
-          <View>
-            <Text style={s.title}>Match Your Children</Text>
-            <Text style={s.subtitle}>
-              Match your children to {partnerFirst}'s so your Good Deeds Gardens are shared.
-            </Text>
-          </View>
+          <Text style={s.title}>Match Your Children</Text>
+          <Text style={s.subtitle}>
+            Link each of your children to {partnerFirst}'s so your Accomplishment Gardens are combined.
+          </Text>
         </View>
 
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -69,70 +68,98 @@ export default function ChildMergeModal({ visible, localChildren, partnerChildre
           {localChildren.map(local => {
             const matched = matches[local.id];
             return (
-              <View key={local.id} style={s.row}>
-                {/* Your child */}
-                <View style={[s.childBadge, { backgroundColor: (local.color ?? '#2E7D62') + '18' }]}>
-                  <Text style={[s.childBadgeName, { color: local.color ?? '#2E7D62' }]}>
-                    {local.name}
-                  </Text>
-                  <Text style={s.childBadgeYou}>you</Text>
+              <View key={local.id} style={s.pairCard}>
+                {/* Labels */}
+                <View style={s.pairLabelsRow}>
+                  <Text style={s.pairLabel}>YOUR CHILD</Text>
+                  <View style={{ flex: 1 }} />
+                  <Text style={s.pairLabel}>{partnerFirst.toUpperCase()}'S CHILD</Text>
                 </View>
 
-                <Ionicons name="arrow-forward" size={16} color="#9CA3AF" style={{ marginHorizontal: 4 }} />
+                {/* Children row */}
+                <View style={s.pairRow}>
+                  {/* Your child */}
+                  <View style={[s.yourChildChip, { backgroundColor: (local.color ?? '#2E7D62') + '18' }]}>
+                    <Text style={[s.yourChildName, { color: local.color ?? '#2E7D62' }]}>{local.name}</Text>
+                  </View>
 
-                {/* Partner children options */}
-                <View style={s.optionsCol}>
-                  {partnerChildren.map(partner => {
-                    const isSelected = matched?.id === partner.id;
-                    const takenByOther = !isSelected && matchedCanonicalIds.has(partner.id);
-                    return (
-                      <TouchableOpacity
-                        key={partner.id}
-                        style={[
-                          s.optionBtn,
-                          isSelected && s.optionBtnSelected,
-                          takenByOther && s.optionBtnDisabled,
-                        ]}
-                        onPress={() => !takenByOther && setMatch(local.id, partner)}
-                        disabled={takenByOther}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={[
-                          s.optionBtnText,
-                          isSelected && s.optionBtnTextSelected,
-                          takenByOther && { opacity: 0.4 },
-                        ]}>
-                          {partner.name}
-                        </Text>
-                        {isSelected && (
-                          <Ionicons name="checkmark-circle" size={14} color="#2E7D62" style={{ marginLeft: 4 }} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {/* Arrow */}
+                  <View style={s.arrowWrap}>
+                    <Ionicons name="swap-horizontal" size={18} color={matched ? '#2E7D62' : '#D1D5DB'} />
+                  </View>
+
+                  {/* Partner child selector */}
                   <TouchableOpacity
-                    style={[s.optionBtn, s.optionBtnSeparate, !matched && s.optionBtnSeparateActive]}
-                    onPress={() => setMatch(local.id, null)}
-                    activeOpacity={0.75}
+                    style={[s.partnerSelector, matched && matched.id !== '__none__' && s.partnerSelectorMatched, matched?.id === '__none__' && s.partnerSelectorNone]}
+                    onPress={() => setPickerFor(pickerFor === local.id ? null : local.id)}
+                    activeOpacity={0.8}
                   >
-                    <Text style={[s.optionBtnText, !matched && s.optionBtnTextSeparate]}>
-                      Keep separate
-                    </Text>
+                    {matched && matched.id !== '__none__' ? (
+                      <>
+                        <Ionicons name="checkmark-circle" size={14} color="#2E7D62" />
+                        <Text style={s.partnerSelectorMatchedText} numberOfLines={1}>{matched.name}</Text>
+                      </>
+                    ) : matched?.id === '__none__' ? (
+                      <>
+                        <Ionicons name="close-circle" size={14} color="#9CA3AF" />
+                        <Text style={[s.partnerSelectorMatchedText, { color: '#6B7280' }]} numberOfLines={1}>None of these</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={s.partnerSelectorPlaceholder}>Select…</Text>
+                        <Ionicons name="chevron-down" size={14} color="#9CA3AF" />
+                      </>
+                    )}
                   </TouchableOpacity>
                 </View>
+
+                {/* Inline picker */}
+                {pickerFor === local.id && (
+                  <View style={s.picker}>
+                    {partnerChildren.map(partner => {
+                      const takenByOther = matchedCanonicalIds.has(partner.id) && matches[local.id]?.id !== partner.id;
+                      return (
+                        <TouchableOpacity
+                          key={partner.id}
+                          style={[s.pickerOption, takenByOther && { opacity: 0.35 }]}
+                          onPress={() => !takenByOther && selectMatch(local.id, partner)}
+                          disabled={takenByOther}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={s.pickerOptionText}>{partner.name}</Text>
+                          {takenByOther && <Text style={s.pickerOptionTaken}>already matched</Text>}
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <TouchableOpacity
+                      style={[s.pickerOption, s.pickerOptionSeparate]}
+                      onPress={() => selectMatch(local.id, NONE_SENTINEL)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="close-circle-outline" size={14} color="#9CA3AF" />
+                      <Text style={[s.pickerOptionText, { color: '#9CA3AF' }]}>None of these</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             );
           })}
 
           <View style={s.infoCard}>
             <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
-            <Text style={s.infoText}>
-              Matching children merges their Good Deeds Garden history. {partnerFirst}'s settings and rewards are kept if they've already been set.
-            </Text>
+            <View style={{ flex: 1, gap: 8 }}>
+              <Text style={s.infoText}>
+                Matching children combines their Accomplishment Garden history. {partnerFirst}'s settings and rewards are kept if they've already been set.
+              </Text>
+              <Text style={s.infoText}>
+                Only children already added to each parent's app will appear above.
+              </Text>
+            </View>
           </View>
+
         </ScrollView>
 
-        {/* Actions */}
+        {/* Footer */}
         <View style={s.footer}>
           <TouchableOpacity style={s.skipBtn} onPress={handleSkip} activeOpacity={0.75}>
             <Text style={s.skipBtnText}>Skip for now</Text>
@@ -149,39 +176,47 @@ export default function ChildMergeModal({ visible, localChildren, partnerChildre
             }
           </TouchableOpacity>
         </View>
+
       </View>
     </Modal>
   );
 }
 
 const s = StyleSheet.create({
-  container:              { flex: 1, backgroundColor: '#FFFFFF' },
-  header:                 { padding: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  title:                  { fontSize: 20, fontWeight: '800', color: '#1A1A2E', marginBottom: 6 },
-  subtitle:               { fontSize: 14, color: '#6B7280', lineHeight: 20 },
-  scroll:                 { padding: 20, paddingBottom: 8, gap: 16 },
+  container:                { flex: 1, backgroundColor: '#F9FAFB' },
+  header:                   { padding: 24, paddingBottom: 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  title:                    { fontSize: 20, fontWeight: '800', color: '#1A1A2E', marginBottom: 6 },
+  subtitle:                 { fontSize: 14, color: '#6B7280', lineHeight: 20 },
+  scroll:                   { padding: 16, paddingBottom: 8, gap: 12 },
 
-  row:                    { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  childBadge:             { borderRadius: 12, padding: 10, alignItems: 'center', minWidth: 76, justifyContent: 'center' },
-  childBadgeName:         { fontSize: 13, fontWeight: '800', textAlign: 'center' },
-  childBadgeYou:          { fontSize: 10, color: '#9CA3AF', fontWeight: '500', marginTop: 2 },
+  pairCard:                 { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#F0F0F0', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 },
+  pairLabelsRow:            { flexDirection: 'row', marginBottom: 10 },
+  pairLabel:                { fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1 },
+  pairRow:                  { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
-  optionsCol:             { flex: 1, gap: 6 },
-  optionBtn:              { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: '#F9FAFB', borderWidth: 1.5, borderColor: '#E5E7EB' },
-  optionBtnSelected:      { backgroundColor: '#EDF7F2', borderColor: '#2E7D62' },
-  optionBtnDisabled:      { backgroundColor: '#F9FAFB' },
-  optionBtnSeparate:      { borderStyle: 'dashed' },
-  optionBtnSeparateActive:{ backgroundColor: '#F9FAFB', borderColor: '#D1D5DB' },
-  optionBtnText:          { fontSize: 13, fontWeight: '600', color: '#374151', flex: 1 },
-  optionBtnTextSelected:  { color: '#2E7D62' },
-  optionBtnTextSeparate:  { color: '#9CA3AF' },
+  yourChildChip:            { flex: 1, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center' },
+  yourChildName:            { fontSize: 14, fontWeight: '800', textAlign: 'center' },
 
-  infoCard:               { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 14, marginTop: 4 },
-  infoText:               { flex: 1, fontSize: 12, color: '#6B7280', lineHeight: 18 },
+  arrowWrap:                { alignItems: 'center', justifyContent: 'center' },
 
-  footer:                 { flexDirection: 'row', gap: 10, padding: 20, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
-  skipBtn:                { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB' },
-  skipBtnText:            { fontSize: 14, fontWeight: '600', color: '#6B7280' },
-  confirmBtn:             { flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, backgroundColor: '#1B3D2F' },
-  confirmBtnText:         { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  partnerSelector:          { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#F9FAFB', borderWidth: 1.5, borderColor: '#E5E7EB' },
+  partnerSelectorMatched:   { backgroundColor: '#EDF7F2', borderColor: '#2E7D62' },
+  partnerSelectorNone:      { backgroundColor: '#F9FAFB', borderColor: '#D1D5DB' },
+  partnerSelectorPlaceholder: { flex: 1, fontSize: 14, color: '#9CA3AF', fontWeight: '500' },
+  partnerSelectorMatchedText: { flex: 1, fontSize: 14, fontWeight: '700', color: '#2E7D62' },
+
+  picker:                   { marginTop: 12, borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 10, gap: 2 },
+  pickerOption:             { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4 },
+  pickerOptionSeparate:     { borderTopWidth: 1, borderTopColor: '#F5F5F5', marginTop: 4, paddingTop: 12 },
+  pickerOptionText:         { fontSize: 14, fontWeight: '600', color: '#374151', flex: 1 },
+  pickerOptionTaken:        { fontSize: 11, color: '#9CA3AF' },
+
+  infoCard:                 { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#F0F0F0' },
+  infoText:                 { flex: 1, fontSize: 12, color: '#6B7280', lineHeight: 18 },
+
+  footer:                   { flexDirection: 'row', gap: 10, padding: 20, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F0F0F0' },
+  skipBtn:                  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB' },
+  skipBtnText:              { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  confirmBtn:               { flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, backgroundColor: '#1B3D2F' },
+  confirmBtnText:           { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 });

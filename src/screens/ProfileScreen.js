@@ -55,6 +55,14 @@ const PERIODS = ['AM','PM'];
 
 const PLACES_KEY = 'AIzaSyAAzZUrCRvsauWBVNUnIf9HgH-CR8ub4Ig';
 
+function fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal })
+    .then(r => r.json())
+    .finally(() => clearTimeout(id));
+}
+
 const COUNTRIES = [
   'Afghanistan','Algeria','Australia','Bahrain','Bangladesh','Bosnia & Herzegovina',
   'Canada','Egypt','Ethiopia','France','Germany','Ghana','India','Indonesia',
@@ -586,12 +594,12 @@ function CommunitiesModal({ visible, selected, onConfirm, onClose }) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, timeout: 10000 });
         const { lat, lng } = { lat: loc.coords.latitude, lng: loc.coords.longitude };
         const base = `https://maps.googleapis.com/maps/api/place/nearbysearch/json`;
         const [r1, r2] = await Promise.all([
-          fetch(`${base}?location=${lat},${lng}&radius=20000&type=mosque&key=${PLACES_KEY}`).then(r => r.json()),
-          fetch(`${base}?location=${lat},${lng}&radius=20000&keyword=islamic+centre+masjid&key=${PLACES_KEY}`).then(r => r.json()),
+          fetchWithTimeout(`${base}?location=${lat},${lng}&radius=20000&type=mosque&key=${PLACES_KEY}`),
+          fetchWithTimeout(`${base}?location=${lat},${lng}&radius=20000&keyword=islamic+centre+masjid&key=${PLACES_KEY}`),
         ]);
         const seen = new Set();
         const places = [...(r1.results ?? []), ...(r2.results ?? [])]
@@ -610,7 +618,7 @@ function CommunitiesModal({ visible, selected, onConfirm, onClose }) {
       setSearching(true);
       try {
         const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' mosque islamic center')}&key=${PLACES_KEY}`;
-        const json = await fetch(url).then(r => r.json());
+        const json = await fetchWithTimeout(url);
         setResults((json.results ?? []).map(p => ({ placeId: p.place_id, name: p.name, address: p.formatted_address ?? '' })));
       } catch {}
       setSearching(false);
@@ -1089,19 +1097,25 @@ export default function ProfileScreen() {
             <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
         </View>
-        <View style={styles.profileTabRow}>
-          {[
-            { key: 'settings', label: 'Profile Settings' },
-            { key: 'library',  label: 'My Library' },
-          ].map(tab => {
-            const active = activeTab === tab.key;
-            return (
-              <TouchableOpacity key={tab.key} style={styles.profileTabBtn} onPress={() => setActiveTab(tab.key)} activeOpacity={0.75}>
-                <Text style={[styles.profileTabLabel, active && styles.profileTabLabelActive]}>{tab.label}</Text>
-                {active && <View style={styles.profileTabUnderline} />}
-              </TouchableOpacity>
-            );
-          })}
+        <View style={styles.profileSegmentOuter}>
+          <View style={styles.profileSegmentWrap}>
+            {[
+              { key: 'settings', label: 'Profile Settings' },
+              { key: 'library',  label: 'My Library' },
+            ].map(tab => {
+              const active = activeTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[styles.profileSegmentTab, active && styles.profileSegmentTabActive]}
+                  onPress={() => setActiveTab(tab.key)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.profileSegmentText, active && styles.profileSegmentTextActive]}>{tab.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       </View>
 
@@ -1509,6 +1523,20 @@ export default function ProfileScreen() {
               iconColor="#4F46E5"
               title="About Tarbiyah"
               onPress={() => navigation.navigate('About')}
+            />
+            <SettingRow
+              icon="shield-checkmark-outline"
+              iconBg="#EDF7F2"
+              iconColor="#2E7D62"
+              title="Privacy Policy"
+              onPress={() => Linking.openURL('https://thetarbiyahapp.com/privacy')}
+            />
+            <SettingRow
+              icon="document-text-outline"
+              iconBg="#FEF9EE"
+              iconColor="#B45309"
+              title="Terms & Conditions"
+              onPress={() => Linking.openURL('https://thetarbiyahapp.com/terms')}
               last
             />
           </SettingsCard>
@@ -1601,14 +1629,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
-  profileTabRow: { flexDirection: 'row', gap: 24 },
-  profileTabBtn: { paddingVertical: 14, alignItems: 'center', position: 'relative' },
-  profileTabLabel: { fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.4)' },
-  profileTabLabelActive: { color: '#FFFFFF', fontWeight: '700' },
-  profileTabUnderline: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    height: 3, borderRadius: 2, backgroundColor: '#FFFFFF',
-  },
+  profileSegmentOuter:     { paddingHorizontal: 20, paddingBottom: 16 },
+  profileSegmentWrap:      { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 3 },
+  profileSegmentTab:       { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
+  profileSegmentTabActive: { backgroundColor: '#FFFFFF' },
+  profileSegmentText:      { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  profileSegmentTextActive:{ fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
 
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1 },
