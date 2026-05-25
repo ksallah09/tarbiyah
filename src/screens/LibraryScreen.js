@@ -1326,8 +1326,14 @@ export default function LibraryScreen({ navigation }) {
                               <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
                               <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
                             </View>
-                            <TouchableOpacity onPress={() => handleContentMenu(item.user_id, 'dua', item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                              <Ionicons name="ellipsis-horizontal" size={15} color="#D1D5DB" />
+                            <TouchableOpacity
+                              onPress={() => item.user_id
+                                ? handleContentMenu(item.user_id, 'dua', item.id)
+                                : (setFlagModal({ contentType: 'dua', contentId: item.id }), setFlagReason(''))
+                              }
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons name={item.user_id ? 'ellipsis-horizontal' : 'flag-outline'} size={15} color="#D1D5DB" />
                             </TouchableOpacity>
                           </View>
                         </View>
