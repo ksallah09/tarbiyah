@@ -12,13 +12,11 @@
       color: #1A1A2E;
       line-height: 1.7;
     }
-    header {
-      background: #1B3D2F;
-      padding: 24px 40px;
-    }
-    header a { text-decoration: none; }
-    .logo { font-size: 20px; font-weight: 800; color: #FFFFFF; }
-    .logo span { color: #4ADE80; }
+    nav { position:sticky; top:0; background:rgba(255,255,255,0.95); backdrop-filter:blur(12px); border-bottom:1px solid rgba(0,0,0,0.06); padding:0 24px; height:64px; display:flex; align-items:center; justify-content:space-between; z-index:100; }
+    .nav-logo { display:flex; align-items:center; text-decoration:none; }
+    .nav-logo img { height:40px; width:auto; object-fit:contain; }
+    .nav-back { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:#1B3D2F; text-decoration:none; padding:8px 16px; border-radius:100px; border:1.5px solid rgba(27,61,47,0.2); transition:background 0.15s; }
+    .nav-back:hover { background:#E8F5EF; }
     .hero {
       background: linear-gradient(135deg, #1B3D2F 0%, #2E7D62 100%);
       padding: 60px 40px 50px;
@@ -80,9 +78,10 @@
 </head>
 <body>
 
-<header>
-  <a href="/"><div class="logo">Tarbi<span>yah</span></div></a>
-</header>
+<nav>
+  <a class="nav-logo" href="index.html"><img src="horizontal-logo.png" alt="Tarbiyah" /></a>
+  <a class="nav-back" href="index.html">← Back to Home</a>
+</nav>
 
 <div class="hero">
   <h1>Terms of Use</h1>
