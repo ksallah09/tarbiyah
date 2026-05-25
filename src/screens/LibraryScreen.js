@@ -1333,7 +1333,7 @@ export default function LibraryScreen({ navigation }) {
                               }
                               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             >
-                              <Ionicons name={item.user_id ? 'ellipsis-horizontal' : 'flag-outline'} size={15} color="#D1D5DB" />
+                              <Ionicons name="flag-outline" size={15} color="#D1D5DB" />
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -1347,7 +1347,7 @@ export default function LibraryScreen({ navigation }) {
                           >
                             <Ionicons name="sparkles" size={15} color={madeDua ? '#FFFFFF' : '#1B3D2F'} />
                             <Text style={[styles.duaReactText, madeDua && styles.duaReactTextActive]}>
-                              {item.made_dua_count > 0 ? `${item.made_dua_count} Made Du'a` : "Made Du'a"}
+                              {item.made_dua_count > 0 ? `${item.made_dua_count} Made Du'a` : "I Made Du'a"}
                             </Text>
                           </TouchableOpacity>
                           <TouchableOpacity
@@ -1535,7 +1535,7 @@ export default function LibraryScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
-                data={resources}
+                data={resources.filter(r => !blockedUserIds.has(r.submitted_by))}
                 keyExtractor={item => item.id}
                 contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
                 showsVerticalScrollIndicator={false}
@@ -1627,7 +1627,10 @@ export default function LibraryScreen({ navigation }) {
                         </TouchableOpacity>
                         {!isOwner && (
                           <TouchableOpacity
-                            onPress={() => { setFlagModal({ contentType: 'resource', contentId: item.id }); setFlagReason(''); }}
+                            onPress={() => item.submitted_by
+                              ? handleContentMenu(item.submitted_by, 'resource', item.id)
+                              : (setFlagModal({ contentType: 'resource', contentId: item.id }), setFlagReason(''))
+                            }
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             style={{ marginLeft: 4 }}
                             activeOpacity={0.75}

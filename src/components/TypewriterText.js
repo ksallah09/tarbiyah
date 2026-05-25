@@ -7,6 +7,7 @@ export default function TypewriterText({
   lineDelay = 480,
   style,
   lineStyle = {},
+  lineProps = {},
   onComplete,
 }) {
   const [displayed, setDisplayed] = useState([]);
@@ -42,12 +43,12 @@ export default function TypewriterText({
   return (
     <View>
       {displayed.map((line, i) => (
-        <Text key={i} style={[style, lineStyle[i]]}>
+        <Text key={i} style={[style, lineStyle[i]]} {...(lineProps[i] ?? {})}>
           {line}
         </Text>
       ))}
       {lineIndex < lines.length && (
-        <Text style={[style, lineStyle[lineIndex]]}>
+        <Text style={[style, lineStyle[lineIndex]]} {...(lineProps[lineIndex] ?? {})}>
           {activeText}
         </Text>
       )}

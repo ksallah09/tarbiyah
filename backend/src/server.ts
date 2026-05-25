@@ -1573,12 +1573,47 @@ app.post('/community/duas/:id/react', requireAuth, async (req: AuthRequest, res:
       return res.json({ reacted: false, type });
     } else {
       await supabase.from('dua_reactions').insert({ dua_id: id, user_id: userId, type });
+
+      // Notify the dua poster (fire-and-forget)
+      sendDuaReactionNotification(id as string, userId, type).catch(() => {});
+
       return res.json({ reacted: true, type });
     }
   } catch (err) {
     return res.status(500).json({ error: 'Failed to react.' });
   }
 });
+
+async function sendDuaReactionNotification(duaId: string, reactorId: string, type: 'made_dua' | 'feel_you') {
+  try {
+    const { data: dua } = await supabase
+      .from('duas')
+      .select('user_id')
+      .eq('id', duaId)
+      .single();
+
+    if (!dua?.user_id || dua.user_id === reactorId) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('push_token')
+      .eq('user_id', dua.user_id)
+      .single();
+
+    const token = profile?.push_token;
+    if (!token) return;
+
+    const message = type === 'made_dua'
+      ? { title: '🤲 Someone made du\'a for you', body: 'Your du\'a reached another parent\'s heart.' }
+      : { title: '💛 Someone said they feel you', body: 'You\'re not alone in this.' };
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ to: token, sound: 'default', ...message, data: { screen: 'Community' } }),
+    });
+  } catch {}
+}
 
 // GET /community/duas/my-reactions
 app.get('/community/duas/my-reactions', requireAuth, async (req: AuthRequest, res: Response) => {

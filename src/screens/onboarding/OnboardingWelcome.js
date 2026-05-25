@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -44,6 +44,9 @@ export default function OnboardingWelcome({ navigation }) {
               0: styles.lineSmall,
               1: styles.lineLarge,
               2: styles.lineMid,
+            }}
+            lineProps={{
+              1: { numberOfLines: 1, adjustsFontSizeToFit: true },
             }}
             onComplete={handleComplete}
           />
@@ -99,7 +102,7 @@ const styles = StyleSheet.create({
     fontSize: rs(34),
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: rs(42),
+    lineHeight: Platform.OS === 'android' ? rs(36) : rs(42),
     marginTop: 6,
   },
   lineMid: {

@@ -201,7 +201,7 @@ const GARDEN_REMINDER_MESSAGES = [
     body: 'Your child doesn\'t need perfection — they need presence. Open their Accomplishment Tree now and spend two minutes celebrating their growth.',
   },
   {
-    title: '🌿 Children grow through recognition',
+    title: '🌿 Children need recognition',
     body: 'The Prophet ﷺ always celebrated the good in those around him. Tap to open your child\'s tree and let them see how far they\'ve come.',
   },
   {
@@ -426,8 +426,8 @@ export async function schedulePIPCheckIn(afterDays, fromDateIso) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: `💬 ${afterDays}-day check-in — how's it going?`,
-      body: 'Share your progress and get personalised coaching to adjust your plan.',
+      title: "💬 How's your progress?",
+      body: `It's been ${afterDays} days — share your progress and get personalised coaching to adjust your plan.`,
       sound: true,
       data: { screen: 'PIPDetail' },
       android: { channelId: 'default' },
@@ -524,8 +524,8 @@ export async function scheduleChildPlanCheckIn(afterDays, fromDateIso, planId) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: `💬 ${afterDays}-day check-in — how is your child doing?`,
-      body: "Share your child's progress and get personalised coaching to adjust the plan.",
+      title: "💬 How is your child doing?",
+      body: `It's been ${afterDays} days — share their progress and get personalised coaching to adjust the plan.`,
       sound: true,
       data: { screen: 'ChildPlanDetail', ...(planId ? { planId } : {}) },
       android: { channelId: 'default' },
@@ -585,8 +585,8 @@ export async function scheduleChildPlanCompletion(plan) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: "🌱 Your child's journey is complete!",
-      body: 'Open the app to reflect on their progress and see what\'s next.',
+      title: "🌱 Journey complete!",
+      body: "Open the app to reflect on your child's progress and see what's next.",
       sound: true,
       data: { screen: 'ChildPlanDetail', planId: plan.id },
       android: { channelId: 'default' },
@@ -689,8 +689,8 @@ export async function notifyGrowthPlanReady(childName) {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: `${childName}'s growth plan is ready`,
-        body: 'Tap to view the plan and start today.',
+        title: '🌱 Growth plan ready',
+        body: `${childName}'s personalised growth plan is ready. Tap to view it and start today.`,
         sound: true,
         data: { screen: 'Dashboards' },
       },
@@ -817,8 +817,8 @@ export async function scheduleChildHabitNotifications() {
 
         const id = await Notifications.scheduleNotificationAsync({
           content: {
-            title: `${emoji} ${child.name} · This week's habit`,
-            body: habitText,
+            title: `${emoji} This week's habit`,
+            body: `${child.name}: ${habitText}`,
             sound: true,
             data: { screen: 'Dashboards', childId: child.id },
             android: { channelId: 'default' },
@@ -841,8 +841,8 @@ export async function scheduleChildHabitNotifications() {
       const activityText = `${truncateToSentence(activity.text, 100)} Open Tarbiyah to see more.`;
       const activityId = await Notifications.scheduleNotificationAsync({
         content: {
-          title: `🎯 ${fridayChild.name} · This week's activity`,
-          body: activityText,
+          title: "🎯 This week's activity",
+          body: `${fridayChild.name}: ${activityText}`,
           sound: true,
           data: { screen: 'Dashboards', childId: fridayChild.id },
           android: { channelId: 'default' },
