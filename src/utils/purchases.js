@@ -3,8 +3,8 @@ import { Platform } from 'react-native';
 
 // Replace these with your RevenueCat API keys from the RevenueCat dashboard
 const API_KEYS = {
-  ios:     'YOUR_REVENUECAT_IOS_API_KEY',
-  android: 'YOUR_REVENUECAT_ANDROID_API_KEY',
+  ios:     'appl_SZRWVkYHyeYyxZuUcPCzHFsCFGu',
+  android: 'goog_jDbuGQmlSaeWrwCHDPcQoEQhRNC',
 };
 
 export const ENTITLEMENT_ID = 'premium';
