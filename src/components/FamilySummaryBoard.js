@@ -504,9 +504,11 @@ export default function FamilySummaryBoard({ navigation }) {
         {partnerSyncOn && partnerLinked && sharedByPartner.length > 0 && (
           <View style={{ marginTop: 20 }}>
             <View style={s.momentHeader}>
-              <Text style={s.eyebrow}>SHARED BY YOUR PARTNER</Text>
-              <Text style={s.sectionTitle}>Recommended by Your Partner</Text>
-              <Text style={s.sectionSub}>Shared from a child's dashboard</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.eyebrow}>SHARED BY YOUR PARTNER</Text>
+                <Text style={s.sectionTitle}>Recommended by Your Partner</Text>
+                <Text style={s.sectionSub}>Shared from a child's dashboard</Text>
+              </View>
             </View>
             <ScrollView
               horizontal pagingEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast"
