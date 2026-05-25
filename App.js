@@ -492,9 +492,18 @@ export default function App() {
       }
       if (event === 'SIGNED_IN') {
         // Clear stale cache from any previous account session
-        AsyncStorage.removeItem('tarbiyah_daily_cache').catch(() => {});
-        // Restore children saved to this account's profile in Supabase
-        syncChildProfilesFromSupabase().catch(() => {});
+        AsyncStorage.multiRemove([
+          'tarbiyah_daily_cache',
+          'tarbiyah_family_goals',
+          'tarbiyah_loved_actions',
+          'tarbiyah_acknowledged_inc',
+        ]).catch(() => {});
+        // Restore children saved to this account's profile in Supabase,
+        // then refresh hasChildren/Goals so setup banner + dots update correctly
+        syncChildProfilesFromSupabase().then(() => {
+          refreshHasChildren();
+          refreshHasFamilyGoals();
+        }).catch(() => {});
         // Pre-warm partner sync status cache so Home leaderboard loads on first focus
         getFamilySyncStatus().catch(() => {});
         // Pre-generate youth culture content for all children

@@ -15,6 +15,7 @@ import {
   Alert,
   RefreshControl,
   Image,
+  ImageBackground,
   Animated,
   Dimensions,
   Switch,
@@ -224,6 +225,7 @@ export default function LibraryScreen({ navigation }) {
   const [overlayVisible, setOverlayVisible] = useState(false);
   const [overlayReady, setOverlayReady] = useState(false);
   const overlayBtnOpacity = useRef(new Animated.Value(0)).current;
+  const overlayImgOpacity = useRef(new Animated.Value(0)).current;
   const overlayActiveRef = useRef(false);
   const [overlayHadith, setOverlayHadith] = useState(COMMUNITY_HADITHS[0]);
 
@@ -231,6 +233,7 @@ export default function LibraryScreen({ navigation }) {
     overlayActiveRef.current = true;
     setOverlayReady(false);
     overlayBtnOpacity.setValue(1);
+    overlayImgOpacity.setValue(0);
     setOverlayHadith(COMMUNITY_HADITHS[Math.floor(Math.random() * COMMUNITY_HADITHS.length)]);
     setOverlayVisible(true);
     overlayTranslateY.setValue(SCREEN_HEIGHT);
@@ -1025,7 +1028,6 @@ export default function LibraryScreen({ navigation }) {
     activeTab === 'library'  ? (totalLibraryCount === 0 ? 'Nothing saved yet' : `${totalLibraryCount} saved item${totalLibraryCount !== 1 ? 's' : ''}`) :
     activeTab === 'myposts'  ? (myPosts.length === 0 ? 'No posts yet' : `${myPosts.length} post${myPosts.length !== 1 ? 's' : ''}`) :
     activeTab === 'dua'      ? 'Du\'a Board' :
-    activeTab === 'wins'     ? 'Parenting Wins' :
     'Parents helping parents';
 
   return (
@@ -1035,48 +1037,37 @@ export default function LibraryScreen({ navigation }) {
 
       {/* ── Header tab switcher ── */}
       <View style={[styles.tabHeader, { paddingTop: insets.top + 16 }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabRow}
-        >
-          {[
-            { key: 'resources', label: 'Resources',  dot: false },
-            { key: 'requests',  label: 'Requests',   dot: showRequestsDot && communityNotif },
-            { key: 'local',     label: 'Local',      dot: false },
-            { key: 'dua',       label: "Du'a Board", dot: showDuaDot },
-            { key: 'wins',      label: 'Wins',        dot: showWinsDot },
-            { key: 'myposts',   label: 'My Posts',   dot: false },
-          ].map(tab => {
-            const active = activeTab === tab.key;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                style={styles.tabBtn}
-                onPress={() => {
-                  setActiveTab(tab.key);
-                  if (tab.key === 'dua') {
-                    setShowDuaDot(false);
-                    AsyncStorage.setItem('tarbiyah_last_visited_dua', new Date().toISOString());
-                  } else if (tab.key === 'wins') {
-                    setShowWinsDot(false);
-                    AsyncStorage.setItem('tarbiyah_last_visited_wins', new Date().toISOString());
-                  } else if (tab.key === 'requests') {
-                    setShowRequestsDot(false);
-                    AsyncStorage.setItem('tarbiyah_last_visited_requests', new Date().toISOString());
-                  }
-                }}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.tabBtnLabel, active && styles.tabBtnLabelActive]}>
-                  {tab.label}
-                </Text>
-                {active && <View style={styles.tabBtnUnderline} />}
-                {tab.dot && <View style={styles.tabNewDot} />}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <View style={styles.tabSegmentOuter}>
+          <View style={styles.tabSegmentWrap}>
+            {[
+              { key: 'resources', label: 'Resources',  dot: false },
+              { key: 'local',     label: 'Local',      dot: false },
+              { key: 'dua',       label: "Du'a Board", dot: showDuaDot },
+              { key: 'myposts',   label: 'My Posts',   dot: false },
+            ].map(tab => {
+              const active = activeTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[styles.tabSegmentTab, active && styles.tabSegmentTabActive]}
+                  onPress={() => {
+                    setActiveTab(tab.key);
+                    if (tab.key === 'dua') {
+                      setShowDuaDot(false);
+                      AsyncStorage.setItem('tarbiyah_last_visited_dua', new Date().toISOString());
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Text style={[styles.tabSegmentText, active && styles.tabSegmentTextActive]}>{tab.label}</Text>
+                    {tab.dot && <View style={styles.tabNewDot} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
         {activeTab === 'local' ? (
           <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingTop: 2, paddingBottom: 4 }}>
             <Text style={styles.tabSubtitleMain}>Connect your family to the community</Text>
@@ -1085,9 +1076,7 @@ export default function LibraryScreen({ navigation }) {
         ) : (
           <Text style={styles.tabSubtitle}>
             {activeTab === 'resources' ? 'Curated resources shared by Muslim parents' :
-             activeTab === 'requests'  ? 'Ask the community for a resource' :
              activeTab === 'dua'       ? "Make du'a for families in your community" :
-             activeTab === 'wins'      ? 'Celebrate the small victories of parenting' :
              activeTab === 'myposts'   ? "Resources and posts you've shared" :
              ''}
           </Text>
@@ -1258,60 +1247,6 @@ export default function LibraryScreen({ navigation }) {
               setMosqueSocial(prev => ({ ...prev, [placeId]: links }));
             }}
           />
-        ) : activeTab === 'requests' ? (
-          // ─── RESOURCE REQUESTS ────────────────────────────────────────────
-          <>
-            {requestsLoading ? (
-              <View style={styles.empty}><ActivityIndicator size="large" color="#1B3D2F" /></View>
-            ) : requests.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={{ fontSize: 36, marginBottom: 8 }}>🙋</Text>
-                <Text style={styles.emptyTitle}>No requests yet</Text>
-                <Text style={styles.emptyBody}>Be the first to ask the community for a helpful resource.</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={requests}
-                keyExtractor={item => item.id}
-                contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 100 }]}
-                showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={requestsRefreshing} onRefresh={() => fetchRequests(true)} tintColor="#1B3D2F" />}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={reqStyles.card}
-                    activeOpacity={0.8}
-                    onPress={() => openRequestDetail(item)}
-                  >
-                    <View style={reqStyles.cardAccent} />
-                    <View style={reqStyles.cardBody}>
-                      <View style={reqStyles.cardTop}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={reqStyles.cardAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
-                          <Text style={reqStyles.cardTime}>{timeAgo(item.created_at)}</Text>
-                        </View>
-                        {(item.reply_count ?? 0) > 0 && (
-                          <View style={reqStyles.replyBadge}>
-                            <Ionicons name="chatbubble-outline" size={12} color="#2E7D62" />
-                            <Text style={reqStyles.replyBadgeText}>{item.reply_count}</Text>
-                          </View>
-                        )}
-                        <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'request', contentId: item.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 8 }}>
-                          <Ionicons name="flag-outline" size={15} color="#D1D5DB" />
-                        </TouchableOpacity>
-                      </View>
-                      <Text style={reqStyles.cardTitle}>{item.title}</Text>
-                      <Text style={reqStyles.cardDesc} numberOfLines={2}>{item.description}</Text>
-                      <Text style={reqStyles.tapHint}>Tap to see replies →</Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-              />
-            )}
-            <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 20 }]} onPress={() => setShowPostRequest(true)} activeOpacity={0.85}>
-              <Ionicons name="add" size={22} color="#FFFFFF" />
-              <Text style={styles.fabText}>Ask for a Resource</Text>
-            </TouchableOpacity>
-          </>
         ) : activeTab === 'dua' ? (
           // ─── DU'A BOARD ───────────────────────────────────────────────────
           <>
@@ -1382,67 +1317,6 @@ export default function LibraryScreen({ navigation }) {
             <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 20 }]} onPress={() => setShowDuaSubmit(true)} activeOpacity={0.85}>
               <Ionicons name="add" size={22} color="#FFFFFF" />
               <Text style={styles.fabText}>Share a Du'a</Text>
-            </TouchableOpacity>
-          </>
-        ) : activeTab === 'wins' ? (
-          // ─── PARENTING WINS ───────────────────────────────────────────────
-          <>
-            {winsLoading ? (
-              <View style={styles.empty}><ActivityIndicator size="large" color="#1B3D2F" /></View>
-            ) : wins.length === 0 ? (
-              <View style={styles.empty}>
-                <Ionicons name="trophy-outline" size={48} color="#D1D5DB" />
-                <Text style={styles.emptyTitle}>Share your first win</Text>
-                <Text style={styles.emptyBody}>Celebrate the small and big moments of Islamic parenting with the community.</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={wins}
-                keyExtractor={item => item.id}
-                contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 100 }]}
-                showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={winsRefreshing} onRefresh={() => fetchWins(true)} tintColor="#1B3D2F" />}
-                renderItem={({ item }) => {
-                  const hearted = myWinReactions.has(item.id);
-                  return (
-                    <View style={styles.winCard}>
-                      <View style={styles.winCardAccent} />
-                      <View style={styles.duaBody}>
-                        <View style={styles.duaTop}>
-                          <View style={styles.duaAuthorRow}>
-                            <View style={[styles.duaAvatar, { backgroundColor: '#FEF9EE' }]}><Ionicons name="trophy-outline" size={18} color="#D4871A" /></View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
-                              <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
-                            </View>
-                            <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'win', contentId: item.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                              <Ionicons name="flag-outline" size={15} color="#D1D5DB" />
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                        {item.title ? <Text style={styles.winTitle}>{item.title}</Text> : null}
-                        <Text style={styles.duaText}>{item.text}</Text>
-                        <View style={styles.duaActions}>
-                          <TouchableOpacity
-                            style={[styles.duaReactBtn, hearted && styles.winHeartActive]}
-                            onPress={() => handleWinReact(item)}
-                            activeOpacity={0.75}
-                          >
-                            <Ionicons name={hearted ? 'heart' : 'heart-outline'} size={15} color={hearted ? '#FFFFFF' : '#1B3D2F'} />
-                            <Text style={[styles.duaReactText, hearted && styles.duaReactTextActive]}>
-                              {item.heart_count > 0 ? `${item.heart_count}` : ''}{item.heart_count > 0 ? ' ' : ''}Masha'Allah
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                }}
-              />
-            )}
-            <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 20 }]} onPress={() => setShowWinSubmit(true)} activeOpacity={0.85}>
-              <Ionicons name="add" size={22} color="#FFFFFF" />
-              <Text style={styles.fabText}>Share a Win</Text>
             </TouchableOpacity>
           </>
         ) : activeTab === 'myposts' ? (
@@ -3285,28 +3159,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
     lineHeight: 16,
   },
-  tabRow: {
-    paddingHorizontal: 20, gap: 28, alignItems: 'center',
-  },
-  tabBtn: {
-    paddingVertical: 16, alignItems: 'center', position: 'relative',
-  },
-  tabBtnLabel: {
-    fontSize: 16, fontWeight: '600',
-    color: 'rgba(255,255,255,0.4)', letterSpacing: 0.2,
-  },
-  tabBtnLabelActive: {
-    color: '#FFFFFF', fontWeight: '700',
-  },
-  tabBtnUnderline: {
-    position: 'absolute', bottom: 10, left: 0, right: 0,
-    height: 3, borderRadius: 2, backgroundColor: '#FFFFFF',
-  },
+  tabSegmentOuter:     { paddingHorizontal: 16, paddingBottom: 14 },
+  tabSegmentWrap:      { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 3 },
+  tabSegmentTab:       { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
+  tabSegmentTabActive: { backgroundColor: '#FFFFFF' },
+  tabSegmentText:      { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  tabSegmentTextActive:{ fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
   tabNewDot: {
-    position: 'absolute', top: 10, right: -10,
-    width: 8, height: 8, borderRadius: 4,
+    width: 7, height: 7, borderRadius: 4,
     backgroundColor: '#4ADE80',
-    borderWidth: 1.5, borderColor: '#1B3D2F',
   },
 
   // ── Du'a / Win cards ──

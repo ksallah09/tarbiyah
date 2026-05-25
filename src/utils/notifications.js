@@ -193,7 +193,7 @@ export async function cancelWeeklyShareNotification() {
 const GARDEN_REMINDER_MESSAGES = [
   {
     title: '🌱 Time to visit the garden',
-    body: 'A good deed seen and celebrated becomes a habit rooted in the heart. Open your child\'s tree now and show them how far they\'ve come.',
+    body: 'An accomplishment seen and celebrated becomes a habit rooted in the heart. Open your child\'s tree now and show them how far they\'ve come.',
   },
 
   {
@@ -210,7 +210,7 @@ const GARDEN_REMINDER_MESSAGES = [
   },
   {
     title: '✨ A gentle nudge from Tarbiyah',
-    body: 'Children repeat what they\'re recognised for. Tap to open your child\'s tree, name a deed together, and say MashaAllah — that\'s tarbiyah.',
+    body: 'Children repeat what they\'re recognised for. Tap to open your child\'s tree, name an accomplishment together, and say MashaAllah — that\'s tarbiyah.',
   },
 ];
 

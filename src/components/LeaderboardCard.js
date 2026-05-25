@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, AppState } from 'react-native';
+import { supabase } from '../utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCachedSyncStatus } from '../utils/familySync';
 import { getMonthReadDays } from '../utils/readInsights';
 import { getPartnerMonthCounts } from '../utils/readInsights';
-import { getWeekCompletions, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
+import { getLocalCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
 
 const ROWS_CONFIG = [
   { label: 'Spiritual reads',   key: 'Spiritual',   icon: 'moon',                  color: '#4ADE80' },
@@ -15,7 +16,7 @@ const ROWS_CONFIG = [
   { label: 'Activities done',   key: 'Activities',  icon: 'color-palette-outline', color: '#FCD34D' },
 ];
 
-export default function LeaderboardCard({ navigation }) {
+export default function LeaderboardCard({ navigation, focusCount = 0 }) {
   const [syncStatus,    setSyncStatus]    = useState({ linked: false, partner: null });
   const [partnerSyncOn, setPartnerSyncOn] = useState(true);
   const [spirMonth,     setSpiritualMonth]   = useState([]);
@@ -24,25 +25,58 @@ export default function LeaderboardCard({ navigation }) {
   const [myHabAct,      setMyHabAct]      = useState({ habits: 0, activities: 0 });
   const [partnerCounts, setPartnerCounts] = useState({ spiritual: 0, scientific: 0, quran: 0 });
   const [prtHabAct,     setPrtHabAct]     = useState({ habits: 0, activities: 0 });
+  const partnerIdRef = useRef(null);
 
-  useEffect(() => {
+  const channelRef = useRef(null);
+
+  const loadAll = useCallback(async () => {
     AsyncStorage.getItem('tarbiyah_partner_sync_on').then(val => {
       if (val === 'false') setPartnerSyncOn(false);
     });
-
     getMonthReadDays('spiritual').then(setSpiritualMonth);
     getMonthReadDays('scientific').then(setScientificMonth);
     getMonthReadDays('quran').then(setQuranMonth);
-    getWeekCompletions().then(counts => setMyHabAct(getMonthlyHabitActivityTotals(counts)));
+    getLocalCounts().then(counts => setMyHabAct(getMonthlyHabitActivityTotals(counts)));
 
     getCachedSyncStatus().then(status => {
       setSyncStatus(status);
-      if (status?.linked && status?.partner?.userId) {
-        getPartnerMonthCounts(status.partner.userId).then(setPartnerCounts);
-        getPartnerMonthCompletions(status.partner.userId).then(setPrtHabAct);
-      }
+      if (!status?.linked || !status?.partner?.userId) return;
+      const uid = status.partner.userId;
+      partnerIdRef.current = uid;
+      getPartnerMonthCounts(uid).then(setPartnerCounts);
+      getPartnerMonthCompletions(uid).then(setPrtHabAct);
+
+      // Filtered real-time — same pattern as HomeScreen
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      channelRef.current = supabase
+        .channel(`lb-partner-${uid}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_read_history', filter: `user_id=eq.${uid}` }, () => {
+          getPartnerMonthCounts(uid).then(setPartnerCounts);
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${uid}` }, () => {
+          getPartnerMonthCompletions(uid).then(setPrtHabAct);
+        })
+        .subscribe();
     });
   }, []);
+
+  useEffect(() => {
+    loadAll();
+
+    const appSub = AppState.addEventListener('change', state => {
+      if (state === 'active') loadAll();
+    });
+
+    return () => {
+      appSub.remove();
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+    };
+  }, []);
+
+  // Re-load every time the parent screen is focused
+  useEffect(() => {
+    if (focusCount > 0) loadAll();
+  }, [focusCount]);
 
   if (!partnerSyncOn) return null;
 
@@ -61,6 +95,8 @@ export default function LeaderboardCard({ navigation }) {
     { ...ROWS_CONFIG[4], my: myHabAct.activities,partner: prtHabAct.activities },
   ];
 
+  const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+
   // ── Locked (not synced) ──
   if (!syncStatus.linked) {
     return (
@@ -68,7 +104,7 @@ export default function LeaderboardCard({ navigation }) {
         <View style={s.sectionHeader}>
           <Text style={s.sectionEyebrow}>PARTNER COMPETITION</Text>
           <Text style={s.sectionTitle}>Monthly Leaderboard</Text>
-          <Text style={s.sectionSub}>How you and your partner are doing this month</Text>
+          <Text style={s.sectionSub}>Resets at the end of {currentMonth}</Text>
         </View>
         <View style={s.card}>
         <View style={s.headerRow}>
@@ -129,7 +165,7 @@ export default function LeaderboardCard({ navigation }) {
       <View style={s.sectionHeader}>
         <Text style={s.sectionEyebrow}>PARTNER COMPETITION</Text>
         <Text style={s.sectionTitle}>Monthly Leaderboard</Text>
-        <Text style={s.sectionSub}>How you and your partner are doing this month</Text>
+        <Text style={s.sectionSub}>Resets at the end of {currentMonth}</Text>
       </View>
       <View style={s.card}>
       <View style={s.headerRow}>

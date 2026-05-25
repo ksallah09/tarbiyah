@@ -144,6 +144,9 @@ export async function syncChildProfilesFromSupabase() {
       .single();
     if (profile?.children_profiles?.length) {
       await setCached(profile.children_profiles);
+    } else {
+      // New or empty account — clear any stale data from a previous session
+      await setCached([]);
     }
   } catch {}
 }

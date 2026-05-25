@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
-  ScrollView, Animated, Linking, Alert, Platform,
+  ScrollView, Animated, Linking, Alert, Platform, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,10 +11,10 @@ import { useAuth } from '../../App';
 import { getOffering, purchasePackage, restorePurchases } from '../utils/purchases';
 
 const FEATURES = [
-  { icon: 'sunny-outline',          text: 'Daily spiritual insights, personalised to your family' },
-  { icon: 'apps-outline',           text: 'Child dashboards with weekly growth plans' },
-  { icon: 'globe-outline',          text: 'This Week in Youth Culture — live trend data, decoded' },
-  { icon: 'layers-outline',         text: 'Learn On Demand — AI audio modules for any challenge' },
+  { icon: 'sunny-outline',          text: 'Daily insights blending Islamic wisdom with research-based parenting guidance' },
+  { icon: 'apps-outline',           text: 'Child-specific dashboards with weekly growth plans' },
+  { icon: 'globe-outline',          text: 'Weekly youth culture insights — stay aware of what\'s shaping your child\'s world' },
+  { icon: 'layers-outline',         text: 'Learn On Demand — personalized learning modules for deeper understanding of parenting challenges' },
   { icon: 'people-outline',         text: 'Family goals and partner leaderboard' },
   { icon: 'chatbubbles-outline',    text: 'Community — parents helping parents' },
 ];
@@ -94,11 +94,13 @@ export default function PaywallScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-              <View style={styles.logoMark}>
-                <Text style={styles.logoEmoji}>🌿</Text>
-              </View>
+              <Image
+                source={require('../../assets/app-icons-1/logo-1-modified2.png')}
+                style={styles.logoMark}
+                resizeMode="contain"
+              />
               <Text style={styles.appName}>Tarbiyah</Text>
-              <Text style={styles.headline}>Raise them with{'\n'}intention.</Text>
+              <Text style={styles.headline}>Personalized support for your parenting journey.</Text>
               <View style={styles.trialBadge}>
                 <Ionicons name="gift-outline" size={13} color="#D4A843" />
                 <Text style={styles.trialBadgeText}>{trialDays}-day free trial — no charge until day {trialDays + 1}</Text>
@@ -133,7 +135,7 @@ export default function PaywallScreen() {
                       <ActivityIndicator color="#1B3D2F" />
                     ) : (
                       <>
-                        <Text style={styles.ctaBtnText}>Start Free Trial</Text>
+                        <Text style={styles.ctaBtnText}>Start Free 7-Day Trial</Text>
                         <Text style={styles.ctaBtnSub}>Then {priceString}/month · Cancel anytime</Text>
                       </>
                     )}
@@ -161,11 +163,11 @@ export default function PaywallScreen() {
               Manage or cancel in your {Platform.OS === 'ios' ? 'App Store' : 'Play Store'} account settings.
             </Text>
             <View style={styles.legalLinks}>
-              <TouchableOpacity onPress={() => Linking.openURL('https://tarbiyah.app/privacy')}>
+              <TouchableOpacity onPress={() => Linking.openURL('https://thetarbiyahapp.com/privacy')}>
                 <Text style={styles.legalLink}>Privacy Policy</Text>
               </TouchableOpacity>
               <Text style={styles.legalDot}>·</Text>
-              <TouchableOpacity onPress={() => Linking.openURL('https://tarbiyah.app/terms')}>
+              <TouchableOpacity onPress={() => Linking.openURL('https://thetarbiyahapp.com/terms')}>
                 <Text style={styles.legalLink}>Terms of Use</Text>
               </TouchableOpacity>
             </View>
@@ -187,10 +189,8 @@ const styles = StyleSheet.create({
 
   header: { alignItems: 'center', marginBottom: 36 },
   logoMark: {
-    width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(212,168,67,0.12)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    width: 72, height: 72, marginBottom: 12,
   },
-  logoEmoji:  { fontSize: 26 },
   appName:    { fontSize: 13, fontWeight: '700', color: '#D4A843', letterSpacing: 2.5, marginBottom: 16 },
   headline:   { fontSize: 36, fontWeight: '800', color: '#FFFFFF', textAlign: 'center', lineHeight: 44, marginBottom: 20 },
   trialBadge: {
