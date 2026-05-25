@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Animated, Platform, ActivityIndicator, Alert, ScrollView,
+  Animated, Platform, ActivityIndicator, Alert, ScrollView, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -317,9 +317,22 @@ export default function OnboardingAccount({ navigation, route }) {
             </View>
 
             {!isReturningUser && (
-              <Text style={styles.privacy}>
-                Your data is private and never sold.
-              </Text>
+              <>
+                <Text style={styles.privacy}>
+                  Your data is private and never sold.
+                </Text>
+                <Text style={styles.termsNote}>
+                  By creating an account you agree to our{' '}
+                  <Text style={styles.termsLink} onPress={() => Linking.openURL('https://thetarbiyahapp.com/terms')}>
+                    Terms of Use
+                  </Text>
+                  {' '}and{' '}
+                  <Text style={styles.termsLink} onPress={() => Linking.openURL('https://thetarbiyahapp.com/privacy')}>
+                    Privacy Policy
+                  </Text>
+                  . You agree not to post objectionable or abusive content.
+                </Text>
+              </>
             )}
 
             <TouchableOpacity
@@ -431,6 +444,16 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.3)',
     fontWeight: '400',
     marginTop: -8,
+  },
+  termsNote: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.25)',
+    lineHeight: 17,
+    marginTop: -8,
+  },
+  termsLink: {
+    color: 'rgba(255,255,255,0.5)',
+    textDecorationLine: 'underline',
   },
   btn: {
     backgroundColor: '#FFFFFF',

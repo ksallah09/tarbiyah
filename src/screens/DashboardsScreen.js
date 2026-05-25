@@ -521,6 +521,77 @@ export default function DashboardsScreen({ navigation, route }) {
     } catch {}
   }
 
+  function handleReportContent(entry) {
+    Alert.alert(
+      'Report or Block',
+      'What would you like to do?',
+      [
+        {
+          text: 'Report content',
+          onPress: () => {
+            Alert.alert(
+              'Report Content',
+              'Are you sure you want to report this content as objectionable? It will be removed from your feed and our team will be notified.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Report',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setFamilyMoments(prev => prev.filter(m => m.id !== entry.id));
+                    try {
+                      await supabase.from('content_reports').insert({
+                        content_id: entry.id,
+                        content_type: entry.type,
+                        content_text: entry.text,
+                        reported_by: myUserId,
+                        reported_user_id: entry.user_id ?? null,
+                        created_at: new Date().toISOString(),
+                      });
+                    } catch {}
+                    Alert.alert('Reported', 'Thank you. The content has been removed and our team has been notified.');
+                  },
+                },
+              ]
+            );
+          },
+        },
+        {
+          text: 'Block this user',
+          onPress: () => {
+            Alert.alert(
+              'Block User',
+              'This will remove all content from this user from your feed immediately. Our team will also be notified.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Block',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const blockedId = entry.user_id;
+                    if (!blockedId) return;
+                    setFamilyMoments(prev => prev.filter(m => m.user_id !== blockedId));
+                    try {
+                      await supabase.from('content_reports').insert({
+                        content_id: entry.id,
+                        content_type: 'block',
+                        reported_by: myUserId,
+                        reported_user_id: blockedId,
+                        created_at: new Date().toISOString(),
+                      });
+                    } catch {}
+                    Alert.alert('User Blocked', 'This user\'s content has been removed from your feed.');
+                  },
+                },
+              ]
+            );
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  }
+
   async function deleteIncident(id) {
     if (!child) return;
     const updated = incidents.filter(i => i.id !== id);
@@ -1031,6 +1102,14 @@ export default function DashboardsScreen({ navigation, route }) {
                                 <Text style={styles.familyMomentAckNameText}>{ackNames.join(' & ')}</Text>
                               </View>
                             )}
+                            <TouchableOpacity
+                              style={styles.familyMomentReportBtn}
+                              onPress={() => handleReportContent(entry)}
+                              activeOpacity={0.7}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons name="flag-outline" size={13} color="#9CA3AF" />
+                            </TouchableOpacity>
                           </View>
                         </View>
                       </View>
@@ -1715,6 +1794,7 @@ const styles = StyleSheet.create({
   shareBtnTextDone: { color: '#9CA3AF' },
   familyMomentAckNameText:    { fontSize: 12, fontWeight: '500', color: '#6B7280' },
   familyMomentLoveBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' },
+  familyMomentReportBtn:    { marginLeft: 'auto', padding: 4 },
   familyMomentLoveBtnActive:{ borderColor: '#FDA4AF', backgroundColor: '#FFF1F2' },
   familyMomentLoveCount:    { fontSize: 12, fontWeight: '700', color: '#9CA3AF' },
   familyMomentLoveCountActive: { color: '#E11D48' },
