@@ -17,6 +17,7 @@
       "usesAppleSignIn": true,
       "buildNumber": "19",
       "infoPlist": {
+        "UIBackgroundModes": ["audio"],
 "NSPhotoLibraryUsageDescription": "Tarbiyah uses your photo library to set profile and child photos.",
         "NSCameraUsageDescription": "Tarbiyah uses your camera to take profile and child photos.",
         "NSPhotoLibraryAddUsageDescription": "Tarbiyah saves photos to your library."
