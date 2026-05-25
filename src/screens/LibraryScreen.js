@@ -217,6 +217,7 @@ export default function LibraryScreen({ navigation }) {
   const [flagModal,          setFlagModal]          = useState(null); // { contentType, contentId }
   const [flagReason,         setFlagReason]         = useState('');
   const [flagSubmitting,     setFlagSubmitting]     = useState(false);
+  const [blockedUserIds,     setBlockedUserIds]     = useState(new Set());
   const replyMetaDebounce = useRef(null);
 
   // ── Loading overlay ──
@@ -276,6 +277,10 @@ export default function LibraryScreen({ navigation }) {
   useEffect(() => {
     AsyncStorage.getItem('tarbiyah_profile')
       .then(raw => { if (raw) { const p = JSON.parse(raw); setProfileName(p.name ?? ''); } })
+      .catch(() => {});
+
+    AsyncStorage.getItem('tarbiyah_blocked_users')
+      .then(raw => { if (raw) setBlockedUserIds(new Set(JSON.parse(raw))); })
       .catch(() => {});
 
     AsyncStorage.getItem('tarbiyah_community_hint_seen').then(seen => {
@@ -706,6 +711,47 @@ export default function LibraryScreen({ navigation }) {
         body: JSON.stringify({ type, comment }),
       });
     } catch {}
+  }
+
+  function handleContentMenu(userId, contentType, contentId) {
+    Alert.alert('Report or Block', 'What would you like to do?', [
+      {
+        text: 'Report post',
+        onPress: () => { setFlagModal({ contentType, contentId }); setFlagReason(''); },
+      },
+      {
+        text: 'Block this user',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert('Block User', 'Their posts will be removed from your feed immediately and our team will be notified.', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Block',
+              style: 'destructive',
+              onPress: async () => {
+                const next = new Set(blockedUserIds);
+                next.add(userId);
+                setBlockedUserIds(next);
+                await AsyncStorage.setItem('tarbiyah_blocked_users', JSON.stringify([...next]));
+                setDuas(prev => prev.filter(d => d.user_id !== userId));
+                setResources(prev => prev.filter(r => r.user_id !== userId));
+                try {
+                  const { data: session } = await supabase.auth.getSession();
+                  const token = session?.session?.access_token;
+                  await fetch(`${API_URL}/community/flag`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ contentType: 'block_user', contentId: userId, reason: 'User blocked' }),
+                  });
+                } catch {}
+                Alert.alert('User Blocked', 'Their content has been removed from your feed.');
+              },
+            },
+          ]);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   async function handleFlag(contentType, contentId, reason) {
@@ -1260,7 +1306,7 @@ export default function LibraryScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
-                data={duas}
+                data={duas.filter(d => !blockedUserIds.has(d.user_id))}
                 keyExtractor={item => item.id}
                 contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: 100 }]}
                 showsVerticalScrollIndicator={false}
@@ -1279,8 +1325,8 @@ export default function LibraryScreen({ navigation }) {
                               <Text style={styles.duaAuthor}>{item.is_anonymous ? 'Anonymous Parent' : (item.display_name ?? 'Parent')}</Text>
                               <Text style={styles.duaTime}>{timeAgo(item.created_at)}</Text>
                             </View>
-                            <TouchableOpacity onPress={() => { setFlagModal({ contentType: 'dua', contentId: item.id }); setFlagReason(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                              <Ionicons name="flag-outline" size={15} color="#D1D5DB" />
+                            <TouchableOpacity onPress={() => handleContentMenu(item.user_id, 'dua', item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Ionicons name="ellipsis-horizontal" size={15} color="#D1D5DB" />
                             </TouchableOpacity>
                           </View>
                         </View>
