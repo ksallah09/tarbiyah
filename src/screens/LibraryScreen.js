@@ -714,12 +714,13 @@ export default function LibraryScreen({ navigation }) {
   }
 
   function handleContentMenu(userId, contentType, contentId) {
+    const canBlock = !!userId;
     Alert.alert('Report or Block', 'What would you like to do?', [
       {
         text: 'Report post',
         onPress: () => { setFlagModal({ contentType, contentId }); setFlagReason(''); },
       },
-      {
+      ...( canBlock ? [{
         text: 'Block this user',
         style: 'destructive',
         onPress: () => {
@@ -749,7 +750,7 @@ export default function LibraryScreen({ navigation }) {
             },
           ]);
         },
-      },
+      }] : []),
       { text: 'Cancel', style: 'cancel' },
     ]);
   }
