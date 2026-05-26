@@ -45,8 +45,14 @@ export default function PaywallScreen() {
     p => p.packageType === 'MONTHLY'
   ) ?? offering?.availablePackages?.[0] ?? null;
 
-  const priceString = monthlyPackage?.product?.priceString ?? '$4.99';
-  const trialDays   = monthlyPackage?.product?.introPrice?.periodNumberOfUnits ?? 7;
+  const priceString  = monthlyPackage?.product?.priceString ?? null;
+  const introPrice   = monthlyPackage?.product?.introPrice ?? null;
+  const hasTrial     = introPrice !== null && introPrice.price === 0;
+  const trialDays    = hasTrial
+    ? (introPrice.periodUnit === 'WEEK'
+        ? introPrice.periodNumberOfUnits * 7
+        : introPrice.periodNumberOfUnits)
+    : 0;
 
   async function handlePurchase() {
     if (!monthlyPackage) return;
@@ -101,10 +107,12 @@ export default function PaywallScreen() {
               />
               <Text style={styles.appName}>Tarbiyah</Text>
               <Text style={styles.headline}>Personalized support for your parenting journey.</Text>
-              <View style={styles.trialBadge}>
-                <Ionicons name="gift-outline" size={13} color="#D4A843" />
-                <Text style={styles.trialBadgeText}>{trialDays}-day free trial — no charge until day {trialDays + 1}</Text>
-              </View>
+              {hasTrial && (
+                <View style={styles.trialBadge}>
+                  <Ionicons name="gift-outline" size={13} color="#D4A843" />
+                  <Text style={styles.trialBadgeText}>{trialDays}-day free trial — no charge until day {trialDays + 1}</Text>
+                </View>
+              )}
             </View>
 
             {/* Feature list */}
@@ -135,8 +143,14 @@ export default function PaywallScreen() {
                       <ActivityIndicator color="#1B3D2F" />
                     ) : (
                       <>
-                        <Text style={styles.ctaBtnText}>Start Free 7-Day Trial</Text>
-                        <Text style={styles.ctaBtnSub}>Then {priceString}/month · Cancel anytime</Text>
+                        <Text style={styles.ctaBtnText}>
+                          {hasTrial ? `Start Free ${trialDays}-Day Trial` : 'Get Started'}
+                        </Text>
+                        {priceString && (
+                          <Text style={styles.ctaBtnSub}>
+                            {hasTrial ? `Then ${priceString}/month · Cancel anytime` : `${priceString}/month · Cancel anytime`}
+                          </Text>
+                        )}
                       </>
                     )}
                   </TouchableOpacity>
