@@ -3626,9 +3626,10 @@ app.post('/admin/flags/:id/delete-content', requireAdmin, async (req: Request, r
 
 app.post('/admin/users/:id/block', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { error } = await supabase.auth.admin.deleteUser(req.params.id);
+    const userId = String(req.params.id);
+    const { error } = await supabase.auth.admin.deleteUser(userId);
     if (error) throw error;
-    await supabase.from('content_flags').delete().eq('user_id', req.params.id);
+    await supabase.from('content_flags').delete().eq('user_id', userId);
     return res.json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to block user' });
