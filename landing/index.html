@@ -192,6 +192,40 @@
       background: var(--green-light);
     }
 
+    /* ── STORE BADGES ── */
+    .store-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: #000;
+      color: white;
+      padding: 11px 22px;
+      border-radius: 14px;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .store-badge:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.28); }
+    .store-badge svg { flex-shrink: 0; }
+    .store-badge-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .store-badge-sub { font-size: 10px; font-weight: 500; opacity: 0.75; letter-spacing: 0.2px; }
+    .store-badge-main { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+
+    .store-badge-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: transparent;
+      color: white;
+      padding: 11px 22px;
+      border-radius: 14px;
+      text-decoration: none;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .store-badge-outline:hover { transform: translateY(-2px); border-color: white; }
+    .store-badge-outline svg { flex-shrink: 0; }
+
     /* ── PHONE MOCKUP ── */
     .phone-wrap {
       display: flex;
@@ -624,11 +658,27 @@
     </p>
 
     <div class="hero-actions">
-      <a href="https://apps.apple.com/us/app/tarbiyah-islamic-parenting/id6762082404" target="_blank" rel="noopener" class="btn-primary">
-        🍎 &nbsp;Download on iOS
+      <a href="https://apps.apple.com/us/app/tarbiyah-islamic-parenting/id6762082404" target="_blank" rel="noopener" class="store-badge" style="background:#000;">
+        <svg width="24" height="28" viewBox="0 0 24 28" fill="white" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20.005 14.53c-.03-3.19 2.607-4.733 2.727-4.81-1.487-2.174-3.797-2.47-4.616-2.5-1.96-.2-3.83 1.16-4.824 1.16-.99 0-2.516-1.13-4.14-1.1C6.98 7.31 4.85 8.66 3.686 10.73c-2.37 4.1-.607 10.16 1.7 13.49 1.13 1.63 2.47 3.46 4.23 3.4 1.7-.07 2.34-1.1 4.394-1.1 2.05 0 2.63 1.1 4.43 1.07 1.83-.03 2.99-1.66 4.11-3.3 1.3-1.89 1.83-3.73 1.86-3.83-.04-.02-3.57-1.37-3.6-5.43z"/>
+          <path d="M16.726 4.948c.94-1.14 1.574-2.72 1.4-4.3-1.354.055-2.997.9-3.967 2.04-.87 1.01-1.634 2.62-1.43 4.17 1.51.117 3.056-.77 3.997-1.91z"/>
+        </svg>
+        <span class="store-badge-text">
+          <span class="store-badge-sub">Download on the</span>
+          <span class="store-badge-main">App Store</span>
+        </span>
       </a>
-      <a href="https://play.google.com/store/apps/details?id=com.tarbiyah.parenting" target="_blank" rel="noopener" class="btn-secondary">
-        🤖 &nbsp;Download on Android
+      <a href="https://play.google.com/store/apps/details?id=com.tarbiyah.parenting" target="_blank" rel="noopener" class="store-badge" style="background:#000;">
+        <svg width="24" height="26" viewBox="0 0 24 26" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1.23.27C.78.53.5 1.01.5 1.6v22.8c0 .59.28 1.07.73 1.33l.12.07 12.77-12.77v-.3L1.35.2z" fill="#4FC3F7"/>
+          <path d="M18.37 17.37l-4.25-4.25v-.3l4.25-4.24.1.05 5.03 2.86c1.44.82 1.44 2.15 0 2.97l-5.03 2.86z" fill="#FFCA28"/>
+          <path d="M18.47 17.32L14.12 13 1.23 25.93c.47.5 1.25.56 2.13.07l15.11-8.68" fill="#F44336"/>
+          <path d="M18.47 8.68L3.36.73C2.48.23 1.7.3 1.23.8L14.12 13z" fill="#4CAF50"/>
+        </svg>
+        <span class="store-badge-text">
+          <span class="store-badge-sub">Get it on</span>
+          <span class="store-badge-main">Google Play</span>
+        </span>
       </a>
     </div>
   </section>
@@ -824,11 +874,27 @@
       Download Tarbiyah free and begin raising your children with intention, wisdom, and purpose.
     </p>
     <div class="cta-actions">
-      <a href="https://apps.apple.com/us/app/tarbiyah-islamic-parenting/id6762082404" target="_blank" rel="noopener" class="btn-white">
-        🍎 &nbsp;Download on iOS
+      <a href="https://apps.apple.com/us/app/tarbiyah-islamic-parenting/id6762082404" target="_blank" rel="noopener" class="store-badge">
+        <svg width="24" height="28" viewBox="0 0 24 28" fill="white" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20.005 14.53c-.03-3.19 2.607-4.733 2.727-4.81-1.487-2.174-3.797-2.47-4.616-2.5-1.96-.2-3.83 1.16-4.824 1.16-.99 0-2.516-1.13-4.14-1.1C6.98 7.31 4.85 8.66 3.686 10.73c-2.37 4.1-.607 10.16 1.7 13.49 1.13 1.63 2.47 3.46 4.23 3.4 1.7-.07 2.34-1.1 4.394-1.1 2.05 0 2.63 1.1 4.43 1.07 1.83-.03 2.99-1.66 4.11-3.3 1.3-1.89 1.83-3.73 1.86-3.83-.04-.02-3.57-1.37-3.6-5.43z"/>
+          <path d="M16.726 4.948c.94-1.14 1.574-2.72 1.4-4.3-1.354.055-2.997.9-3.967 2.04-.87 1.01-1.634 2.62-1.43 4.17 1.51.117 3.056-.77 3.997-1.91z"/>
+        </svg>
+        <span class="store-badge-text">
+          <span class="store-badge-sub">Download on the</span>
+          <span class="store-badge-main">App Store</span>
+        </span>
       </a>
-      <a href="https://play.google.com/store/apps/details?id=com.tarbiyah.parenting" target="_blank" rel="noopener" class="btn-outline-white">
-        🤖 &nbsp;Download on Android
+      <a href="https://play.google.com/store/apps/details?id=com.tarbiyah.parenting" target="_blank" rel="noopener" class="store-badge-outline">
+        <svg width="24" height="26" viewBox="0 0 24 26" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1.23.27C.78.53.5 1.01.5 1.6v22.8c0 .59.28 1.07.73 1.33l.12.07 12.77-12.77v-.3L1.35.2z" fill="#4FC3F7"/>
+          <path d="M18.37 17.37l-4.25-4.25v-.3l4.25-4.24.1.05 5.03 2.86c1.44.82 1.44 2.15 0 2.97l-5.03 2.86z" fill="#FFCA28"/>
+          <path d="M18.47 17.32L14.12 13 1.23 25.93c.47.5 1.25.56 2.13.07l15.11-8.68" fill="#F44336"/>
+          <path d="M18.47 8.68L3.36.73C2.48.23 1.7.3 1.23.8L14.12 13z" fill="#4CAF50"/>
+        </svg>
+        <span class="store-badge-text">
+          <span class="store-badge-sub">Get it on</span>
+          <span class="store-badge-main">Google Play</span>
+        </span>
       </a>
     </div>
     <p style="margin-top:20px; font-size:13px; color:rgba(255,255,255,0.35);">Free download · 7-day trial · $4.99/month</p>
