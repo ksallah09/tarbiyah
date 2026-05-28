@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tarbiyah Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green: #1B3D2F; --green-mid: #2E7D62; --green-light: #E8F5EF;
+      --gold: #D4871A; --gold-light: #FDF3E3;
+      --red: #DC2626; --red-light: #FEF2F2;
+      --text: #1C1C1E; --muted: #6B7280; --bg: #F5F6F8; --white: #FFFFFF;
+      --border: #E5E7EB;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+
+    /* ── LOGIN ── */
+    #login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: var(--white); border-radius: 20px; padding: 48px 40px;
+      box-shadow: 0 4px 40px rgba(0,0,0,0.08); width: 100%; max-width: 400px; text-align: center;
+    }
+    .login-logo { font-size: 28px; font-weight: 800; color: var(--green); margin-bottom: 6px; }
+    .login-sub { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+    .login-card input {
+      width: 100%; padding: 13px 16px; border: 1.5px solid var(--border); border-radius: 12px;
+      font-size: 15px; font-family: inherit; outline: none; margin-bottom: 12px;
+      transition: border-color 0.15s;
+    }
+    .login-card input:focus { border-color: var(--green-mid); }
+    .login-card button {
+      width: 100%; padding: 14px; background: var(--green); color: white; border: none;
+      border-radius: 12px; font-size: 15px; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .login-card button:hover { opacity: 0.88; }
+    #login-error { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+    /* ── DASHBOARD ── */
+    #dashboard { display: none; }
+    .topbar {
+      background: var(--green); padding: 0 32px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar-title { font-size: 16px; font-weight: 800; color: white; }
+    .topbar-logout {
+      font-size: 13px; color: rgba(255,255,255,0.55); cursor: pointer;
+      background: none; border: none; font-family: inherit; transition: color 0.15s;
+    }
+    .topbar-logout:hover { color: white; }
+
+    .main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+    /* ── STATS ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 36px; }
+    .stat-card {
+      background: var(--white); border-radius: 16px; padding: 22px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+    .stat-value { font-size: 32px; font-weight: 800; color: var(--green); line-height: 1; }
+    .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .stat-card.warn .stat-value { color: var(--gold); }
+    .stat-card.alert .stat-value { color: var(--red); }
+
+    /* ── TABS ── */
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; }
+    .tab {
+      padding: 9px 20px; border-radius: 100px; font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none; font-family: inherit; background: transparent; color: var(--muted);
+      transition: background 0.15s, color 0.15s;
+    }
+    .tab.active { background: var(--green); color: white; }
+    .tab-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--red); color: white; font-size: 10px; font-weight: 700;
+      width: 18px; height: 18px; border-radius: 50%; margin-left: 6px; vertical-align: middle;
+    }
+
+    /* ── TABLE ── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .table-wrap { background: var(--white); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+      color: var(--muted); text-transform: uppercase; padding: 14px 20px;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+    }
+    td { padding: 16px 20px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #FAFAFA; }
+    .empty-row td { text-align: center; color: var(--muted); padding: 48px; font-size: 14px; }
+
+    .resource-title { font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .resource-url { font-size: 12px; color: var(--green-mid); text-decoration: none; }
+    .resource-url:hover { text-decoration: underline; }
+    .resource-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    .pill {
+      display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px;
+      border-radius: 100px; margin-bottom: 4px;
+    }
+    .pill-green { background: var(--green-light); color: var(--green-mid); }
+    .pill-gold { background: var(--gold-light); color: var(--gold); }
+    .pill-red { background: var(--red-light); color: var(--red); }
+
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; font-family: inherit; transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.82; }
+    .btn-approve { background: var(--green-light); color: var(--green-mid); }
+    .btn-reject { background: var(--red-light); color: var(--red); }
+    .btn-dismiss { background: var(--bg); color: var(--muted); }
+    .btn-delete { background: var(--red-light); color: var(--red); }
+    .btn-block { background: #1C1C1E; color: white; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .loading { text-align: center; padding: 48px; color: var(--muted); font-size: 14px; }
+    .reason-text { font-size: 13px; color: var(--muted); font-style: italic; }
+    .content-preview { font-size: 13px; color: var(--text); margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">Tarbiyah</div>
+    <div class="login-sub">Admin Dashboard</div>
+    <input type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')login()" />
+    <button onclick="login()">Sign In</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-title">Tarbiyah Admin</div>
+    <button class="topbar-logout" onclick="logout()">Sign out</button>
+  </div>
+
+  <div class="main">
+
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value" id="s-users">—</div></div>
+      <div class="stat-card"><div class="stat-label">New This Week</div><div class="stat-value" id="s-new">—</div></div>
+      <div class="stat-card"><div class="stat-label">Duas Posted</div><div class="stat-value" id="s-duas">—</div></div>
+      <div class="stat-card"><div class="stat-label">Resources Live</div><div class="stat-value" id="s-resources">—</div></div>
+      <div class="stat-card warn"><div class="stat-label">Pending Review</div><div class="stat-value" id="s-pending">—</div></div>
+      <div class="stat-card alert"><div class="stat-label">Content Flags</div><div class="stat-value" id="s-flags">—</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('pending')">Pending Resources <span class="tab-badge" id="badge-pending">0</span></button>
+      <button class="tab" onclick="switchTab('flags')">Flagged Content <span class="tab-badge" id="badge-flags">0</span></button>
+    </div>
+
+    <!-- Pending Panel -->
+    <div class="panel active" id="panel-pending">
+      <div class="table-wrap">
+        <div class="loading" id="pending-loading">Loading…</div>
+        <table id="pending-table" style="display:none">
+          <thead><tr><th>Resource</th><th>Category</th><th>Submitted By</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="pending-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Flags Panel -->
+    <div class="panel" id="panel-flags">
+      <div class="table-wrap">
+        <div class="loading" id="flags-loading">Loading…</div>
+        <table id="flags-table" style="display:none">
+          <thead><tr><th>Flagged Content</th><th>Type</th><th>Reason</th><th>Actions</th></tr></thead>
+          <tbody id="flags-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API = 'https://tarbiyah-production.up.railway.app';
+  let TOKEN = localStorage.getItem('admin_token') ?? '';
+
+  async function api(method, path, body) {
+    const res = await fetch(API + path, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': TOKEN },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  async function login() {
+    const pw = document.getElementById('pw-input').value;
+    const err = document.getElementById('login-error');
+    err.textContent = '';
+    try {
+      const { token } = await fetch(API + '/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      }).then(r => { if (!r.ok) throw new Error(); return r.json(); });
+      TOKEN = token;
+      localStorage.setItem('admin_token', token);
+      showDashboard();
+    } catch {
+      err.textContent = 'Incorrect password.';
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('admin_token');
+    TOKEN = '';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+
+  async function showDashboard() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadStats();
+    loadPending();
+    loadFlags();
+  }
+
+  async function loadStats() {
+    try {
+      const s = await api('GET', '/admin/stats');
+      document.getElementById('s-users').textContent = s.users;
+      document.getElementById('s-new').textContent = s.newUsers;
+      document.getElementById('s-duas').textContent = s.duas;
+      document.getElementById('s-resources').textContent = s.resources;
+      document.getElementById('s-pending').textContent = s.pending;
+      document.getElementById('s-flags').textContent = s.flags;
+      document.getElementById('badge-pending').textContent = s.pending;
+      document.getElementById('badge-flags').textContent = s.flags;
+    } catch {}
+  }
+
+  async function loadPending() {
+    const loading = document.getElementById('pending-loading');
+    const table = document.getElementById('pending-table');
+    const body = document.getElementById('pending-body');
+    try {
+      const items = await api('GET', '/admin/pending');
+      loading.style.display = 'none';
+      table.style.display = 'table';
+      if (!items.length) {
+        body.innerHTML = '<tr class="empty-row"><td colspan="5">No pending resources — all clear ✓</td></tr>';
+        return;
+      }
+      body.innerHTML = items.map(r => `
+        <tr id="pr-${r.id}">
+          <td>
+            <div class="resource-title">${esc(r.title)}</div>
+            <a class="resource-url" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>
+            ${r.why_helped ? `<div class="resource-meta">"${esc(r.why_helped)}"</div>` : ''}
+          </td>
+          <td><span class="pill pill-gold">${esc(r.category)}</span></td>
+          <td><div class="resource-meta">${esc(r.submitter_name ?? 'Anonymous')}</div></td>
+          <td><div class="resource-meta">${fmtDate(r.created_at)}</div></td>
+          <td>
+            <div class="actions">
+              <button class="btn btn-approve" onclick="approveResource('${r.id}')">Approve</button>
+              <button class="btn btn-reject" onclick="rejectResource('${r.id}')">Reject</button>
+            </div>
+          </td>
+        </tr>`).join('');
+    } catch {
+      loading.textContent = 'Failed to load pending resources.';
+    }
+  }
+
+  async function loadFlags() {
+    const loading = document.getElementById('flags-loading');
+    const table = document.getElementById('flags-table');
+    const body = document.getElementById('flags-body');
+    try {
+      const items = await api('GET', '/admin/flags');
+      loading.style.display = 'none';
+      table.style.display = 'table';
+      if (!items.length) {
+        body.innerHTML = '<tr class="empty-row"><td colspan="4">No flagged content — all clear ✓</td></tr>';
+        return;
+      }
+      body.innerHTML = items.map(f => {
+        const c = f.content;
+        const preview = c ? (c.title || c.text || c.url || '—') : '(content deleted)';
+        const userId = c?.submitted_by || c?.user_id || null;
+        return `
+        <tr id="fl-${f.id}">
+          <td>
+            <div class="content-preview">${esc(preview)}</div>
+            ${c?.url ? `<a class="resource-url" href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.url)}</a>` : ''}
+            <div class="resource-meta">Flagged ${fmtDate(f.created_at)}</div>
+          </td>
+          <td><span class="pill ${f.content_type === 'dua' ? 'pill-green' : 'pill-gold'}">${f.content_type}</span></td>
+          <td><div class="reason-text">${esc(f.reason)}</div></td>
+          <td>
+            <div class="actions">
+              <button class="btn btn-dismiss" onclick="dismissFlag('${f.id}')">Dismiss</button>
+              <button class="btn btn-delete" onclick="deleteContent('${f.id}')">Delete Content</button>
+              ${userId ? `<button class="btn btn-block" onclick="blockUser('${f.id}','${userId}')">Block User</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    } catch {
+      loading.textContent = 'Failed to load flagged content.';
+    }
+  }
+
+  async function approveResource(id) {
+    if (!confirm('Approve this resource?')) return;
+    setRowBusy(`pr-${id}`, true);
+    try { await api('POST', `/admin/resources/${id}/approve`); removeRow(`pr-${id}`); loadStats(); }
+    catch { alert('Failed to approve.'); setRowBusy(`pr-${id}`, false); }
+  }
+
+  async function rejectResource(id) {
+    if (!confirm('Reject and delete this resource?')) return;
+    setRowBusy(`pr-${id}`, true);
+    try { await api('POST', `/admin/resources/${id}/reject`); removeRow(`pr-${id}`); loadStats(); }
+    catch { alert('Failed to reject.'); setRowBusy(`pr-${id}`, false); }
+  }
+
+  async function dismissFlag(id) {
+    setRowBusy(`fl-${id}`, true);
+    try { await api('POST', `/admin/flags/${id}/dismiss`); removeRow(`fl-${id}`); loadStats(); }
+    catch { alert('Failed to dismiss.'); setRowBusy(`fl-${id}`, false); }
+  }
+
+  async function deleteContent(id) {
+    if (!confirm('Delete this content and dismiss the flag?')) return;
+    setRowBusy(`fl-${id}`, true);
+    try { await api('POST', `/admin/flags/${id}/delete-content`); removeRow(`fl-${id}`); loadStats(); }
+    catch { alert('Failed to delete content.'); setRowBusy(`fl-${id}`, false); }
+  }
+
+  async function blockUser(flagId, userId) {
+    if (!confirm('Block this user? This will permanently delete their account.')) return;
+    setRowBusy(`fl-${flagId}`, true);
+    try { await api('POST', `/admin/users/${userId}/block`); removeRow(`fl-${flagId}`); loadStats(); }
+    catch { alert('Failed to block user.'); setRowBusy(`fl-${flagId}`, false); }
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['pending','flags'][i] === name));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`panel-${name}`).classList.add('active');
+  }
+
+  function setRowBusy(id, busy) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.querySelectorAll('button').forEach(b => b.disabled = busy);
+  }
+
+  function removeRow(id) {
+    document.getElementById(id)?.remove();
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // Auto-login if token exists
+  if (TOKEN) showDashboard();
+</script>
+</body>
+</html>

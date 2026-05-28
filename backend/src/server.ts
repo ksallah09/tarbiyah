@@ -3485,6 +3485,156 @@ app.post('/community/flag', requireAuth, async (req: AuthRequest, res: Response)
   }
 });
 
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+
+const adminSessions = new Set<string>();
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const token = req.headers['x-admin-token'] as string;
+  if (!token || !adminSessions.has(token)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+app.post('/admin/login', (req: Request, res: Response) => {
+  const { password } = req.body;
+  if (password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Invalid password' });
+  }
+  const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  adminSessions.add(token);
+  return res.json({ token });
+});
+
+app.get('/admin/stats', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const [users, duas, resources, pending, flags] = await Promise.all([
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('duas').select('*', { count: 'exact', head: true }),
+      supabase.from('community_resources').select('*', { count: 'exact', head: true }).eq('approved', true),
+      supabase.from('community_resources').select('*', { count: 'exact', head: true }).eq('pending_review', true),
+      supabase.from('content_flags').select('*', { count: 'exact', head: true }),
+    ]);
+    const since7d = new Date(Date.now() - 7 * 86400000).toISOString();
+    const { count: newUsers } = await supabase
+      .from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', since7d);
+    return res.json({
+      users: users.count ?? 0,
+      newUsers: newUsers ?? 0,
+      duas: duas.count ?? 0,
+      resources: resources.count ?? 0,
+      pending: pending.count ?? 0,
+      flags: flags.count ?? 0,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+app.get('/admin/pending', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('community_resources')
+      .select('*')
+      .eq('pending_review', true)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return res.json(data ?? []);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch pending resources' });
+  }
+});
+
+app.post('/admin/resources/:id/approve', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase
+      .from('community_resources')
+      .update({ approved: true, pending_review: false })
+      .eq('id', req.params.id);
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to approve resource' });
+  }
+});
+
+app.post('/admin/resources/:id/reject', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase
+      .from('community_resources')
+      .delete()
+      .eq('id', req.params.id);
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to reject resource' });
+  }
+});
+
+app.get('/admin/flags', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const { data: flags, error } = await supabase
+      .from('content_flags')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const enriched = await Promise.all((flags ?? []).map(async flag => {
+      let content: any = null;
+      if (flag.content_type === 'resource') {
+        const { data } = await supabase.from('community_resources').select('title, url, submitter_name, submitted_by').eq('id', flag.content_id).single();
+        content = data;
+      } else if (flag.content_type === 'dua') {
+        const { data } = await supabase.from('duas').select('text, title, user_id').eq('id', flag.content_id).single();
+        content = data;
+      }
+      return { ...flag, content };
+    }));
+
+    return res.json(enriched);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch flags' });
+  }
+});
+
+app.post('/admin/flags/:id/dismiss', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase.from('content_flags').delete().eq('id', req.params.id);
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to dismiss flag' });
+  }
+});
+
+app.post('/admin/flags/:id/delete-content', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { data: flag } = await supabase.from('content_flags').select('*').eq('id', req.params.id).single();
+    if (!flag) return res.status(404).json({ error: 'Flag not found' });
+    if (flag.content_type === 'resource') {
+      await supabase.from('community_resources').delete().eq('id', flag.content_id);
+    } else if (flag.content_type === 'dua') {
+      await supabase.from('duas').delete().eq('id', flag.content_id);
+    }
+    await supabase.from('content_flags').delete().eq('id', req.params.id);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to delete content' });
+  }
+});
+
+app.post('/admin/users/:id/block', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { error } = await supabase.auth.admin.deleteUser(req.params.id);
+    if (error) throw error;
+    await supabase.from('content_flags').delete().eq('user_id', req.params.id);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to block user' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));
