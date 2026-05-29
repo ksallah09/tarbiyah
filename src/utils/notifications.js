@@ -74,27 +74,35 @@ export async function requestNotificationPermission() {
 // ─── Push token — save to Supabase so backend can send pushes ─────────────────
 export async function savePushTokenToSupabase() {
   try {
-    if (!Device.isDevice) return;
+    console.log('[PushToken] starting...');
+    if (!Device.isDevice) { console.log('[PushToken] not a device, skipping'); return; }
+
     const { status } = await Notifications.getPermissionsAsync();
+    console.log('[PushToken] permission status:', status);
     if (status !== 'granted') return;
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId
       ?? Constants.easConfig?.projectId;
+    console.log('[PushToken] projectId:', projectId);
     if (!projectId) return;
 
-    const { data: tokenData } = await Notifications.getExpoPushTokenAsync({ projectId });
+    const tokenResult = await Notifications.getExpoPushTokenAsync({ projectId });
+    const tokenData = tokenResult?.data;
+    console.log('[PushToken] token:', tokenData);
     if (!tokenData) return;
 
     const { data: session } = await supabase.auth.getSession();
     const userId = session?.session?.user?.id;
+    console.log('[PushToken] userId:', userId);
     if (!userId) return;
 
-    await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ push_token: tokenData })
       .eq('user_id', userId);
+    console.log('[PushToken] saved. error:', error ?? 'none');
   } catch (e) {
-    console.warn('[Notifications] savePushToken error:', e);
+    console.warn('[PushToken] error:', e?.message ?? e);
   }
 }
 
