@@ -83,6 +83,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
   const fadeAnim      = useRef(new Animated.Value(1)).current;
   const slideAnim     = useRef(new Animated.Value(800)).current;
   const pollRef       = useRef(null);
+  const pollStartRef  = useRef(null);
   const jobIdRef      = useRef(null);
   const appStateRef   = useRef(AppState.currentState);
 
@@ -182,7 +183,17 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
 
   function startPolling(jobId) {
     if (pollRef.current) clearInterval(pollRef.current);
+    pollStartRef.current = Date.now();
     pollRef.current = setInterval(async () => {
+      // Give up after 5 minutes
+      if (Date.now() - pollStartRef.current > 5 * 60 * 1000) {
+        clearInterval(pollRef.current);
+        AsyncStorage.removeItem(PENDING_JOB_KEY);
+        setError('Generation is taking too long. Please try again.');
+        fadeTo(STEP_ANALYSIS);
+        return;
+      }
+
       try {
         const { data } = await supabase
           .from('growth_plan_jobs')

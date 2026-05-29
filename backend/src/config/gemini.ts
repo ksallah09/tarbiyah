@@ -70,6 +70,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label = 'Request'): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+    ),
+  ]);
+}
+
 /**
  * Calls model.generateContent with automatic retry on 503/429/500.
  * On each failure it waits BASE_DELAY * 2^attempt ms, then retries.
@@ -85,7 +94,7 @@ export async function generateWithRetry(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const result = await model.generateContent(prompt);
+      const result = await withTimeout(model.generateContent(prompt), 90_000, 'Gemini generateContent');
       return result.response.text();
     } catch (err) {
       lastErr = err;
@@ -99,7 +108,7 @@ export async function generateWithRetry(
         if (modelId === MODEL_HEAVY) {
           console.warn(`  ⚠ ${MODEL_HEAVY} unavailable after ${MAX_RETRIES} retries — falling back to ${MODEL_FAST}`);
           const fallback = getJsonModel(MODEL_FAST, systemInstruction);
-          const result = await fallback.generateContent(prompt);
+          const result = await withTimeout(fallback.generateContent(prompt), 90_000, 'Gemini fallback generateContent');
           return result.response.text();
         }
         throw err;
