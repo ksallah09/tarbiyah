@@ -34,7 +34,8 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.tarbiyah.parenting",
-      "versionCode": 24
+      "versionCode": 25,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
