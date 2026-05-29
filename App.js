@@ -490,7 +490,7 @@ export default function App() {
         setHasAccess(__DEV__);
         setOnboarded(false);
       }
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if (event === 'SIGNED_IN') {
         // Clear stale cache from any previous account session
         AsyncStorage.multiRemove([
           'tarbiyah_daily_cache',
@@ -508,13 +508,15 @@ export default function App() {
         getFamilySyncStatus().catch(() => {});
         // Pre-generate youth culture content for all children
         prewarmYouthCulture();
-        // Save push token for this device so partner notifications reach it
-        savePushTokenToSupabase().catch(() => {});
         // Log in to RevenueCat and recheck entitlement
         if (session?.user?.id) {
           loginRevenueCat(session.user.id).catch(() => {});
           if (!__DEV__) checkEntitlement().then(setHasAccess).catch(() => {});
         }
+      }
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        // Save push token on every sign-in and session restore
+        if (session?.user?.id) savePushTokenToSupabase().catch(() => {});
       }
       // Background token refresh failed — clear stale session and send to sign-in
       if (event === 'TOKEN_REFRESH_FAILED' || (event === 'TOKEN_REFRESHED' && !session)) {
