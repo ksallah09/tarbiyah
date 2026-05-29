@@ -490,7 +490,7 @@ export default function App() {
         setHasAccess(__DEV__);
         setOnboarded(false);
       }
-      if (event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
         // Clear stale cache from any previous account session
         AsyncStorage.multiRemove([
           'tarbiyah_daily_cache',
