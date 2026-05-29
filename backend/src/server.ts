@@ -3668,6 +3668,22 @@ async function start() {
       console.error('Startup initialization error:', err);
     }
   })();
+
+  // Fail any growth plan jobs that were left pending by a previous container restart
+  (async () => {
+    try {
+      const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: stale } = await supabase
+        .from('growth_plan_jobs')
+        .update({ status: 'failed', error: 'Server restarted while job was pending.' })
+        .eq('status', 'pending')
+        .lt('created_at', cutoff)
+        .select('id');
+      if (stale && stale.length > 0) console.log(`✓ Marked ${stale.length} stale pending job(s) as failed.`);
+    } catch (err) {
+      console.error('Stale job cleanup error:', err);
+    }
+  })();
 }
 
 // ─── This Week in Youth Culture ──────────────────────────────────────────────
