@@ -34,7 +34,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.tarbiyah.parenting",
-      "versionCode": 25,
+      "versionCode": 28,
       "googleServicesFile": "./google-services.json"
     },
     "web": {

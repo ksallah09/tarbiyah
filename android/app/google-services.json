@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "525571546992",
+    "project_id": "tarbiyah-b39c4",
+    "storage_bucket": "tarbiyah-b39c4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:525571546992:android:91b481f7e52840724a79b5",
+        "android_client_info": {
+          "package_name": "com.tarbiyah.parenting"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAa5iqJ7guHjVd9X_vluvT14tBlb960xRw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
