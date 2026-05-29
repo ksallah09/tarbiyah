@@ -1610,7 +1610,7 @@ async function sendDuaReactionNotification(duaId: string, reactorId: string, typ
     await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ to: token, sound: 'default', ...message, data: { screen: 'Community' } }),
+      body: JSON.stringify({ to: token, sound: 'default', channelId: 'default', ...message, data: { screen: 'Community' } }),
     });
   } catch {}
 }
@@ -3199,6 +3199,7 @@ app.post('/family/notify-partner', requireAuth, async (req: AuthRequest, res: Re
         title,
         body,
         sound: 'default',
+        channelId: 'default',
         data: data ?? { screen: 'Dashboards' },
       }),
     });
@@ -3269,11 +3270,12 @@ app.post('/family/notify-deed', requireAuth, async (req: AuthRequest, res: Respo
       if (!p.push_token) return null;
       const isPartner = p.user_id === partnerUserId;
       return {
-        to:    p.push_token,
-        title: isPartner ? partnerTitle : title,
-        body:  isPartner ? partnerBody  : body,
-        sound: 'default',
-        data:  { screen: 'GardenDetail', childId: childId ?? null },
+        to:        p.push_token,
+        title:     isPartner ? partnerTitle : title,
+        body:      isPartner ? partnerBody  : body,
+        sound:     'default',
+        channelId: 'default',
+        data:      { screen: 'GardenDetail', childId: childId ?? null },
       };
     }).filter(Boolean);
 
@@ -4038,6 +4040,7 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
                   title: `${childFirstName}'s "Youth Culture" weekly update is ready`,
                   body: 'See trends, slang, online concerns and more.',
                   sound: 'default',
+                  channelId: 'default',
                   data: { screen: 'Dashboards', childId },
                 }),
               });
