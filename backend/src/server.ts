@@ -1607,12 +1607,14 @@ async function sendDuaReactionNotification(duaId: string, reactorId: string, typ
       ? { title: '🤲 Someone made du\'a for you', body: 'Your du\'a reached another parent\'s heart.' }
       : { title: '💛 Someone said they feel you', body: 'You\'re not alone in this.' };
 
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ to: token, sound: 'default', channelId: 'default', ...message, data: { screen: 'Community' } }),
     });
-  } catch {}
+    const pushData = await pushRes.json();
+    console.log('[Push] community dua reaction →', token?.slice(-10), JSON.stringify((pushData as any)?.data ?? pushData));
+  } catch (e: any) { console.warn('[Push] community dua reaction error:', e?.message); }
 }
 
 // GET /community/duas/my-reactions
@@ -3191,7 +3193,7 @@ app.post('/family/notify-partner', requireAuth, async (req: AuthRequest, res: Re
 
     if (!profile?.push_token) return res.json({ sent: false, reason: 'no push token' });
 
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
@@ -3203,6 +3205,8 @@ app.post('/family/notify-partner', requireAuth, async (req: AuthRequest, res: Re
         data: data ?? { screen: 'Dashboards' },
       }),
     });
+    const pushData = await pushRes.json();
+    console.log('[Push] notify-partner →', profile.push_token?.slice(-10), JSON.stringify((pushData as any)?.data ?? pushData));
 
     return res.json({ sent: true });
   } catch (err: any) {
@@ -3279,11 +3283,13 @@ app.post('/family/notify-deed', requireAuth, async (req: AuthRequest, res: Respo
       };
     }).filter(Boolean);
 
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body:    JSON.stringify(notifications),
     });
+    const pushData = await pushRes.json();
+    console.log('[Push] notify-deed →', (notifications ?? []).length, 'recipients:', JSON.stringify((pushData as any)?.data ?? pushData));
 
     return res.json({ sent: true, count: notifications?.length });
   } catch (err: any) {
@@ -4048,7 +4054,7 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
               .single();
             if (profile?.push_token) {
               const childFirstName = name ?? 'Your child';
-              await fetch('https://exp.host/--/api/v2/push/send', {
+              const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                 body: JSON.stringify({
@@ -4060,9 +4066,11 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
                   data: { screen: 'Dashboards', childId },
                 }),
               });
+              const pushData = await pushRes.json();
+              console.log('[Push] youth-culture →', profile.push_token?.slice(-10), JSON.stringify((pushData as any)?.data ?? pushData));
             }
           } catch (pushErr: any) {
-            console.warn('Push notification failed:', pushErr?.message);
+            console.warn('[Push] youth-culture error:', pushErr?.message);
           }
         } else {
           await supabase.from('child_world_jobs').update({ status: 'failed', error: 'Generation returned null.' }).eq('id', job.id);
