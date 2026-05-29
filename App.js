@@ -508,6 +508,8 @@ export default function App() {
         getFamilySyncStatus().catch(() => {});
         // Pre-generate youth culture content for all children
         prewarmYouthCulture();
+        // Save push token for this device so partner notifications reach it
+        savePushTokenToSupabase().catch(() => {});
         // Log in to RevenueCat and recheck entitlement
         if (session?.user?.id) {
           loginRevenueCat(session.user.id).catch(() => {});
