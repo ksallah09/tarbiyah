@@ -62,6 +62,7 @@ import { supabase } from './src/utils/supabase';
 import { requestNotificationPermission, savePushTokenToSupabase } from './src/utils/notifications';
 import { syncChildProfilesFromSupabase, getAllChildProfiles } from './src/utils/childProfiles';
 import { getFamilySyncStatus } from './src/utils/familySync';
+import { loadFamilyGoals } from './src/utils/familyGoals';
 import { initializePurchases, checkEntitlement, loginRevenueCat, logoutRevenueCat } from './src/utils/purchases';
 import PaywallScreen from './src/screens/PaywallScreen';
 
@@ -513,6 +514,16 @@ export default function App() {
           loginRevenueCat(session.user.id).catch(() => {});
           if (!__DEV__) checkEntitlement().then(setHasAccess).catch(() => {});
         }
+      }
+      if (event === 'INITIAL_SESSION' && session?.user?.id) {
+        // Fresh install: AsyncStorage is empty so sync children + goals from Supabase
+        // so the setup banner and tab dots reflect the correct state immediately.
+        syncChildProfilesFromSupabase()
+          .then(() => refreshHasChildren())
+          .catch(() => {});
+        loadFamilyGoals()
+          .then(() => refreshHasFamilyGoals())
+          .catch(() => {});
       }
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
         // Save push token on every sign-in and session restore

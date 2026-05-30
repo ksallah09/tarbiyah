@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     padding: 14, marginBottom: 8,
     borderLeftWidth: 3, ...CARD_SHADOW,
   },
-  itemTop:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10, flex: 1 },
+  itemTop:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   itemBadge: {
     width: 26, height: 26, borderRadius: 8,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,

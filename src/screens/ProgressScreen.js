@@ -54,7 +54,7 @@ function getMotivationText(done, total) {
 
 export default function ProgressScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const { refreshHasFamilyGoals, hasChildren, hasFamilyGoals } = useAuth();
+  const { refreshHasChildren, refreshHasFamilyGoals, hasChildren, hasFamilyGoals } = useAuth();
   const [children,    setChildren]         = useState(_childrenCache);
   const [spirMonth,   setSpiritualMonth]   = useState(_spirCache);
   const [sciMonth,    setScientificMonth]  = useState(_sciCache);
@@ -104,7 +104,7 @@ export default function ProgressScreen({ navigation, route }) {
       }
       getFamilySyncStatus().then(live => {
         _syncStatusCache = live; setSyncStatus(live);
-        loadFamilyGoals().then(v => { _familyGoalsCache = v; setFamilyGoals(v); });
+        loadFamilyGoals().then(v => { _familyGoalsCache = v; setFamilyGoals(v); refreshHasFamilyGoals(); });
         if (live.linked && live.partner?.userId) {
           getPartnerMonthCounts(live.partner.userId).then(setPartnerCounts);
           getPartnerMonthCompletions(live.partner.userId).then(setPrtHabAct);
@@ -116,7 +116,10 @@ export default function ProgressScreen({ navigation, route }) {
   // Initial load on mount
   useEffect(() => {
     refreshAll();
-    syncChildProfilesFromSupabase().then(() => getAllChildProfiles().then(v => { _childrenCache = v; setChildren(v); }));
+    syncChildProfilesFromSupabase().then(() => getAllChildProfiles().then(v => {
+      _childrenCache = v; setChildren(v);
+      refreshHasChildren();
+    }));
     AsyncStorage.getItem('tarbiyah_partner_sync_on').then(val => {
       if (val === 'false') setPartnerSyncOn(false);
     });
