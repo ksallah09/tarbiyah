@@ -18,6 +18,7 @@
       "buildNumber": "25",
       "infoPlist": {
         "UIBackgroundModes": [
+          "audio",
           "audio"
         ],
         "NSPhotoLibraryUsageDescription": "Tarbiyah uses your photo library to set profile and child photos.",
@@ -34,8 +35,12 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.tarbiyah.parenting",
-      "versionCode": 28,
-      "googleServicesFile": "./google-services.json"
+      "versionCode": 29,
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -66,6 +71,10 @@
       "eas": {
         "projectId": "d235498c-ead8-4f52-9866-448606bea4f3"
       }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/d235498c-ead8-4f52-9866-448606bea4f3"
     }
   }
 }

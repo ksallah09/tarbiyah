@@ -2,6 +2,32 @@ import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveOnboardingData } from './onboarding';
 import { saveFocusAreas } from './focusAreas';
+import * as FileSystem from 'expo-file-system/legacy';
+
+const LOCAL_PHOTO_PATH = `${FileSystem.cacheDirectory}tarbiyah_profile_photo`;
+
+// Returns a local file:// URI for the profile photo, downloading it once if needed.
+// Subsequent calls are instant (no network).
+export async function getCachedPhotoUri(remoteUrl) {
+  if (!remoteUrl) return null;
+  if (remoteUrl.startsWith('file://')) return remoteUrl;
+  try {
+    const info = await FileSystem.getInfoAsync(LOCAL_PHOTO_PATH);
+    if (info.exists) return LOCAL_PHOTO_PATH;
+    const { uri } = await FileSystem.downloadAsync(remoteUrl, LOCAL_PHOTO_PATH);
+    return uri;
+  } catch {
+    return remoteUrl; // fall back to remote URL if download fails
+  }
+}
+
+// Call this when the user changes their profile photo so the cache is invalidated.
+export async function invalidatePhotoCache() {
+  try {
+    const info = await FileSystem.getInfoAsync(LOCAL_PHOTO_PATH);
+    if (info.exists) await FileSystem.deleteAsync(LOCAL_PHOTO_PATH, { idempotent: true });
+  } catch {}
+}
 
 export async function saveProfileToSupabase({
   userId, name, childrenCount, childrenAges, reminderTime,

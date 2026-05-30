@@ -43,6 +43,7 @@ import { loadCompletions } from '../utils/goalCompletions';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
 import { useAuth } from '../../App';
+import { getCachedPhotoUri } from '../utils/profile';
 
 
 const SCIENCE_IMAGES = [
@@ -322,14 +323,15 @@ export default function HomeScreen({ navigation }) {
           setAnimate(shouldAnimate);
         });
 
-      // Load photo: local profile photo first, fall back to auth provider avatar
-      AsyncStorage.getItem('tarbiyah_profile_photo').then(local => {
-        if (local) { setPhotoUrl(local); return; }
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          const meta = session?.user?.user_metadata ?? {};
-          const url = meta.avatar_url || meta.picture || null;
-          if (url) setPhotoUrl(url);
-        });
+      // Load photo: use locally cached file so there's no network delay on tab switch
+      AsyncStorage.getItem('tarbiyah_profile_photo').then(async remoteUrl => {
+        const url = remoteUrl || await supabase.auth.getSession().then(
+          ({ data: { session } }) => {
+            const meta = session?.user?.user_metadata ?? {};
+            return meta.avatar_url || meta.picture || null;
+          }
+        ).catch(() => null);
+        if (url) getCachedPhotoUri(url).then(localUri => { if (localUri) setPhotoUrl(localUri); });
       });
 
       loadDaily();

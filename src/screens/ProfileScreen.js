@@ -26,7 +26,7 @@ import { getSavedResources, unsaveResource } from '../utils/savedResources';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_FOCUS_AREAS, getFocusAreas, saveFocusAreas } from '../utils/focusAreas';
 import { getCurrentUser, getSession } from '../utils/auth';
-import { saveProfileToSupabase, syncProfileFromSupabase } from '../utils/profile';
+import { saveProfileToSupabase, syncProfileFromSupabase, invalidatePhotoCache } from '../utils/profile';
 import { useAuth } from '../../App';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
@@ -878,6 +878,7 @@ export default function ProfileScreen() {
     setProfilePhoto(localUri); // show immediately
     try {
       const userId = userIdRef.current ?? `user_${Date.now()}`;
+      await invalidatePhotoCache(); // clear old cached file so next load re-downloads
       const publicUrl = await uploadPhoto(localUri, `profiles/${userId}.jpg`);
       setProfilePhoto(publicUrl);
       await AsyncStorage.setItem(PROFILE_PHOTO_KEY, publicUrl);
