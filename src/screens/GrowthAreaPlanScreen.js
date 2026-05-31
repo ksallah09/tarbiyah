@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { getChildProfile } from '../utils/childProfiles';
 
 const CARD_SHADOW = {
   shadowColor: '#1B3D2F',
@@ -14,16 +15,32 @@ const CARD_SHADOW = {
 };
 
 export default function GrowthAreaPlanScreen({ navigation, route }) {
-  const { area, child } = route?.params ?? {};
+  const { area: areaParam, child: childParam, areaId, childId } = route?.params ?? {};
   const insets = useSafeAreaInsets();
 
   const [activeWeek, setActiveWeek]       = useState(0);
   const [expandedWisdom, setExpandedWisdom] = useState(new Set());
+  const [area,  setArea]  = useState(areaParam  ?? null);
+  const [child, setChild] = useState(childParam ?? null);
+
+  // Re-fetch from AsyncStorage so full data is used even if nav params were truncated
+  useEffect(() => {
+    const id = childId ?? childParam?.id;
+    const aId = areaId ?? areaParam?.id;
+    if (!id || !aId) return;
+    getChildProfile(id).then(c => {
+      if (!c) return;
+      setChild(c);
+      const found = (c.growthAreas ?? []).find(a => a.id === aId);
+      if (found) setArea(found);
+    }).catch(() => {});
+  }, []);
 
   if (!area) return null;
 
   const weeks = area.plan ?? [];
   const week  = weeks[activeWeek];
+
 
   function toggleWisdom(key) {
     setExpandedWisdom(prev => {
@@ -43,15 +60,7 @@ export default function GrowthAreaPlanScreen({ navigation, route }) {
 
     return (
       <View key={key} style={[styles.itemCard, { borderLeftColor: accent }]}>
-        <View style={styles.itemTop}>
-          <View style={[styles.itemBadge, { backgroundColor: badgeBg }]}>
-            {isHabit
-              ? <Text style={[styles.itemBadgeNum, { color: accent }]}>{index + 1}</Text>
-              : <Ionicons name="star-outline" size={13} color={accent} />
-            }
-          </View>
-          <Text style={styles.itemText}>{item.text}</Text>
-        </View>
+        <Text style={{ fontSize: 13, color: '#1A1A2E', lineHeight: 20, marginBottom: 10 }}>{item.text}</Text>
 
         {item.wisdom && (
           <>
@@ -349,7 +358,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   itemBadgeNum: { fontSize: 12, fontWeight: '800' },
-  itemText: { flex: 1, flexShrink: 1, fontSize: 13, color: '#1A1A2E', lineHeight: 20 },
+  itemText: { flex: 1, fontSize: 13, color: '#1A1A2E', lineHeight: 20 },
 
   // Wisdom
   wisdomToggle: {

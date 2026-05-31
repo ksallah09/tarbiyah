@@ -454,7 +454,7 @@ export default function ChildDashboardScreen({ navigation, route }) {
           <TouchableOpacity
             key={m.id}
             style={styles.milestoneRow}
-            onPress={() => navigation.navigate('GrowthAreaPlan', { area: m, child })}
+            onPress={() => navigation.navigate('GrowthAreaPlan', { area: m, child, areaId: m.id, childId: child.id })}
             activeOpacity={0.8}
           >
             <View style={[styles.milestoneNumBadge, { backgroundColor: child.color + '18' }]}>

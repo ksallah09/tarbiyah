@@ -261,7 +261,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
   }
 
   function handleBridgeContinue() {
-    navigation.replace('GrowthAreaPlan', { area: savedArea, child, afterOnboarding });
+    navigation.replace('GrowthAreaPlan', { area: savedArea, child, areaId: savedArea?.id, childId: child?.id, afterOnboarding });
   }
 
   function handleSkip() {
