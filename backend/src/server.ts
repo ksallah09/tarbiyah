@@ -3968,7 +3968,8 @@ async function fetchUrbanSlang(): Promise<string[]> {
     (async () => {
       if (!serpApiKey) return;
       try {
-        const searchUrl = `https://serpapi.com/search.json?engine=google&q=new+gen+z+slang+2025+words&api_key=${serpApiKey}&num=5`;
+        const year = new Date().getFullYear();
+        const searchUrl = `https://serpapi.com/search.json?engine=google&q=new+gen+z+slang+${year}+words&api_key=${serpApiKey}&num=5`;
         const res  = await fetch(searchUrl);
         if (!res.ok) return;
         const json: any = await res.json();
