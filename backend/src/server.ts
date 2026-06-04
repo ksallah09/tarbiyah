@@ -3762,6 +3762,45 @@ async function fetchYoutubeTrends(ageNum: number): Promise<string[]> {
   return results.slice(0, 15);
 }
 
+// ─── Reddit OAuth token (cached, refreshed on expiry) ────────────────────────
+let _redditToken: string | null = null;
+let _redditTokenExpiry = 0;
+
+async function getRedditToken(): Promise<string | null> {
+  if (_redditToken && Date.now() < _redditTokenExpiry) return _redditToken;
+  const clientId     = process.env.REDDIT_CLIENT_ID;
+  const clientSecret = process.env.REDDIT_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+  try {
+    const res = await fetch('https://www.reddit.com/api/v1/access_token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'TarbiyahApp/1.0 by tarbiyahdev',
+      },
+      body: 'grant_type=client_credentials',
+    });
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    _redditToken       = data.access_token ?? null;
+    _redditTokenExpiry = Date.now() + (data.expires_in ?? 3600) * 1000 - 60_000;
+    return _redditToken;
+  } catch {
+    return null;
+  }
+}
+
+async function redditFetch(path: string): Promise<any> {
+  const token = await getRedditToken();
+  const baseUrl = token ? 'https://oauth.reddit.com' : 'https://www.reddit.com';
+  const headers: Record<string, string> = { 'User-Agent': 'TarbiyahApp/1.0 by tarbiyahdev' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${baseUrl}${path}`, { headers });
+  if (!res.ok) throw new Error(`Reddit ${res.status}`);
+  return res.json();
+}
+
 async function fetchSafetySignals(ageNum: number): Promise<string[]> {
   const results: string[] = [];
 
@@ -3777,10 +3816,7 @@ async function fetchSafetySignals(ageNum: number): Promise<string[]> {
 
   await Promise.allSettled(safetyQueries.map(async query => {
     try {
-      const url  = `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=top&t=week&limit=5`;
-      const res  = await fetch(url, { headers: { 'User-Agent': 'TarbiyahBot/1.0' } });
-      if (!res.ok) return;
-      const json: any = await res.json();
+      const json: any = await redditFetch(`/search.json?q=${encodeURIComponent(query)}&sort=top&t=week&limit=5`);
       for (const p of json?.data?.children ?? []) {
         const title = p?.data?.title;
         const sub   = p?.data?.subreddit;
@@ -3793,14 +3829,9 @@ async function fetchSafetySignals(ageNum: number): Promise<string[]> {
   const safetySubs = ['Parenting', 'internetparents', 'OutOfTheLoop', 'TrueOffMyChest'];
   await Promise.allSettled(safetySubs.map(async sub => {
     try {
-      const res  = await fetch(`https://www.reddit.com/r/${sub}/top.json?t=week&limit=6`, {
-        headers: { 'User-Agent': 'TarbiyahBot/1.0' },
-      });
-      if (!res.ok) return;
-      const json: any = await res.json();
+      const json: any = await redditFetch(`/r/${sub}/top.json?t=week&limit=6`);
       for (const p of json?.data?.children ?? []) {
         const title = p?.data?.title ?? '';
-        // Only include posts that contain safety-relevant keywords
         const keywords = ['teen', 'child', 'kid', 'danger', 'challenge', 'online', 'predator', 'harm', 'abuse', 'viral', 'tiktok', 'discord', 'roblox', 'trend', 'warn'];
         if (keywords.some(k => title.toLowerCase().includes(k))) {
           results.push(`[Safety — r/${sub}] ${title}`);
@@ -3809,22 +3840,19 @@ async function fetchSafetySignals(ageNum: number): Promise<string[]> {
     } catch {}
   }));
 
-  // Age-specific safety concerns
+  // 3. Age-specific subreddits
   const ageGroup = childWorldAgeGroup(ageNum);
   const ageSpecificSubs: Record<string, string[]> = {
     '3-5':  ['Parenting'],
     '6-8':  ['Parenting', 'roblox'],
     '9-11': ['Parenting', 'roblox', 'teenagers'],
-    '12-14':['teenagers', 'GenZ', 'Parenting'],
+    '12-14':['teenagers', 'Parenting'],
     '15+':  ['teenagers', 'GenZ'],
   };
 
   await Promise.allSettled((ageSpecificSubs[ageGroup] ?? []).map(async sub => {
     try {
-      const searchUrl = `https://www.reddit.com/r/${sub}/search.json?q=warning+danger+unsafe+predator+challenge&sort=top&t=week&limit=5&restrict_sr=1`;
-      const res = await fetch(searchUrl, { headers: { 'User-Agent': 'TarbiyahBot/1.0' } });
-      if (!res.ok) return;
-      const json: any = await res.json();
+      const json: any = await redditFetch(`/r/${sub}/search.json?q=warning+danger+unsafe+predator+challenge&sort=top&t=week&limit=5&restrict_sr=1`);
       for (const p of json?.data?.children ?? []) {
         const title = p?.data?.title;
         if (title && title.length < 200) results.push(`[Age-specific safety — r/${sub}] ${title}`);
@@ -3836,57 +3864,87 @@ async function fetchSafetySignals(ageNum: number): Promise<string[]> {
 }
 
 async function fetchGoogleTrends(ageNum: number): Promise<string[]> {
-  // Categories most relevant to youth by age group
-  const categories: Record<string, number[]> = {
-    '3-5':  [8],                    // Arts & Entertainment
-    '6-8':  [8, 41],                // Entertainment + Video Games
-    '9-11': [8, 41, 957],           // + Online Communities
-    '12-14':[8, 41, 957, 16, 185],  // + Music + Fashion & Style
-    '15+':  [8, 41, 957, 16, 185, 280], // + Society
-  };
-  const group = childWorldAgeGroup(ageNum);
-  const cats  = categories[group] ?? categories['9-11'];
+  const apiKey = process.env.SERPAPI_KEY;
+  if (!apiKey) return [];
 
+  const group = childWorldAgeGroup(ageNum);
+
+  // Categories to include per age group (Google Trends category names from SerpAPI)
+  const youthCategories: Record<string, string[]> = {
+    '3-5':  ['Entertainment'],
+    '6-8':  ['Entertainment', 'Games'],
+    '9-11': ['Entertainment', 'Games', 'Technology', 'Hobbies and Leisure'],
+    '12-14':['Entertainment', 'Games', 'Technology', 'Beauty and Fashion', 'Hobbies and Leisure'],
+    '15+':  ['Entertainment', 'Games', 'Technology', 'Beauty and Fashion', 'Hobbies and Leisure', 'Jobs and Education'],
+  };
+  const allowedCats = new Set(youthCategories[group] ?? youthCategories['9-11']);
+
+  try {
+    const url = `https://serpapi.com/search.json?engine=google_trends_trending_now&geo=US&hours=48&api_key=${apiKey}`;
+    const res  = await fetch(url);
+    if (!res.ok) return [];
+    const data: any = await res.json();
+    const searches: any[] = data?.trending_searches ?? [];
+
+    const results: string[] = [];
+    for (const item of searches) {
+      const cats: string[] = (item?.categories ?? []).map((c: any) => c.name);
+      if (!cats.some(c => allowedCats.has(c))) continue;
+
+      const query = item?.query;
+      const vol   = item?.search_volume;
+      if (query) results.push(`[Google Trends] ${query}${vol ? ` (${(vol / 1000).toFixed(0)}K searches)` : ''}`);
+
+      // Add breakdown terms for richer context (TikTok/Instagram signals surface here)
+      for (const term of (item?.trend_breakdown ?? []).slice(0, 3)) {
+        if (term && term !== query) results.push(`[Trending] ${term}`);
+      }
+    }
+
+    // Sort by search_volume descending, take top 20
+    const sorted = searches
+      .filter(s => s.categories?.some((c: any) => allowedCats.has(c.name)))
+      .sort((a, b) => (b.search_volume ?? 0) - (a.search_volume ?? 0));
+
+    const final: string[] = [];
+    for (const item of sorted.slice(0, 10)) {
+      const query = item?.query;
+      const vol   = item?.search_volume;
+      if (query) final.push(`[Google Trends] ${query}${vol ? ` (${(vol / 1000).toFixed(0)}K searches)` : ''}`);
+      for (const term of (item?.trend_breakdown ?? []).slice(0, 2)) {
+        if (term && term !== query) final.push(`[Trending] ${term}`);
+      }
+    }
+
+    return [...new Set(final)].slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchUrbanSlang(): Promise<string[]> {
+  // Use known active youth slang seeds — autocomplete returns related terms
+  // actually in use, giving us a live picture of current slang
+  const seeds = ['rizz', 'fr', 'cap', 'bussin', 'slay', 'mid', 'based', 'lowkey', 'sus', 'delulu'];
+  const seen  = new Set<string>();
   const results: string[] = [];
-  await Promise.allSettled(cats.map(async cat => {
+
+  await Promise.allSettled(seeds.map(async seed => {
     try {
-      const raw  = await googleTrends.dailyTrends({ trendDate: new Date(), geo: 'US', category: cat });
-      const data = JSON.parse(raw);
-      const stories = data?.default?.trendingStories ?? [];
-      for (const story of stories.slice(0, 5)) {
-        const title = story?.title ?? story?.entityNames?.[0];
-        if (title) results.push(`[Google Trends] ${title}`);
-        // Add related queries for richer context
-        for (const article of (story?.articles ?? []).slice(0, 2)) {
-          if (article?.title) results.push(`[Google Trends] ${article.title}`);
+      const res = await fetch(`https://api.urbandictionary.com/v0/autocomplete-extra?term=${encodeURIComponent(seed)}`);
+      if (!res.ok) return;
+      const json: any = await res.json();
+      for (const item of json?.results ?? []) {
+        const word = item?.term;
+        if (word && !seen.has(word.toLowerCase())) {
+          seen.add(word.toLowerCase());
+          results.push(word);
         }
       }
     } catch {}
   }));
 
-  // Also fetch real-time trends (TikTok + Instagram signals show up here)
-  try {
-    const raw    = await googleTrends.realTimeTrends({ geo: 'US', category: 'e' }); // Entertainment
-    const data   = JSON.parse(raw);
-    const stories = data?.storySummaries?.trendingStories ?? [];
-    for (const story of stories.slice(0, 6)) {
-      const title = story?.title ?? story?.entityNames?.[0];
-      if (title) results.push(`[Trending Now] ${title}`);
-    }
-  } catch {}
-
-  return [...new Set(results)].slice(0, 20);
-}
-
-async function fetchUrbanSlang(): Promise<string[]> {
-  try {
-    const res  = await fetch('https://api.urbandictionary.com/v0/trending');
-    if (!res.ok) return [];
-    const json: any = await res.json();
-    return (json?.words ?? []).slice(0, 15) as string[];
-  } catch {
-    return [];
-  }
+  return results.slice(0, 15);
 }
 
 function buildChildWorldPrompt(params: {
