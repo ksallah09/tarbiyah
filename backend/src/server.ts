@@ -3968,10 +3968,8 @@ async function fetchUrbanSlang(): Promise<string[]> {
     (async () => {
       if (!serpApiKey) return;
       try {
-        const now   = new Date();
-        const year  = now.getFullYear();
-        const month = now.toLocaleString('en-US', { month: 'long' });
-        const searchUrl = `https://serpapi.com/search.json?engine=google&q=new+gen+z+slang+${month}+${year}&api_key=${serpApiKey}&num=5&tbs=qdr:m`;
+        const year = new Date().getFullYear();
+        const searchUrl = `https://serpapi.com/search.json?engine=google&q=new+gen+z+slang+${year}&api_key=${serpApiKey}&num=5&tbs=qdr:y`;
         const res  = await fetch(searchUrl);
         if (!res.ok) return;
         const json: any = await res.json();
