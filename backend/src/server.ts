@@ -3922,29 +3922,76 @@ async function fetchGoogleTrends(ageNum: number): Promise<string[]> {
   }
 }
 
+function cleanUdText(text: string): string {
+  return (text ?? '').replace(/\[|\]/g, '').trim();
+}
+
 async function fetchUrbanSlang(): Promise<string[]> {
-  // Use known active youth slang seeds — autocomplete returns related terms
-  // actually in use, giving us a live picture of current slang
-  const seeds = ['rizz', 'fr', 'cap', 'bussin', 'slay', 'mid', 'based', 'lowkey', 'sus', 'delulu'];
-  const seen  = new Set<string>();
-  const results: string[] = [];
+  const serpApiKey = process.env.SERPAPI_KEY;
+  const seen       = new Set<string>();
+  const words: { word: string; thumbs: number }[] = [];
 
-  await Promise.allSettled(seeds.map(async seed => {
-    try {
-      const res = await fetch(`https://api.urbandictionary.com/v0/autocomplete-extra?term=${encodeURIComponent(seed)}`);
-      if (!res.ok) return;
-      const json: any = await res.json();
-      for (const item of json?.results ?? []) {
-        const word = item?.term;
-        if (word && !seen.has(word.toLowerCase())) {
-          seen.add(word.toLowerCase());
-          results.push(word);
+  function add(word: string, thumbs: number) {
+    const key = word.toLowerCase();
+    if (!word || seen.has(key)) return;
+    seen.add(key);
+    words.push({ word, thumbs });
+  }
+
+  await Promise.allSettled([
+    // Source 1 — Words of the day (editor-curated, last 7-10 days)
+    (async () => {
+      try {
+        const res  = await fetch('https://api.urbandictionary.com/v0/words_of_the_day');
+        if (!res.ok) return;
+        const json: any = await res.json();
+        for (const entry of json?.list ?? []) {
+          add(cleanUdText(entry?.word), entry?.thumbs_up ?? 0);
         }
-      }
-    } catch {}
-  }));
+      } catch {}
+    })(),
 
-  return results.slice(0, 15);
+    // Source 2 — Random batches (6 parallel calls, sorted by thumbs_up)
+    ...Array.from({ length: 6 }, () =>
+      (async () => {
+        try {
+          const res  = await fetch('https://api.urbandictionary.com/v0/random');
+          if (!res.ok) return;
+          const json: any = await res.json();
+          const best = [...(json?.list ?? [])].sort((a, b) => (b.thumbs_up ?? 0) - (a.thumbs_up ?? 0))[0];
+          if (best) add(cleanUdText(best.word), best.thumbs_up ?? 0);
+        } catch {}
+      })()
+    ),
+
+    // Source 3 — SerpAPI Google search → UD define lookup
+    (async () => {
+      if (!serpApiKey) return;
+      try {
+        const searchUrl = `https://serpapi.com/search.json?engine=google&q=new+gen+z+slang+2025+words&api_key=${serpApiKey}&num=5`;
+        const res  = await fetch(searchUrl);
+        if (!res.ok) return;
+        const json: any = await res.json();
+        const snippets = (json?.organic_results ?? []).map((r: any) => r.snippet ?? '').join(' ');
+        const matches  = [...snippets.matchAll(/"([^"]{2,15})"/g)].map(m => m[1]);
+
+        await Promise.allSettled(matches.slice(0, 6).map(async term => {
+          try {
+            const defRes  = await fetch(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(term)}`);
+            if (!defRes.ok) return;
+            const defJson: any = await defRes.json();
+            const best = [...(defJson?.list ?? [])].sort((a, b) => (b.thumbs_up ?? 0) - (a.thumbs_up ?? 0))[0];
+            if (best) add(cleanUdText(best.word), best.thumbs_up ?? 0);
+          } catch {}
+        }));
+      } catch {}
+    })(),
+  ]);
+
+  return words
+    .sort((a, b) => b.thumbs - a.thumbs)
+    .map(w => w.word)
+    .slice(0, 15);
 }
 
 function buildChildWorldPrompt(params: {
