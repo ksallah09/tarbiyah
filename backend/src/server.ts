@@ -3925,20 +3925,27 @@ async function fetchUrbanSlang(): Promise<string[]> {
         const res  = await fetch('https://api.urbandictionary.com/v0/words_of_the_day');
         if (!res.ok) return;
         const json: any = await res.json();
+        const cutoff = Date.now() - 2 * 365 * 24 * 60 * 60 * 1000;
         for (const entry of json?.list ?? []) {
-          add(cleanUdText(entry?.word), entry?.thumbs_up ?? 0);
+          const written = entry?.written_on ? new Date(entry.written_on).getTime() : Date.now();
+          if (written >= cutoff) add(cleanUdText(entry?.word), entry?.thumbs_up ?? 0);
         }
       } catch {}
     })(),
 
-    // Source 2 — Random batches (6 parallel calls, sorted by thumbs_up)
+    // Source 2 — Random batches (6 parallel calls, filtered to past 2 years, sorted by thumbs_up)
     ...Array.from({ length: 6 }, () =>
       (async () => {
         try {
           const res  = await fetch('https://api.urbandictionary.com/v0/random');
           if (!res.ok) return;
           const json: any = await res.json();
-          const best = [...(json?.list ?? [])].sort((a, b) => (b.thumbs_up ?? 0) - (a.thumbs_up ?? 0))[0];
+          const cutoff = Date.now() - 2 * 365 * 24 * 60 * 60 * 1000;
+          const recent = (json?.list ?? []).filter((e: any) => {
+            const written = e?.written_on ? new Date(e.written_on).getTime() : 0;
+            return written >= cutoff;
+          });
+          const best = [...recent].sort((a, b) => (b.thumbs_up ?? 0) - (a.thumbs_up ?? 0))[0];
           if (best) add(cleanUdText(best.word), best.thumbs_up ?? 0);
         } catch {}
       })()
@@ -3961,7 +3968,12 @@ async function fetchUrbanSlang(): Promise<string[]> {
             const defRes  = await fetch(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(term)}`);
             if (!defRes.ok) return;
             const defJson: any = await defRes.json();
-            const best = [...(defJson?.list ?? [])].sort((a, b) => (b.thumbs_up ?? 0) - (a.thumbs_up ?? 0))[0];
+            const cutoff = Date.now() - 2 * 365 * 24 * 60 * 60 * 1000;
+            const recent = (defJson?.list ?? []).filter((e: any) => {
+              const written = e?.written_on ? new Date(e.written_on).getTime() : 0;
+              return written >= cutoff;
+            });
+            const best = [...recent].sort((a, b) => (b.thumbs_up ?? 0) - (a.thumbs_up ?? 0))[0];
             if (best) add(cleanUdText(best.word), best.thumbs_up ?? 0);
           } catch {}
         }));
