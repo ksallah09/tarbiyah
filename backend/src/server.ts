@@ -3716,13 +3716,8 @@ async function fetchRedditTrends(ageNum: number): Promise<string[]> {
   const results: string[] = [];
   await Promise.allSettled(subs.map(async sub => {
     try {
-      const res  = await fetch(`https://www.reddit.com/r/${sub}/top.json?t=week&limit=8`, {
-        headers: { 'User-Agent': 'TarbiyahBot/1.0' },
-      });
-      if (!res.ok) return;
-      const json: any = await res.json();
-      const posts = json?.data?.children ?? [];
-      for (const p of posts) {
+      const json: any = await redditFetch(`/r/${sub}/top.json?t=week&limit=8`);
+      for (const p of json?.data?.children ?? []) {
         const title = p?.data?.title;
         if (title && title.length < 200) results.push(`[r/${sub}] ${title}`);
       }
@@ -3885,21 +3880,6 @@ async function fetchGoogleTrends(ageNum: number): Promise<string[]> {
     if (!res.ok) return [];
     const data: any = await res.json();
     const searches: any[] = data?.trending_searches ?? [];
-
-    const results: string[] = [];
-    for (const item of searches) {
-      const cats: string[] = (item?.categories ?? []).map((c: any) => c.name);
-      if (!cats.some(c => allowedCats.has(c))) continue;
-
-      const query = item?.query;
-      const vol   = item?.search_volume;
-      if (query) results.push(`[Google Trends] ${query}${vol ? ` (${(vol / 1000).toFixed(0)}K searches)` : ''}`);
-
-      // Add breakdown terms for richer context (TikTok/Instagram signals surface here)
-      for (const term of (item?.trend_breakdown ?? []).slice(0, 3)) {
-        if (term && term !== query) results.push(`[Trending] ${term}`);
-      }
-    }
 
     // Sort by search_volume descending, take top 20
     const sorted = searches
