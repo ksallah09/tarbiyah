@@ -3925,7 +3925,7 @@ async function fetchUrbanSlang(): Promise<string[]> {
         const res  = await fetch('https://api.urbandictionary.com/v0/words_of_the_day');
         if (!res.ok) return;
         const json: any = await res.json();
-        const cutoff = Date.now() - 2 * 365 * 24 * 60 * 60 * 1000;
+        const cutoff = Date.now() - 6 * 30 * 24 * 60 * 60 * 1000;
         for (const entry of json?.list ?? []) {
           const written = entry?.written_on ? new Date(entry.written_on).getTime() : Date.now();
           if (written >= cutoff) add(cleanUdText(entry?.word), entry?.thumbs_up ?? 0);
@@ -3940,7 +3940,7 @@ async function fetchUrbanSlang(): Promise<string[]> {
           const res  = await fetch('https://api.urbandictionary.com/v0/random');
           if (!res.ok) return;
           const json: any = await res.json();
-          const cutoff = Date.now() - 2 * 365 * 24 * 60 * 60 * 1000;
+          const cutoff = Date.now() - 6 * 30 * 24 * 60 * 60 * 1000;
           const recent = (json?.list ?? []).filter((e: any) => {
             const written = e?.written_on ? new Date(e.written_on).getTime() : 0;
             return written >= cutoff;
@@ -3968,7 +3968,7 @@ async function fetchUrbanSlang(): Promise<string[]> {
             const defRes  = await fetch(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(term)}`);
             if (!defRes.ok) return;
             const defJson: any = await defRes.json();
-            const cutoff = Date.now() - 2 * 365 * 24 * 60 * 60 * 1000;
+            const cutoff = Date.now() - 6 * 30 * 24 * 60 * 60 * 1000;
             const recent = (defJson?.list ?? []).filter((e: any) => {
               const written = e?.written_on ? new Date(e.written_on).getTime() : 0;
               return written >= cutoff;
