@@ -11,7 +11,6 @@ import {
   Modal,
   FlatList,
   TextInput,
-  Image,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -26,7 +25,8 @@ import { getSavedResources, unsaveResource } from '../utils/savedResources';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_FOCUS_AREAS, getFocusAreas, saveFocusAreas } from '../utils/focusAreas';
 import { getCurrentUser, getSession } from '../utils/auth';
-import { saveProfileToSupabase, syncProfileFromSupabase, invalidatePhotoCache } from '../utils/profile';
+import { saveProfileToSupabase, syncProfileFromSupabase } from '../utils/profile';
+import { Image } from 'expo-image';
 import { useAuth } from '../../App';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
@@ -878,7 +878,6 @@ export default function ProfileScreen() {
     setProfilePhoto(localUri); // show immediately
     try {
       const userId = userIdRef.current ?? `user_${Date.now()}`;
-      await invalidatePhotoCache(); // clear old cached file so next load re-downloads
       const publicUrl = await uploadPhoto(localUri, `profiles/${userId}.jpg`);
       setProfilePhoto(publicUrl);
       await AsyncStorage.setItem(PROFILE_PHOTO_KEY, publicUrl);
@@ -1202,7 +1201,8 @@ export default function ProfileScreen() {
                           <Image
                             source={{ uri: item.thumbnail_url }}
                             style={styles.libResourceThumb}
-                            resizeMode="cover"
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
                             onError={() => setHiddenThumbs(prev => new Set(prev).add(item.id))}
                           />
                           <View style={[styles.libResourceThumbAccent, { backgroundColor: cfg.color }]} />
@@ -1249,7 +1249,7 @@ export default function ProfileScreen() {
           <TouchableOpacity onPress={handleChangePhoto} activeOpacity={0.85} style={styles.profileAvatarWrap}>
             <View style={styles.profileAvatarCircle}>
               {profilePhoto
-                ? <Image source={{ uri: profilePhoto }} style={styles.profileAvatarPhoto} />
+                ? <Image source={{ uri: profilePhoto }} style={styles.profileAvatarPhoto} cachePolicy="memory-disk" contentFit="cover" transition={150} />
                 : <Text style={styles.profileAvatarText}>{profileName ? profileName.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() : '?'}</Text>
               }
             </View>

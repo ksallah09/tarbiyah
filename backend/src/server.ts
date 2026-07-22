@@ -15,7 +15,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import { getTextModel, getJsonModel, generateWithRetry, MODEL_FAST, MODEL_HEAVY } from './config/gemini';
+import { genAI, getTextModel, getJsonModel, generateWithRetry, MODEL_FAST, MODEL_HEAVY } from './config/gemini';
 import { supabase, verifyUserToken } from './config/supabase';
 import { seedSources, pickInsight, recordDelivery, getSourceById } from './data/database';
 import { buildDailyPayload } from './generators/insights';
@@ -3858,6 +3858,29 @@ async function fetchSafetySignals(ageNum: number): Promise<string[]> {
   return [...new Set(results)].slice(0, 25);
 }
 
+async function fetchSafetySignalsWithGrounding(ageNum: number, ageGroup: string): Promise<string[]> {
+  try {
+    const model = genAI.getGenerativeModel({
+      model: MODEL_FAST,
+      tools: [{ googleSearch: {} } as any],
+      generationConfig: { temperature: 0.2 },
+    });
+    const year   = new Date().getFullYear();
+    const prompt = `Search for specific online safety threats and dangerous trends actively affecting children aged ${ageNum} (${ageGroup}) right now in ${year}. Include: dangerous viral challenges, predatory contact patterns on TikTok/Roblox/Discord/Snapchat, self-harm content trends, extremist content targeting youth, harmful viral content spreading this week, substance use glorification. List 6-8 specific current threats with platform names where relevant. One sentence per item.`;
+    const result = await model.generateContent(prompt);
+    const text   = result.response.text();
+    return text
+      .split('\n')
+      .map((l: string) => l.trim().replace(/^[-•*\d.]+\s*/, ''))
+      .filter((l: string) => l.length > 15)
+      .map((l: string) => `[Live search] ${l}`)
+      .slice(0, 8);
+  } catch (e) {
+    console.warn('[fetchSafetySignalsWithGrounding] failed:', (e as Error).message);
+    return [];
+  }
+}
+
 async function fetchGoogleTrends(ageNum: number): Promise<string[]> {
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) return [];
@@ -3902,89 +3925,26 @@ async function fetchGoogleTrends(ageNum: number): Promise<string[]> {
   }
 }
 
-function cleanUdText(text: string): string {
-  return (text ?? '').replace(/\[|\]/g, '').trim();
-}
-
-async function fetchUrbanSlang(): Promise<string[]> {
-  const serpApiKey = process.env.SERPAPI_KEY;
-  const seen       = new Set<string>();
-  const words: { word: string; thumbs: number }[] = [];
-
-  function add(word: string, thumbs: number) {
-    const key = word.toLowerCase();
-    if (!word || seen.has(key)) return;
-    seen.add(key);
-    words.push({ word, thumbs });
+async function fetchSlangWithGrounding(ageNum: number, ageGroup: string): Promise<string[]> {
+  try {
+    const model = genAI.getGenerativeModel({
+      model: MODEL_FAST,
+      tools: [{ googleSearch: {} } as any],
+      generationConfig: { temperature: 0.2 },
+    });
+    const year   = new Date().getFullYear();
+    const prompt = `Search for the most current slang words and phrases actively used by children and teenagers aged ${ageNum} (${ageGroup}) in ${year}. Include words trending on TikTok, Discord, Roblox, YouTube comments, and in school environments right now. List 10-12 specific slang words or short phrases that are genuinely popular with this age group this week. One word or phrase per line, no definitions or explanations.`;
+    const result = await model.generateContent(prompt);
+    const text   = result.response.text();
+    return text
+      .split('\n')
+      .map((l: string) => l.trim().replace(/^[-•*\d.]+\s*/, '').replace(/^["']|["']$/g, ''))
+      .filter((l: string) => l.length > 1 && l.length < 40)
+      .slice(0, 12);
+  } catch (e) {
+    console.warn('[fetchSlangWithGrounding] failed:', (e as Error).message);
+    return [];
   }
-
-  await Promise.allSettled([
-    // Source 1 — Words of the day (editor-curated, last 7-10 days)
-    (async () => {
-      try {
-        const res  = await fetch('https://api.urbandictionary.com/v0/words_of_the_day');
-        if (!res.ok) return;
-        const json: any = await res.json();
-        const cutoff = Date.now() - 6 * 30 * 24 * 60 * 60 * 1000;
-        for (const entry of json?.list ?? []) {
-          const written = entry?.written_on ? new Date(entry.written_on).getTime() : Date.now();
-          if (written >= cutoff) add(cleanUdText(entry?.word), entry?.thumbs_up ?? 0);
-        }
-      } catch {}
-    })(),
-
-    // Source 2 — Random batches (6 parallel calls, filtered to past 2 years, sorted by thumbs_up)
-    ...Array.from({ length: 6 }, () =>
-      (async () => {
-        try {
-          const res  = await fetch('https://api.urbandictionary.com/v0/random');
-          if (!res.ok) return;
-          const json: any = await res.json();
-          const cutoff = Date.now() - 6 * 30 * 24 * 60 * 60 * 1000;
-          const recent = (json?.list ?? []).filter((e: any) => {
-            const written = e?.written_on ? new Date(e.written_on).getTime() : 0;
-            return written >= cutoff;
-          });
-          const best = [...recent].sort((a, b) => (b.thumbs_up ?? 0) - (a.thumbs_up ?? 0))[0];
-          if (best) add(cleanUdText(best.word), best.thumbs_up ?? 0);
-        } catch {}
-      })()
-    ),
-
-    // Source 3 — SerpAPI Google search → UD define lookup
-    (async () => {
-      if (!serpApiKey) return;
-      try {
-        const year = new Date().getFullYear();
-        const searchUrl = `https://serpapi.com/search.json?engine=google&q=new+gen+z+slang+${year}&api_key=${serpApiKey}&num=5&tbs=qdr:y`;
-        const res  = await fetch(searchUrl);
-        if (!res.ok) return;
-        const json: any = await res.json();
-        const snippets = (json?.organic_results ?? []).map((r: any) => r.snippet ?? '').join(' ');
-        const matches  = [...snippets.matchAll(/"([^"]{2,15})"/g)].map(m => m[1]);
-
-        await Promise.allSettled(matches.slice(0, 6).map(async term => {
-          try {
-            const defRes  = await fetch(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(term)}`);
-            if (!defRes.ok) return;
-            const defJson: any = await defRes.json();
-            const cutoff = Date.now() - 6 * 30 * 24 * 60 * 60 * 1000;
-            const recent = (defJson?.list ?? []).filter((e: any) => {
-              const written = e?.written_on ? new Date(e.written_on).getTime() : 0;
-              return written >= cutoff;
-            });
-            const best = [...recent].sort((a, b) => (b.thumbs_up ?? 0) - (a.thumbs_up ?? 0))[0];
-            if (best) add(cleanUdText(best.word), best.thumbs_up ?? 0);
-          } catch {}
-        }));
-      } catch {}
-    })(),
-  ]);
-
-  return words
-    .sort((a, b) => b.thumbs - a.thumbs)
-    .map(w => w.word)
-    .slice(0, 15);
 }
 
 function buildChildWorldPrompt(params: {
@@ -4072,7 +4032,7 @@ Rules:
 - schoolCulture: 2-3 items.
 - fashionCulture: 2-3 items. What styles, aesthetics, brands, or clothing trends are active for this age group right now. For ages 3-8 keep it simple (character clothing, specific brands kids want). For 9+ include aesthetic culture (dark academia, streetwear, e-girl, soft boy, gorpcore etc.), sneaker culture, brand pressure, and fast fashion platforms (Shein, ASOS, Depop). Always include an Islamic angle focused on modesty as a value not a restriction.
 - starters: 3 questions, age-appropriate, conversational.
-- safetyWatch: CRITICALLY IMPORTANT. Scan ALL the trend data above specifically for: viral dangerous challenges, self-harm content or glorification, predatory adult-to-minor contact patterns, radicalisation or extremist content gaining traction with youth, harmful viral content, eating disorder or body image content targeting this age group, substance use trends, sexual content normalisation. Return 1-3 items only if genuinely present in the data or known to be active right now for this age group. Return an empty array [] if there is nothing specifically dangerous this week — do NOT manufacture threats. severity "high" = immediate parental action needed, "medium" = awareness and conversation needed, "low" = monitor.
+- safetyWatch: CRITICALLY IMPORTANT. Scan ALL the trend data above specifically for: viral dangerous challenges, self-harm content or glorification, predatory adult-to-minor contact patterns, radicalisation or extremist content gaining traction with youth, harmful viral content, eating disorder or body image content targeting this age group, substance use trends, sexual content normalisation. Return 3-5 items — prioritise threats genuinely present in the data or known to be active right now for this age group, then fill remaining slots with the most relevant standing risks for this age. Do NOT manufacture specific fake trends but DO include real known risks if live data is sparse. severity "high" = immediate parental action needed, "medium" = awareness and conversation needed, "low" = monitor.
 - TONE — CRITICAL: Never assume the child is on any platform. Always use conditional language: "if your child uses TikTok...", "kids this age who are on Roblox...", "if they've come across this...". Never say "your child is watching", "your child uses", or "your child sees". The parent may not know what their child is or isn't on — the goal is awareness, not assumption. This applies to every section including onlineWorld, concerns, safetyWatch, and habits.
 - Everything should feel current and real, not generic.`;
 }
@@ -4086,8 +4046,8 @@ async function generateChildWorldSnapshot(prompt: string): Promise<any> {
   }
 
   try {
-    const model = getJsonModel(MODEL_HEAVY, system);
-    const text  = await generateWithRetry(model, prompt, MODEL_HEAVY, system);
+    const model = getJsonModel(MODEL_FAST, system);
+    const text  = await generateWithRetry(model, prompt, MODEL_FAST, system);
     return parse(text);
   } catch {}
 
@@ -4122,19 +4082,23 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
         const ageNum   = parseInt(age) || 10;
         const ageGroup = childWorldAgeGroup(ageNum);
 
-        const [redditResult, youtubeResult, slangResult, googleResult, safetyResult] = await Promise.allSettled([
+        const [redditResult, youtubeResult, slangResult, googleResult, safetyResult, groundedSafetyResult] = await Promise.allSettled([
           fetchRedditTrends(ageNum),
           fetchYoutubeTrends(ageNum),
-          fetchUrbanSlang(),
+          fetchSlangWithGrounding(ageNum, ageGroup),
           fetchGoogleTrends(ageNum),
           fetchSafetySignals(ageNum),
+          fetchSafetySignalsWithGrounding(ageNum, ageGroup),
         ]);
 
-        const reddit        = redditResult.status  === 'fulfilled' ? redditResult.value  : [];
-        const youtube       = youtubeResult.status === 'fulfilled' ? youtubeResult.value : [];
-        const slang         = slangResult.status   === 'fulfilled' ? slangResult.value   : [];
-        const googleTrends  = googleResult.status  === 'fulfilled' ? googleResult.value  : [];
-        const safetySignals = safetyResult.status  === 'fulfilled' ? safetyResult.value  : [];
+        const reddit        = redditResult.status        === 'fulfilled' ? redditResult.value        : [];
+        const youtube       = youtubeResult.status       === 'fulfilled' ? youtubeResult.value       : [];
+        const slang         = slangResult.status         === 'fulfilled' ? slangResult.value         : [];
+        const googleTrends  = googleResult.status        === 'fulfilled' ? googleResult.value        : [];
+        const safetySignals = [
+          ...(safetyResult.status         === 'fulfilled' ? safetyResult.value         : []),
+          ...(groundedSafetyResult.status === 'fulfilled' ? groundedSafetyResult.value : []),
+        ];
 
         const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals });
         const snapshot = await generateChildWorldSnapshot(prompt);
@@ -4157,11 +4121,11 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                 body: JSON.stringify({
                   to: profile.push_token,
-                  title: `${childFirstName}'s "Youth Culture" weekly update is ready`,
-                  body: 'See trends, slang, online concerns and more.',
+                  title: `🛡️ Safety update for ${childFirstName}`,
+                  body: 'New alerts, trends & online risks this week — tap to review.',
                   sound: 'default',
                   channelId: 'default',
-                  data: { screen: 'Dashboards', childId },
+                  data: { screen: 'Home', openYouthCulture: true, childId },
                 }),
               });
               const pushData = await pushRes.json();
@@ -4192,19 +4156,23 @@ app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => 
     const interests = (req.query.interests as string) ?? undefined;
     const ageGroup  = childWorldAgeGroup(age);
 
-    const [redditResult, youtubeResult, slangResult, googleResult, safetyResult] = await Promise.allSettled([
+    const [redditResult, youtubeResult, slangResult, googleResult, safetyResult, groundedSafetyResult] = await Promise.allSettled([
       fetchRedditTrends(age),
       fetchYoutubeTrends(age),
-      fetchUrbanSlang(),
+      fetchSlangWithGrounding(age, ageGroup),
       fetchGoogleTrends(age),
       fetchSafetySignals(age),
+      fetchSafetySignalsWithGrounding(age, ageGroup),
     ]);
 
-    const reddit         = redditResult.status   === 'fulfilled' ? redditResult.value   : [];
-    const youtube        = youtubeResult.status  === 'fulfilled' ? youtubeResult.value  : [];
-    const slang          = slangResult.status    === 'fulfilled' ? slangResult.value    : [];
-    const googleTrends   = googleResult.status   === 'fulfilled' ? googleResult.value   : [];
-    const safetySignals  = safetyResult.status   === 'fulfilled' ? safetyResult.value   : [];
+    const reddit         = redditResult.status        === 'fulfilled' ? redditResult.value        : [];
+    const youtube        = youtubeResult.status       === 'fulfilled' ? youtubeResult.value       : [];
+    const slang          = slangResult.status         === 'fulfilled' ? slangResult.value         : [];
+    const googleTrends   = googleResult.status        === 'fulfilled' ? googleResult.value        : [];
+    const safetySignals  = [
+      ...(safetyResult.status         === 'fulfilled' ? safetyResult.value         : []),
+      ...(groundedSafetyResult.status === 'fulfilled' ? groundedSafetyResult.value : []),
+    ];
 
     console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length} Safety:${safetySignals.length}`);
 

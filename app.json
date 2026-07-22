@@ -2,20 +2,20 @@
   "expo": {
     "name": "Tarbiyah",
     "slug": "tarbiyah",
-    "version": "1.0.5",
+    "version": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "backgroundColor": "#1B3D2F"
+      "backgroundColor": "#FFFFFF"
     },
     "scheme": "com.tarbiyah.parenting",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tarbiyah.parenting",
       "usesAppleSignIn": true,
-      "buildNumber": "25",
+      "buildNumber": "28",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
@@ -26,7 +26,7 @@
         "NSPhotoLibraryAddUsageDescription": "Tarbiyah saves photos to your library."
       },
       "splash": {
-        "backgroundColor": "#1B3D2F"
+        "backgroundColor": "#FFFFFF"
       }
     },
     "android": {
@@ -35,7 +35,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.tarbiyah.parenting",
-      "versionCode": 29,
+      "versionCode": 31,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECORD_AUDIO",

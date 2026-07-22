@@ -25,5 +25,5 @@ export async function uploadPhoto(localUri, path) {
   if (error) throw error;
 
   const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-  return data.publicUrl;
+  return `${data.publicUrl}?t=${Date.now()}`;
 }

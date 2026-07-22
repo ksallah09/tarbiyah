@@ -85,14 +85,12 @@ export default function ChallengeCard({ navigation, onChallenge, focusCount = 0 
       if (data?.status === 'active' && data?.type === 'category_blitz' && data?.ends_at && new Date(data.ends_at) < new Date()) {
         const cp = data.challenger_progress ?? 0;
         const pp = data.partner_progress ?? 0;
-        if (cp !== pp) {
-          const winnerId = cp > pp ? data.challenger_id : data.partner_id;
-          await supabase.from('family_challenges')
-            .update({ status: 'completed', winner_id: winnerId, updated_at: new Date().toISOString() })
-            .eq('id', data.id);
-          data.status    = 'completed';
-          data.winner_id = winnerId;
-        }
+        const winnerId = cp !== pp ? (cp > pp ? data.challenger_id : data.partner_id) : null;
+        await supabase.from('family_challenges')
+          .update({ status: 'completed', winner_id: winnerId, updated_at: new Date().toISOString() })
+          .eq('id', data.id);
+        data.status    = 'completed';
+        data.winner_id = winnerId;
       }
 
       setChallenge(data ?? null);
@@ -201,6 +199,7 @@ export default function ChallengeCard({ navigation, onChallenge, focusCount = 0 
   const ended        = challenge?.ends_at && new Date(challenge.ends_at) < new Date();
   const iWon         = challenge?.status === 'completed' && challenge?.winner_id === myId;
   const partnerWon   = challenge?.status === 'completed' && challenge?.winner_id && challenge?.winner_id !== myId;
+  const isTie        = challenge?.status === 'completed' && !challenge?.winner_id;
 
   if (loading) return null;
   if (!partnerSyncOn || !partnerLinked) return null;
@@ -310,18 +309,18 @@ export default function ChallengeCard({ navigation, onChallenge, focusCount = 0 
 
       {/* Completed */}
       {challenge?.status === 'completed' && (
-        <View style={[cc.card, { borderColor: iWon ? '#C9A84C40' : '#9CA3AF40' }]}>
+        <View style={[cc.card, { borderColor: iWon ? '#C9A84C40' : isTie ? '#6366F140' : '#9CA3AF40' }]}>
           <View style={cc.cardTop}>
-            <Text style={cc.cardEmoji}>{iWon ? '🏆' : '💪'}</Text>
+            <Text style={cc.cardEmoji}>{iWon ? '🏆' : isTie ? '🤝' : '💪'}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[cc.cardType, { color: iWon ? '#C9A84C' : '#6B7280' }]}>
-                {iWon ? 'Challenge Won!' : `${partnerName} Won`}
+              <Text style={[cc.cardType, { color: iWon ? '#C9A84C' : isTie ? '#6366F1' : '#6B7280' }]}>
+                {iWon ? 'Challenge Won!' : isTie ? "It's a Tie!" : `${partnerName} Won`}
               </Text>
               <Text style={cc.cardSummary}>{challengeSummary(challenge.type, challenge.config)}</Text>
             </View>
-            <View style={[cc.statusPill, { backgroundColor: iWon ? '#FEF9EE' : '#F3F4F6' }]}>
-              <Text style={[cc.statusText, { color: iWon ? '#C9A84C' : '#9CA3AF' }]}>
-                {iWon ? '🥇 Winner' : '🥈 Runner-up'}
+            <View style={[cc.statusPill, { backgroundColor: iWon ? '#FEF9EE' : isTie ? '#EEF2FF' : '#F3F4F6' }]}>
+              <Text style={[cc.statusText, { color: iWon ? '#C9A84C' : isTie ? '#6366F1' : '#9CA3AF' }]}>
+                {iWon ? '🥇 Winner' : isTie ? '🤝 Tied' : '🥈 Runner-up'}
               </Text>
             </View>
           </View>
@@ -330,7 +329,9 @@ export default function ChallengeCard({ navigation, onChallenge, focusCount = 0 
             <Text style={cc.completedText}>
               {iWon
                 ? `Ma Shaa Allah! You reached the target first. Well done! 🎉`
-                : `${partnerName} reached the target first — great effort, keep it up!`}
+                : isTie
+                  ? `Equal scores — a true tie! Great effort from both of you.`
+                  : `${partnerName} reached the target first — great effort, keep it up!`}
             </Text>
           </View>
 

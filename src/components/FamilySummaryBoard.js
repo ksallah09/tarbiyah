@@ -21,7 +21,7 @@ import EncouragementModal from './EncouragementModal';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PADDING = 20;
 
-export default function FamilySummaryBoard({ navigation }) {
+export default function FamilySummaryBoard({ navigation, section = 'childWins' }) {
   const [familyGoals,     setFamilyGoals]     = useState([]);
   const [goalCompletions, setGoalCompletions] = useState([]);
   const [familyTrees,     setFamilyTrees]     = useState([]);
@@ -251,394 +251,395 @@ export default function FamilySummaryBoard({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#2E7D62" />}
       >
 
-        {/* ── Your Wins ── */}
-        <View style={s.sectionHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.eyebrow}>THIS WEEK</Text>
-            <Text style={s.sectionTitle}>Your Wins</Text>
-          </View>
-        </View>
-        <View style={s.winsCard}>
-          <View style={s.winsCardHeader}>
-            <View style={s.powerDotOuter}><View style={s.powerDotInner} /></View>
-            <Text style={s.winsCardHeaderSub}>Habits & activities logged from each child's dashboard</Text>
-          </View>
-          {children.length === 0 ? (
-            <View style={s.winsEmpty}>
-              <Ionicons name="people-outline" size={28} color="#D1D5DB" />
-              <Text style={s.emptyTitle}>No children added yet</Text>
-              <Text style={s.emptySub}>Head to the <Text style={s.emptyHighlight}>Configure tab</Text> to add your children and start tracking their progress.</Text>
-            </View>
-          ) : children.map((child, idx) => {
-            const hasAreas = (child.growthAreas ?? []).length > 0;
-            const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
-            const isLast = idx === children.length - 1;
-            return (
-              <TouchableOpacity
-                key={child.id}
-                style={[s.winsRow, !isLast && s.winsRowBorder]}
-                onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })}
-                activeOpacity={0.75}
-              >
-                <View style={[s.winsAvatar, { backgroundColor: child.color }]}>
-                  {child.photo
-                    ? <Image source={{ uri: child.photo }} style={s.winsAvatarPhoto} />
-                    : <Text style={s.winsAvatarInitial}>{child.name[0]}</Text>
-                  }
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.winsChildName}>{child.name}</Text>
-                  <View style={s.winsAgePill}><Text style={s.winsAgeText}>Age {child.age}</Text></View>
-                </View>
-                {hasAreas ? (
-                  <View style={s.winsStats}>
-                    <View style={s.winsStatItem}>
-                      <Text style={s.winsStatNum}>{habits}</Text>
-                      <Text style={s.winsStatLabel}>Habits</Text>
-                    </View>
-                    <View style={s.winsStatDivider} />
-                    <View style={s.winsStatItem}>
-                      <Text style={s.winsStatNum}>{activities}</Text>
-                      <Text style={s.winsStatLabel}>Activities</Text>
-                    </View>
-                  </View>
-                ) : (
-                  <Text style={{ fontSize: 11, color: '#C3DDD6', fontWeight: '500' }}>No growth area yet</Text>
-                )}
-                <Ionicons name="chevron-forward" size={13} color="#C3DDD6" style={{ marginLeft: 6 }} />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* ── Family Goals ── */}
-        <View style={[s.sectionHeader, { marginTop: 20 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.eyebrow}>THIS WEEK</Text>
-            <Text style={s.sectionTitle}>Family Goals</Text>
-          </View>
-          <TouchableOpacity style={s.sectionActionBtn} onPress={() => navigation.navigate('FamilyGoalWizard')} activeOpacity={0.75}>
-            <Ionicons name="add" size={14} color="#FFFFFF" />
-            <Text style={s.sectionActionBtnText}>Add Goal</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={s.card}>
-          {familyGoals.length === 0 ? (
-            <View style={s.emptyInner}>
-              <Ionicons name="flag-outline" size={28} color="#D1D5DB" style={{ marginBottom: 10 }} />
-              <Text style={s.emptyTitle}>No family goals yet</Text>
-              <Text style={s.emptySub}>Head to the <Text style={s.emptyHighlight}>Configure tab</Text> to set your first shared family goal.</Text>
-            </View>
-          ) : (showAllGoals ? familyGoals : familyGoals.slice(0, 5)).map((goal, idx) => {
-            const target    = goal.frequency ?? 1;
-            const count     = countThisWeek(goalCompletions, goal.id);
-            const doneToday = isCompletedToday(goalCompletions, goal.id);
-            const goalMet   = count >= target;
-            const pct       = Math.min(Math.round((count / target) * 100), 100);
-            const fillColor = goalMet ? '#2E7D62' : (count > 0 ? '#4A90D9' : '#D1D5DB');
-            return (
-              <View key={goal.id}>
-                {idx > 0 && <View style={s.divider} />}
-                <View style={s.goalRow}>
-                  <View style={[s.goalIcon, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '18' }]}>
-                    <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={s.goalTitleRow}>
-                      <Text style={s.goalTitle} numberOfLines={1}>{goal.title}</Text>
-                      {goalMet ? (
-                        <View style={s.metPill}>
-                          <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
-                          <Text style={s.metText}>Done</Text>
-                        </View>
-                      ) : (
-                        <TouchableOpacity
-                          style={[s.logBtn, doneToday && s.logBtnDone]}
-                          disabled={doneToday}
-                          onPress={async () => {
-                            const updated = await logCompletion(goal.id);
-                            setGoalCompletions([...updated]);
-                            setEncouragement(pickRandom(GOALS_MESSAGES));
-                          }}
-                          activeOpacity={0.75}
-                        >
-                          <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#fff'} />
-                          <Text style={[s.logBtnText, doneToday && { color: '#2E7D62' }]}>{doneToday ? 'Logged' : 'Log it'}</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <View style={s.barRow}>
-                      <View style={s.barTrack}>
-                        <View style={[s.barFill, { width: `${pct}%`, backgroundColor: fillColor }]} />
-                      </View>
-                      <Text style={[s.barLabel, goalMet && { color: '#2E7D62' }]}>{count}/{target}</Text>
-                    </View>
-                    <Text style={s.goalStatus}>
-                      {goalMet ? '🎯 Goal met this week' : `${goal.frequencyLabel} · ${target - count} to go`}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-          {familyGoals.length > 5 && (
-            <TouchableOpacity
-              style={s.seeMoreBtn}
-              onPress={() => setShowAllGoals(v => !v)}
-              activeOpacity={0.75}
-            >
-              <Text style={s.seeMoreText}>
-                {showAllGoals ? 'Show less' : `See ${familyGoals.length - 5} more`}
-              </Text>
-              <Ionicons name={showAllGoals ? 'chevron-up' : 'chevron-down'} size={13} color="#2E7D62" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Accomplishment Trees ── */}
-        <View style={{ marginTop: 20 }}>
-          <View style={[s.sectionHeader, { alignItems: 'flex-start' }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.eyebrow}>FAMILY GARDEN</Text>
-              <Text style={s.sectionTitle}>Accomplishment Trees</Text>
-              <Text style={s.sectionSub}>Track your children's accomplishments</Text>
-            </View>
-            <TouchableOpacity style={s.sectionActionBtn} onPress={() => navigation.navigate('GardenTreeWizard')} activeOpacity={0.75}>
-              <Ionicons name="add" size={14} color="#FFFFFF" />
-              <Text style={s.sectionActionBtnText}>Add Tree</Text>
-            </TouchableOpacity>
-          </View>
-          {familyTrees.length === 0 ? (
-            <TouchableOpacity style={s.emptyGarden} onPress={() => navigation.navigate('GardenTreeWizard')} activeOpacity={0.8}>
-              <Text style={{ fontSize: 32, marginBottom: 8 }}>🌱</Text>
-              <Text style={s.emptyTitle}>No trees yet</Text>
-              <Text style={s.emptySub}>Tap "Add Tree" to start your child's Accomplishment Tree</Text>
-            </TouchableOpacity>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-              {familyTrees.map(tree => (
-                <MiniGardenCard
-                  key={tree.child_id}
-                  childName={tree.child_name}
-                  total={gardenTotals[tree.child_id] ?? 0}
-                  color={children.find(c => c.id === tree.child_id)?.color ?? tree.child_color}
-                  photo={children.find(c => c.id === tree.child_id)?.photo ?? null}
-                  thresholds={tree.thresholds}
-                  onPress={() => navigation.navigate('GardenDetail', { tree })}
-                />
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        {/* ── Accomplishment feed ── */}
-        {accomplishments.length > 0 && (
-          <View style={{ marginTop: 20 }}>
-            <View style={{ marginBottom: 12 }}>
-              <Text style={s.eyebrow}>ALL CHILDREN</Text>
-              <Text style={s.sectionTitle}>Accomplishment Feed</Text>
-              <Text style={s.sectionSub}>Recent wins across your family</Text>
-            </View>
-            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#F0F0F0' }}>
-            {(showAllAccomp ? accomplishments : accomplishments.slice(0, 5)).map((action, idx) => {
-              const manner    = MANNERS.find(m => m.key === action.manner);
-              const child     = children.find(c => c.id === action.child_id);
-              const childName = action.child_name?.split(' ')[0] ?? child?.name?.split(' ')[0] ?? '?';
-              const color     = child?.color ?? '#2E7D62';
-              const loveNames = Array.isArray(action.loved_by) ? action.loved_by : [];
-              const loved     = lovedActions.has(action.id) || loveNames.includes(myProfileName);
-              return (
-                <View key={action.id} style={[s.accompItem, idx > 0 && s.accompItemBorder]}>
-                  {/* Avatar */}
-                  <View style={[s.accompAvatar, { backgroundColor: color }]}>
-                    {child?.photo
-                      ? <Image source={{ uri: child.photo }} style={s.accompAvatarPhoto} />
-                      : <Text style={s.accompAvatarInitial}>{childName[0].toUpperCase()}</Text>
-                    }
-                  </View>
-
-                  {/* Content */}
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <Text style={s.accompEmoji}>{manner?.emoji ?? '⭐'}</Text>
-                      <Text style={s.accompLabel} numberOfLines={1}>{manner?.label ?? action.manner}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                      <View style={[s.accompChildPill, { backgroundColor: color + '22' }]}>
-                        <Text style={[s.accompChildName, { color }]}>{childName}</Text>
-                      </View>
-                      <Text style={s.accompDate}>{new Date(action.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
-                    </View>
-                    {!!action.note && <Text style={s.accompNote}>"{action.note}"</Text>}
-                    {loveNames.length > 0 && (
-                      <View style={s.lovePill}>
-                        <Ionicons name="heart" size={12} color="#E11D48" />
-                        <Text style={s.lovePillText}>{loveNames.join(' & ')} loved this</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Love button */}
-                  <TouchableOpacity
-                    onPress={() => handleLoveAccomplishment(action.id, childName, manner?.label ?? action.manner)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Ionicons name={loved ? 'heart' : 'heart-outline'} size={22} color={loved ? '#E11D48' : '#D1D5DB'} />
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-            {accomplishments.length > 5 && (
-              <TouchableOpacity onPress={() => setShowAllAccomp(v => !v)} style={s.showMoreBtn}>
-                <Text style={s.showMoreText}>
-                  {showAllAccomp ? 'Show less' : `See all ${accomplishments.length} accomplishments`}
-                </Text>
-                <Ionicons name={showAllAccomp ? 'chevron-up' : 'chevron-down'} size={14} color="#2E7D62" />
-              </TouchableOpacity>
-            )}
-            </View>
-          </View>
-        )}
-
-        {/* ── Partner shared habits/activities ── */}
-        {partnerSyncOn && partnerLinked && sharedByPartner.length > 0 && (
-          <View style={{ marginTop: 20 }}>
-            <View style={s.momentHeader}>
+        {/* ── Your Wins ── (Parenting tab) */}
+        {section === 'parenting' && (
+          <>
+            <View style={s.sectionHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={s.eyebrow}>SHARED BY YOUR PARTNER</Text>
-                <Text style={s.sectionTitle}>Recommended by Your Partner</Text>
-                <Text style={s.sectionSub}>Shared from a child's dashboard</Text>
+                <Text style={s.eyebrow}>THIS WEEK</Text>
+                <Text style={s.sectionTitle}>Your Wins</Text>
               </View>
             </View>
-            <ScrollView
-              horizontal pagingEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast"
-              onMomentumScrollEnd={e => setSharedPage(Math.round(e.nativeEvent.contentOffset.x / CARD_W))}
-            >
-              {sharedByPartner.map(entry => {
-                const isExpanded = expandedShared.has(entry.id);
-                const isOverflow = overflowShared.has(entry.id);
-                const isHabit = entry.type === 'shared_habit';
+            <View style={s.winsCard}>
+              <View style={s.winsCardHeader}>
+                <View style={s.powerDotOuter}><View style={s.powerDotInner} /></View>
+                <Text style={s.winsCardHeaderSub}>Habits & activities logged from each child's dashboard</Text>
+              </View>
+              {children.length === 0 ? (
+                <View style={s.winsEmpty}>
+                  <Ionicons name="people-outline" size={28} color="#D1D5DB" />
+                  <Text style={s.emptyTitle}>No children added yet</Text>
+                  <Text style={s.emptySub}>Head to the <Text style={s.emptyHighlight}>Configure tab</Text> to add your children and start tracking their progress.</Text>
+                </View>
+              ) : children.map((child, idx) => {
+                const hasAreas = (child.growthAreas ?? []).length > 0;
+                const { habits, activities } = getChildWeeklyCounts(weekCompletions, child.growthAreas);
+                const isLast = idx === children.length - 1;
                 return (
-                  <View key={entry.id} style={[s.sharedCard, { width: CARD_W }]}>
-                    <View style={s.momentTopRow}>
-                      <View style={[s.momentIcon, { backgroundColor: isHabit ? '#EDF7F2' : '#FEF9EE' }]}>
-                        <Text style={{ fontSize: 13 }}>{isHabit ? '🔄' : '🎯'}</Text>
-                      </View>
-                      <View style={[s.childBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22', marginLeft: 6 }]}>
-                        <Text style={[s.childBadgeText, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
-                      </View>
-                      <Text style={s.typeLabel}>{isHabit ? 'Habit' : 'Activity'}</Text>
-                      <Text style={s.dateLabel}>{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+                  <TouchableOpacity
+                    key={child.id}
+                    style={[s.winsRow, !isLast && s.winsRowBorder]}
+                    onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[s.winsAvatar, { backgroundColor: child.color }]}>
+                      {child.photo
+                        ? <Image source={{ uri: child.photo }} style={s.winsAvatarPhoto} />
+                        : <Text style={s.winsAvatarInitial}>{child.name[0]}</Text>
+                      }
                     </View>
-                    <Text style={{ position: 'absolute', opacity: 0 }} onTextLayout={e => { if (e.nativeEvent.lines.length > 3) setOverflowShared(prev => new Set([...prev, entry.id])); }}>{entry.text}</Text>
-                    <Text style={[s.sharedText, { marginTop: 10 }]} numberOfLines={isExpanded ? undefined : 3}>{entry.text}</Text>
-                    {isOverflow && (
-                      <TouchableOpacity onPress={() => setExpandedShared(prev => { const n = new Set(prev); isExpanded ? n.delete(entry.id) : n.add(entry.id); return n; })} activeOpacity={0.7} style={{ marginTop: 6 }}>
-                        <Text style={s.readMore}>{isExpanded ? 'Show less' : 'Read more'}</Text>
-                      </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.winsChildName}>{child.name}</Text>
+                      <View style={s.winsAgePill}><Text style={s.winsAgeText}>Age {child.age}</Text></View>
+                    </View>
+                    {hasAreas ? (
+                      <View style={s.winsStats}>
+                        <View style={s.winsStatItem}>
+                          <Text style={s.winsStatNum}>{habits}</Text>
+                          <Text style={s.winsStatLabel}>Habits</Text>
+                        </View>
+                        <View style={s.winsStatDivider} />
+                        <View style={s.winsStatItem}>
+                          <Text style={s.winsStatNum}>{activities}</Text>
+                          <Text style={s.winsStatLabel}>Activities</Text>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text style={{ fontSize: 11, color: '#C3DDD6', fontWeight: '500' }}>No growth area yet</Text>
                     )}
-                    <Text style={[s.sharedBy, { marginTop: 8 }]}>Shared by {entry.shared_by_name ?? 'Partner'}</Text>
-                  </View>
+                    <Ionicons name="chevron-forward" size={13} color="#C3DDD6" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
                 );
               })}
-            </ScrollView>
-            <View style={s.carouselFooter}>
-              <View style={s.dotsRow}>
-                {sharedByPartner.map((_, i) => (
-                  <View key={i} style={[s.dotBase, i === sharedPage && s.dotActive]} />
-                ))}
-              </View>
-              {sharedByPartner.length > 1 && (
-                <Text style={s.swipeHint}>swipe for more</Text>
-              )}
             </View>
-          </View>
+          </>
         )}
 
-        {/* ── Difficult Moments ── */}
-        <View style={{ marginTop: 20 }}>
-          <View style={s.momentHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.eyebrow}>FAMILY LOG</Text>
-              <Text style={s.sectionTitle}>Difficult Moments</Text>
-            </View>
-            {children.length > 0 && (
-              <TouchableOpacity style={s.sectionActionBtn} onPress={openLogModal} activeOpacity={0.8}>
-                <Ionicons name="add" size={14} color="#FFFFFF" />
-                <Text style={s.sectionActionBtnText}>Log</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {incidents.length === 0 ? (
-            <View style={s.card}>
-              <View style={s.emptyInner}>
-                <Ionicons name="journal-outline" size={28} color="#D1D5DB" style={{ marginBottom: 10 }} />
-                <Text style={s.emptyTitle}>Nothing logged yet</Text>
-                <Text style={s.emptySub}>Difficult moments logged on a child's dashboard will appear here.</Text>
+        {/* ── Family Goals ── (Goals tab) */}
+        {section === 'goals' && (
+          <>
+            <View style={[s.sectionHeader, { marginTop: 20 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.eyebrow}>THIS WEEK</Text>
+                <Text style={s.sectionTitle}>Family Goals</Text>
               </View>
+              <TouchableOpacity style={s.sectionActionBtn} onPress={() => navigation.navigate('FamilyGoalWizard')} activeOpacity={0.75}>
+                <Ionicons name="add" size={14} color="#FFFFFF" />
+                <Text style={s.sectionActionBtnText}>Add Goal</Text>
+              </TouchableOpacity>
             </View>
-          ) : (
-            <View style={s.incList}>
-              {(showAllInc ? incidents : incidents.slice(0, 3)).map((entry, idx, arr) => {
-                const ackNames   = Array.isArray(entry.acknowledges) ? entry.acknowledges : [];
-                const acked      = acknowledgedInc.has(entry.id) || ackNames.includes(myProfileName);
-                const isExpanded = expandedInc.has(entry.id);
-                const isOverflow = overflowInc.has(entry.id);
+            <View style={s.card}>
+              {familyGoals.length === 0 ? (
+                <View style={s.emptyInner}>
+                  <Ionicons name="flag-outline" size={28} color="#D1D5DB" style={{ marginBottom: 10 }} />
+                  <Text style={s.emptyTitle}>No family goals yet</Text>
+                  <Text style={s.emptySub}>Head to the <Text style={s.emptyHighlight}>Configure tab</Text> to set your first shared family goal.</Text>
+                </View>
+              ) : (showAllGoals ? familyGoals : familyGoals.slice(0, 5)).map((goal, idx) => {
+                const target    = goal.frequency ?? 1;
+                const count     = countThisWeek(goalCompletions, goal.id);
+                const doneToday = isCompletedToday(goalCompletions, goal.id);
+                const goalMet   = count >= target;
+                const pct       = Math.min(Math.round((count / target) * 100), 100);
+                const fillColor = goalMet ? '#2E7D62' : (count > 0 ? '#4A90D9' : '#D1D5DB');
                 return (
-                  <View key={entry.id} style={[s.incListItem, idx < arr.length - 1 && s.incListItemBorder]}>
-                    <View style={s.incListTopRow}>
-                      <View style={[s.childBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22' }]}>
-                        <Text style={[s.childBadgeText, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
+                  <View key={goal.id}>
+                    {idx > 0 && <View style={s.divider} />}
+                    <View style={s.goalRow}>
+                      <View style={[s.goalIcon, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '18' }]}>
+                        <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
                       </View>
-                      <View style={{ flex: 1 }} />
-                      <Text style={s.dateLabel}>{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
-                      {entry.user_id === myUserId && (
-                        <TouchableOpacity onPress={() => deleteIncidentEntry(entry)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 8 }}>
-                          <Ionicons name="trash-outline" size={14} color="#D1D5DB" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <Text style={{ position: 'absolute', opacity: 0 }} onTextLayout={e => { if (e.nativeEvent.lines.length > 3) setOverflowInc(prev => new Set([...prev, entry.id])); }}>{entry.text}</Text>
-                    <Text style={s.momentText} numberOfLines={isExpanded ? undefined : 3}>{entry.text}</Text>
-                    {!!entry.consequence && (
-                      <View style={{ marginTop: 8 }}>
-                        <Text style={s.consequenceLabel}>CONSEQUENCE GIVEN</Text>
-                        <View style={s.consequencePill}>
-                          <Ionicons name="shield-checkmark-outline" size={11} color="#B45309" />
-                          <Text style={s.consequenceText}>{entry.consequence}</Text>
+                      <View style={{ flex: 1 }}>
+                        <View style={s.goalTitleRow}>
+                          <Text style={s.goalTitle} numberOfLines={1}>{goal.title}</Text>
+                          {goalMet ? (
+                            <View style={s.metPill}>
+                              <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
+                              <Text style={s.metText}>Done</Text>
+                            </View>
+                          ) : (
+                            <TouchableOpacity
+                              style={[s.logBtn, doneToday && s.logBtnDone]}
+                              disabled={doneToday}
+                              onPress={async () => {
+                                const updated = await logCompletion(goal.id);
+                                setGoalCompletions([...updated]);
+                                setEncouragement(pickRandom(GOALS_MESSAGES));
+                              }}
+                              activeOpacity={0.75}
+                            >
+                              <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#fff'} />
+                              <Text style={[s.logBtnText, doneToday && { color: '#2E7D62' }]}>{doneToday ? 'Logged' : 'Log it'}</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
+                        <View style={s.barRow}>
+                          <View style={s.barTrack}>
+                            <View style={[s.barFill, { width: `${pct}%`, backgroundColor: fillColor }]} />
+                          </View>
+                          <Text style={[s.barLabel, goalMet && { color: '#2E7D62' }]}>{count}/{target}</Text>
+                        </View>
+                        <Text style={s.goalStatus}>
+                          {goalMet ? '🎯 Goal met this week' : `${goal.frequencyLabel} · ${target - count} to go`}
+                        </Text>
                       </View>
-                    )}
-                    {isOverflow && (
-                      <TouchableOpacity onPress={() => setExpandedInc(prev => { const n = new Set(prev); isExpanded ? n.delete(entry.id) : n.add(entry.id); return n; })} activeOpacity={0.7} style={{ marginTop: 4 }}>
-                        <Text style={s.readMore}>{isExpanded ? 'Show less' : 'Read more'}</Text>
-                      </TouchableOpacity>
-                    )}
-                    <View style={[s.reactionRow, { marginTop: 10 }]}>
-                      <TouchableOpacity style={[s.ackBtn, acked && s.ackBtnActive]} onPress={() => handleAcknowledgeIncident(entry.childId, entry.id)} activeOpacity={0.7}>
-                        <Ionicons name={acked ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={acked ? '#2E7D62' : '#FFFFFF'} />
-                        <Text style={[s.ackText, acked && s.ackTextActive]}>{acked ? 'Acknowledged' : 'Acknowledge'}</Text>
-                      </TouchableOpacity>
-                      {ackNames.length > 0 && (
-                        <View style={s.ackNamePill}>
-                          <Ionicons name="checkmark-circle" size={13} color="#2E7D62" />
-                          <Text style={s.ackNameText}>{ackNames.join(' & ')}</Text>
-                        </View>
-                      )}
                     </View>
                   </View>
                 );
               })}
-              {incidents.length > 3 && (
-                <TouchableOpacity style={s.seeMoreBtn} onPress={() => setShowAllInc(v => !v)} activeOpacity={0.7}>
-                  <Text style={s.seeMoreText}>{showAllInc ? 'Show less' : `See all ${incidents.length} moments`}</Text>
-                  <Ionicons name={showAllInc ? 'chevron-up' : 'chevron-down'} size={13} color="#2E7D62" />
+              {familyGoals.length > 5 && (
+                <TouchableOpacity style={s.seeMoreBtn} onPress={() => setShowAllGoals(v => !v)} activeOpacity={0.75}>
+                  <Text style={s.seeMoreText}>{showAllGoals ? 'Show less' : `See ${familyGoals.length - 5} more`}</Text>
+                  <Ionicons name={showAllGoals ? 'chevron-up' : 'chevron-down'} size={13} color="#2E7D62" />
                 </TouchableOpacity>
               )}
             </View>
-          )}
-        </View>
+          </>
+        )}
+
+        {/* ── Accomplishment Trees + Feed ── (Child Wins tab) */}
+        {section === 'childWins' && (
+          <>
+            <View style={{ marginTop: 20 }}>
+              <View style={[s.sectionHeader, { alignItems: 'flex-start' }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.eyebrow}>FAMILY GARDEN</Text>
+                  <Text style={s.sectionTitle}>Accomplishment Trees</Text>
+                  <Text style={s.sectionSub}>Track your children's accomplishments</Text>
+                </View>
+                <TouchableOpacity style={s.sectionActionBtn} onPress={() => navigation.navigate('GardenTreeWizard')} activeOpacity={0.75}>
+                  <Ionicons name="add" size={14} color="#FFFFFF" />
+                  <Text style={s.sectionActionBtnText}>Add Tree</Text>
+                </TouchableOpacity>
+              </View>
+              {familyTrees.length === 0 ? (
+                <TouchableOpacity style={s.emptyGarden} onPress={() => navigation.navigate('GardenTreeWizard')} activeOpacity={0.8}>
+                  <Text style={{ fontSize: 32, marginBottom: 8 }}>🌱</Text>
+                  <Text style={s.emptyTitle}>No trees yet</Text>
+                  <Text style={s.emptySub}>Tap "Add Tree" to start your child's Accomplishment Tree</Text>
+                </TouchableOpacity>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                  {familyTrees.map(tree => (
+                    <MiniGardenCard
+                      key={tree.child_id}
+                      childName={tree.child_name}
+                      total={gardenTotals[tree.child_id] ?? 0}
+                      color={children.find(c => c.id === tree.child_id)?.color ?? tree.child_color}
+                      photo={children.find(c => c.id === tree.child_id)?.photo ?? null}
+                      thresholds={tree.thresholds}
+                      onPress={() => navigation.navigate('GardenDetail', { tree })}
+                    />
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+
+            {accomplishments.length > 0 && (
+              <View style={{ marginTop: 20 }}>
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={s.eyebrow}>ALL CHILDREN</Text>
+                  <Text style={s.sectionTitle}>Accomplishment Feed</Text>
+                  <Text style={s.sectionSub}>Recent wins across your family</Text>
+                </View>
+                <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#F0F0F0' }}>
+                  {(showAllAccomp ? accomplishments : accomplishments.slice(0, 5)).map((action, idx) => {
+                    const manner    = MANNERS.find(m => m.key === action.manner);
+                    const child     = children.find(c => c.id === action.child_id);
+                    const childName = action.child_name?.split(' ')[0] ?? child?.name?.split(' ')[0] ?? '?';
+                    const color     = child?.color ?? '#2E7D62';
+                    const loveNames = Array.isArray(action.loved_by) ? action.loved_by : [];
+                    const loved     = lovedActions.has(action.id) || loveNames.includes(myProfileName);
+                    return (
+                      <View key={action.id} style={[s.accompItem, idx > 0 && s.accompItemBorder]}>
+                        <View style={[s.accompAvatar, { backgroundColor: color }]}>
+                          {child?.photo
+                            ? <Image source={{ uri: child.photo }} style={s.accompAvatarPhoto} />
+                            : <Text style={s.accompAvatarInitial}>{childName[0].toUpperCase()}</Text>
+                          }
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Text style={s.accompEmoji}>{manner?.emoji ?? '⭐'}</Text>
+                            <Text style={s.accompLabel} numberOfLines={1}>{manner?.label ?? action.manner}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                            <View style={[s.accompChildPill, { backgroundColor: color + '22' }]}>
+                              <Text style={[s.accompChildName, { color }]}>{childName}</Text>
+                            </View>
+                            <Text style={s.accompDate}>{new Date(action.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+                          </View>
+                          {!!action.note && <Text style={s.accompNote}>"{action.note}"</Text>}
+                          {loveNames.length > 0 && (
+                            <View style={s.lovePill}>
+                              <Ionicons name="heart" size={12} color="#E11D48" />
+                              <Text style={s.lovePillText}>{loveNames.join(' & ')} loved this</Text>
+                            </View>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleLoveAccomplishment(action.id, childName, manner?.label ?? action.manner)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons name={loved ? 'heart' : 'heart-outline'} size={22} color={loved ? '#E11D48' : '#D1D5DB'} />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                  {accomplishments.length > 5 && (
+                    <TouchableOpacity onPress={() => setShowAllAccomp(v => !v)} style={s.showMoreBtn}>
+                      <Text style={s.showMoreText}>
+                        {showAllAccomp ? 'Show less' : `See all ${accomplishments.length} accomplishments`}
+                      </Text>
+                      <Ionicons name={showAllAccomp ? 'chevron-up' : 'chevron-down'} size={14} color="#2E7D62" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* ── Partner Recs + Difficult Moments ── (Parenting tab) */}
+        {section === 'parenting' && (
+          <>
+            {partnerSyncOn && partnerLinked && sharedByPartner.length > 0 && (
+              <View style={{ marginTop: 20 }}>
+                <View style={s.momentHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.eyebrow}>SHARED BY YOUR PARTNER</Text>
+                    <Text style={s.sectionTitle}>Recommended by Your Partner</Text>
+                    <Text style={s.sectionSub}>Shared from a child's dashboard</Text>
+                  </View>
+                </View>
+                <ScrollView
+                  horizontal pagingEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast"
+                  onMomentumScrollEnd={e => setSharedPage(Math.round(e.nativeEvent.contentOffset.x / CARD_W))}
+                >
+                  {sharedByPartner.map(entry => {
+                    const isExpanded = expandedShared.has(entry.id);
+                    const isOverflow = overflowShared.has(entry.id);
+                    const isHabit = entry.type === 'shared_habit';
+                    return (
+                      <View key={entry.id} style={[s.sharedCard, { width: CARD_W }]}>
+                        <View style={s.momentTopRow}>
+                          <View style={[s.momentIcon, { backgroundColor: isHabit ? '#EDF7F2' : '#FEF9EE' }]}>
+                            <Text style={{ fontSize: 13 }}>{isHabit ? '🔄' : '🎯'}</Text>
+                          </View>
+                          <View style={[s.childBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22', marginLeft: 6 }]}>
+                            <Text style={[s.childBadgeText, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
+                          </View>
+                          <Text style={s.typeLabel}>{isHabit ? 'Habit' : 'Activity'}</Text>
+                          <Text style={s.dateLabel}>{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+                        </View>
+                        <Text style={{ position: 'absolute', opacity: 0 }} onTextLayout={e => { if (e.nativeEvent.lines.length > 3) setOverflowShared(prev => new Set([...prev, entry.id])); }}>{entry.text}</Text>
+                        <Text style={[s.sharedText, { marginTop: 10 }]} numberOfLines={isExpanded ? undefined : 3}>{entry.text}</Text>
+                        {isOverflow && (
+                          <TouchableOpacity onPress={() => setExpandedShared(prev => { const n = new Set(prev); isExpanded ? n.delete(entry.id) : n.add(entry.id); return n; })} activeOpacity={0.7} style={{ marginTop: 6 }}>
+                            <Text style={s.readMore}>{isExpanded ? 'Show less' : 'Read more'}</Text>
+                          </TouchableOpacity>
+                        )}
+                        <Text style={[s.sharedBy, { marginTop: 8 }]}>Shared by {entry.shared_by_name ?? 'Partner'}</Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+                <View style={s.carouselFooter}>
+                  <View style={s.dotsRow}>
+                    {sharedByPartner.map((_, i) => (
+                      <View key={i} style={[s.dotBase, i === sharedPage && s.dotActive]} />
+                    ))}
+                  </View>
+                  {sharedByPartner.length > 1 && <Text style={s.swipeHint}>swipe for more</Text>}
+                </View>
+              </View>
+            )}
+
+            <View style={{ marginTop: 20 }}>
+              <View style={s.momentHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.eyebrow}>FAMILY LOG</Text>
+                  <Text style={s.sectionTitle}>Difficult Moments</Text>
+                </View>
+                {children.length > 0 && (
+                  <TouchableOpacity style={s.sectionActionBtn} onPress={openLogModal} activeOpacity={0.8}>
+                    <Ionicons name="add" size={14} color="#FFFFFF" />
+                    <Text style={s.sectionActionBtnText}>Log</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {incidents.length === 0 ? (
+                <View style={s.card}>
+                  <View style={s.emptyInner}>
+                    <Ionicons name="journal-outline" size={28} color="#D1D5DB" style={{ marginBottom: 10 }} />
+                    <Text style={s.emptyTitle}>Nothing logged yet</Text>
+                    <Text style={s.emptySub}>Difficult moments logged on a child's dashboard will appear here.</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={s.incList}>
+                  {(showAllInc ? incidents : incidents.slice(0, 3)).map((entry, idx, arr) => {
+                    const ackNames   = Array.isArray(entry.acknowledges) ? entry.acknowledges : [];
+                    const acked      = acknowledgedInc.has(entry.id) || ackNames.includes(myProfileName);
+                    const isExpanded = expandedInc.has(entry.id);
+                    const isOverflow = overflowInc.has(entry.id);
+                    return (
+                      <View key={entry.id} style={[s.incListItem, idx < arr.length - 1 && s.incListItemBorder]}>
+                        <View style={s.incListTopRow}>
+                          <View style={[s.childBadge, { backgroundColor: (entry.child_color ?? '#2E7D62') + '22' }]}>
+                            <Text style={[s.childBadgeText, { color: entry.child_color ?? '#2E7D62' }]}>{entry.child_name}</Text>
+                          </View>
+                          <View style={{ flex: 1 }} />
+                          <Text style={s.dateLabel}>{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+                          {entry.user_id === myUserId && (
+                            <TouchableOpacity onPress={() => deleteIncidentEntry(entry)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 8 }}>
+                              <Ionicons name="trash-outline" size={14} color="#D1D5DB" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        <Text style={{ position: 'absolute', opacity: 0 }} onTextLayout={e => { if (e.nativeEvent.lines.length > 3) setOverflowInc(prev => new Set([...prev, entry.id])); }}>{entry.text}</Text>
+                        <Text style={s.momentText} numberOfLines={isExpanded ? undefined : 3}>{entry.text}</Text>
+                        {!!entry.consequence && (
+                          <View style={{ marginTop: 8 }}>
+                            <Text style={s.consequenceLabel}>CONSEQUENCE GIVEN</Text>
+                            <View style={s.consequencePill}>
+                              <Ionicons name="shield-checkmark-outline" size={11} color="#B45309" />
+                              <Text style={s.consequenceText}>{entry.consequence}</Text>
+                            </View>
+                          </View>
+                        )}
+                        {isOverflow && (
+                          <TouchableOpacity onPress={() => setExpandedInc(prev => { const n = new Set(prev); isExpanded ? n.delete(entry.id) : n.add(entry.id); return n; })} activeOpacity={0.7} style={{ marginTop: 4 }}>
+                            <Text style={s.readMore}>{isExpanded ? 'Show less' : 'Read more'}</Text>
+                          </TouchableOpacity>
+                        )}
+                        <View style={[s.reactionRow, { marginTop: 10 }]}>
+                          <TouchableOpacity style={[s.ackBtn, acked && s.ackBtnActive]} onPress={() => handleAcknowledgeIncident(entry.childId, entry.id)} activeOpacity={0.7}>
+                            <Ionicons name={acked ? 'checkmark-circle' : 'checkmark-circle-outline'} size={14} color={acked ? '#2E7D62' : '#FFFFFF'} />
+                            <Text style={[s.ackText, acked && s.ackTextActive]}>{acked ? 'Acknowledged' : 'Acknowledge'}</Text>
+                          </TouchableOpacity>
+                          {ackNames.length > 0 && (
+                            <View style={s.ackNamePill}>
+                              <Ionicons name="checkmark-circle" size={13} color="#2E7D62" />
+                              <Text style={s.ackNameText}>{ackNames.join(' & ')}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                  {incidents.length > 3 && (
+                    <TouchableOpacity style={s.seeMoreBtn} onPress={() => setShowAllInc(v => !v)} activeOpacity={0.7}>
+                      <Text style={s.seeMoreText}>{showAllInc ? 'Show less' : `See all ${incidents.length} moments`}</Text>
+                      <Ionicons name={showAllInc ? 'chevron-up' : 'chevron-down'} size={13} color="#2E7D62" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
+          </>
+        )}
 
       </ScrollView>
 

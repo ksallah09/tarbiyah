@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Modal, Alert, TextInput, KeyboardAvoidingView, Platform, Image,
+  Modal, Alert, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -423,7 +424,7 @@ export default function ChildDashboardScreen({ navigation, route }) {
           <TouchableOpacity onPress={handleEditPhoto} activeOpacity={0.85} style={styles.avatarOuter}>
             <View style={[styles.avatarCircle, { backgroundColor: child.color }]}>
               {child.photo
-                ? <Image source={{ uri: child.photo }} style={styles.avatarPhoto} />
+                ? <Image source={{ uri: child.photo }} style={styles.avatarPhoto} cachePolicy="memory-disk" contentFit="cover" transition={150} />
                 : <Text style={styles.avatarInitial}>{child.name[0]}</Text>
               }
             </View>

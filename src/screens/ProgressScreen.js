@@ -9,8 +9,8 @@ import {
   AppState,
   RefreshControl,
   Dimensions,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -71,7 +71,7 @@ export default function ProgressScreen({ navigation, route }) {
   const [prtHabAct,     setPrtHabAct]     = useState({ habits: 0, activities: 0 });
   const [partnerSyncOn, setPartnerSyncOn] = useState(true);
   const [refreshing,  setRefreshing]       = useState(false);
-  const [familyTab,       setFamilyTab]       = useState(route?.params?.tab === 'configure' ? 'configure' : 'summary');
+  const [familyTab,       setFamilyTab]       = useState(route?.params?.tab === 'configure' ? 'configure' : 'childWins');
   const [segmentLayout,   setSegmentLayout]   = useState(null);
   const hasMountedRef = useRef(false);
 
@@ -129,6 +129,7 @@ export default function ProgressScreen({ navigation, route }) {
   // Skip the very first focus since useEffect already handles initial load
   useFocusEffect(useCallback(() => {
     if (route?.params?.tab === 'configure') setFamilyTab('configure');
+    else if (route?.params?.tab === 'goals') setFamilyTab('goals');
     if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
     refreshAll();
   }, [refreshAll, route?.params?.tab]));
@@ -183,39 +184,53 @@ export default function ProgressScreen({ navigation, route }) {
       <View style={styles.bgTop} />
       {familyTab === 'configure' && <View style={styles.bgBottom} />}
 
+
         {/* ── Green header ── */}
         <View style={[styles.header, { paddingTop: insets.top + 6, paddingBottom: 10 }]} />
 
         {/* ── Segment control ── */}
         <View style={styles.segmentOuter} onLayout={e => setSegmentLayout(e.nativeEvent.layout)}>
           <View style={styles.segmentWrap}>
-            {[['summary', 'Progress Board'], ['configure', 'Configure']].map(([key, label]) => {
-              const showSetupDot    = key === 'configure' && (!hasChildren || !hasFamilyGoals) && familyTab !== 'configure';
-              const showProgressDot = key === 'summary' && hasChildren && hasFamilyGoals;
+            {[
+              ['childWins',  'Child Wins'],
+              ['parenting',  'Parenting'],
+              ['goals',      'Goals'],
+              ['configure',  'Configure'],
+            ].map(([key, label]) => {
+              const showSetupDot = key === 'configure' && (!hasChildren || !hasFamilyGoals) && familyTab !== 'configure';
               return (
-              <TouchableOpacity
-                key={key}
-                style={[styles.segmentTab, familyTab === key && styles.segmentTabActive]}
-                onPress={() => setFamilyTab(key)}
-                activeOpacity={0.8}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.segmentText, familyTab === key && styles.segmentTextActive]}>{label}</Text>
-                  {showSetupDot    && <View style={styles.segmentDot} />}
-                  {showProgressDot && <View style={styles.segmentDot} />}
-                </View>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.segmentTab, familyTab === key && styles.segmentTabActive]}
+                  onPress={() => setFamilyTab(key)}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={[styles.segmentText, familyTab === key && styles.segmentTextActive]}>{label}</Text>
+                    {showSetupDot && <View style={styles.segmentDot} />}
+                  </View>
+                </TouchableOpacity>
               );
             })}
           </View>
         </View>
 
-        {/* ── Summary Board ── */}
-        {familyTab === 'summary' && (
-          <FamilySummaryBoard navigation={navigation} />
+        {/* ── Child Wins ── */}
+        {familyTab === 'childWins' && (
+          <FamilySummaryBoard navigation={navigation} section="childWins" />
         )}
 
-        {/* ── Configure (existing ProgressScreen content) ── */}
+        {/* ── Parenting ── */}
+        {familyTab === 'parenting' && (
+          <FamilySummaryBoard navigation={navigation} section="parenting" />
+        )}
+
+        {/* ── Family Goals ── */}
+        {familyTab === 'goals' && (
+          <FamilySummaryBoard navigation={navigation} section="goals" />
+        )}
+
+        {/* ── Configure ── */}
         {familyTab === 'configure' && (
         <ScrollView
           style={styles.scroll}
@@ -249,7 +264,7 @@ export default function ProgressScreen({ navigation, route }) {
             >
               <View style={[childStyles.avatar, { backgroundColor: child.color }]}>
                 {child.photo
-                  ? <Image source={{ uri: child.photo }} style={childStyles.avatarPhoto} />
+                  ? <Image source={{ uri: child.photo }} style={childStyles.avatarPhoto} cachePolicy="memory-disk" contentFit="cover" transition={150} />
                   : <Text style={childStyles.avatarInitial}>{child.name[0]}</Text>
                 }
               </View>
@@ -592,9 +607,9 @@ const styles = StyleSheet.create({
 
   segmentOuter:      { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: '#1B3D2F' },
   segmentWrap:       { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 3 },
-  segmentTab:        { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
+  segmentTab:        { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
   segmentTabActive:  { backgroundColor: '#FFFFFF' },
-  segmentText:       { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  segmentText:       { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
   segmentTextActive: { color: '#1B3D2F', fontWeight: '700' },
   segmentDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
 

@@ -372,7 +372,7 @@ function OnboardingStack() {
 
 // ─── Root — decides onboarding vs main app ────────────────────────────────────
 
-export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {}, hasChildren: false, hasFamilyGoals: false, refreshHasChildren: () => {}, refreshHasFamilyGoals: () => {} });
+export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {}, hasChildren: false, hasFamilyGoals: false, refreshHasChildren: () => {}, refreshHasFamilyGoals: () => {}, children: [], worldSnaps: {}, refreshChildrenAndSnaps: async () => {}, refreshWorldData: async () => {} });
 export function useAuth() { return useContext(AuthContext); }
 
 export default function App() {
@@ -382,6 +382,30 @@ export default function App() {
   const [showAppSplash, setShowAppSplash] = useState(false);
   const [hasChildren,     setHasChildren]     = useState(false);
   const [hasFamilyGoals,  setHasFamilyGoals]  = useState(false);
+  const [children,        setChildren]        = useState([]);
+  const [worldSnaps,      setWorldSnaps]      = useState({});
+
+  async function refreshChildrenAndSnaps() {
+    try {
+      const profiles = (await getAllChildProfiles()) ?? [];
+      setChildren(profiles);
+      setHasChildren(profiles.length > 0);
+      const entries = await Promise.all(
+        profiles.map(async c => {
+          try {
+            const raw = await AsyncStorage.getItem(`tarbiyah_world_${c.id}`);
+            return [c.id, raw ? JSON.parse(raw) : null];
+          } catch { return [c.id, null]; }
+        })
+      );
+      setWorldSnaps(Object.fromEntries(entries.filter(([, v]) => v)));
+    } catch {}
+  }
+
+  async function refreshWorldData() {
+    await refreshChildrenAndSnaps();
+    prewarmYouthCulture();
+  }
 
   async function refreshHasChildren() {
     const { getAllChildProfiles } = await import('./src/utils/childProfiles');
@@ -402,7 +426,7 @@ export default function App() {
     KFGQPCHafs: require('./assets/fonts/KFGQPCHafs.ttf'),
   });
 
-  async function handleNotifNavigation({ screen, childId } = {}) {
+  async function handleNotifNavigation({ screen, childId, openYouthCulture } = {}) {
     if (screen === 'GardenDetail' && childId) {
       try {
         const { data: tree } = await supabase
@@ -420,6 +444,11 @@ export default function App() {
       navigationRef.current?.navigate('Tabs', { screen: 'Family' });
     } else if (screen === 'Community') {
       navigationRef.current?.navigate('Tabs', { screen: 'Community' });
+    } else if (screen === 'Home' && openYouthCulture) {
+      navigationRef.current?.navigate('Tabs', {
+        screen: 'Home',
+        params: { openYouthCulture: true, childId },
+      });
     } else if (screen === 'Dashboards') {
       navigationRef.current?.navigate('Tabs', {
         screen: 'Dashboards',
@@ -440,7 +469,7 @@ export default function App() {
         await initializePurchases(userId);
 
         setOnboarded(complete);
-        refreshHasChildren();
+        refreshChildrenAndSnaps();
         refreshHasFamilyGoals();
         prewarmYouthCulture();
         if (complete) {
@@ -502,7 +531,7 @@ export default function App() {
         // Restore children saved to this account's profile in Supabase,
         // then refresh hasChildren/Goals so setup banner + dots update correctly
         syncChildProfilesFromSupabase().then(() => {
-          refreshHasChildren();
+          refreshChildrenAndSnaps();
           refreshHasFamilyGoals();
         }).catch(() => {});
         // Pre-warm partner sync status cache so Home leaderboard loads on first focus
@@ -519,7 +548,7 @@ export default function App() {
         // Fresh install: AsyncStorage is empty so sync children + goals from Supabase
         // so the setup banner and tab dots reflect the correct state immediately.
         syncChildProfilesFromSupabase()
-          .then(() => refreshHasChildren())
+          .then(() => refreshChildrenAndSnaps())
           .catch(() => {});
         loadFamilyGoals()
           .then(() => refreshHasFamilyGoals())
@@ -568,7 +597,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals }}>
+    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData }}>
       <NavigationContainer
         ref={navigationRef}
         onReady={() => {
@@ -598,7 +627,7 @@ export default function App() {
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    backgroundColor: '#1B3D2F',
+    backgroundColor: '#FFFFFF',
   },
   tabBar: {
     flexDirection: 'row',

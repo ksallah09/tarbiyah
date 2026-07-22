@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Animated, Image, ActivityIndicator,
+  StyleSheet, Animated, ActivityIndicator,
   Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, RefreshControl,
 } from 'react-native';
 
@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllChildProfiles, syncChildProfilesFromSupabase, updateChildProfile } from '../utils/childProfiles';
+import { Image } from 'expo-image';
 import { logCompletion } from '../utils/childCompletions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HABIT_MESSAGES, ACTIVITY_MESSAGES, GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
@@ -1168,7 +1169,7 @@ export default function DashboardsScreen({ navigation, route }) {
             <View style={[styles.activeAvatarRing, { borderColor: child.color }]}>
               <View style={[styles.activeAvatarCircle, { backgroundColor: child.color }]}>
                 {child.photo
-                  ? <Image source={{ uri: child.photo }} style={styles.activeAvatarPhoto} />
+                  ? <Image source={{ uri: child.photo }} style={styles.activeAvatarPhoto} cachePolicy="memory-disk" contentFit="cover" transition={150} />
                   : <Text style={styles.activeAvatarInitial}>{child.name[0]}</Text>
                 }
               </View>

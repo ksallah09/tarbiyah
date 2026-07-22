@@ -101,11 +101,14 @@ async function updateChallengeProgress(key) {
       .eq('id', challenge.id);
 
     // Win condition — first to reach target
+    // Guard with .eq('status','active') so a simultaneous write from the partner can't
+    // overwrite the winner_id after the first winner has already been recorded.
     if (newVal >= target) {
       await supabase
         .from('family_challenges')
         .update({ status: 'completed', winner_id: userId, updated_at: new Date().toISOString() })
-        .eq('id', challenge.id);
+        .eq('id', challenge.id)
+        .eq('status', 'active');
 
       const label = TYPE_LABELS[challenge.type] ?? 'Challenge';
       notifyPartner(

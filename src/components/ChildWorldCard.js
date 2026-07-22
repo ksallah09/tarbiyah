@@ -294,7 +294,7 @@ const WORLD_SNAPSHOTS = {
 };
 
 const SECTION_CONFIG = [
-  { key: 'safetyWatch',   emoji: '🚨', label: 'Safety Watch',                  safety: true },
+  { key: 'safetyWatch',   emoji: '🚨', label: 'Safety Alerts',                 safety: true },
   { key: 'onlineWorld',   emoji: '📱', label: 'What They May Be Seeing Online' },
   { key: 'slang',         emoji: '💬', label: 'Slang This Week'                },
   { key: 'humor',         emoji: '😂', label: 'What Kids Are Laughing At'      },
@@ -306,7 +306,7 @@ const SECTION_CONFIG = [
   { key: 'islamicLens',   emoji: '🌙', label: 'Islamic Lens'                   },
 ];
 
-function WorldSection({ sectionKey, data }) {
+function WorldSection({ sectionKey, data, flush = false }) {
   const [open, setOpen] = useState(false);
   const cfg = SECTION_CONFIG.find(s => s.key === sectionKey);
   if (!cfg || !data) return null;
@@ -314,34 +314,37 @@ function WorldSection({ sectionKey, data }) {
   function renderContent() {
     if (sectionKey === 'safetyWatch') {
       if (!data?.length) return null;
-      return data.map((item, i) => (
-        <View key={i} style={cw.safetyItem}>
-          <View style={cw.safetyTopRow}>
-            <View style={[cw.severityBadge, { backgroundColor: item.severity === 'high' ? '#FEE2E2' : item.severity === 'medium' ? '#FEF9EE' : '#F3F4F6' }]}>
-              <Text style={[cw.severityText, { color: item.severity === 'high' ? '#DC2626' : item.severity === 'medium' ? '#D4871A' : '#6B7280' }]}>
-                {item.severity?.toUpperCase()}
-              </Text>
+      return data.map((item, i) => {
+        const sevColor = item.severity === 'high' ? '#DC2626' : item.severity === 'medium' ? '#D97706' : '#9CA3AF';
+        const sevBg    = item.severity === 'high' ? '#FEF2F2' : item.severity === 'medium' ? '#FFFBEB' : '#F3F4F6';
+        return (
+          <View key={i} style={cw.safetyItem}>
+            <View style={cw.safetyTopRow}>
+              <View style={[cw.severityDot, { backgroundColor: sevColor }]} />
+              <Text style={cw.safetyThreat}>{item.threat}</Text>
+              <View style={[cw.severityBadge, { backgroundColor: sevBg }]}>
+                <Text style={[cw.severityText, { color: sevColor }]}>
+                  {item.severity?.toUpperCase()}
+                </Text>
+              </View>
             </View>
-            <Text style={cw.safetyThreat}>{item.threat}</Text>
+            <Text style={cw.safetyBody}>{item.whatItIs}</Text>
+            <View style={cw.safetyMeta}>
+              <Text style={cw.safetyMetaLabel}>Who's at risk</Text>
+              <Text style={cw.safetyMetaText}>{item.ageRisk}</Text>
+            </View>
+            <View style={cw.safetyMeta}>
+              <Text style={cw.safetyMetaLabel}>Signs to watch for</Text>
+              <Text style={cw.safetyMetaText}>{item.signs}</Text>
+            </View>
+            <View style={cw.tipRow}>
+              <Ionicons name="shield-checkmark-outline" size={13} color="#2E7D62" />
+              <Text style={cw.tipText}>{item.action}</Text>
+            </View>
+            {i < data.length - 1 && <View style={cw.itemDivider} />}
           </View>
-          <Text style={cw.safetyBody}>{item.whatItIs}</Text>
-          <View style={cw.safetyMeta}>
-            <Text style={cw.safetyMetaLabel}>Who's at risk</Text>
-            <Text style={cw.safetyMetaText}>{item.ageRisk}</Text>
-          </View>
-          <View style={cw.safetyMeta}>
-            <Text style={cw.safetyMetaLabel}>Signs to watch for</Text>
-            <Text style={cw.safetyMetaText}>{item.signs}</Text>
-          </View>
-          <View style={cw.tipRow}>
-            <Ionicons name="shield-checkmark-outline" size={13} color="#2E7D62" />
-            <Text style={cw.tipText}>{item.action}</Text>
-          </View>
-          {i < data.length - 1 && (
-            <View style={cw.safetyBand} />
-          )}
-        </View>
-      ));
+        );
+      });
     }
     if (sectionKey === 'onlineWorld') {
       return data.map((item, i) => (
@@ -449,8 +452,8 @@ function WorldSection({ sectionKey, data }) {
   const isSafety = cfg.safety;
 
   return (
-    <View style={[cw.section, isSafety && cw.safetySection]}>
-      <TouchableOpacity style={[cw.sectionHeader, isSafety && cw.safetyHeader]} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
+    <View style={[cw.section, isSafety && !flush && cw.safetySection]}>
+      <TouchableOpacity style={[cw.sectionHeader, isSafety && !flush && cw.safetyHeader]} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
         <Text style={cw.sectionEmoji}>{cfg.emoji}</Text>
         <Text style={[cw.sectionHeaderText, isSafety && cw.safetyHeaderText]}>{cfg.label}</Text>
         {isSafety && data?.length > 0 && (
@@ -460,12 +463,12 @@ function WorldSection({ sectionKey, data }) {
         )}
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={isSafety ? '#DC2626' : '#2E7D62'} />
       </TouchableOpacity>
-      {open && <View style={[cw.sectionBody, isSafety && cw.safetySectionBody]}>{renderContent()}</View>}
+      {open && <View style={[cw.sectionBody, isSafety && !flush && cw.safetySectionBody]}>{renderContent()}</View>}
     </View>
   );
 }
 
-export function ChildWorldCard({ child }) {
+export function ChildWorldCard({ child, flush = false }) {
   const ageGroup    = getAgeGroup(child?.age);
   const displayName = child?.name?.split(' ')[0] ?? 'Your Child';
   const cacheKey    = `tarbiyah_world_${child?.id ?? 'default'}`;
@@ -602,9 +605,61 @@ export function ChildWorldCard({ child }) {
     };
   }, [child?.id]);
 
+  const sections = (
+    <>
+      {preparing && (
+        <View style={cw.preparingBanner}>
+          <ActivityIndicator size="small" color="#7C5900" />
+          <Text style={cw.preparingText}>
+            We're preparing this week's digest for {displayName}… you'll be notified when it's ready.
+          </Text>
+        </View>
+      )}
+      {loading && !preparing && (
+        <View style={cw.loadingBanner}>
+          <ActivityIndicator size="small" color="#2E7D62" />
+          <Text style={cw.loadingText}>Fetching this week's live trends…</Text>
+        </View>
+      )}
+      <View style={{ opacity: (loading || preparing) ? 0.35 : 1 }} pointerEvents={(loading || preparing) ? 'none' : 'auto'}>
+        {[
+          'safetyWatch',
+          'onlineWorld',
+          ...((child?.age ?? 0) > 7 ? ['slang', 'humor', 'habits', 'schoolCulture', 'fashionCulture', 'starters'] : []),
+          'concerns',
+          'islamicLens',
+        ].map(key => (
+          <WorldSection key={`${child?.id}_${key}`} sectionKey={key} data={snap[key]} flush={flush} />
+        ))}
+      </View>
+      <SourcesFooter />
+    </>
+  );
+
+  if (flush) {
+    return (
+      <View style={cw.flushWrap}>
+        <View style={cw.flushStatusRow}>
+          {(loading || preparing) && <ActivityIndicator size="small" color={preparing ? '#7C5900' : '#2E7D62'} />}
+          {live && !loading && !preparing && (
+            <View style={cw.liveBadge}><Text style={cw.liveBadgeText}>LIVE</Text></View>
+          )}
+          <View style={cw.ageBadge}>
+            <Text style={cw.ageBadgeText}>{snap.ageLabel ?? `Ages ${snap.ageGroup ?? ageGroup}`}</Text>
+          </View>
+          {snap.generatedAt && (
+            <Text style={cw.weekText}>
+              Updated {new Date(snap.generatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+            </Text>
+          )}
+        </View>
+        {sections}
+      </View>
+    );
+  }
+
   return (
     <View style={cw.card}>
-      {/* Header — matches phase card structure */}
       <View style={cw.topRow}>
         <View style={cw.emojiWrap}>
           <Text style={cw.emojiMain}>🌍</Text>
@@ -625,34 +680,7 @@ export function ChildWorldCard({ child }) {
           <Text style={cw.refreshNote}>Refreshes weekly · Sourced from live trend data</Text>
         </View>
       </View>
-
-      {/* Preparing banner — background job running */}
-      {preparing && (
-        <View style={cw.preparingBanner}>
-          <ActivityIndicator size="small" color="#7C5900" />
-          <Text style={cw.preparingText}>
-            We're preparing this week's digest for {displayName}… you'll be notified when it's ready.
-          </Text>
-        </View>
-      )}
-
-      {/* Loading banner — sync fetch in progress */}
-      {loading && !preparing && (
-        <View style={cw.loadingBanner}>
-          <ActivityIndicator size="small" color="#2E7D62" />
-          <Text style={cw.loadingText}>Fetching this week's live trends…</Text>
-        </View>
-      )}
-
-      {/* Sections — greyed out when loading or preparing */}
-      <View style={{ opacity: (loading || preparing) ? 0.35 : 1 }} pointerEvents={(loading || preparing) ? 'none' : 'auto'}>
-        {['safetyWatch', 'onlineWorld', 'slang', 'humor', 'concerns', 'habits', 'schoolCulture', 'fashionCulture', 'starters', 'islamicLens'].map(key => (
-          <WorldSection key={`${child?.id}_${key}`} sectionKey={key} data={snap[key]} />
-        ))}
-      </View>
-
-      {/* Sources footer */}
-      <SourcesFooter />
+      {sections}
     </View>
   );
 }
@@ -707,6 +735,16 @@ const cw = StyleSheet.create({
     backgroundColor: '#FFFFFF', borderRadius: 18,
     padding: 16, marginBottom: 4,
     ...CARD_SHADOW,
+  },
+  flushWrap: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+  },
+  flushStatusRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: '#F0F1F3',
+    marginBottom: 4,
   },
 
   // Header — mirrors phaseTopRow + phaseEmojiWrap + phaseEyebrow + phaseTitle
@@ -789,15 +827,13 @@ const cw = StyleSheet.create({
   starterWhy:  { fontSize: 12, color: '#6B7280', lineHeight: 18 },
 
   // Safety Watch
-  safetySection:    { backgroundColor: '#FFF8F8', borderRadius: 8, marginBottom: 4, marginHorizontal: -12, borderWidth: 1, borderColor: '#FEE2E2' },
+  safetySection:    { backgroundColor: '#FAFAFA', borderRadius: 10, marginBottom: 4, marginHorizontal: -12, borderWidth: 1, borderColor: '#F0F1F3', overflow: 'hidden' },
   safetyHeader:     { paddingHorizontal: 12 },
   safetySectionBody:{ paddingHorizontal: 16, paddingBottom: 16 },
-  safetyEmojiWrap: { backgroundColor: '#FEE2E2' },
   safetyHeaderText:{ flex: 1, fontSize: 14, fontWeight: '800', color: '#DC2626' },
   safetyCountBadge:{ backgroundColor: '#DC2626', borderRadius: 100, width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
   safetyCountText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  safetyItem:      { paddingTop: 4, paddingBottom: 12 },
-  safetyBand:      { height: 10, backgroundColor: '#FEE2E2', marginHorizontal: -16, marginTop: 12, marginBottom: 12 },
+  safetyItem:      { paddingTop: 4 },
 
   // Sources footer
   sourcesWrap:     { borderTopWidth: 1, borderTopColor: '#EDF7F2', marginTop: 8, paddingTop: 12 },
@@ -810,12 +846,13 @@ const cw = StyleSheet.create({
   sourceLabel:     { fontSize: 12, fontWeight: '700', color: '#1A1A2E', marginBottom: 2 },
   sourceDesc:      { fontSize: 12, color: '#6B7280', lineHeight: 17 },
   sourcesDisclaimer: { fontSize: 11, color: '#9CA3AF', lineHeight: 16, fontStyle: 'italic', marginTop: 4 },
-  safetyTopRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  severityBadge:   { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
-  severityText:    { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  safetyTopRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  severityDot:     { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  severityBadge:   { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  severityText:    { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   safetyThreat:    { flex: 1, fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
   safetyBody:      { fontSize: 13, color: '#374151', lineHeight: 20, marginBottom: 10 },
   safetyMeta:      { marginBottom: 8 },
-  safetyMetaLabel: { fontSize: 10, fontWeight: '700', color: '#DC2626', letterSpacing: 0.5, marginBottom: 2 },
+  safetyMetaLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 2 },
   safetyMetaText:  { fontSize: 12, color: '#374151', lineHeight: 18 },
 });

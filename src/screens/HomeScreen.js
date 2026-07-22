@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Image,
+  Image as RNImage,
   ImageBackground,
   Dimensions,
   Share,
@@ -35,15 +35,15 @@ import { getDailyDua, getDailyAyah } from '../data/dailyIslamic';
 import { refreshDailyNotification, scheduleChildHabitNotifications } from '../utils/notifications';
 import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
-import { getAllChildProfiles } from '../utils/childProfiles';
 import { getLocalCounts, getChildWeeklyCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
-import { loadFamilyGoalsCached, loadFamilyGoals } from '../utils/familyGoals';
+import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji } from '../utils/familyGoals';
+import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
 import ChallengeCard from '../components/ChallengeCard';
-import { loadCompletions } from '../utils/goalCompletions';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
+import YouthCultureModal from './YouthCultureModal';
 import { useAuth } from '../../App';
-import { getCachedPhotoUri } from '../utils/profile';
+import { Image } from 'expo-image';
 
 
 const SCIENCE_IMAGES = [
@@ -128,8 +128,8 @@ async function getProfileName() {
   return null;
 }
 
-export default function HomeScreen({ navigation }) {
-  const { hasChildren, hasFamilyGoals } = useAuth();
+export default function HomeScreen({ navigation, route }) {
+  const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [dailyData, setDailyData]            = useState(null);
@@ -154,7 +154,9 @@ export default function HomeScreen({ navigation }) {
   const [partnerSyncOn,     setPartnerSyncOn]     = useState(false);
   const [myMonthTotal,      setMyMonthTotal]      = useState(0);
   const [partnerMonthTotal, setPartnerMonthTotal] = useState(0);
-  const [children,        setChildren]        = useState([]);
+  const [cultureModalOpen, setCultureModalOpen] = useState(false);
+  const [familyGoals,      setFamilyGoals]      = useState([]);
+  const [goalCompletions,  setGoalCompletions]  = useState([]);
   const [weekCompletions, setWeekCompletions] = useState({});
   const [encouragement, setEncouragement] = useState(null);
   const [spirMonth,       setSpiritualMonth]  = useState([]);
@@ -170,6 +172,13 @@ export default function HomeScreen({ navigation }) {
   const partnerChannelRef = useRef(null);
   const sheetSlide   = useRef(new Animated.Value(40)).current;
   const sheetOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (route?.params?.openYouthCulture) {
+      setCultureModalOpen(true);
+      navigation.setParams({ openYouthCulture: false });
+    }
+  }, [route?.params?.openYouthCulture]);
 
   async function handleShareDua() {
     if (duaSharing || !dailyDua) return;
@@ -302,7 +311,10 @@ export default function HomeScreen({ navigation }) {
       getStreak('scientific').then(setSciStreak);
       getStreak('quran').then(setQuranStreak);
       isReadToday('quran', dailyAyah.reference).then(setAyahRead);
-      getAllChildProfiles().then(setChildren);
+      refreshChildrenAndSnaps();
+      loadFamilyGoalsCached().then(setFamilyGoals);
+      loadFamilyGoals().then(setFamilyGoals);
+      loadCompletions().then(setGoalCompletions);
       getLocalCounts().then(counts => {
         setWeekCompletions(counts);
         setMyHabAct(getMonthlyHabitActivityTotals(counts));
@@ -331,7 +343,7 @@ export default function HomeScreen({ navigation }) {
             return meta.avatar_url || meta.picture || null;
           }
         ).catch(() => null);
-        if (url) getCachedPhotoUri(url).then(localUri => { if (localUri) setPhotoUrl(localUri); });
+        if (url) setPhotoUrl(url);
       });
 
       loadDaily();
@@ -466,7 +478,7 @@ export default function HomeScreen({ navigation }) {
               >
                 <View style={styles.heroProfileAvatar}>
                   {photoUrl ? (
-                    <Image source={{ uri: photoUrl }} style={styles.heroProfilePhoto} />
+                    <Image source={{ uri: photoUrl }} style={styles.heroProfilePhoto} cachePolicy="memory-disk" contentFit="cover" transition={150} />
                   ) : (
                     <Text style={styles.heroProfileInitial}>
                       {name ? name.charAt(0).toUpperCase() : '?'}
@@ -607,6 +619,209 @@ export default function HomeScreen({ navigation }) {
 
 
 
+
+              {/* SAFETY WATCH DIGEST */}
+              {/* Safety Watch — teaser when no children, digest when children exist */}
+              {(() => {
+                const rank = { high: 0, medium: 1, low: 2 };
+                const totalCount = children.reduce((sum, c) => {
+                  const snap = worldSnaps[c.id];
+                  return sum + (snap?.safetyWatch ?? []).length;
+                }, 0);
+                const preview = children.flatMap(c => {
+                  const snap = worldSnaps[c.id];
+                  return (snap?.safetyWatch ?? [])
+                    .map(a => ({ ...a, childName: c.name, childColor: c.color }))
+                    .sort((a, b) => (rank[a.severity] ?? 1) - (rank[b.severity] ?? 1))
+                    .slice(0, 2);
+                });
+                const hasAlerts = totalCount > 0;
+                const remaining = totalCount - preview.length;
+
+                return (
+                  <>
+                    <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                      <Text style={styles.sectionEyebrow}>THIS WEEK</Text>
+                      <Text style={styles.sectionTitle}>Safety Watch</Text>
+                    </View>
+
+                    {!hasChildren ? (
+                      /* Feature teaser — no children added yet */
+                      <TouchableOpacity
+                        style={styles.safetyTeaser}
+                        activeOpacity={0.88}
+                        onPress={() => navigation.navigate('AddChildWizard')}
+                      >
+                        <View style={styles.safetyTeaserHeader}>
+                          <View style={styles.safetyTeaserIconWrap}>
+                            <Ionicons name="shield-outline" size={20} color="#FFFFFF" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.safetyTeaserTitle}>Know your child's world</Text>
+                            <Text style={styles.safetyTeaserSub}>Weekly AI-powered safety alerts</Text>
+                          </View>
+                        </View>
+                        {[
+                          { icon: 'warning-outline',         text: 'Real-time safety alerts by age group' },
+                          { icon: 'trending-up-outline',     text: 'Youth culture & online trends this week' },
+                          { icon: 'eye-outline',             text: 'Islamic lens on what kids are exposed to' },
+                        ].map((item, i) => (
+                          <View key={i} style={styles.safetyTeaserRow}>
+                            <Ionicons name={item.icon} size={14} color="rgba(255,255,255,0.55)" />
+                            <Text style={styles.safetyTeaserRowText}>{item.text}</Text>
+                          </View>
+                        ))}
+                        <View style={styles.safetyTeaserCTA}>
+                          <Text style={styles.safetyTeaserCTAText}>Add a child to unlock</Text>
+                          <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
+                        </View>
+                      </TouchableOpacity>
+                    ) : (
+                      /* Safety digest — children exist */
+                      <TouchableOpacity
+                        style={[styles.safetyDigestCard, hasAlerts && styles.safetyDigestCardAlert]}
+                        activeOpacity={0.88}
+                        onPress={() => setCultureModalOpen(true)}
+                      >
+                        <View style={styles.safetyDigestHeader}>
+                          <View style={styles.safetyDigestIconWrap}>
+                            <Text style={{ fontSize: 18 }}>{hasAlerts ? '🚨' : '✅'}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.safetyDigestTitle, !hasAlerts && { color: '#1B4D3E' }]}>
+                              {hasAlerts
+                                ? `${totalCount} safety alert${totalCount > 1 ? 's' : ''}`
+                                : 'No safety alerts this week'}
+                            </Text>
+                            <Text style={[styles.safetyDigestSub, !hasAlerts && { color: '#2E7D62' }]}>
+                              {hasAlerts ? 'Tap to view full youth culture digest' : 'Tap to view youth culture digest'}
+                            </Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={16} color={hasAlerts ? '#DC2626' : '#2E7D62'} />
+                        </View>
+
+                        {hasAlerts && preview.map((alert, i) => (
+                          <View key={i} style={styles.safetyDigestRow}>
+                            <View style={[styles.safetyDigestSeverityDot, {
+                              backgroundColor: alert.severity === 'high' ? '#DC2626' : alert.severity === 'medium' ? '#D4871A' : '#9CA3AF',
+                            }]} />
+                            <Text style={styles.safetyDigestThreat} numberOfLines={1}>{alert.threat}</Text>
+                            {children.length > 1 && (
+                              <View style={[styles.safetyDigestChildPill, { backgroundColor: alert.childColor + '22' }]}>
+                                <Text style={[styles.safetyDigestChildName, { color: alert.childColor }]}>{alert.childName}</Text>
+                              </View>
+                            )}
+                          </View>
+                        ))}
+
+                        {remaining > 0 && (
+                          <Text style={styles.safetyDigestMore}>+{remaining} more</Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* Family Goals */}
+              {(() => {
+                const preview = familyGoals.slice(0, 4);
+                const overflow = familyGoals.length - preview.length;
+                return (
+                  <>
+                    <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                      <Text style={styles.sectionEyebrow}>THIS WEEK</Text>
+                      <Text style={styles.sectionTitle}>Family Goals</Text>
+                    </View>
+
+                    {familyGoals.length === 0 ? (
+                      <TouchableOpacity
+                        style={styles.goalsTeaser}
+                        activeOpacity={0.88}
+                        onPress={() => navigation.navigate('FamilyGoalWizard')}
+                      >
+                        <View style={styles.goalsTeaserRow}>
+                          <View style={styles.goalsTeaserIconWrap}>
+                            <Text style={{ fontSize: 20 }}>🎯</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.goalsTeaserTitle}>Set your family goals</Text>
+                            <Text style={styles.goalsTeaserSub}>Pray together, read Quran, eat as a family — track what matters most</Text>
+                          </View>
+                        </View>
+                        <View style={styles.goalsTeaserCTA}>
+                          <Text style={styles.goalsTeaserCTAText}>Add your first goal</Text>
+                          <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
+                        </View>
+                      </TouchableOpacity>
+                    ) : (
+                    <View style={styles.goalsCard}>
+                      {preview.map((goal, idx) => {
+                        const target    = goal.frequency ?? 1;
+                        const count     = countThisWeek(goalCompletions, goal.id);
+                        const doneToday = isCompletedToday(goalCompletions, goal.id);
+                        const goalMet   = count >= target;
+                        const pct       = Math.min(Math.round((count / target) * 100), 100);
+                        const fillColor = goalMet ? '#2E7D62' : (count > 0 ? '#4A90D9' : '#D1D5DB');
+                        return (
+                          <View key={goal.id}>
+                            {idx > 0 && <View style={styles.goalDivider} />}
+                            <View style={styles.goalRow}>
+                              <View style={[styles.goalIconWrap, { backgroundColor: (goal.iconColor ?? '#2E7D62') + '18' }]}>
+                                <Text style={{ fontSize: 20 }}>{getGoalEmoji(goal)}</Text>
+                              </View>
+                              <View style={styles.goalBody}>
+                                <View style={styles.goalTitleRow}>
+                                  <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
+                                  {goalMet ? (
+                                    <View style={styles.goalMetPill}>
+                                      <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
+                                      <Text style={styles.goalMetText}>Done</Text>
+                                    </View>
+                                  ) : (
+                                    <TouchableOpacity
+                                      style={[styles.goalLogBtn, doneToday && styles.goalLogBtnDone]}
+                                      disabled={doneToday}
+                                      onPress={async () => {
+                                        const updated = await logGoalCompletion(goal.id);
+                                        setGoalCompletions([...updated]);
+                                      }}
+                                      activeOpacity={0.75}
+                                    >
+                                      <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#fff'} />
+                                      <Text style={[styles.goalLogBtnText, doneToday && { color: '#2E7D62' }]}>{doneToday ? 'Logged' : 'Log it'}</Text>
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
+                                <View style={styles.goalBarRow}>
+                                  <View style={styles.goalBarTrack}>
+                                    <View style={[styles.goalBarFill, { width: `${pct}%`, backgroundColor: fillColor }]} />
+                                  </View>
+                                  <Text style={styles.goalBarLabel}>{count}/{target}</Text>
+                                </View>
+                                <Text style={styles.goalStatusText}>
+                                  {goalMet ? '🎯 Goal met this week' : `${goal.frequencyLabel} · ${target - count} to go`}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        );
+                      })}
+                      {overflow > 0 && (
+                        <TouchableOpacity
+                          style={styles.goalsSeeAll}
+                          onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'goals' } })}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={styles.goalsSeeAllText}>See {overflow} more goal{overflow > 1 ? 's' : ''}</Text>
+                          <Ionicons name="chevron-forward" size={13} color="#2E7D62" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* MONTHLY LEADERBOARD — only when partner sync is on */}
               {partnerSyncOn && (() => {
@@ -845,12 +1060,18 @@ export default function HomeScreen({ navigation }) {
         onClose={() => setEncouragement(null)}
       />
 
+      <YouthCultureModal
+        visible={cultureModalOpen}
+        onClose={() => setCultureModalOpen(false)}
+        children={children}
+      />
+
       </SafeAreaView>
 
       {/* ── Off-screen dua share card ── */}
       <View style={styles.duaShareCardWrap}>
         <View ref={duaShareCardRef} style={styles.duaShareCard} collapsable={false}>
-          <Image source={require('../../assets/spiritual-5.jpg')} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <RNImage source={require('../../assets/spiritual-5.jpg')} style={StyleSheet.absoluteFill} resizeMode="cover" />
           <LinearGradient colors={['rgba(15,50,35,0.4)', 'rgba(5,20,12,0.95)']} style={styles.duaShareCardOverlay}>
             <View style={styles.duaShareCardPill}>
               <Text style={styles.duaShareCardPillText}>DUA OF THE DAY</Text>
@@ -864,7 +1085,7 @@ export default function HomeScreen({ navigation }) {
             </View>
             <View style={styles.duaShareCardBrand}>
               <View style={styles.duaShareCardBrandRow}>
-                <Image source={require('../../assets/app-icons-1/logo-Picsart-BackgroundRemover.png')} style={styles.duaShareCardLogo} resizeMode="contain" />
+                <RNImage source={require('../../assets/app-icons-1/logo-Picsart-BackgroundRemover.png')} style={styles.duaShareCardLogo} resizeMode="contain" />
                 <Text style={styles.duaShareCardBrandName}>Tarbiyah: Islamic Parenting</Text>
               </View>
               <Text style={styles.duaShareCardBrandTag}>Download the app and get daily insights!</Text>
@@ -891,6 +1112,16 @@ const styles = StyleSheet.create({
 
   // ── Family Goals ──
   goalsContainer:  { overflow: 'hidden' },
+  goalsCard:          { backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', marginBottom: 4 },
+  goalsSeeAll:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F0F4F2' },
+  goalsSeeAllText:    { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
+  goalsTeaser:        { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 4 },
+  goalsTeaserRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  goalsTeaserIconWrap:{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
+  goalsTeaserTitle:   { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 3 },
+  goalsTeaserSub:     { fontSize: 12, color: '#6B7280', lineHeight: 17 },
+  goalsTeaserCTA:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#EDF7F2', borderRadius: 12, paddingVertical: 11 },
+  goalsTeaserCTAText: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
   goalDivider:     { height: 1, backgroundColor: '#F0F4F2', marginHorizontal: 16 },
   goalRow:         { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16 },
   goalIconWrap:    { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
@@ -1067,6 +1298,100 @@ const styles = StyleSheet.create({
   contentPad: { paddingHorizontal: hp, paddingTop: 8, paddingBottom: 36 },
 
   // ── Section titles ──
+  // Safety Watch digest card
+  safetyDigestCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#1B3D2F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  safetyDigestCardAlert: {
+    borderColor: '#FECACA',
+    backgroundColor: '#FFFAFA',
+  },
+  safetyDigestHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12,
+  },
+  safetyDigestIconWrap: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  safetyDigestTitle: {
+    fontSize: 15, fontWeight: '800', color: '#991B1B', marginBottom: 1,
+  },
+  safetyDigestSub: {
+    fontSize: 11, color: '#DC2626',
+  },
+  safetyDigestRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 6,
+    borderTopWidth: 1, borderTopColor: '#FEE2E2',
+  },
+  safetyDigestSeverityDot: {
+    width: 7, height: 7, borderRadius: 4, flexShrink: 0,
+  },
+  safetyDigestThreat: {
+    flex: 1, fontSize: 13, color: '#374151', fontWeight: '600',
+  },
+  safetyDigestChildPill: {
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
+  },
+  safetyDigestChildName: {
+    fontSize: 11, fontWeight: '700',
+  },
+  safetyDigestMore: {
+    fontSize: 11, color: '#DC2626', fontWeight: '600',
+    marginTop: 8, textAlign: 'right',
+  },
+
+  // Feature teaser — shown when no children added
+  safetyTeaser: {
+    backgroundColor: '#1B3D2F',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 4,
+  },
+  safetyTeaserHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginBottom: 14,
+  },
+  safetyTeaserIconWrap: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  safetyTeaserTitle: {
+    fontSize: 15, fontWeight: '800', color: '#FFFFFF', marginBottom: 2,
+  },
+  safetyTeaserSub: {
+    fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: '500',
+  },
+  safetyTeaserRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 8,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  safetyTeaserRowText: {
+    fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500',
+  },
+  safetyTeaserCTA: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12, paddingVertical: 11,
+    marginTop: 14,
+  },
+  safetyTeaserCTAText: {
+    fontSize: 14, fontWeight: '700', color: '#1B3D2F',
+  },
+
   setupBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#EDF7F2', borderRadius: 16, padding: 16,

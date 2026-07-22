@@ -92,7 +92,7 @@ function ChipSelector({ options, selected, onToggle, color = '#1B3D2F', bg = '#E
 
 export default function AddChildWizardScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const { refreshHasChildren } = useAuth();
+  const { refreshChildrenAndSnaps } = useAuth();
   const isEdit = !!route?.params?.child;
   const existingChild = route?.params?.child;
 
@@ -232,7 +232,7 @@ export default function AddChildWizardScreen({ navigation, route }) {
         })();
       }
 
-      refreshHasChildren();
+      refreshChildrenAndSnaps();
       if (route?.params?.afterOnboarding) {
         navigation.replace('GrowthAreaWizard', { child: saved, isFirstTime: true, afterOnboarding: true });
       } else {
