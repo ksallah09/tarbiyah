@@ -409,7 +409,7 @@ export default function App() {
   const [loading, setLoading]         = useState(true);
   const [onboarded, setOnboarded]     = useState(false);
   const [hasAccess,     setHasAccess]     = useState(__DEV__);
-  const [isSubscribed,  setIsSubscribed]  = useState(__DEV__);
+  const [isSubscribed,  setIsSubscribed]  = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(TRIAL_DAYS);
   const [showAppSplash, setShowAppSplash] = useState(false);
   const [hasChildren,     setHasChildren]     = useState(false);
@@ -561,7 +561,7 @@ export default function App() {
         refreshHasFamilyGoals();
         prewarmYouthCulture();
         if (complete) {
-          if (!__DEV__) {
+          {
             const active = await checkEntitlement();
             await applyAccess(active);
           }
@@ -630,7 +630,7 @@ export default function App() {
         if (session?.user?.id) {
           loginRevenueCat(session.user.id).catch(() => {});
           restoreTrialFromSupabase(session.user.id).catch(() => {});
-          if (!__DEV__) checkEntitlement().then(active => applyAccess(active)).catch(() => {});
+          checkEntitlement().then(active => applyAccess(active)).catch(() => {});
         }
       }
       if (event === 'INITIAL_SESSION' && session?.user?.id) {
@@ -677,10 +677,8 @@ export default function App() {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData?.session?.user?.id ?? null;
     await startTrial(userId);
-    if (!__DEV__) {
-      const active = await checkEntitlement();
-      await applyAccess(active);
-    }
+    const active = await checkEntitlement();
+    await applyAccess(active);
   }
 
   if (loading) return <View style={styles.splash} />;

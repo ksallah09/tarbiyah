@@ -16,7 +16,7 @@ const FEATURES = [
     emoji:  '📈',
     color:  '#F5C97A',
     label:  'Weekly Culture Digest',
-    body:   "Slang, trends, and what kids your child's age are into — updated 3× a week with fresh data.",
+    body:   "Slang, trends, and what kids your child's age are into — refreshed weekly with live data.",
   },
   {
     emoji:  '🔍',
