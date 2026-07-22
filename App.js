@@ -70,6 +70,15 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.
 const WORLD_CACHE_TTL          = 7    * 24 * 60 * 60 * 1000;
 const SAFETY_REFRESH_TTL       = 2.5  * 24 * 60 * 60 * 1000;
 
+const TRIAL_DAYS = 7;
+const TRIAL_KEY  = 'tarbiyah_trial_start';
+
+function computeTrialDaysLeft(startIso) {
+  if (!startIso) return TRIAL_DAYS;
+  const daysElapsed = Math.floor((Date.now() - new Date(startIso).getTime()) / (24 * 60 * 60 * 1000));
+  return Math.max(0, TRIAL_DAYS - daysElapsed);
+}
+
 async function prewarmYouthCulture() {
   try {
     const [children, { data: sessionData }] = await Promise.all([
@@ -391,13 +400,15 @@ function OnboardingStack() {
 
 // ─── Root — decides onboarding vs main app ────────────────────────────────────
 
-export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {}, hasChildren: false, hasFamilyGoals: false, refreshHasChildren: () => {}, refreshHasFamilyGoals: () => {}, children: [], worldSnaps: {}, refreshChildrenAndSnaps: async () => {}, refreshWorldData: async () => {} });
+export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {}, hasChildren: false, hasFamilyGoals: false, refreshHasChildren: () => {}, refreshHasFamilyGoals: () => {}, children: [], worldSnaps: {}, refreshChildrenAndSnaps: async () => {}, refreshWorldData: async () => {}, isSubscribed: false, trialDaysLeft: TRIAL_DAYS });
 export function useAuth() { return useContext(AuthContext); }
 
 export default function App() {
   const [loading, setLoading]         = useState(true);
   const [onboarded, setOnboarded]     = useState(false);
-  const [hasAccess, setHasAccess]     = useState(__DEV__); // skip paywall in dev
+  const [hasAccess,     setHasAccess]     = useState(__DEV__);
+  const [isSubscribed,  setIsSubscribed]  = useState(false);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(TRIAL_DAYS);
   const [showAppSplash, setShowAppSplash] = useState(false);
   const [hasChildren,     setHasChildren]     = useState(false);
   const [hasFamilyGoals,  setHasFamilyGoals]  = useState(false);
@@ -424,6 +435,46 @@ export default function App() {
   async function refreshWorldData() {
     await refreshChildrenAndSnaps();
     prewarmYouthCulture();
+  }
+
+  async function applyAccess(subscribed) {
+    setIsSubscribed(subscribed);
+    try {
+      const raw      = await AsyncStorage.getItem(TRIAL_KEY);
+      const daysLeft = computeTrialDaysLeft(raw);
+      setTrialDaysLeft(daysLeft);
+      setHasAccess(__DEV__ || subscribed || daysLeft > 0);
+    } catch {
+      setHasAccess(__DEV__ || subscribed);
+    }
+  }
+
+  async function startTrial(userId) {
+    try {
+      const existing = await AsyncStorage.getItem(TRIAL_KEY);
+      if (existing) return;
+      const now = new Date().toISOString();
+      await AsyncStorage.setItem(TRIAL_KEY, now);
+      setTrialDaysLeft(TRIAL_DAYS);
+      if (userId) {
+        supabase.from('profiles').update({ trial_started_at: now }).eq('user_id', userId).then();
+      }
+    } catch {}
+  }
+
+  async function restoreTrialFromSupabase(userId) {
+    try {
+      const existing = await AsyncStorage.getItem(TRIAL_KEY);
+      if (existing) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('trial_started_at')
+        .eq('user_id', userId)
+        .single();
+      if (data?.trial_started_at) {
+        await AsyncStorage.setItem(TRIAL_KEY, data.trial_started_at);
+      }
+    } catch {}
   }
 
   async function refreshHasChildren() {
@@ -508,10 +559,9 @@ export default function App() {
         refreshHasFamilyGoals();
         prewarmYouthCulture();
         if (complete) {
-          // Check entitlement before showing the app
           if (!__DEV__) {
             const active = await checkEntitlement();
-            setHasAccess(active);
+            await applyAccess(active);
           }
           setShowAppSplash(true);
           setLoading(false);
@@ -553,6 +603,7 @@ export default function App() {
         ]).catch(() => {});
         logoutRevenueCat().catch(() => {});
         setHasAccess(__DEV__);
+        setIsSubscribed(false);
         setOnboarded(false);
       }
       if (event === 'SIGNED_IN') {
@@ -576,12 +627,12 @@ export default function App() {
         // Log in to RevenueCat and recheck entitlement
         if (session?.user?.id) {
           loginRevenueCat(session.user.id).catch(() => {});
-          if (!__DEV__) checkEntitlement().then(setHasAccess).catch(() => {});
+          restoreTrialFromSupabase(session.user.id).catch(() => {});
+          if (!__DEV__) checkEntitlement().then(active => applyAccess(active)).catch(() => {});
         }
       }
       if (event === 'INITIAL_SESSION' && session?.user?.id) {
-        // Fresh install: AsyncStorage is empty so sync children + goals from Supabase
-        // so the setup banner and tab dots reflect the correct state immediately.
+        restoreTrialFromSupabase(session.user.id).catch(() => {});
         syncChildProfilesFromSupabase()
           .then(() => refreshChildrenAndSnaps())
           .catch(() => {});
@@ -621,10 +672,12 @@ export default function App() {
 
   async function handleCompleteOnboarding() {
     setOnboarded(true);
-    // After onboarding, check entitlement — will show paywall if not active
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id ?? null;
+    await startTrial(userId);
     if (!__DEV__) {
       const active = await checkEntitlement();
-      setHasAccess(active);
+      await applyAccess(active);
     }
   }
 
@@ -632,7 +685,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData }}>
+    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData, isSubscribed, trialDaysLeft }}>
       <NavigationContainer
         ref={navigationRef}
         onReady={() => {

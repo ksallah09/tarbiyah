@@ -129,7 +129,7 @@ async function getProfileName() {
 }
 
 export default function HomeScreen({ navigation, route }) {
-  const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps } = useAuth();
+  const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [dailyData, setDailyData]            = useState(null);
@@ -494,6 +494,28 @@ export default function HomeScreen({ navigation, route }) {
           {/* ── Content ── */}
           <Animated.View style={[styles.sheet, { opacity: sheetOpacity, transform: [{ translateY: sheetSlide }] }]}>
             <View style={styles.contentPad}>
+
+              {/* Trial countdown banner */}
+              {!isSubscribed && trialDaysLeft > 0 && (
+                <View style={styles.trialBanner}>
+                  <View style={styles.trialBannerLeft}>
+                    <Text style={styles.trialBannerEmoji}>⏳</Text>
+                    <View>
+                      <Text style={styles.trialBannerTitle}>
+                        {trialDaysLeft === 1 ? 'Last day of your free trial' : `${trialDaysLeft} days left in your free trial`}
+                      </Text>
+                      <Text style={styles.trialBannerSub}>Subscribe anytime to keep full access</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.trialBannerBtn}
+                    onPress={() => navigation.navigate('Paywall')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.trialBannerBtnText}>Subscribe</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Setup banner — shown until children are added */}
               {(!hasChildren || !hasFamilyGoals) && (
@@ -1391,6 +1413,18 @@ const styles = StyleSheet.create({
   safetyTeaserCTAText: {
     fontSize: 14, fontWeight: '700', color: '#1B3D2F',
   },
+
+  trialBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#FFF8EC', borderRadius: 14, padding: 12,
+    marginBottom: 12, borderWidth: 1, borderColor: '#F5D78E',
+  },
+  trialBannerLeft:    { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  trialBannerEmoji:   { fontSize: 20 },
+  trialBannerTitle:   { fontSize: 13, fontWeight: '700', color: '#92400E', marginBottom: 1 },
+  trialBannerSub:     { fontSize: 11, color: '#B45309' },
+  trialBannerBtn:     { backgroundColor: '#1B3D2F', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginLeft: 10 },
+  trialBannerBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 
   setupBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
