@@ -67,7 +67,8 @@ import { initializePurchases, checkEntitlement, loginRevenueCat, logoutRevenueCa
 import PaywallScreen from './src/screens/PaywallScreen';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
-const WORLD_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+const WORLD_CACHE_TTL          = 7    * 24 * 60 * 60 * 1000;
+const SAFETY_REFRESH_TTL       = 2.5  * 24 * 60 * 60 * 1000;
 
 async function prewarmYouthCulture() {
   try {
@@ -83,37 +84,55 @@ async function prewarmYouthCulture() {
       const cacheKey  = `tarbiyah_world_${child.id}`;
       const jobKey    = `tarbiyah_world_job_${child.id}`;
 
-      // Skip if live cache is still fresh
+      // Check cache age to decide full generation vs safety-only refresh
+      let needsFullGeneration  = true;
+      let needsSafetyRefresh   = false;
       try {
         const raw = await AsyncStorage.getItem(cacheKey);
         if (raw) {
-          const { generatedAt } = JSON.parse(raw);
-          if (Date.now() - new Date(generatedAt).getTime() < WORLD_CACHE_TTL) continue;
+          const { generatedAt, safetyRefreshedAt } = JSON.parse(raw);
+          const fullAge   = Date.now() - new Date(generatedAt).getTime();
+          if (fullAge < WORLD_CACHE_TTL) {
+            needsFullGeneration = false;
+            const safetyAge = Date.now() - new Date(safetyRefreshedAt ?? generatedAt).getTime();
+            needsSafetyRefresh  = safetyAge >= SAFETY_REFRESH_TTL;
+          }
         }
       } catch {}
 
-      // Skip if a job is already pending
+      // Skip if a full generation job is already pending
       const pending = await AsyncStorage.getItem(jobKey);
       if (pending) continue;
 
-      // Fire background generation
-      try {
-        const res = await fetch(`${API_URL}/child-world/async`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            childId:   child.id,
-            age:       child.age,
-            gender:    child.gender ?? undefined,
-            name:      child.name?.split(' ')[0] ?? undefined,
-            interests: child.interests?.join(',') ?? undefined,
-          }),
-        });
-        if (res.ok) {
-          const { jobId } = await res.json();
-          await AsyncStorage.setItem(jobKey, jobId);
-        }
-      } catch {}
+      const childPayload = {
+        childId:   child.id,
+        age:       child.age,
+        gender:    child.gender ?? undefined,
+        name:      child.name?.split(' ')[0] ?? undefined,
+        interests: child.interests?.join(',') ?? undefined,
+      };
+
+      if (needsFullGeneration) {
+        try {
+          const res = await fetch(`${API_URL}/child-world/async`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(childPayload),
+          });
+          if (res.ok) {
+            const { jobId } = await res.json();
+            await AsyncStorage.setItem(jobKey, jobId);
+          }
+        } catch {}
+      } else if (needsSafetyRefresh) {
+        try {
+          fetch(`${API_URL}/child-world/safety-refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(childPayload),
+          });
+        } catch {}
+      }
     }
   } catch {}
 }
@@ -426,7 +445,7 @@ export default function App() {
     KFGQPCHafs: require('./assets/fonts/KFGQPCHafs.ttf'),
   });
 
-  async function handleNotifNavigation({ screen, childId, openYouthCulture } = {}) {
+  async function handleNotifNavigation({ screen, childId, openYouthCulture, safetyRefresh } = {}) {
     if (screen === 'GardenDetail' && childId) {
       try {
         const { data: tree } = await supabase
@@ -445,6 +464,22 @@ export default function App() {
     } else if (screen === 'Community') {
       navigationRef.current?.navigate('Tabs', { screen: 'Community' });
     } else if (screen === 'Home' && openYouthCulture) {
+      if (safetyRefresh && childId) {
+        try {
+          const { data: job } = await supabase
+            .from('child_world_jobs')
+            .select('result')
+            .eq('child_id', childId)
+            .eq('status', 'complete')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (job?.result) {
+            await AsyncStorage.setItem(`tarbiyah_world_${childId}`, JSON.stringify(job.result));
+            await refreshChildrenAndSnaps();
+          }
+        } catch {}
+      }
       navigationRef.current?.navigate('Tabs', {
         screen: 'Home',
         params: { openYouthCulture: true, childId },

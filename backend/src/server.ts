@@ -4037,6 +4037,59 @@ Rules:
 - Everything should feel current and real, not generic.`;
 }
 
+function buildSafetyOnlyPrompt(params: {
+  age: number; ageGroup: string; gender?: string; name?: string; interests?: string; safetySignals: string[];
+}): string {
+  const { age, ageGroup, gender, name, interests, safetySignals } = params;
+  const year = new Date().getFullYear();
+  const safetyBlock = safetySignals.length
+    ? `\n\nSAFETY SIGNALS (from targeted searches — treat with high priority):\n${safetySignals.join('\n')}`
+    : '';
+
+  return `You are generating a fresh safety watch for a Muslim parent whose child is ${age} years old (age group: ${ageGroup})${gender ? `, gender: ${gender}` : ''}${name ? `, name: ${name}` : ''}${interests ? `, interests: ${interests}` : ''} in ${year}.
+${safetyBlock}
+
+Return ONLY a JSON array of 3-5 current safety items. Each item:
+{
+  "threat": "string — name of the trend or pattern",
+  "severity": "high | medium | low",
+  "whatItIs": "string — what it is and why it is dangerous",
+  "ageRisk": "string — which ages are most at risk and why",
+  "signs": "string — signs a parent might notice",
+  "action": "string — specific steps for a Muslim parent"
+}
+
+Rules:
+- Scan for: viral dangerous challenges, self-harm content, predatory contact patterns on TikTok/Roblox/Discord/Snapchat, extremist content targeting youth, eating disorder trends, substance use glorification, sexual content normalisation.
+- Prioritise threats in the data above. Include real known standing risks if live data is sparse.
+- severity "high" = immediate action, "medium" = awareness, "low" = monitor.
+- TONE: Never assume the child uses any platform. Use conditional language: "if your child uses TikTok...", "kids this age who are on Roblox...". Never say "your child is watching/uses/sees".
+- Return ONLY the JSON array, no wrapper object, no markdown.`;
+}
+
+async function generateSafetyWatchOnly(prompt: string): Promise<any[] | null> {
+  const system = 'You are an expert on child safety, youth culture, and Islamic parenting. You generate accurate, current, non-alarmist safety alerts for Muslim parents.';
+
+  function parse(text: string) {
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const result  = JSON.parse(cleaned);
+    return Array.isArray(result) ? result : null;
+  }
+
+  try {
+    const model = getJsonModel(MODEL_FAST, system);
+    const text  = await generateWithRetry(model, prompt, MODEL_FAST, system);
+    return parse(text);
+  } catch {}
+
+  try {
+    const text = await generateJsonWithOpenAI(system, prompt);
+    return parse(text);
+  } catch {}
+
+  return null;
+}
+
 async function generateChildWorldSnapshot(prompt: string): Promise<any> {
   const system = 'You are an expert on youth culture, child development, and Islamic parenting. You generate accurate, current, non-alarmist weekly digests for Muslim parents.';
 
@@ -4144,6 +4197,93 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
   } catch (err: any) {
     console.error('POST /child-world/async error:', err);
     return res.status(500).json({ error: err?.message ?? 'Failed to start job.' });
+  }
+});
+
+// POST /child-world/safety-refresh — patch safetyWatch on existing snap without full regeneration
+app.post('/child-world/safety-refresh', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { childId, age, gender, name, interests } = req.body;
+    if (!childId || !age) return res.status(400).json({ error: 'childId and age required.' });
+
+    res.json({ ok: true });
+
+    (async () => {
+      try {
+        const ageNum   = parseInt(age) || 10;
+        const ageGroup = childWorldAgeGroup(ageNum);
+
+        const { data: existingJob } = await supabase
+          .from('child_world_jobs')
+          .select('id, result')
+          .eq('child_id', childId)
+          .eq('user_id', req.userId)
+          .eq('status', 'complete')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!existingJob?.result) return;
+
+        const [safetyResult, groundedResult] = await Promise.allSettled([
+          fetchSafetySignals(ageNum),
+          fetchSafetySignalsWithGrounding(ageNum, ageGroup),
+        ]);
+
+        const safetySignals = [
+          ...(safetyResult.status  === 'fulfilled' ? safetyResult.value  : []),
+          ...(groundedResult.status === 'fulfilled' ? groundedResult.value : []),
+        ];
+
+        const prompt        = buildSafetyOnlyPrompt({ age: ageNum, ageGroup, gender, name, interests, safetySignals });
+        const newSafetyWatch = await generateSafetyWatchOnly(prompt);
+        if (!newSafetyWatch) return;
+
+        const patchedResult = {
+          ...existingJob.result,
+          safetyWatch:       newSafetyWatch,
+          safetyRefreshedAt: new Date().toISOString(),
+        };
+
+        await supabase
+          .from('child_world_jobs')
+          .update({ result: patchedResult })
+          .eq('id', existingJob.id);
+
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('push_token')
+            .eq('user_id', req.userId!)
+            .single();
+
+          if (profile?.push_token) {
+            const childFirstName = name ?? 'Your child';
+            const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({
+                to:        profile.push_token,
+                title:     `🛡️ Safety update for ${childFirstName}`,
+                body:      'New alerts & online risks — tap to review.',
+                sound:     'default',
+                channelId: 'default',
+                data:      { screen: 'Home', openYouthCulture: true, childId, safetyRefresh: true },
+              }),
+            });
+            const pushData = await pushRes.json();
+            console.log('[Push] safety-refresh →', profile.push_token?.slice(-10), JSON.stringify((pushData as any)?.data ?? pushData));
+          }
+        } catch (pushErr: any) {
+          console.warn('[Push] safety-refresh push error:', pushErr?.message);
+        }
+      } catch (err: any) {
+        console.warn('[safety-refresh] generation error:', err?.message);
+      }
+    })();
+  } catch (err: any) {
+    console.error('POST /child-world/safety-refresh error:', err);
+    return res.status(500).json({ error: 'Server error.' });
   }
 });
 
