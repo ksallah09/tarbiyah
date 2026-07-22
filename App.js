@@ -402,7 +402,7 @@ function OnboardingStack() {
 
 // ─── Root — decides onboarding vs main app ────────────────────────────────────
 
-export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {}, hasChildren: false, hasFamilyGoals: false, refreshHasChildren: () => {}, refreshHasFamilyGoals: () => {}, children: [], worldSnaps: {}, refreshChildrenAndSnaps: async () => {}, refreshWorldData: async () => {}, isSubscribed: false, trialDaysLeft: TRIAL_DAYS });
+export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {}, onSubscribed: () => {}, hasChildren: false, hasFamilyGoals: false, refreshHasChildren: () => {}, refreshHasFamilyGoals: () => {}, children: [], worldSnaps: {}, refreshChildrenAndSnaps: async () => {}, refreshWorldData: async () => {}, isSubscribed: false, trialDaysLeft: TRIAL_DAYS });
 export function useAuth() { return useContext(AuthContext); }
 
 export default function App() {
@@ -475,6 +475,9 @@ export default function App() {
         .single();
       if (data?.trial_started_at) {
         await AsyncStorage.setItem(TRIAL_KEY, data.trial_started_at);
+      } else if (data) {
+        // Existing user with no trial date — start their 7-day trial from today
+        await startTrial(userId);
       }
     } catch {}
   }
@@ -687,7 +690,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData, isSubscribed, trialDaysLeft }}>
+    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, onSubscribed: () => { setHasAccess(true); setIsSubscribed(true); }, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData, isSubscribed, trialDaysLeft }}>
       <NavigationContainer
         ref={navigationRef}
         onReady={() => {
@@ -701,7 +704,10 @@ export default function App() {
           ) : !hasAccess ? (
             <RootStack.Screen name="Paywall" component={PaywallScreen} options={{ animation: 'fade' }} />
           ) : (
-            <RootStack.Screen name="MainApp" component={MainApp} />
+            <>
+              <RootStack.Screen name="MainApp" component={MainApp} />
+              <RootStack.Screen name="Paywall" component={PaywallScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
+            </>
           )}
         </RootStack.Navigator>
 

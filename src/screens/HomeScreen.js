@@ -679,20 +679,21 @@ export default function HomeScreen({ navigation, route }) {
                             <Ionicons name="shield-outline" size={20} color="#FFFFFF" />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={styles.safetyTeaserTitle}>Know your child's world</Text>
-                            <Text style={styles.safetyTeaserSub}>Weekly AI-powered safety alerts</Text>
+                            <Text style={styles.safetyTeaserTitle}>Guidance begins with Understanding</Text>
+                            <Text style={styles.safetyTeaserSub}>Weekly Youth Culture Updates</Text>
                           </View>
                         </View>
                         {[
-                          { icon: 'warning-outline',         text: 'Real-time safety alerts by age group' },
-                          { icon: 'trending-up-outline',     text: 'Youth culture & online trends this week' },
-                          { icon: 'eye-outline',             text: 'Islamic lens on what kids are exposed to' },
+                          { emoji: '🚨', text: 'Real-time safety alerts by age group' },
+                          { emoji: '📈', text: 'Youth culture & online trends this week' },
+                          { emoji: '🔍', text: 'Islamic lens on what kids are exposed to' },
                         ].map((item, i) => (
                           <View key={i} style={styles.safetyTeaserRow}>
-                            <Ionicons name={item.icon} size={14} color="rgba(255,255,255,0.55)" />
+                            <Text style={{ fontSize: 13 }}>{item.emoji}</Text>
                             <Text style={styles.safetyTeaserRowText}>{item.text}</Text>
                           </View>
                         ))}
+                        <Text style={styles.safetyTeaserPowered}>Powered by Google Trends, YouTube, Reddit, and more</Text>
                         <View style={styles.safetyTeaserCTA}>
                           <Text style={styles.safetyTeaserCTAText}>Add a child to unlock</Text>
                           <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
@@ -1404,6 +1405,7 @@ const styles = StyleSheet.create({
   safetyTeaserRowText: {
     fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500',
   },
+  safetyTeaserPowered: { fontSize: 10, color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 10, marginBottom: 2 },
   safetyTeaserCTA: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#FFFFFF',

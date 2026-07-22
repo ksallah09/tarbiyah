@@ -19,9 +19,9 @@ const FEATURES = [
   { icon: 'chatbubbles-outline',    text: 'Community — parents helping parents' },
 ];
 
-export default function PaywallScreen() {
+export default function PaywallScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { setHasAccess } = useAuth();
+  const { onSubscribed, trialDaysLeft, handleSignOut } = useAuth();
   const [offering, setOffering]   = useState(null);
   const [loading, setLoading]     = useState(true);
   const [purchasing, setPurchasing] = useState(false);
@@ -59,7 +59,7 @@ export default function PaywallScreen() {
     setPurchasing(true);
     try {
       const granted = await purchasePackage(monthlyPackage);
-      if (granted) setHasAccess(true);
+      if (granted) { onSubscribed(); navigation.goBack(); }
     } catch (e) {
       if (!e.userCancelled) {
         Alert.alert('Purchase failed', e.message ?? 'Something went wrong. Please try again.');
@@ -74,7 +74,7 @@ export default function PaywallScreen() {
     try {
       const granted = await restorePurchases();
       if (granted) {
-        setHasAccess(true);
+        onSubscribed(); navigation.goBack();
       } else {
         Alert.alert('No purchase found', 'We couldn\'t find an active subscription linked to your account.');
       }
@@ -166,6 +166,15 @@ export default function PaywallScreen() {
                       : <Text style={styles.restoreText}>Restore purchase</Text>
                     }
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.notNowBtn}
+                    onPress={() => trialDaysLeft > 0 ? navigation.goBack() : handleSignOut()}
+                    disabled={purchasing || restoring}
+                    activeOpacity={0.6}
+                  >
+                    <Text style={styles.notNowText}>Not now</Text>
+                  </TouchableOpacity>
                 </>
               )}
             </View>
@@ -237,6 +246,9 @@ const styles = StyleSheet.create({
 
   restoreBtn:  { alignItems: 'center', paddingVertical: 10 },
   restoreText: { fontSize: 14, color: 'rgba(255,255,255,0.4)', fontWeight: '500' },
+
+  notNowBtn:  { alignItems: 'center', paddingVertical: 8 },
+  notNowText: { fontSize: 13, color: 'rgba(255,255,255,0.25)', fontWeight: '400' },
 
   legal: {
     fontSize: 11, color: 'rgba(255,255,255,0.25)', textAlign: 'center',

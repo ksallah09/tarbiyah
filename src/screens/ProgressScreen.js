@@ -215,19 +215,9 @@ export default function ProgressScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* ── Child Wins ── */}
-        {familyTab === 'childWins' && (
-          <FamilySummaryBoard navigation={navigation} section="childWins" />
-        )}
-
-        {/* ── Parenting ── */}
-        {familyTab === 'parenting' && (
-          <FamilySummaryBoard navigation={navigation} section="parenting" />
-        )}
-
-        {/* ── Family Goals ── */}
-        {familyTab === 'goals' && (
-          <FamilySummaryBoard navigation={navigation} section="goals" />
+        {/* ── Content tabs — single instance stays mounted so data loads once ── */}
+        {familyTab !== 'configure' && (
+          <FamilySummaryBoard navigation={navigation} section={familyTab} />
         )}
 
         {/* ── Configure ── */}

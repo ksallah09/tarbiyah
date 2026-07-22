@@ -60,6 +60,12 @@ export default function OnboardingWelcome({ navigation }) {
           >
             <Text style={styles.btnText}>Begin</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('OnboardingAccount', { isReturningUser: true })}
+          >
+            <Text style={styles.hint}>Already have an account? Sign in</Text>
+          </TouchableOpacity>
         </Animated.View>
       </LinearGradient>
     </>
