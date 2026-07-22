@@ -41,6 +41,7 @@ import GrowthAreaPlanScreen      from './src/screens/GrowthAreaPlanScreen';
 
 import OnboardingWelcome         from './src/screens/onboarding/OnboardingWelcome';
 import OnboardingAbout           from './src/screens/onboarding/OnboardingAbout';
+import OnboardingAwareness       from './src/screens/onboarding/OnboardingAwareness';
 import OnboardingName            from './src/screens/onboarding/OnboardingName';
 import OnboardingChildren        from './src/screens/onboarding/OnboardingChildren';
 import OnboardingFamilyStructure from './src/screens/onboarding/OnboardingFamilyStructure';
@@ -379,7 +380,8 @@ function OnboardingStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="OnboardingWelcome"    component={OnboardingWelcome} />
-      <Stack.Screen name="OnboardingAbout"      component={OnboardingAbout} />
+      <Stack.Screen name="OnboardingAbout"       component={OnboardingAbout} />
+      <Stack.Screen name="OnboardingAwareness"  component={OnboardingAwareness} />
       <Stack.Screen name="OnboardingName"       component={OnboardingName} />
       <Stack.Screen name="OnboardingChildren"        component={OnboardingChildren} />
       <Stack.Screen name="OnboardingFamilyStructure" component={OnboardingFamilyStructure} />

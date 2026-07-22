@@ -77,7 +77,7 @@ export default function OnboardingAbout({ navigation }) {
             <TouchableOpacity
               style={styles.btn}
               activeOpacity={0.85}
-              onPress={() => navigation.navigate('OnboardingName')}
+              onPress={() => navigation.navigate('OnboardingAwareness')}
             >
               <Text style={styles.btnText}>Get Started</Text>
             </TouchableOpacity>
