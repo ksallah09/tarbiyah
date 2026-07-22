@@ -58,6 +58,36 @@ const SCIENCE_IMAGES = [
 
 const DAY_INDEX = Math.floor(Date.now() / 86_400_000);
 
+function buildChildFocusMap(children, counts) {
+  const map = {};
+  for (const child of children) {
+    const habits = [];
+    for (const area of (child.growthAreas ?? []).slice(0, 3)) {
+      if (!area?.plan?.length) continue;
+      const daysSince = Math.floor((Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000);
+      const weekIdx = Math.min(Math.floor(daysSince / 7), area.plan.length - 1);
+      const week = area.plan[Math.max(0, weekIdx)];
+      (week?.habits ?? []).forEach((habit, i) => {
+        habits.push({
+          key: `hdone_${area.id}_${i}`,
+          text: habit.text,
+          wisdom: habit.wisdom ?? null,
+          childName: child.name.split(' ')[0],
+          childColor: child.color ?? '#2E7D62',
+          childId: child.id,
+          areaTitle: area.title,
+        });
+      });
+    }
+    if (!habits.length) continue;
+    habits.sort((a, b) => (counts[a.key] ?? 0) - (counts[b.key] ?? 0));
+    const minCount = counts[habits[0].key] ?? 0;
+    const lowestGroup = habits.filter(h => (counts[h.key] ?? 0) === minCount);
+    map[child.id] = lowestGroup[DAY_INDEX % lowestGroup.length];
+  }
+  return map;
+}
+
 
 const API_URL   = 'https://tarbiyah-production.up.railway.app';
 const CACHE_KEY = 'tarbiyah_daily_cache';
@@ -159,6 +189,8 @@ export default function HomeScreen({ navigation, route }) {
   const [goalCompletions,  setGoalCompletions]  = useState([]);
   const [weekCompletions, setWeekCompletions] = useState({});
   const [encouragement, setEncouragement] = useState(null);
+  const [focusChildId, setFocusChildId]           = useState(null);
+  const [focusDropdownOpen, setFocusDropdownOpen] = useState(false);
   const [spirMonth,       setSpiritualMonth]  = useState([]);
   const [sciMonth,        setScientificMonth] = useState([]);
   const [quranMonth,      setQuranMonth]      = useState([]);
@@ -173,12 +205,16 @@ export default function HomeScreen({ navigation, route }) {
   const sheetSlide   = useRef(new Animated.Value(40)).current;
   const sheetOpacity = useRef(new Animated.Value(0)).current;
 
+  const [cultureModalChildId, setCultureModalChildId] = useState(null);
+
   useEffect(() => {
     if (route?.params?.openYouthCulture) {
+      setCultureModalChildId(route.params.childId ?? null);
       setCultureModalOpen(true);
-      navigation.setParams({ openYouthCulture: false });
+      navigation.setParams({ openYouthCulture: false, childId: undefined });
     }
   }, [route?.params?.openYouthCulture]);
+
 
   async function handleShareDua() {
     if (duaSharing || !dailyDua) return;
@@ -446,7 +482,7 @@ export default function HomeScreen({ navigation, route }) {
           contentContainerStyle={styles.scrollContent}
         >
           {/* ── Dark hero header ── */}
-          <View style={[styles.hero, { paddingTop: insets.top + 20, backgroundColor: '#1B3D2F' }]}>
+          <View style={[styles.hero, { paddingTop: insets.top + 8, backgroundColor: '#1B3D2F' }]}>
             <View style={styles.heroRow}>
               <View style={styles.heroText}>
                 {animate ? (
@@ -470,23 +506,38 @@ export default function HomeScreen({ navigation, route }) {
                 )}
               </View>
 
-              {/* Profile icon */}
-              <TouchableOpacity
-                style={styles.heroProfileBtn}
-                onPress={() => navigation.navigate('Profile')}
-                activeOpacity={0.75}
-              >
-                <View style={styles.heroProfileAvatar}>
-                  {photoUrl ? (
-                    <Image source={{ uri: photoUrl }} style={styles.heroProfilePhoto} cachePolicy="memory-disk" contentFit="cover" transition={150} />
-                  ) : (
-                    <Text style={styles.heroProfileInitial}>
-                      {name ? name.charAt(0).toUpperCase() : '?'}
-                    </Text>
-                  )}
-                </View>
-                <Text style={styles.heroProfileDate}>Profile</Text>
-              </TouchableOpacity>
+              {/* Header right: shield + profile */}
+              <View style={styles.heroRightRow}>
+                {hasChildren && (() => {
+                  const hasAnyAlerts = children.some(c => (worldSnaps[c.id]?.safetyWatch ?? []).length > 0);
+                  return (
+                    <TouchableOpacity
+                      style={styles.heroShieldBtn}
+                      onPress={() => setCultureModalOpen(true)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="globe-outline" size={22} color="rgba(255,255,255,0.85)" />
+                      {hasAnyAlerts && <View style={styles.heroShieldDot} />}
+                    </TouchableOpacity>
+                  );
+                })()}
+
+                <TouchableOpacity
+                  style={styles.heroProfileBtn}
+                  onPress={() => navigation.navigate('Profile')}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.heroProfileAvatar}>
+                    {photoUrl ? (
+                      <Image source={{ uri: photoUrl }} style={styles.heroProfilePhoto} cachePolicy="memory-disk" contentFit="cover" transition={150} />
+                    ) : (
+                      <Text style={styles.heroProfileInitial}>
+                        {name ? name.charAt(0).toUpperCase() : '?'}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
 
           </View>
@@ -540,6 +591,7 @@ export default function HomeScreen({ navigation, route }) {
                   <Ionicons name="chevron-forward" size={16} color="#2E7D62" />
                 </TouchableOpacity>
               )}
+
 
               {/* TODAY'S PARENTING INSIGHTS */}
               <View style={styles.sectionTitleWrap}>
@@ -636,8 +688,109 @@ export default function HomeScreen({ navigation, route }) {
                 </TouchableOpacity>
               )}
 
+              {/* ── Habit of the Day ── */}
+              {hasChildren && (() => {
+                const focusMap = buildChildFocusMap(children, weekCompletions);
+                const eligible = children.filter(c => focusMap[c.id]);
+                if (!eligible.length) return null;
+                const activeId = (focusChildId && focusMap[focusChildId]) ? focusChildId : eligible[0].id;
+                const focus = focusMap[activeId];
+                const activeChild = children.find(c => c.id === activeId);
+                return (
+                  <>
+                    <View style={styles.sectionTitleWrap}>
+                      <Text style={styles.sectionEyebrow}>DAILY</Text>
+                      <Text style={styles.sectionTitle}>Practical Steps</Text>
+                    </View>
 
+                    <View style={styles.focusCard}>
 
+                      {/* ── Header band ── */}
+                      <View style={[styles.focusCardHeader, { backgroundColor: focus.childColor }]}>
+                        <Text style={styles.focusEyebrow}>🌱 HABIT OF THE DAY</Text>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          {eligible.length > 1 ? (
+                            <TouchableOpacity
+                              style={styles.focusChildSelector}
+                              onPress={() => setFocusDropdownOpen(o => !o)}
+                              activeOpacity={0.7}
+                            >
+                              <View style={styles.focusSelectorAvatar}>
+                                {activeChild?.photo
+                                  ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" />
+                                  : <Text style={styles.focusSelectorAvatarInitial}>{focus.childName[0]}</Text>
+                                }
+                              </View>
+                              <Text style={styles.focusChildSelectorText}>{focus.childName}</Text>
+                              <Ionicons name={focusDropdownOpen ? 'chevron-up' : 'chevron-down'} size={11} color="rgba(255,255,255,0.8)" />
+                            </TouchableOpacity>
+                          ) : (
+                            <View style={styles.focusChildSelector}>
+                              <View style={styles.focusSelectorAvatar}>
+                                {activeChild?.photo
+                                  ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" />
+                                  : <Text style={styles.focusSelectorAvatarInitial}>{focus.childName[0]}</Text>
+                                }
+                              </View>
+                              <Text style={styles.focusChildSelectorText}>{focus.childName}</Text>
+                            </View>
+                          )}
+                          {eligible.length > 1 && (
+                            <Text style={styles.focusSwitchHint}>Tap to switch child</Text>
+                          )}
+                        </View>
+                      </View>
+
+                      {/* ── Dropdown ── */}
+                      {focusDropdownOpen && eligible.length > 1 && (
+                        <View style={styles.focusDropdown}>
+                          {eligible.map(c => {
+                            const isActive = c.id === activeId;
+                            return (
+                              <TouchableOpacity
+                                key={c.id}
+                                style={styles.focusDropdownItem}
+                                onPress={() => { setFocusChildId(c.id); setFocusDropdownOpen(false); }}
+                                activeOpacity={0.7}
+                              >
+                                <View style={[styles.focusDropdownAvatar, { backgroundColor: c.color ?? '#2E7D62' }]}>
+                                  {c.photo
+                                    ? <Image source={{ uri: c.photo }} style={styles.focusDropdownAvatarImg} contentFit="cover" />
+                                    : <Text style={styles.focusDropdownAvatarInitial}>{c.name[0]}</Text>
+                                  }
+                                </View>
+                                <Text style={[styles.focusDropdownItemText, isActive && styles.focusDropdownItemActive]}>
+                                  {c.name.split(' ')[0]}
+                                </Text>
+                                {isActive && <Ionicons name="checkmark" size={13} color="#2E7D62" style={{ marginLeft: 'auto' }} />}
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      )}
+
+                      {/* ── Body ── */}
+                      <View style={styles.focusCardBody}>
+                        <Text style={styles.focusHabitText}>{focus.text}</Text>
+
+                        {focus.wisdom && (
+                          <View style={styles.focusWisdom}>
+                            <Ionicons name="leaf-outline" size={12} color="#7C9E8B" />
+                            <Text style={styles.focusWisdomText}>{focus.wisdom}</Text>
+                          </View>
+                        )}
+
+                        <TouchableOpacity
+                          onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: activeId } })}
+                          activeOpacity={0.6}
+                        >
+                          <Text style={styles.focusLogLink}>Log it on their dashboard →</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </>
+                );
+              })()}
 
 
 
@@ -684,7 +837,7 @@ export default function HomeScreen({ navigation, route }) {
                           </View>
                         </View>
                         {[
-                          { emoji: '🚨', text: 'Real-time safety alerts by age group' },
+                          { emoji: '🛡️', text: 'Real-time safety alerts by age group' },
                           { emoji: '📈', text: 'Youth culture & online trends this week' },
                           { emoji: '🔍', text: 'Islamic lens on what kids are exposed to' },
                         ].map((item, i) => (
@@ -707,8 +860,8 @@ export default function HomeScreen({ navigation, route }) {
                         onPress={() => setCultureModalOpen(true)}
                       >
                         <View style={styles.safetyDigestHeader}>
-                          <View style={styles.safetyDigestIconWrap}>
-                            <Text style={{ fontSize: 18 }}>{hasAlerts ? '🚨' : '✅'}</Text>
+                          <View style={[styles.safetyDigestIconWrap, !hasAlerts && { backgroundColor: '#EDF7F2' }]}>
+                            <Text style={{ fontSize: 18 }}>{hasAlerts ? '🛡️' : '✅'}</Text>
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.safetyDigestTitle, !hasAlerts && { color: '#1B4D3E' }]}>
@@ -1087,6 +1240,7 @@ export default function HomeScreen({ navigation, route }) {
         visible={cultureModalOpen}
         onClose={() => setCultureModalOpen(false)}
         children={children}
+        initialChildId={cultureModalChildId}
       />
 
       </SafeAreaView>
@@ -1186,25 +1340,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   heroText: { flex: 1 },
+  heroRightRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroShieldBtn: { position: 'relative', padding: 4 },
+  heroShieldDot: {
+    position: 'absolute', top: 2, right: 2,
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5, borderColor: '#1B3D2F',
+  },
   heroProfileBtn: {
     padding: 4,
     alignItems: 'center',
     gap: 5,
   },
   heroProfileAvatar: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 26, height: 26, borderRadius: 13,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center', justifyContent: 'center',
   },
   heroProfilePhoto: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 26, height: 26, borderRadius: 13,
   },
   heroProfileInitial: {
-    fontSize: 19, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 12, fontWeight: '700', color: '#FFFFFF',
   },
   heroProfileDate: {
     fontSize: 10, fontWeight: '500', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.3,
@@ -1277,21 +1439,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
 
-  greetingLine: { color: '#FFFFFF' },
-  greetingSmall: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-    fontWeight: '400',
-    letterSpacing: 0.2,
-    lineHeight: 22,
-  },
-  greetingName: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    lineHeight: 40,
-    marginTop: 2,
-  },
+  greetingLine:  { color: '#FFFFFF' },
+  greetingSmall: { fontSize: 11, fontWeight: '300', color: 'rgba(255,255,255,0.65)', letterSpacing: 0.3, lineHeight: 18 },
+  greetingName:  { fontSize: 20, fontWeight: '600', color: '#FFFFFF', lineHeight: 26, marginTop: 1 },
   datePill: {
     alignItems: 'flex-end',
     justifyContent: 'center',
@@ -1419,7 +1569,7 @@ const styles = StyleSheet.create({
   trialBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#FFF8EC', borderRadius: 14, padding: 12,
-    marginBottom: 12, borderWidth: 1, borderColor: '#F5D78E',
+    marginBottom: 6, borderWidth: 1, borderColor: '#F5D78E',
   },
   trialBannerLeft:    { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   trialBannerEmoji:   { fontSize: 20 },
@@ -1439,8 +1589,59 @@ const styles = StyleSheet.create({
   },
   setupBannerTitle: { fontSize: 14, fontWeight: '800', color: '#1B3D2F', marginBottom: 2 },
   setupBannerSub:   { fontSize: 12, color: '#4B7A60', lineHeight: 17 },
+
+  focusCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 4,
+    overflow: 'hidden',
+    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1, shadowRadius: 12, elevation: 4,
+  },
+  focusCardHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  focusCardBody: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 },
+  focusEyebrow: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: 0.5 },
+  focusChildSelector: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 100,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  focusChildSelectorText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  focusSelectorAvatar: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  focusSelectorAvatarImg:     { width: 24, height: 24, borderRadius: 12 },
+  focusSelectorAvatarInitial: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
+  focusSwitchHint: { fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 5, textAlign: 'right' },
+  focusDropdown: {
+    backgroundColor: '#F8FAF9', borderBottomLeftRadius: 16, borderBottomRightRadius: 16,
+    borderTopWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden',
+  },
+  focusDropdownItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 11, paddingHorizontal: 16,
+  },
+  focusDropdownAvatar: {
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  focusDropdownAvatarImg:     { width: 28, height: 28, borderRadius: 14 },
+  focusDropdownAvatarInitial: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+  focusDropdownItemText:   { fontSize: 13, fontWeight: '500', color: '#6B7280' },
+  focusDropdownItemActive: { color: '#1A1A2E', fontWeight: '700' },
+  focusHabitText: { fontSize: 15, fontWeight: '400', color: '#1A1A2E', lineHeight: 23, marginBottom: 12 },
+  focusWisdom: {
+    flexDirection: 'row', gap: 7, alignItems: 'flex-start',
+    backgroundColor: '#EDF7F2', borderRadius: 8, padding: 10, marginBottom: 12,
+  },
+  focusWisdomText: { flex: 1, fontSize: 12, color: '#1B4D3E', lineHeight: 18, fontWeight: '500' },
+  focusLogLink: { fontSize: 12, fontWeight: '600', color: '#2E7D62', textAlign: 'right' },
   sectionTitleWrap: {
-    marginTop: 20,
+    marginTop: 10,
     marginBottom: 14,
   },
   sectionEyebrow: {

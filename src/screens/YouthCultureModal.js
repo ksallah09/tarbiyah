@@ -43,11 +43,10 @@ export default function YouthCultureModal({ visible, onClose, children = [], ini
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={[styles.root, { paddingTop: Math.max(insets.top, 12) }]}>
+      <View style={styles.root}>
 
-        {/* ── Handle + header ── */}
-        <View style={styles.header}>
-          <View style={styles.handle} />
+        {/* ── Header ── */}
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
 
           <View style={styles.headerRow}>
             <View>
@@ -189,7 +188,7 @@ export default function YouthCultureModal({ visible, onClose, children = [], ini
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F5F6F8',
+    backgroundColor: '#FFFFFF',
   },
 
   // Header
@@ -199,12 +198,6 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F1F3',
-  },
-  handle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: '#D1D5DB',
-    alignSelf: 'center',
-    marginBottom: 14,
   },
   headerRow: {
     flexDirection: 'row',

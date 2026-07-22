@@ -21,7 +21,7 @@ import EncouragementModal from './EncouragementModal';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PADDING = 20;
 
-export default function FamilySummaryBoard({ navigation, section = 'childWins' }) {
+export default function FamilySummaryBoard({ navigation, section = 'childWins', onScroll }) {
   const [familyGoals,     setFamilyGoals]     = useState([]);
   const [goalCompletions, setGoalCompletions] = useState([]);
   const [familyTrees,     setFamilyTrees]     = useState([]);
@@ -249,6 +249,8 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins' }
         contentContainerStyle={{ padding: PADDING, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#2E7D62" />}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
 
         {/* ── Your Wins ── (Parenting tab) */}

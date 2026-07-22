@@ -17,7 +17,7 @@ import { logCompletion } from '../utils/childCompletions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HABIT_MESSAGES, ACTIVITY_MESSAGES, GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
-import { ChildWorldCard } from '../components/ChildWorldCard';
+
 import MannerGarden, { MiniGardenCard } from '../components/MannerGarden';
 import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji, getFamilyId } from '../utils/familyGoals';
 import { getCachedSyncStatus } from '../utils/familySync';
@@ -173,8 +173,6 @@ export default function DashboardsScreen({ navigation, route }) {
   const [completionCounts, setCompletionCounts]     = useState({});
   const [phaseExpanded,        setPhaseExpanded]        = useState(false);
   const [phaseModalVisible,    setPhaseModalVisible]    = useState(false);
-  const [childTab,             setChildTab]             = useState('week');
-  const [youthCultureDot,      setYouthCultureDot]      = useState(false);
   const [incidentModalVisible, setIncidentModalVisible] = useState(false);
   const [encouragement,        setEncouragement]        = useState(null);
   const [incidentText,        setIncidentText]        = useState('');
@@ -340,7 +338,6 @@ export default function DashboardsScreen({ navigation, route }) {
   useEffect(() => {
     if (activeChildId !== '__family__') return; // family tab removed — never fires
     loadFamilyTab();
-    if (activeChildId) checkYouthCultureDot(activeChildId);
   }, [activeChildId]);
 
   const child = children.find(c => c.id === activeChildId) ?? children[0];
@@ -635,23 +632,8 @@ export default function DashboardsScreen({ navigation, route }) {
     }
   };
 
-  async function checkYouthCultureDot(childId) {
-    try {
-      const [worldRaw, seenRaw] = await Promise.all([
-        AsyncStorage.getItem(`tarbiyah_world_${childId}`),
-        AsyncStorage.getItem(`tarbiyah_world_seen_${childId}`),
-      ]);
-      if (!worldRaw) { setYouthCultureDot(false); return; }
-      const world = JSON.parse(worldRaw);
-      const generatedAt = world.generatedAt ? new Date(world.generatedAt).getTime() : 0;
-      const seenAt = seenRaw ? new Date(seenRaw).getTime() : 0;
-      setYouthCultureDot(generatedAt > seenAt);
-    } catch { setYouthCultureDot(false); }
-  }
-
   const switchChild = (id) => {
     if (id === activeChildId) return;
-    setChildTab('week');
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
@@ -1136,7 +1118,7 @@ export default function DashboardsScreen({ navigation, route }) {
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', backgroundColor: '#F5F6F8' }} pointerEvents="none" />
       <Animated.ScrollView
         ref={scrollRef}
-        style={{ flex: 1, opacity: fadeAnim }}
+        style={{ flex: 1, opacity: fadeAnim, backgroundColor: '#1B3D2F' }}
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
@@ -1144,9 +1126,6 @@ export default function DashboardsScreen({ navigation, route }) {
         <View style={styles.hero}>
           <View style={styles.heroRow}>
             <View style={styles.headerDate}>
-              <Text style={styles.headerDayLabel}>
-                {new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()} · {new Date().toLocaleDateString('en-US', { month: 'long' }).toUpperCase()} {ordinal(new Date().getDate())}
-              </Text>
               <Text style={styles.headerChildName}>{child.name}</Text>
               <Text style={styles.headerChildMeta}>Age {child.age} · {child.stage}</Text>
               {(() => {
@@ -1160,7 +1139,7 @@ export default function DashboardsScreen({ navigation, route }) {
                       <Text style={styles.phasePillText}>{phase.phase}</Text>
                     </View>
                     <View style={styles.phasePillArrow}>
-                      <Ionicons name="chevron-forward" size={12} color="#1B3D2F" />
+                      <Ionicons name="chevron-forward" size={11} color="#1B3D2F" />
                     </View>
                   </TouchableOpacity>
                 );
@@ -1180,40 +1159,7 @@ export default function DashboardsScreen({ navigation, route }) {
         {/* White rounded sheet */}
         <View style={styles.sheet}>
 
-        {/* ── Child tab segment ── */}
-        <View style={styles.childSegmentOuter}>
-          <View style={styles.childSegmentWrap}>
-            {[['week', 'This Week'], ['culture', '🌍 Youth Culture']].map(([key, label]) => (
-              <TouchableOpacity
-                key={key}
-                style={[styles.childSegmentTab, childTab === key && styles.childSegmentTabActive]}
-                onPress={() => {
-                  setChildTab(key);
-                  if (key === 'culture' && youthCultureDot) {
-                    setYouthCultureDot(false);
-                    AsyncStorage.setItem(`tarbiyah_world_seen_${child?.id}`, new Date().toISOString());
-                  }
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                  <Text style={[styles.childSegmentText, childTab === key && styles.childSegmentTextActive]}>{label}</Text>
-                  {key === 'culture' && (
-                    <View style={styles.youthCultureDot} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {childTab === 'culture' && (
-          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }}>
-            <ChildWorldCard child={child} />
-          </View>
-        )}
-
-        {childTab === 'week' && <View style={[styles.content, { paddingTop: 12 }]}>
+        <View style={[styles.content, { paddingTop: 12 }]}>
 
         {/* ── Growth areas (phase detail now in modal via hero pill) ── */}
         {focusAreas.length > 0 && (
@@ -1234,7 +1180,7 @@ export default function DashboardsScreen({ navigation, route }) {
                     return (
                       <TouchableOpacity key={area.id} onPress={() => !area.isComplete && toggleExpand(area.id)} activeOpacity={area.isComplete ? 1 : 0.7} style={[styles.focusAreaRow, index < focusAreas.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#EDF7F2' }]}>
                         <View style={styles.focusAreaNumBadge}>
-                          <Text style={{ fontSize: 16 }}>{areaEmoji}</Text>
+                          <Text style={{ fontSize: 14 }}>{areaEmoji}</Text>
                         </View>
                         <View style={styles.focusAreaText}>
                           <Text style={styles.focusAreaName}>{area.title}</Text>
@@ -1419,6 +1365,11 @@ export default function DashboardsScreen({ navigation, route }) {
                                 )}
                               </View>
                             </View>
+                            {wisdomOpen && habit.wisdom && (
+                              <View style={styles.wisdomPanel}>
+                                <Text style={styles.wisdomText}>{habit.wisdom}</Text>
+                              </View>
+                            )}
                             {partnerLinked && (() => {
                               const shareKey = `share_h_${area.id}_${i}`;
                               const shared = sharedItems.has(shareKey);
@@ -1436,11 +1387,6 @@ export default function DashboardsScreen({ navigation, route }) {
                                 </TouchableOpacity>
                               );
                             })()}
-                            {wisdomOpen && habit.wisdom && (
-                              <View style={styles.wisdomPanel}>
-                                <Text style={styles.wisdomText}>{habit.wisdom}</Text>
-                              </View>
-                            )}
                           </View>
                         );
                       })}
@@ -1534,6 +1480,11 @@ export default function DashboardsScreen({ navigation, route }) {
                                 )}
                               </View>
                             </View>
+                            {wisdomOpen && activity.wisdom && (
+                              <View style={[styles.wisdomPanel, styles.wisdomPanelActivity]}>
+                                <Text style={[styles.wisdomText, { color: '#92400E' }]}>{activity.wisdom}</Text>
+                              </View>
+                            )}
                             {partnerLinked && (() => {
                               const shareKey = `share_a_${area.id}_${i}`;
                               const shared = sharedItems.has(shareKey);
@@ -1551,11 +1502,6 @@ export default function DashboardsScreen({ navigation, route }) {
                                 </TouchableOpacity>
                               );
                             })()}
-                            {wisdomOpen && activity.wisdom && (
-                              <View style={[styles.wisdomPanel, styles.wisdomPanelActivity]}>
-                                <Text style={[styles.wisdomText, { color: '#92400E' }]}>{activity.wisdom}</Text>
-                              </View>
-                            )}
                           </View>
                         );
                       })}
@@ -1659,7 +1605,7 @@ export default function DashboardsScreen({ navigation, route }) {
 
         <View style={{ height: 40 }} />
         </>)}
-        </View>}
+        </View>
         </View>
       </Animated.ScrollView>
       </>)}
@@ -1731,7 +1677,7 @@ export default function DashboardsScreen({ navigation, route }) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#1B3D2F' },
+  safe: { flex: 1, backgroundColor: '#F5F6F8' },
 
   // Family dashboard
   partnerBanner:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EDF7F2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16, alignSelf: 'flex-start' },
@@ -1815,46 +1761,34 @@ const styles = StyleSheet.create({
   childPillTextActive: { color: '#FFFFFF', fontWeight: '700' },
 
   // Hero (scrolls away)
-  hero: { backgroundColor: '#1B3D2F', paddingHorizontal: 20, paddingBottom: 28 },
-  heroRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  hero: { backgroundColor: '#1B3D2F', paddingHorizontal: 20, paddingBottom: 14 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 
-  // Date + child info row
-  headerDate: { flex: 1 },
-  headerDayLabel: {
-    fontSize: 11, fontWeight: '700', letterSpacing: 0.8,
-    color: 'rgba(255,255,255,0.45)', marginBottom: 6,
-  },
+  // Child info
+  headerDate: { flex: 1, paddingRight: 12 },
   headerChildName: {
-    fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 38,
+    fontSize: 22, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.3, lineHeight: 28,
   },
   headerChildMeta: {
-    fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: '500', marginTop: 4,
+    fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '500', marginTop: 2,
   },
 
   // Active child avatar
   activeAvatarRing: {
-    width: 80, height: 80, borderRadius: 40,
-    borderWidth: 3, padding: 3,
+    width: 54, height: 54, borderRadius: 27,
+    borderWidth: 2, padding: 2,
     alignItems: 'center', justifyContent: 'center',
-    alignSelf: 'flex-end', marginBottom: 2,
   },
   activeAvatarCircle: {
-    width: 70, height: 70, borderRadius: 35,
+    width: 46, height: 46, borderRadius: 23,
     alignItems: 'center', justifyContent: 'center',
   },
-  activeAvatarPhoto: { width: 70, height: 70, borderRadius: 35 },
-  activeAvatarInitial: { fontSize: 28, fontWeight: '800', color: '#FFFFFF' },
+  activeAvatarPhoto: { width: 46, height: 46, borderRadius: 23 },
+  activeAvatarInitial: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
 
   // Sheet
   sheet: { flexGrow: 1, backgroundColor: '#F5F6F8', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
 
-  youthCultureDot:       { width: 7, height: 7, borderRadius: 4, backgroundColor: '#2E7D62' },
-  childSegmentOuter:     { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
-  childSegmentWrap:      { flexDirection: 'row', backgroundColor: '#E8EEF0', borderRadius: 12, padding: 3 },
-  childSegmentTab:       { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
-  childSegmentTabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
-  childSegmentText:      { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
-  childSegmentTextActive:{ fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
 
   // Sections
@@ -1867,11 +1801,11 @@ const styles = StyleSheet.create({
 
 
   // Developmental phase card
-  phasePill:        { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', marginTop: 10, marginRight: 80, backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
-  phasePillEmoji:   { fontSize: 18 },
-  phasePillEyebrow: { fontSize: 9, fontWeight: '700', color: '#2E7D62', letterSpacing: 0.8, marginBottom: 1 },
-  phasePillText:    { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
-  phasePillArrow:   { width: 22, height: 22, borderRadius: 11, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
+  phasePill:        { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
+  phasePillEmoji:   { fontSize: 13 },
+  phasePillEyebrow: { fontSize: 8, fontWeight: '700', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.8, marginBottom: 1 },
+  phasePillText:    { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.9)' },
+  phasePillArrow:   { width: 16, height: 16, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   phaseModalOverlay:{ flex: 1, backgroundColor: 'transparent', justifyContent: 'flex-end' },
   phaseModalSheet:  { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 0, maxHeight: '80%', shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 20 },
   phaseModalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
@@ -1945,9 +1879,9 @@ const styles = StyleSheet.create({
   specialNeedsNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 10, backgroundColor: '#FEF9EE', borderRadius: 8, padding: 10 },
   specialNeedsNoteText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
   growthCard:         { backgroundColor: '#FFFFFF', borderRadius: 18, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2, marginBottom: 4 },
-  phaseGrowthSection: { padding: 16 },
-  phaseGrowthHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  phaseGrowthTitle:   { fontSize: 15, fontWeight: '800', color: '#1A1A2E' },
+  phaseGrowthSection: { padding: 12 },
+  phaseGrowthHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  phaseGrowthTitle:   { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
   phaseGrowthEdit:    { fontSize: 12, fontWeight: '700', color: '#2E7D62' },
   phaseDetail: { marginTop: 14 },
   phaseDetailDivider: {
@@ -2010,16 +1944,16 @@ const styles = StyleSheet.create({
   focusSubRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   focusSubText: { fontSize: 12, fontWeight: '400', flex: 1, lineHeight: 17 },
   focusEditLink: { fontSize: 12, fontWeight: '700' },
-  focusAreaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+  focusAreaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
   focusAreaNumBadge: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 30, height: 30, borderRadius: 8,
     backgroundColor: '#EDF7F2',
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
-  focusAreaNum:      { fontSize: 12, fontWeight: '800', color: '#2E7D62' },
+  focusAreaNum:      { fontSize: 11, fontWeight: '800', color: '#2E7D62' },
   focusAreaText:     { flex: 1 },
-  focusAreaName:     { fontSize: 14, fontWeight: '700', color: '#1A1A2E', marginBottom: 3 },
+  focusAreaName:     { fontSize: 13, fontWeight: '600', color: '#1A1A2E', marginBottom: 2 },
   focusAreaOverview: { fontSize: 12, color: '#4B5563', lineHeight: 18, marginTop: 2 },
 
   // Tip card

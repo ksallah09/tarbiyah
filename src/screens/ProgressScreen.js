@@ -9,6 +9,7 @@ import {
   AppState,
   RefreshControl,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,6 +56,19 @@ function getMotivationText(done, total) {
 export default function ProgressScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { refreshHasChildren, refreshHasFamilyGoals, hasChildren, hasFamilyGoals } = useAuth();
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const handleBoardScroll = useRef(
+    Animated.event(
+      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+      { useNativeDriver: false }
+    )
+  ).current;
+  const cornerRadius = scrollY.interpolate({
+    inputRange: [0, 30],
+    outputRange: [24, 0],
+    extrapolate: 'clamp',
+  });
   const [children,    setChildren]         = useState(_childrenCache);
   const [spirMonth,   setSpiritualMonth]   = useState(_spirCache);
   const [sciMonth,    setScientificMonth]  = useState(_sciCache);
@@ -129,7 +143,6 @@ export default function ProgressScreen({ navigation, route }) {
   // Skip the very first focus since useEffect already handles initial load
   useFocusEffect(useCallback(() => {
     if (route?.params?.tab === 'configure') setFamilyTab('configure');
-    else if (route?.params?.tab === 'goals') setFamilyTab('goals');
     if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
     refreshAll();
   }, [refreshAll, route?.params?.tab]));
@@ -171,6 +184,11 @@ export default function ProgressScreen({ navigation, route }) {
     return () => sub.remove();
   }, [refreshAll]);
 
+  const switchTab = useCallback((key) => {
+    setFamilyTab(key);
+    scrollY.setValue(0);
+  }, [scrollY]);
+
   async function handleLogCompletion(goalId) {
     const updated = await logCompletion(goalId);
     _completionsCache = updated;
@@ -192,9 +210,8 @@ export default function ProgressScreen({ navigation, route }) {
         <View style={styles.segmentOuter} onLayout={e => setSegmentLayout(e.nativeEvent.layout)}>
           <View style={styles.segmentWrap}>
             {[
-              ['childWins',  'Child Wins'],
+              ['childWins',  'Child Growth'],
               ['parenting',  'Parenting'],
-              ['goals',      'Goals'],
               ['configure',  'Configure'],
             ].map(([key, label]) => {
               const showSetupDot = key === 'configure' && (!hasChildren || !hasFamilyGoals) && familyTab !== 'configure';
@@ -202,7 +219,7 @@ export default function ProgressScreen({ navigation, route }) {
                 <TouchableOpacity
                   key={key}
                   style={[styles.segmentTab, familyTab === key && styles.segmentTabActive]}
-                  onPress={() => setFamilyTab(key)}
+                  onPress={() => switchTab(key)}
                   activeOpacity={0.8}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -215,9 +232,12 @@ export default function ProgressScreen({ navigation, route }) {
           </View>
         </View>
 
+        {/* ── Content area with curved top ── */}
+        <Animated.View style={[styles.contentSheet, { borderTopLeftRadius: cornerRadius, borderTopRightRadius: cornerRadius }]}>
+
         {/* ── Content tabs — single instance stays mounted so data loads once ── */}
         {familyTab !== 'configure' && (
-          <FamilySummaryBoard navigation={navigation} section={familyTab} />
+          <FamilySummaryBoard navigation={navigation} section={familyTab} onScroll={handleBoardScroll} />
         )}
 
         {/* ── Configure ── */}
@@ -227,6 +247,8 @@ export default function ProgressScreen({ navigation, route }) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4ADE80" colors={['#4ADE80']} />}
+          onScroll={handleBoardScroll}
+          scrollEventThrottle={16}
         >
         {/* ── Light sheet ── */}
         <View style={styles.sheet}>
@@ -575,6 +597,8 @@ export default function ProgressScreen({ navigation, route }) {
         </ScrollView>
         )}
 
+        </Animated.View> {/* contentSheet */}
+
       <EncouragementModal
         visible={!!encouragement}
         emoji={encouragement?.emoji}
@@ -612,6 +636,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  contentSheet: {
+    flex: 1,
+    backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+  },
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',

@@ -555,11 +555,22 @@ export default function App() {
   useEffect(() => {
     Promise.all([isOnboardingComplete(), getSession()])
       .then(async ([complete, session]) => {
-        // Initialize RevenueCat with the current user id if available
         const userId = session?.user?.id ?? null;
+
+        // Establish local state from AsyncStorage before any network calls.
+        // This guarantees the navigator never shows the wrong screen if a
+        // subsequent await (RevenueCat init, entitlement check) throws.
+        setOnboarded(complete);
+        if (complete) {
+          const raw = await AsyncStorage.getItem(TRIAL_KEY);
+          const daysLeft = computeTrialDaysLeft(raw);
+          setTrialDaysLeft(daysLeft);
+          if (daysLeft > 0) setHasAccess(true);
+        }
+
+        // Initialize RevenueCat with the current user id if available
         await initializePurchases(userId);
 
-        setOnboarded(complete);
         refreshChildrenAndSnaps();
         refreshHasFamilyGoals();
         prewarmYouthCulture();

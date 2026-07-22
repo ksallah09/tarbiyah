@@ -294,7 +294,7 @@ const WORLD_SNAPSHOTS = {
 };
 
 const SECTION_CONFIG = [
-  { key: 'safetyWatch',   emoji: '🚨', label: 'Safety Alerts',                 safety: true },
+  { key: 'safetyWatch',   emoji: '🛡️', label: 'Safety Alerts',                 safety: true },
   { key: 'onlineWorld',   emoji: '📱', label: 'What They May Be Seeing Online' },
   { key: 'slang',         emoji: '💬', label: 'Slang This Week'                },
   { key: 'humor',         emoji: '😂', label: 'What Kids Are Laughing At'      },
@@ -738,7 +738,7 @@ const cw = StyleSheet.create({
   },
   flushWrap: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   flushStatusRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -790,7 +790,7 @@ const cw = StyleSheet.create({
   },
   sectionEmoji: { fontSize: 16 },
   sectionHeaderText: { flex: 1, fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
-  sectionBody: { paddingBottom: 14 },
+  sectionBody: { paddingBottom: 14, paddingHorizontal: 2 },
 
   sectionItem: { paddingTop: 4 },
   itemTitle: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
@@ -852,7 +852,7 @@ const cw = StyleSheet.create({
   severityText:    { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   safetyThreat:    { flex: 1, fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
   safetyBody:      { fontSize: 13, color: '#374151', lineHeight: 20, marginBottom: 10 },
-  safetyMeta:      { marginBottom: 8 },
-  safetyMetaLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 2 },
+  safetyMeta:      { marginBottom: 10, paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: '#C3D9CF' },
+  safetyMetaLabel: { fontSize: 11, fontWeight: '800', color: '#1B3D2F', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 },
   safetyMetaText:  { fontSize: 12, color: '#374151', lineHeight: 18 },
 });
