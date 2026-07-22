@@ -407,7 +407,7 @@ export default function App() {
   const [loading, setLoading]         = useState(true);
   const [onboarded, setOnboarded]     = useState(false);
   const [hasAccess,     setHasAccess]     = useState(__DEV__);
-  const [isSubscribed,  setIsSubscribed]  = useState(false);
+  const [isSubscribed,  setIsSubscribed]  = useState(__DEV__);
   const [trialDaysLeft, setTrialDaysLeft] = useState(TRIAL_DAYS);
   const [showAppSplash, setShowAppSplash] = useState(false);
   const [hasChildren,     setHasChildren]     = useState(false);
