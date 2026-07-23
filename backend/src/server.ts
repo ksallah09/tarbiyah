@@ -3871,7 +3871,9 @@ async function fetchSafetyGroundingContext(ageNum: number, ageGroup: string): Pr
       model.generateContent(prompt),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Grounding timeout')), 180_000)),
     ]);
-    return (result as any).response.text();
+    const text = (result as any).response.text();
+    console.log(`[fetchSafetyGroundingContext] success — ${text.length} chars — preview: ${text.slice(0, 200).replace(/\n/g, ' ')}`);
+    return text;
   } catch (e) {
     console.warn('[fetchSafetyGroundingContext] failed:', (e as Error).message);
     return '';
@@ -4210,6 +4212,7 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
         const safetySignals   = safetyResult.status   === 'fulfilled' ? safetyResult.value   : [];
         const groundingContext = groundingResult.status === 'fulfilled' ? groundingResult.value : '';
 
+        console.log(`[child-world/async] trends fetched — Reddit:${reddit.length} YouTube:${youtube.length} Slang:${slang.length} Safety:${safetySignals.length} Grounding:${groundingContext.length}chars`);
         const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals, groundingContext });
         const snapshot = await generateChildWorldSnapshot(prompt);
 
