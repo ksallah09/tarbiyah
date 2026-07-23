@@ -3805,67 +3805,6 @@ async function redditFetch(path: string): Promise<any> {
   return res.json();
 }
 
-async function fetchSafetySignals(ageNum: number): Promise<string[]> {
-  const results: string[] = [];
-
-  // 1. Reddit keyword searches for active dangerous trends
-  const safetyQueries = [
-    'dangerous challenge kids teens',
-    'viral trend warning children',
-    'online predator warning',
-    'teen self harm trend',
-    'extremist content youth',
-    'child safety alert online',
-  ];
-
-  await Promise.allSettled(safetyQueries.map(async query => {
-    try {
-      const json: any = await redditFetch(`/search.json?q=${encodeURIComponent(query)}&sort=top&t=week&limit=5`);
-      for (const p of json?.data?.children ?? []) {
-        const title = p?.data?.title;
-        const sub   = p?.data?.subreddit;
-        if (title && title.length < 200) results.push(`[Safety signal — r/${sub}] ${title}`);
-      }
-    } catch (e) { console.warn(`[fetchSafetySignals] search query failed "${query}":`, (e as Error).message); }
-  }));
-
-  // 2. Safety-focused subreddits
-  const safetySubs = ['Parenting', 'internetparents', 'OutOfTheLoop', 'TrueOffMyChest'];
-  await Promise.allSettled(safetySubs.map(async sub => {
-    try {
-      const json: any = await redditFetch(`/r/${sub}/top.json?t=week&limit=6`);
-      for (const p of json?.data?.children ?? []) {
-        const title = p?.data?.title ?? '';
-        const keywords = ['teen', 'child', 'kid', 'danger', 'challenge', 'online', 'predator', 'harm', 'abuse', 'viral', 'tiktok', 'discord', 'roblox', 'trend', 'warn'];
-        if (keywords.some(k => title.toLowerCase().includes(k))) {
-          results.push(`[Safety — r/${sub}] ${title}`);
-        }
-      }
-    } catch (e) { console.warn(`[fetchSafetySignals] subreddit r/${sub} failed:`, (e as Error).message); }
-  }));
-
-  // 3. Age-specific subreddits
-  const ageGroup = childWorldAgeGroup(ageNum);
-  const ageSpecificSubs: Record<string, string[]> = {
-    '3-5':  ['Parenting'],
-    '6-8':  ['Parenting', 'roblox'],
-    '9-11': ['Parenting', 'roblox', 'teenagers'],
-    '12-14':['teenagers', 'Parenting'],
-    '15+':  ['teenagers', 'GenZ'],
-  };
-
-  await Promise.allSettled((ageSpecificSubs[ageGroup] ?? []).map(async sub => {
-    try {
-      const json: any = await redditFetch(`/r/${sub}/search.json?q=warning+danger+unsafe+predator+challenge&sort=top&t=week&limit=5&restrict_sr=1`);
-      for (const p of json?.data?.children ?? []) {
-        const title = p?.data?.title;
-        if (title && title.length < 200) results.push(`[Age-specific safety — r/${sub}] ${title}`);
-      }
-    } catch {}
-  }));
-
-  return [...new Set(results)].slice(0, 25);
-}
 
 async function fetchSafetyGroundingContext(ageNum: number, ageGroup: string): Promise<string> {
   try {
@@ -3976,9 +3915,9 @@ async function fetchSlangWithGrounding(ageNum: number, ageGroup: string): Promis
 
 function buildChildWorldPrompt(params: {
   age: number; ageGroup: string; gender?: string; name?: string;
-  interests?: string; youtube: string[]; reddit: string[]; slang: string[]; googleTrends: string[]; safetySignals: string[]; groundingContext?: string;
+  interests?: string; youtube: string[]; reddit: string[]; slang: string[]; googleTrends: string[]; groundingContext?: string;
 }): string {
-  const { age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals, groundingContext } = params;
+  const { age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext } = params;
 
   const trendBlock = [
     googleTrends.length ? `GOOGLE TRENDS (captures TikTok + Instagram viral signals):\n${googleTrends.join('\n')}` : '',
@@ -3987,12 +3926,9 @@ function buildChildWorldPrompt(params: {
     slang.length   ? `URBAN DICTIONARY TRENDING SLANG:\n${slang.join(', ')}` : '',
   ].filter(Boolean).join('\n\n');
 
-  const safetyBlock = [
-    safetySignals.length ? `DEDICATED SAFETY SIGNALS (from targeted searches and safety-focused communities):\n${safetySignals.join('\n')}` : '',
-    groundingContext     ? `REAL-TIME SAFETY SEARCH CONTEXT (Google Search grounding — treat as primary source for safetyWatch):\n${groundingContext}` : '',
-  ].filter(Boolean).join('\n\n');
-
-  const safetyBlockFull = safetyBlock ? `\n\n${safetyBlock}` : '';
+  const safetyBlockFull = groundingContext
+    ? `\n\nREAL-TIME SAFETY SEARCH CONTEXT (Google Search grounding — treat as primary source for safetyWatch):\n${groundingContext}`
+    : '';
 
   return `You are generating a weekly "This Week in Youth Culture" digest for a Muslim parent whose child is ${age} years old (age group: ${ageGroup})${gender ? `, gender: ${gender}` : ''}${name ? `, name: ${name}` : ''}${interests ? `, interests: ${interests}` : ''}.
 
@@ -4205,24 +4141,22 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
         const ageNum   = parseInt(age) || 10;
         const ageGroup = childWorldAgeGroup(ageNum);
 
-        const [redditResult, youtubeResult, slangResult, googleResult, safetyResult, groundingResult] = await Promise.allSettled([
+        const [redditResult, youtubeResult, slangResult, googleResult, groundingResult] = await Promise.allSettled([
           fetchRedditTrends(ageNum),
           fetchYoutubeTrends(ageNum),
           fetchSlangWithGrounding(ageNum, ageGroup),
           fetchGoogleTrends(ageNum),
-          fetchSafetySignals(ageNum),
           fetchSafetyGroundingContext(ageNum, ageGroup),
         ]);
 
-        const reddit          = redditResult.status   === 'fulfilled' ? redditResult.value   : [];
-        const youtube         = youtubeResult.status  === 'fulfilled' ? youtubeResult.value  : [];
-        const slang           = slangResult.status    === 'fulfilled' ? slangResult.value    : [];
-        const googleTrends    = googleResult.status   === 'fulfilled' ? googleResult.value   : [];
-        const safetySignals   = safetyResult.status   === 'fulfilled' ? safetyResult.value   : [];
+        const reddit          = redditResult.status    === 'fulfilled' ? redditResult.value    : [];
+        const youtube         = youtubeResult.status   === 'fulfilled' ? youtubeResult.value   : [];
+        const slang           = slangResult.status     === 'fulfilled' ? slangResult.value     : [];
+        const googleTrends    = googleResult.status    === 'fulfilled' ? googleResult.value    : [];
         const groundingContext = groundingResult.status === 'fulfilled' ? groundingResult.value : '';
 
-        console.log(`[child-world/async] trends fetched — Reddit:${reddit.length} YouTube:${youtube.length} Slang:${slang.length} Safety:${safetySignals.length} Grounding:${groundingContext.length}chars`);
-        const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals, groundingContext });
+        console.log(`[child-world/async] trends fetched — Reddit:${reddit.length} YouTube:${youtube.length} Slang:${slang.length} Grounding:${groundingContext.length}chars`);
+        const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext });
         const snapshot = await generateChildWorldSnapshot(prompt);
 
         if (snapshot) {
@@ -4300,16 +4234,11 @@ app.post('/child-world/safety-refresh', requireAuth, async (req: AuthRequest, re
           .filter(Boolean)
           .slice(0, 5);
 
-        const [safetyResult, groundingResult] = await Promise.allSettled([
-          fetchSafetySignals(ageNum),
-          fetchSafetyGroundingContext(ageNum, ageGroup),
-        ]);
-
-        const redditSignals   = safetyResult.status    === 'fulfilled' ? safetyResult.value    : [];
-        const groundingContext = groundingResult.status === 'fulfilled' ? groundingResult.value : '';
+        const groundingResult  = await fetchSafetyGroundingContext(ageNum, ageGroup).catch(() => '');
+        const groundingContext = groundingResult ?? '';
 
         const systemPrompt   = buildIslamicSafetySystemPrompt();
-        const userPrompt     = buildIslamicSafetyUserPrompt({ age: ageNum, ageGroup, gender, name, interests, groundingContext, redditSignals, priorTitles });
+        const userPrompt     = buildIslamicSafetyUserPrompt({ age: ageNum, ageGroup, gender, name, interests, groundingContext, redditSignals: [], priorTitles });
         const newSafetyWatch = await generateSafetyWatchOnly(systemPrompt, userPrompt);
         if (!newSafetyWatch) return;
 
@@ -4370,12 +4299,11 @@ app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => 
     const interests = (req.query.interests as string) ?? undefined;
     const ageGroup  = childWorldAgeGroup(age);
 
-    const [redditResult, youtubeResult, slangResult, googleResult, safetyResult, groundingResult] = await Promise.allSettled([
+    const [redditResult, youtubeResult, slangResult, googleResult, groundingResult] = await Promise.allSettled([
       fetchRedditTrends(age),
       fetchYoutubeTrends(age),
       fetchSlangWithGrounding(age, ageGroup),
       fetchGoogleTrends(age),
-      fetchSafetySignals(age),
       fetchSafetyGroundingContext(age, ageGroup),
     ]);
 
@@ -4383,12 +4311,11 @@ app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => 
     const youtube         = youtubeResult.status   === 'fulfilled' ? youtubeResult.value   : [];
     const slang           = slangResult.status     === 'fulfilled' ? slangResult.value     : [];
     const googleTrends    = googleResult.status    === 'fulfilled' ? googleResult.value    : [];
-    const safetySignals   = safetyResult.status    === 'fulfilled' ? safetyResult.value    : [];
     const groundingContext = groundingResult.status === 'fulfilled' ? groundingResult.value : '';
 
-    console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length} Safety:${safetySignals.length} Grounding:${groundingContext.length}chars`);
+    console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length} Grounding:${groundingContext.length}chars`);
 
-    const prompt = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals, groundingContext });
+    const prompt = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext });
     const snapshot = await generateChildWorldSnapshot(prompt);
 
     if (!snapshot) return res.status(500).json({ error: 'Failed to generate snapshot.' });
