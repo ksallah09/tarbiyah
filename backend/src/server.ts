@@ -3817,7 +3817,7 @@ async function fetchSafetySignals(ageNum: number): Promise<string[]> {
         const sub   = p?.data?.subreddit;
         if (title && title.length < 200) results.push(`[Safety signal — r/${sub}] ${title}`);
       }
-    } catch {}
+    } catch (e) { console.warn(`[fetchSafetySignals] search query failed "${query}":`, (e as Error).message); }
   }));
 
   // 2. Safety-focused subreddits
@@ -3832,7 +3832,7 @@ async function fetchSafetySignals(ageNum: number): Promise<string[]> {
           results.push(`[Safety — r/${sub}] ${title}`);
         }
       }
-    } catch {}
+    } catch (e) { console.warn(`[fetchSafetySignals] subreddit r/${sub} failed:`, (e as Error).message); }
   }));
 
   // 3. Age-specific subreddits
@@ -3866,7 +3866,7 @@ async function fetchSafetyGroundingContext(ageNum: number, ageGroup: string): Pr
       generationConfig: { temperature: 0.2 },
     });
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const prompt = `Today is ${today}. Search for the top 3-4 youth safety concerns trending RIGHT NOW this week — things happening involving children, teens, social media, online harms, or dangerous challenges. Focus on what is NEW and SPECIFIC to children aged ${ageNum} (${ageGroup}). For each concern: name the SPECIFIC challenge, platform, or content type (not a generic category), describe the harm in 2-3 sentences, and note where it is spreading. Do NOT return generic category names like "predatory contact" or "dangerous viral challenges" — name what is actually circulating this week.`;
+    const prompt = `Today is ${today}. Use Google Search to find real news articles, Reddit posts, or social media reports published in the last 7 days about dangerous trends, viral challenges, or online harms affecting children aged ${ageNum} (${ageGroup}). Search for terms like "viral challenge kids danger 2026", "children online safety warning this week", "TikTok dangerous trend teens July 2026". Report ONLY what you actually find in search results — quote specific article headlines, name the specific challenge or platform involved, and include the approximate date. Do NOT generate or synthesize from your training knowledge. Do NOT use generic category names. If you cannot find specific recent news articles, say "No specific recent news found" rather than inventing threats.`;
     const result = await Promise.race([
       model.generateContent(prompt),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Grounding timeout')), 180_000)),
