@@ -3806,6 +3806,28 @@ async function redditFetch(path: string): Promise<any> {
 }
 
 
+async function fetchCultureGroundingContext(ageNum: number, ageGroup: string): Promise<string> {
+  try {
+    const model = genAI.getGenerativeModel({
+      model: MODEL_FAST,
+      tools: [{ googleSearch: {} } as any],
+      generationConfig: { temperature: 0.2 },
+    });
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const prompt = `Today is ${today}. Use Google Search to find what children and teenagers aged ${ageNum} (${ageGroup}) are specifically talking about, watching, playing, and wearing RIGHT NOW this week. Search for: "what are kids aged ${ageNum} into July 2026", "trending games teens ${ageGroup} 2026", "viral memes kids school July 2026", "teen fashion trends July 2026". Report ONLY what you actually find in search results — name specific YouTube creators, specific game titles, specific meme formats, specific fashion brands or aesthetics, specific shows. Quote headlines or post titles where possible. Do NOT describe general platform behaviour — name the specific thing. If you find nothing specific for a category, say so rather than generalising.`;
+    const result = await Promise.race([
+      model.generateContent(prompt),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Culture grounding timeout')), 120_000)),
+    ]);
+    const text = (result as any).response.text();
+    console.log(`[fetchCultureGroundingContext] success — ${text.length} chars — preview: ${text.slice(0, 200).replace(/\n/g, ' ')}`);
+    return text;
+  } catch (e) {
+    console.warn('[fetchCultureGroundingContext] failed:', (e as Error).message);
+    return '';
+  }
+}
+
 async function fetchSafetyGroundingContext(ageNum: number, ageGroup: string): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({
@@ -3915,68 +3937,75 @@ async function fetchSlangWithGrounding(ageNum: number, ageGroup: string): Promis
 
 function buildChildWorldPrompt(params: {
   age: number; ageGroup: string; gender?: string; name?: string;
-  interests?: string; youtube: string[]; reddit: string[]; slang: string[]; googleTrends: string[]; groundingContext?: string;
+  interests?: string; youtube: string[]; reddit: string[]; slang: string[]; googleTrends: string[];
+  groundingContext?: string; cultureGroundingContext?: string;
 }): string {
-  const { age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext } = params;
+  const { age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext, cultureGroundingContext } = params;
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   const trendBlock = [
-    googleTrends.length ? `GOOGLE TRENDS (captures TikTok + Instagram viral signals):\n${googleTrends.join('\n')}` : '',
-    youtube.length ? `YOUTUBE TRENDING THIS WEEK:\n${youtube.join('\n')}` : '',
-    reddit.length  ? `REDDIT TOP POSTS THIS WEEK:\n${reddit.join('\n')}`  : '',
-    slang.length   ? `URBAN DICTIONARY TRENDING SLANG:\n${slang.join(', ')}` : '',
+    googleTrends.length       ? `GOOGLE TRENDS (captures TikTok + Instagram viral signals):\n${googleTrends.join('\n')}` : '',
+    youtube.length            ? `YOUTUBE TRENDING THIS WEEK:\n${youtube.join('\n')}` : '',
+    reddit.length             ? `REDDIT TOP POSTS THIS WEEK:\n${reddit.join('\n')}`  : '',
+    slang.length              ? `CURRENT SLANG (trending this week):\n${slang.join(', ')}` : '',
+    cultureGroundingContext   ? `REAL-TIME CULTURE CONTEXT (Google Search grounding — PRIMARY SOURCE for onlineWorld, humor, schoolCulture, fashionCulture):\n${cultureGroundingContext}` : '',
   ].filter(Boolean).join('\n\n');
 
   const safetyBlockFull = groundingContext
-    ? `\n\nREAL-TIME SAFETY SEARCH CONTEXT (Google Search grounding — treat as primary source for safetyWatch):\n${groundingContext}`
+    ? `\n\nREAL-TIME SAFETY SEARCH CONTEXT (Google Search grounding — PRIMARY SOURCE for safetyWatch):\n${groundingContext}`
     : '';
 
-  return `You are generating a weekly "This Week in Youth Culture" digest for a Muslim parent whose child is ${age} years old (age group: ${ageGroup})${gender ? `, gender: ${gender}` : ''}${name ? `, name: ${name}` : ''}${interests ? `, interests: ${interests}` : ''}.
+  return `You are generating a weekly "This Week in Youth Culture" digest for a Muslim parent. Today is ${today}. Child age: ${age} (${ageGroup})${gender ? `, ${gender}` : ''}${name ? `, name: ${name}` : ''}${interests ? `, interests: ${interests}` : ''}.
 
-Here is REAL trending data from this week — use this as the foundation for the content:
+LIVE DATA FROM THIS WEEK — this is your primary source. Everything you generate must be grounded in this data:
 
-${trendBlock || 'No live trend data available — use your knowledge of current youth culture.'}${safetyBlockFull}
+${trendBlock || 'No live trend data available.'}${safetyBlockFull}
 
-Using the above real trends as your core, generate a weekly digest with the following structure. Where the trend data does not cover a section, use accurate evergreen knowledge for this age group.
+CRITICAL QUALITY RULE — applies to EVERY section:
+WRONG: Generic descriptions of what kids "typically" do or like. ("YouTube gaming creators are popular with this age group", "Minecraft is a favourite game", "streetwear is trending")
+RIGHT: Specific named things from the data above. ("MrBeast's [specific video title] is dominating watch time", "[specific creator] posted a challenge that kids this age are re-enacting", "[specific aesthetic from the grounding data] is spreading on TikTok")
+If the live data names something specific — a creator, a video title, a meme format, a brand, a challenge — USE THAT NAME. Do not paraphrase into a generic description.
+If live data is genuinely sparse for a section, use your most specific current knowledge of what is active RIGHT NOW — name real things, not categories.
 
-The Islamic lens and conversation starters must always be practical, non-preachy, and grounded in the Prophet's ﷺ example.
+The Islamic lens and conversation starters must be practical, non-preachy, and grounded in the Prophet's ﷺ example.
 
 Return ONLY valid JSON, no markdown:
 {
   "ageGroup": "${ageGroup}",
   "onlineWorld": [
-    { "platform": "string — real platform/trend from the data", "context": "string — what kids this age actually do there, grounded in the trend data", "tip": "string — one practical thing for the parent to do" }
+    { "platform": "string — specific platform or creator/trend NAME from the data (not just 'YouTube' or 'TikTok')", "context": "string — what specifically kids this age are watching/doing there this week, named from the data", "tip": "string — one practical thing for the parent to do" }
   ],
   "slang": [
-    { "word": "string", "meaning": "string", "note": "string — context/concern level" }
+    { "word": "string — specific word from the slang data", "meaning": "string", "note": "string — context/concern level" }
   ],
   "humor": {
-    "summary": "string — what humor looks like for this age right now",
+    "summary": "string — what specific humor formats are circulating right now for this age",
     "items": [
-      { "type": "string — humor format name", "detail": "string — explanation for parent" }
+      { "type": "string — specific named meme format, video style, or humor trend (not just 'memes')", "detail": "string — what it is, where it started, why kids find it funny" }
     ],
     "islamicAngle": "string"
   },
   "concerns": [
-    { "concern": "string", "detail": "string", "action": "string — practical step" }
+    { "concern": "string — specific named concern grounded in the data", "detail": "string", "action": "string — practical step" }
   ],
   "habits": [
     { "habit": "string", "detail": "string" }
   ],
   "schoolCulture": [
-    { "trend": "string", "detail": "string" }
+    { "trend": "string — specific named trend, dynamic, or behaviour from the data or your specific current knowledge", "detail": "string — what it looks like day-to-day" }
   ],
   "fashionCulture": [
     {
-      "trend": "string — name of the style, aesthetic, or clothing trend",
-      "whatItIs": "string — what it looks like, where kids are getting it, what it signals socially",
+      "trend": "string — specific named aesthetic, brand, or clothing trend active RIGHT NOW",
+      "whatItIs": "string — what it looks like, where kids are getting it (specific platforms/stores), what it signals socially",
       "ageGroup": "string — which ages are most into this",
-      "islamicAngle": "string — how to engage with this as a Muslim parent, modesty conversation hooks, values angle"
+      "islamicAngle": "string — how to engage with this as a Muslim parent, modesty as a value not a restriction"
     }
   ],
   "starters": [
-    { "question": "string — ready to ask verbatim", "why": "string — why it works" }
+    { "question": "string — conversational question referencing something specific from this week's data", "why": "string — why it works" }
   ],
-  "islamicLens": "string — 3-4 sentences, grounded in sunnah, practical not preachy",
+  "islamicLens": "string — 3-4 sentences, grounded in sunnah, referencing something specific from this week's content",
   "safetyWatch": [
     {
       "threat": "string — specific named challenge, trend, or platform pattern (NOT a generic category)",
@@ -3989,18 +4018,16 @@ Return ONLY valid JSON, no markdown:
   ]
 }
 
-Rules:
-- onlineWorld: 2-3 items. Reference actual platform names and trends from the data above.
-- slang: 4-6 words actually trending or relevant for this age group right now.
-- humor.items: 3-4 types.
-- concerns: 2-3 real concerns for this age right now.
-- habits: 2-3 items.
-- schoolCulture: 2-3 items.
-- fashionCulture: 2-3 items. What styles, aesthetics, brands, or clothing trends are active for this age group right now. For ages 3-8 keep it simple (character clothing, specific brands kids want). For 9+ include aesthetic culture (dark academia, streetwear, e-girl, soft boy, gorpcore etc.), sneaker culture, brand pressure, and fast fashion platforms (Shein, ASOS, Depop). Always include an Islamic angle focused on modesty as a value not a restriction.
-- starters: 3 questions, age-appropriate, conversational.
-- safetyWatch: CRITICALLY IMPORTANT. Use the REAL-TIME SAFETY SEARCH CONTEXT above as your primary source. Each item MUST name a SPECIFIC named challenge, platform pattern, or content trend from the data — NOT a generic category. WRONG: "Dangerous Viral Challenges" or "Predatory Contact on Gaming Platforms". RIGHT: "The [specific named challenge] is spreading on [platform] this week" or "[specific named content type] is targeting [age group] on [platform]". Return 3-5 items. Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. severity "high" = immediate parental action needed, "medium" = worth a conversation this week, "low" = monitor only. The action field must include a practical Islamic parenting step grounded in the Prophet's ﷺ example or Quranic values.
-- TONE — CRITICAL: Never assume the child is on any platform. Always use conditional language: "if your child uses TikTok...", "kids this age who are on Roblox...", "if they've come across this...". Never say "your child is watching", "your child uses", or "your child sees". The parent may not know what their child is or isn't on — the goal is awareness, not assumption. This applies to every section including onlineWorld, concerns, safetyWatch, and habits.
-- Everything should feel current and real, not generic.`;
+Section rules:
+- onlineWorld: 2-3 items. At least one must name a specific creator, video, or trend from the YOUTUBE TRENDING or REAL-TIME CULTURE CONTEXT data by name.
+- slang: 4-6 words from the CURRENT SLANG data above. Do not invent words not in the data.
+- humor: Name specific meme formats or video styles circulating right now — not generic descriptions like "reaction videos" or "fail compilations" unless they are specifically in the data.
+- concerns: Ground in real patterns visible in the data. Be specific about platform or content type.
+- schoolCulture: 2-3 items. Must name specific dynamics, games, or topics kids are discussing in school RIGHT NOW based on the culture context.
+- fashionCulture: 2-3 items. For ages 3-8 name specific character brands. For 9+ name specific aesthetics (e.g. "brat aesthetic", "gorpcore", "clean girl") and platforms (Shein, ASOS, Depop). Always include Islamic angle on modesty as dignity, not restriction.
+- starters: 3 questions. At least one should reference something specific from this week's data so it feels current, not scripted.
+- safetyWatch: Use REAL-TIME SAFETY SEARCH CONTEXT as primary source. WRONG: "Dangerous Viral Challenges". RIGHT: "The [specific named challenge] spreading on [platform] this week". Return 3-5 items. severity "high" = immediate action, "medium" = conversation this week, "low" = monitor. Action field must include Islamic parenting angle.
+- TONE — CRITICAL: Never assume the child uses any platform. Conditional language always: "if your child uses TikTok...", "kids this age who are on Roblox...". Never "your child watches/uses/sees".`;
 }
 
 function buildIslamicSafetySystemPrompt(): string {
@@ -4141,22 +4168,24 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
         const ageNum   = parseInt(age) || 10;
         const ageGroup = childWorldAgeGroup(ageNum);
 
-        const [redditResult, youtubeResult, slangResult, googleResult, groundingResult] = await Promise.allSettled([
+        const [redditResult, youtubeResult, slangResult, googleResult, safetyGroundingResult, cultureGroundingResult] = await Promise.allSettled([
           fetchRedditTrends(ageNum),
           fetchYoutubeTrends(ageNum),
           fetchSlangWithGrounding(ageNum, ageGroup),
           fetchGoogleTrends(ageNum),
           fetchSafetyGroundingContext(ageNum, ageGroup),
+          fetchCultureGroundingContext(ageNum, ageGroup),
         ]);
 
-        const reddit          = redditResult.status    === 'fulfilled' ? redditResult.value    : [];
-        const youtube         = youtubeResult.status   === 'fulfilled' ? youtubeResult.value   : [];
-        const slang           = slangResult.status     === 'fulfilled' ? slangResult.value     : [];
-        const googleTrends    = googleResult.status    === 'fulfilled' ? googleResult.value    : [];
-        const groundingContext = groundingResult.status === 'fulfilled' ? groundingResult.value : '';
+        const reddit                 = redditResult.status          === 'fulfilled' ? redditResult.value          : [];
+        const youtube                = youtubeResult.status         === 'fulfilled' ? youtubeResult.value         : [];
+        const slang                  = slangResult.status           === 'fulfilled' ? slangResult.value           : [];
+        const googleTrends           = googleResult.status          === 'fulfilled' ? googleResult.value          : [];
+        const groundingContext        = safetyGroundingResult.status === 'fulfilled' ? safetyGroundingResult.value : '';
+        const cultureGroundingContext = cultureGroundingResult.status === 'fulfilled' ? cultureGroundingResult.value : '';
 
-        console.log(`[child-world/async] trends fetched — Reddit:${reddit.length} YouTube:${youtube.length} Slang:${slang.length} Grounding:${groundingContext.length}chars`);
-        const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext });
+        console.log(`[child-world/async] trends fetched — Reddit:${reddit.length} YouTube:${youtube.length} Slang:${slang.length} SafetyCtx:${groundingContext.length}chars CultureCtx:${cultureGroundingContext.length}chars`);
+        const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext, cultureGroundingContext });
         const snapshot = await generateChildWorldSnapshot(prompt);
 
         if (snapshot) {
@@ -4299,23 +4328,25 @@ app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => 
     const interests = (req.query.interests as string) ?? undefined;
     const ageGroup  = childWorldAgeGroup(age);
 
-    const [redditResult, youtubeResult, slangResult, googleResult, groundingResult] = await Promise.allSettled([
+    const [redditResult, youtubeResult, slangResult, googleResult, safetyGroundingResult, cultureGroundingResult] = await Promise.allSettled([
       fetchRedditTrends(age),
       fetchYoutubeTrends(age),
       fetchSlangWithGrounding(age, ageGroup),
       fetchGoogleTrends(age),
       fetchSafetyGroundingContext(age, ageGroup),
+      fetchCultureGroundingContext(age, ageGroup),
     ]);
 
-    const reddit          = redditResult.status    === 'fulfilled' ? redditResult.value    : [];
-    const youtube         = youtubeResult.status   === 'fulfilled' ? youtubeResult.value   : [];
-    const slang           = slangResult.status     === 'fulfilled' ? slangResult.value     : [];
-    const googleTrends    = googleResult.status    === 'fulfilled' ? googleResult.value    : [];
-    const groundingContext = groundingResult.status === 'fulfilled' ? groundingResult.value : '';
+    const reddit                 = redditResult.status          === 'fulfilled' ? redditResult.value          : [];
+    const youtube                = youtubeResult.status         === 'fulfilled' ? youtubeResult.value         : [];
+    const slang                  = slangResult.status           === 'fulfilled' ? slangResult.value           : [];
+    const googleTrends           = googleResult.status          === 'fulfilled' ? googleResult.value          : [];
+    const groundingContext        = safetyGroundingResult.status === 'fulfilled' ? safetyGroundingResult.value : '';
+    const cultureGroundingContext = cultureGroundingResult.status === 'fulfilled' ? cultureGroundingResult.value : '';
 
-    console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length} Grounding:${groundingContext.length}chars`);
+    console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length} SafetyCtx:${groundingContext.length}chars CultureCtx:${cultureGroundingContext.length}chars`);
 
-    const prompt = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext });
+    const prompt = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext, cultureGroundingContext });
     const snapshot = await generateChildWorldSnapshot(prompt);
 
     if (!snapshot) return res.status(500).json({ error: 'Failed to generate snapshot.' });
