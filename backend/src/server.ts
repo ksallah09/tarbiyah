@@ -3765,7 +3765,10 @@ async function getRedditToken(): Promise<string | null> {
   if (_redditToken && Date.now() < _redditTokenExpiry) return _redditToken;
   const clientId     = process.env.REDDIT_CLIENT_ID;
   const clientSecret = process.env.REDDIT_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
+  if (!clientId || !clientSecret) {
+    console.warn('[getRedditToken] REDDIT_CLIENT_ID or REDDIT_CLIENT_SECRET not set');
+    return null;
+  }
   try {
     const res = await fetch('https://www.reddit.com/api/v1/access_token', {
       method: 'POST',
@@ -3776,12 +3779,18 @@ async function getRedditToken(): Promise<string | null> {
       },
       body: 'grant_type=client_credentials',
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.warn(`[getRedditToken] token fetch failed ${res.status}: ${body.slice(0, 200)}`);
+      return null;
+    }
     const data: any = await res.json();
     _redditToken       = data.access_token ?? null;
     _redditTokenExpiry = Date.now() + (data.expires_in ?? 3600) * 1000 - 60_000;
+    console.log(`[getRedditToken] token obtained, expires in ${data.expires_in}s`);
     return _redditToken;
-  } catch {
+  } catch (e) {
+    console.warn('[getRedditToken] exception:', (e as Error).message);
     return null;
   }
 }
