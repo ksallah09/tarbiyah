@@ -3858,25 +3858,41 @@ async function fetchSafetySignals(ageNum: number): Promise<string[]> {
   return [...new Set(results)].slice(0, 25);
 }
 
-async function fetchSafetySignalsWithGrounding(ageNum: number, ageGroup: string): Promise<string[]> {
+async function fetchSafetyGroundingContext(ageNum: number, ageGroup: string): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({
       model: MODEL_FAST,
       tools: [{ googleSearch: {} } as any],
       generationConfig: { temperature: 0.2 },
     });
-    const year   = new Date().getFullYear();
-    const prompt = `Search for specific online safety threats and dangerous trends actively affecting children aged ${ageNum} (${ageGroup}) right now in ${year}. Include: dangerous viral challenges, predatory contact patterns on TikTok/Roblox/Discord/Snapchat, self-harm content trends, extremist content targeting youth, harmful viral content spreading this week, substance use glorification. List 6-8 specific current threats with platform names where relevant. One sentence per item.`;
-    const result = await model.generateContent(prompt);
-    const text   = result.response.text();
-    return text
-      .split('\n')
-      .map((l: string) => l.trim().replace(/^[-•*\d.]+\s*/, ''))
-      .filter((l: string) => l.length > 15)
-      .map((l: string) => `[Live search] ${l}`)
-      .slice(0, 8);
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const prompt = `Today is ${today}. Search for the top 3-4 youth safety concerns trending RIGHT NOW this week — things happening involving children, teens, social media, online harms, or dangerous challenges. Focus on what is NEW and SPECIFIC to children aged ${ageNum} (${ageGroup}). For each concern: name the SPECIFIC challenge, platform, or content type (not a generic category), describe the harm in 2-3 sentences, and note where it is spreading. Do NOT return generic category names like "predatory contact" or "dangerous viral challenges" — name what is actually circulating this week.`;
+    const result = await Promise.race([
+      model.generateContent(prompt),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Grounding timeout')), 180_000)),
+    ]);
+    return (result as any).response.text();
   } catch (e) {
-    console.warn('[fetchSafetySignalsWithGrounding] failed:', (e as Error).message);
+    console.warn('[fetchSafetyGroundingContext] failed:', (e as Error).message);
+    return '';
+  }
+}
+
+async function fetchPriorSafetyTitles(childId: string, userId: string): Promise<string[]> {
+  try {
+    const { data } = await supabase
+      .from('child_world_jobs')
+      .select('result')
+      .eq('child_id', childId)
+      .eq('user_id', userId)
+      .eq('status', 'complete')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const watch = data?.result?.safetyWatch;
+    if (!Array.isArray(watch)) return [];
+    return watch.map((item: any) => item.threat).filter(Boolean).slice(0, 5);
+  } catch {
     return [];
   }
 }
@@ -3949,9 +3965,9 @@ async function fetchSlangWithGrounding(ageNum: number, ageGroup: string): Promis
 
 function buildChildWorldPrompt(params: {
   age: number; ageGroup: string; gender?: string; name?: string;
-  interests?: string; youtube: string[]; reddit: string[]; slang: string[]; googleTrends: string[]; safetySignals: string[];
+  interests?: string; youtube: string[]; reddit: string[]; slang: string[]; googleTrends: string[]; safetySignals: string[]; groundingContext?: string;
 }): string {
-  const { age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals } = params;
+  const { age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals, groundingContext } = params;
 
   const trendBlock = [
     googleTrends.length ? `GOOGLE TRENDS (captures TikTok + Instagram viral signals):\n${googleTrends.join('\n')}` : '',
@@ -3960,15 +3976,18 @@ function buildChildWorldPrompt(params: {
     slang.length   ? `URBAN DICTIONARY TRENDING SLANG:\n${slang.join(', ')}` : '',
   ].filter(Boolean).join('\n\n');
 
-  const safetyBlock = safetySignals.length
-    ? `\n\nDEDICATED SAFETY SIGNALS (from targeted searches and safety-focused communities — treat these with high priority when populating safetyWatch):\n${safetySignals.join('\n')}`
-    : '';
+  const safetyBlock = [
+    safetySignals.length ? `DEDICATED SAFETY SIGNALS (from targeted searches and safety-focused communities):\n${safetySignals.join('\n')}` : '',
+    groundingContext     ? `REAL-TIME SAFETY SEARCH CONTEXT (Google Search grounding — treat as primary source for safetyWatch):\n${groundingContext}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  const safetyBlockFull = safetyBlock ? `\n\n${safetyBlock}` : '';
 
   return `You are generating a weekly "This Week in Youth Culture" digest for a Muslim parent whose child is ${age} years old (age group: ${ageGroup})${gender ? `, gender: ${gender}` : ''}${name ? `, name: ${name}` : ''}${interests ? `, interests: ${interests}` : ''}.
 
 Here is REAL trending data from this week — use this as the foundation for the content:
 
-${trendBlock || 'No live trend data available — use your knowledge of current youth culture.'}${safetyBlock}
+${trendBlock || 'No live trend data available — use your knowledge of current youth culture.'}${safetyBlockFull}
 
 Using the above real trends as your core, generate a weekly digest with the following structure. Where the trend data does not cover a section, use accurate evergreen knowledge for this age group.
 
@@ -4013,7 +4032,7 @@ Return ONLY valid JSON, no markdown:
   "islamicLens": "string — 3-4 sentences, grounded in sunnah, practical not preachy",
   "safetyWatch": [
     {
-      "threat": "string — name of the trend, challenge, or pattern",
+      "threat": "string — specific named challenge, trend, or platform pattern (NOT a generic category)",
       "severity": "high | medium | low",
       "whatItIs": "string — clear explanation of what this is and why it is dangerous",
       "ageRisk": "string — which ages are most at risk and why",
@@ -4032,58 +4051,98 @@ Rules:
 - schoolCulture: 2-3 items.
 - fashionCulture: 2-3 items. What styles, aesthetics, brands, or clothing trends are active for this age group right now. For ages 3-8 keep it simple (character clothing, specific brands kids want). For 9+ include aesthetic culture (dark academia, streetwear, e-girl, soft boy, gorpcore etc.), sneaker culture, brand pressure, and fast fashion platforms (Shein, ASOS, Depop). Always include an Islamic angle focused on modesty as a value not a restriction.
 - starters: 3 questions, age-appropriate, conversational.
-- safetyWatch: CRITICALLY IMPORTANT. Scan ALL the trend data above specifically for: viral dangerous challenges, self-harm content or glorification, predatory adult-to-minor contact patterns, radicalisation or extremist content gaining traction with youth, harmful viral content, eating disorder or body image content targeting this age group, substance use trends, sexual content normalisation. Return 3-5 items — prioritise threats genuinely present in the data or known to be active right now for this age group, then fill remaining slots with the most relevant standing risks for this age. Do NOT manufacture specific fake trends but DO include real known risks if live data is sparse. severity "high" = immediate parental action needed, "medium" = awareness and conversation needed, "low" = monitor.
+- safetyWatch: CRITICALLY IMPORTANT. Use the REAL-TIME SAFETY SEARCH CONTEXT above as your primary source. Each item MUST name a SPECIFIC named challenge, platform pattern, or content trend from the data — NOT a generic category. WRONG: "Dangerous Viral Challenges" or "Predatory Contact on Gaming Platforms". RIGHT: "The [specific named challenge] is spreading on [platform] this week" or "[specific named content type] is targeting [age group] on [platform]". Return 3-5 items. Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. severity "high" = immediate parental action needed, "medium" = worth a conversation this week, "low" = monitor only. The action field must include a practical Islamic parenting step grounded in the Prophet's ﷺ example or Quranic values.
 - TONE — CRITICAL: Never assume the child is on any platform. Always use conditional language: "if your child uses TikTok...", "kids this age who are on Roblox...", "if they've come across this...". Never say "your child is watching", "your child uses", or "your child sees". The parent may not know what their child is or isn't on — the goal is awareness, not assumption. This applies to every section including onlineWorld, concerns, safetyWatch, and habits.
 - Everything should feel current and real, not generic.`;
 }
 
-function buildSafetyOnlyPrompt(params: {
-  age: number; ageGroup: string; gender?: string; name?: string; interests?: string; safetySignals: string[];
+function buildIslamicSafetySystemPrompt(): string {
+  return `You are a safety intelligence engine for Tarbiyah — an app for Muslim parents raising children aged 5–18 in homes guided by Islamic values.
+
+WRITING RULES:
+- Calm, informative, never alarmist
+- Plain English, specific and practical
+- Conditional language: "if your child uses X..." — never "your child is..."
+- high = immediate parental action needed. important = worth a conversation this week. watch = awareness only, monitor.
+
+CRITICAL QUALITY RULES:
+1. SPECIFICITY: Every alert must name something SPECIFIC happening RIGHT NOW.
+   WRONG: "AI chatbots may pose risks to teens"
+   RIGHT: "The [specific chatbot/challenge/trend] has been linked to [specific harm] this week"
+2. SOURCE REQUIRED: Every alert must be grounded in the real-time data provided.
+3. QUALITY OVER QUANTITY: 3–5 strong, specific alerts rather than vague ones.
+4. Every item MUST have a severity of "high", "medium", or "low".
+   - high = immediate parental action needed
+   - medium = worth a conversation this week
+   - low = awareness only, monitor
+5. ISLAMIC ACTION: The action field must include a practical Islamic parenting step — a conversation grounded in the Prophet's ﷺ example, a Quranic value, or a gentle opening — not just generic screen-time advice.`;
+}
+
+function buildIslamicSafetyUserPrompt(params: {
+  age: number; ageGroup: string; gender?: string; name?: string; interests?: string;
+  groundingContext: string; redditSignals: string[]; priorTitles: string[];
 }): string {
-  const { age, ageGroup, gender, name, interests, safetySignals } = params;
-  const year = new Date().getFullYear();
-  const safetyBlock = safetySignals.length
-    ? `\n\nSAFETY SIGNALS (from targeted searches — treat with high priority):\n${safetySignals.join('\n')}`
+  const { age, ageGroup, gender, name, interests, groundingContext, redditSignals, priorTitles } = params;
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const childContext = [
+    `Child age: ${age} (age group: ${ageGroup})`,
+    gender    ? `Gender: ${gender}`       : '',
+    name      ? `Name: ${name}`           : '',
+    interests ? `Interests: ${interests}` : '',
+  ].filter(Boolean).join(', ');
+
+  const exclusionBlock = priorTitles.length
+    ? `\nTOPICS ALREADY COVERED THIS WEEK — do NOT generate alerts on these topics or close variations, even with different wording:\n${priorTitles.map(t => `• ${t}`).join('\n')}\n`
     : '';
 
-  return `You are generating a fresh safety watch for a Muslim parent whose child is ${age} years old (age group: ${ageGroup})${gender ? `, gender: ${gender}` : ''}${name ? `, name: ${name}` : ''}${interests ? `, interests: ${interests}` : ''} in ${year}.
-${safetyBlock}
+  const redditBlock = redditSignals.length
+    ? `\nREDDIT SAFETY SIGNALS:\n${redditSignals.join('\n').slice(0, 1500)}`
+    : '';
 
-Return ONLY a JSON array of 3-5 current safety items. Each item:
-{
-  "threat": "string — name of the trend or pattern",
-  "severity": "high | medium | low",
-  "whatItIs": "string — what it is and why it is dangerous",
-  "ageRisk": "string — which ages are most at risk and why",
-  "signs": "string — signs a parent might notice",
-  "action": "string — specific steps for a Muslim parent"
+  return `Today is ${today}.
+${childContext}
+${exclusionBlock}
+REAL-TIME SEARCH CONTEXT (from Google Search — use as primary source):
+${groundingContext || 'No live grounding data available — use your knowledge of the most specific current youth safety threats.'}
+${redditBlock}
+
+Generate 3–5 specific safety alerts for Muslim parents of a child aged ${age}. Ground every alert in the data above. The ENTIRE response must be under 1000 words.
+
+Return ONLY a JSON array, no markdown wrapper:
+[
+  {
+    "threat": "string — specific named challenge, trend, or platform pattern (NOT a generic category name)",
+    "severity": "high | medium | low",
+    "whatItIs": "string — what it is and why it is dangerous",
+    "ageRisk": "string — which ages are most at risk and why",
+    "signs": "string — signs a parent might notice",
+    "action": "string — practical steps including an Islamic parenting angle grounded in the Prophet's ﷺ example or Quranic values"
+  }
+]`;
 }
 
-Rules:
-- Scan for: viral dangerous challenges, self-harm content, predatory contact patterns on TikTok/Roblox/Discord/Snapchat, extremist content targeting youth, eating disorder trends, substance use glorification, sexual content normalisation.
-- Prioritise threats in the data above. Include real known standing risks if live data is sparse.
-- severity "high" = immediate action, "medium" = awareness, "low" = monitor.
-- TONE: Never assume the child uses any platform. Use conditional language: "if your child uses TikTok...", "kids this age who are on Roblox...". Never say "your child is watching/uses/sees".
-- Return ONLY the JSON array, no wrapper object, no markdown.`;
-}
-
-async function generateSafetyWatchOnly(prompt: string): Promise<any[] | null> {
-  const system = 'You are an expert on child safety, youth culture, and Islamic parenting. You generate accurate, current, non-alarmist safety alerts for Muslim parents.';
-
+async function generateSafetyWatchOnly(systemPrompt: string, userPrompt: string): Promise<any[] | null> {
   function parse(text: string) {
     const cleaned = text.replace(/```json|```/g, '').trim();
     const result  = JSON.parse(cleaned);
     return Array.isArray(result) ? result : null;
   }
 
+  // Use temp 0.3 for focused, factual generation (per two-call pattern design)
+  const model = genAI.getGenerativeModel({
+    model: MODEL_FAST,
+    systemInstruction: systemPrompt,
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.3, topP: 0.9 },
+  });
+
   try {
-    const model = getJsonModel(MODEL_FAST, system);
-    const text  = await generateWithRetry(model, prompt, MODEL_FAST, system);
+    const text = await generateWithRetry(model, userPrompt, MODEL_FAST, systemPrompt);
     return parse(text);
   } catch {}
 
   try {
-    const text = await generateJsonWithOpenAI(system, prompt);
+    const text = await generateJsonWithOpenAI(systemPrompt, userPrompt);
     return parse(text);
   } catch {}
 
@@ -4135,25 +4194,23 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
         const ageNum   = parseInt(age) || 10;
         const ageGroup = childWorldAgeGroup(ageNum);
 
-        const [redditResult, youtubeResult, slangResult, googleResult, safetyResult, groundedSafetyResult] = await Promise.allSettled([
+        const [redditResult, youtubeResult, slangResult, googleResult, safetyResult, groundingResult] = await Promise.allSettled([
           fetchRedditTrends(ageNum),
           fetchYoutubeTrends(ageNum),
           fetchSlangWithGrounding(ageNum, ageGroup),
           fetchGoogleTrends(ageNum),
           fetchSafetySignals(ageNum),
-          fetchSafetySignalsWithGrounding(ageNum, ageGroup),
+          fetchSafetyGroundingContext(ageNum, ageGroup),
         ]);
 
-        const reddit        = redditResult.status        === 'fulfilled' ? redditResult.value        : [];
-        const youtube       = youtubeResult.status       === 'fulfilled' ? youtubeResult.value       : [];
-        const slang         = slangResult.status         === 'fulfilled' ? slangResult.value         : [];
-        const googleTrends  = googleResult.status        === 'fulfilled' ? googleResult.value        : [];
-        const safetySignals = [
-          ...(safetyResult.status         === 'fulfilled' ? safetyResult.value         : []),
-          ...(groundedSafetyResult.status === 'fulfilled' ? groundedSafetyResult.value : []),
-        ];
+        const reddit          = redditResult.status   === 'fulfilled' ? redditResult.value   : [];
+        const youtube         = youtubeResult.status  === 'fulfilled' ? youtubeResult.value  : [];
+        const slang           = slangResult.status    === 'fulfilled' ? slangResult.value    : [];
+        const googleTrends    = googleResult.status   === 'fulfilled' ? googleResult.value   : [];
+        const safetySignals   = safetyResult.status   === 'fulfilled' ? safetyResult.value   : [];
+        const groundingContext = groundingResult.status === 'fulfilled' ? groundingResult.value : '';
 
-        const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals });
+        const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals, groundingContext });
         const snapshot = await generateChildWorldSnapshot(prompt);
 
         if (snapshot) {
@@ -4225,18 +4282,23 @@ app.post('/child-world/safety-refresh', requireAuth, async (req: AuthRequest, re
 
         if (!existingJob?.result) return;
 
-        const [safetyResult, groundedResult] = await Promise.allSettled([
+        // Extract prior threat titles directly from existing snap — no extra DB call needed
+        const priorTitles: string[] = (existingJob.result.safetyWatch ?? [])
+          .map((item: any) => item.threat)
+          .filter(Boolean)
+          .slice(0, 5);
+
+        const [safetyResult, groundingResult] = await Promise.allSettled([
           fetchSafetySignals(ageNum),
-          fetchSafetySignalsWithGrounding(ageNum, ageGroup),
+          fetchSafetyGroundingContext(ageNum, ageGroup),
         ]);
 
-        const safetySignals = [
-          ...(safetyResult.status  === 'fulfilled' ? safetyResult.value  : []),
-          ...(groundedResult.status === 'fulfilled' ? groundedResult.value : []),
-        ];
+        const redditSignals   = safetyResult.status    === 'fulfilled' ? safetyResult.value    : [];
+        const groundingContext = groundingResult.status === 'fulfilled' ? groundingResult.value : '';
 
-        const prompt        = buildSafetyOnlyPrompt({ age: ageNum, ageGroup, gender, name, interests, safetySignals });
-        const newSafetyWatch = await generateSafetyWatchOnly(prompt);
+        const systemPrompt   = buildIslamicSafetySystemPrompt();
+        const userPrompt     = buildIslamicSafetyUserPrompt({ age: ageNum, ageGroup, gender, name, interests, groundingContext, redditSignals, priorTitles });
+        const newSafetyWatch = await generateSafetyWatchOnly(systemPrompt, userPrompt);
         if (!newSafetyWatch) return;
 
         const patchedResult = {
@@ -4296,27 +4358,25 @@ app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => 
     const interests = (req.query.interests as string) ?? undefined;
     const ageGroup  = childWorldAgeGroup(age);
 
-    const [redditResult, youtubeResult, slangResult, googleResult, safetyResult, groundedSafetyResult] = await Promise.allSettled([
+    const [redditResult, youtubeResult, slangResult, googleResult, safetyResult, groundingResult] = await Promise.allSettled([
       fetchRedditTrends(age),
       fetchYoutubeTrends(age),
       fetchSlangWithGrounding(age, ageGroup),
       fetchGoogleTrends(age),
       fetchSafetySignals(age),
-      fetchSafetySignalsWithGrounding(age, ageGroup),
+      fetchSafetyGroundingContext(age, ageGroup),
     ]);
 
-    const reddit         = redditResult.status        === 'fulfilled' ? redditResult.value        : [];
-    const youtube        = youtubeResult.status       === 'fulfilled' ? youtubeResult.value       : [];
-    const slang          = slangResult.status         === 'fulfilled' ? slangResult.value         : [];
-    const googleTrends   = googleResult.status        === 'fulfilled' ? googleResult.value        : [];
-    const safetySignals  = [
-      ...(safetyResult.status         === 'fulfilled' ? safetyResult.value         : []),
-      ...(groundedSafetyResult.status === 'fulfilled' ? groundedSafetyResult.value : []),
-    ];
+    const reddit          = redditResult.status    === 'fulfilled' ? redditResult.value    : [];
+    const youtube         = youtubeResult.status   === 'fulfilled' ? youtubeResult.value   : [];
+    const slang           = slangResult.status     === 'fulfilled' ? slangResult.value     : [];
+    const googleTrends    = googleResult.status    === 'fulfilled' ? googleResult.value    : [];
+    const safetySignals   = safetyResult.status    === 'fulfilled' ? safetyResult.value    : [];
+    const groundingContext = groundingResult.status === 'fulfilled' ? groundingResult.value : '';
 
-    console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length} Safety:${safetySignals.length}`);
+    console.log(`[child-world] trends fetched — Google:${googleTrends.length} YouTube:${youtube.length} Reddit:${reddit.length} Slang:${slang.length} Safety:${safetySignals.length} Grounding:${groundingContext.length}chars`);
 
-    const prompt = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals });
+    const prompt = buildChildWorldPrompt({ age, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, safetySignals, groundingContext });
     const snapshot = await generateChildWorldSnapshot(prompt);
 
     if (!snapshot) return res.status(500).json({ error: 'Failed to generate snapshot.' });

@@ -15,7 +15,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.tarbiyah.parenting",
       "usesAppleSignIn": true,
-      "buildNumber": "30",
+      "buildNumber": "31",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
@@ -35,7 +35,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.tarbiyah.parenting",
-      "versionCode": 33,
+      "versionCode": 34,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECORD_AUDIO",
