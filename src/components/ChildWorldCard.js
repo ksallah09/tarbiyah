@@ -337,10 +337,12 @@ function WorldSection({ sectionKey, data, flush = false }) {
               <Text style={cw.safetyMetaLabel}>Signs to watch for</Text>
               <Text style={cw.safetyMetaText}>{item.signs}</Text>
             </View>
-            <View style={cw.tipRow}>
-              <Ionicons name="shield-checkmark-outline" size={13} color="#2E7D62" />
-              <Text style={cw.tipText}>{item.action}</Text>
-            </View>
+            {!!item.action && (
+              <View style={cw.tipRow}>
+                <Ionicons name="shield-checkmark-outline" size={13} color="#2E7D62" />
+                <Text style={cw.tipText}>{item.action}</Text>
+              </View>
+            )}
             {i < data.length - 1 && <View style={cw.itemDivider} />}
           </View>
         );

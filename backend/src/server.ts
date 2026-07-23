@@ -4039,7 +4039,7 @@ Return ONLY valid JSON, no markdown:
       "whatItIs": "string — clear explanation of what this is and why it is dangerous",
       "ageRisk": "string — which ages are most at risk and why",
       "signs": "string — signs a parent might notice if their child is exposed",
-      "action": "string — specific, practical steps for a Muslim parent to take"
+      "action": "string — REQUIRED, never empty. 2-3 sentences of practical steps for a Muslim parent, including a specific Islamic angle grounded in the Prophet's ﷺ example or a Quranic value. Do not leave this blank."
     }
   ]
 }
