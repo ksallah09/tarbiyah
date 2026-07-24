@@ -4185,11 +4185,23 @@ app.post('/child-world/async', requireAuth, async (req: AuthRequest, res: Respon
         const cultureGroundingContext = cultureGroundingResult.status === 'fulfilled' ? cultureGroundingResult.value : '';
 
         console.log(`[child-world/async] trends fetched — Reddit:${reddit.length} YouTube:${youtube.length} Slang:${slang.length} SafetyCtx:${groundingContext.length}chars CultureCtx:${cultureGroundingContext.length}chars`);
-        const prompt   = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext, cultureGroundingContext });
-        const snapshot = await generateChildWorldSnapshot(prompt);
+
+        const prompt         = buildChildWorldPrompt({ age: ageNum, ageGroup, gender, name, interests, youtube, reddit, slang, googleTrends, groundingContext, cultureGroundingContext });
+        const priorTitles    = childId ? await fetchPriorSafetyTitles(childId, req.userId!).catch(() => []) : [];
+        const safetySystem   = buildIslamicSafetySystemPrompt();
+        const safetyUser     = buildIslamicSafetyUserPrompt({ age: ageNum, ageGroup, gender, name, interests, groundingContext, redditSignals: [], priorTitles });
+
+        // Run main snapshot and dedicated safety generation in parallel
+        const [snapshot, dedicatedSafety] = await Promise.all([
+          generateChildWorldSnapshot(prompt),
+          generateSafetyWatchOnly(safetySystem, safetyUser),
+        ]);
 
         if (snapshot) {
-          const result = { ...snapshot, generatedAt: new Date().toISOString() };
+          // Replace the safety section from the monolithic prompt with the dedicated Islamic safety output
+          const safetyWatch = dedicatedSafety ?? snapshot.safetyWatch;
+          console.log(`[child-world/async] safety — dedicated:${dedicatedSafety?.length ?? 0} items, fallback:${!dedicatedSafety}`);
+          const result = { ...snapshot, safetyWatch, generatedAt: new Date().toISOString() };
           await supabase.from('child_world_jobs').update({ status: 'complete', result }).eq('id', job.id);
 
           // Send push notification to the parent
