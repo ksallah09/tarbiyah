@@ -567,7 +567,66 @@ export function ChildWorldCard({ child, flush = false }) {
         }
       } catch {}
 
-      // 3. Fallback: sync fetch from backend
+      // 3. Cache miss (reinstall / clear data) — reconnect to Supabase job by childId
+      try {
+        const { data: existingJob } = await supabase
+          .from('child_world_jobs')
+          .select('id, result, created_at')
+          .eq('child_id', child.id)
+          .eq('status', 'complete')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const jobAge = existingJob?.result
+          ? Date.now() - new Date(existingJob.result.generatedAt ?? existingJob.created_at).getTime()
+          : Infinity;
+        const hasFreshJob = jobAge < CACHE_TTL_MS;
+        const hasStaleContent = !!existingJob?.result && !hasFreshJob;
+
+        if (hasFreshJob) {
+          // Re-warm local cache and show — no need to regenerate
+          await applyJobResult(existingJob.result);
+          return;
+        }
+
+        if (hasStaleContent && !controller.signal.aborted) {
+          // Show stale content immediately while a fresh async job runs in background
+          setSnap(existingJob.result);
+          setLive(true);
+        }
+
+        // Trigger async generation (better quality than sync GET — runs without HTTP timeout)
+        const { data: session } = await supabase.auth.getSession();
+        const token = session?.session?.access_token;
+        if (!token || controller.signal.aborted) return;
+
+        const asyncRes = await fetch(`${API_URL}/child-world/async`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            childId:   child.id,
+            age:       child.age ?? 10,
+            gender:    child.gender,
+            name:      child.name?.split(' ')[0],
+            interests: child.interests?.join(','),
+          }),
+          signal: controller.signal,
+        });
+        if (!asyncRes.ok || controller.signal.aborted) return;
+        const { jobId } = await asyncRes.json();
+        if (!jobId) return;
+        await AsyncStorage.setItem(jobCacheKey, jobId);
+        // Only show "preparing" banner if there's nothing to show yet
+        if (!hasStaleContent && !controller.signal.aborted) setPreparing(true);
+        pollIntervalRef.current = setInterval(() => {
+          if (controller.signal.aborted) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; return; }
+          checkJob(jobId);
+        }, 10000);
+        return;
+      } catch {}
+
+      // 4. Last resort: sync fetch (fallback if Supabase lookup and async trigger both fail)
       if (!controller.signal.aborted) setLoading(true);
       try {
         const { data: session } = await supabase.auth.getSession();
