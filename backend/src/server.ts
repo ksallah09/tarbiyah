@@ -4049,7 +4049,11 @@ CRITICAL QUALITY RULES:
    - high = immediate parental action needed
    - medium = worth a conversation this week
    - low = awareness only, monitor
-5. ISLAMIC ACTION: The action field must include a practical Islamic parenting step — a conversation grounded in the Prophet's ﷺ example, a Quranic value, or a gentle opening — not just generic screen-time advice.`;
+5. ISLAMIC ACTION: The action field must include a practical Islamic parenting step — a conversation grounded in the Prophet's ﷺ example, a Quranic value, or a gentle opening — not just generic screen-time advice.
+6. NO DUPLICATE THEMES: Each alert must cover a DISTINCT threat category. Before finalising, check that no two alerts share the same root risk.
+   WRONG: generating both "Predators via Gaming Networks" AND "Online Exploitation of Teens" — these are the same threat with different titles.
+   RIGHT: one comprehensive alert covering that threat, with a different alert covering a genuinely separate risk (e.g. a viral challenge, a harmful app, a misinformation trend).
+   If the grounding data returns multiple articles on the same theme, combine them into ONE alert. Variety of threat categories is required across the final list.`;
 }
 
 function buildIslamicSafetyUserPrompt(params: {
@@ -4082,6 +4086,8 @@ ${groundingContext || 'No live grounding data available — use your knowledge o
 ${redditBlock}
 
 Generate 3–5 specific safety alerts for Muslim parents of a child aged ${age}. Ground every alert in the data above. The ENTIRE response must be under 1000 words.
+
+BEFORE writing the JSON: mentally check that each alert covers a different root threat category. If two alerts are about the same underlying risk (e.g. both about online predators, or both about a self-harm trend), merge them into one and use the saved slot for a genuinely different threat.
 
 Return ONLY a JSON array, no markdown wrapper:
 [
