@@ -24,6 +24,7 @@ import { generateAllLessonNarrations, generateSingleLessonNarration } from './ge
 import { generateJsonWithOpenAI } from './config/openai';
 import { ExtractedContent, AppDailyPayload, AppModule, ModuleLesson } from './types';
 import googleTrends from 'google-trends-api';
+import { Resend } from 'resend';
 
 const app = express();
 app.use(cors());
@@ -4373,6 +4374,32 @@ app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => 
   } catch (err: any) {
     console.error('GET /child-world error:', err);
     return res.status(500).json({ error: err?.message ?? 'Failed to generate world snapshot.' });
+  }
+});
+
+// ── POST /internal/new-user-notify — called by Supabase webhook on auth.users INSERT ──
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+app.post('/internal/new-user-notify', async (req: Request, res: Response) => {
+  try {
+    const record = req.body?.record ?? req.body;
+    const email     = record?.email ?? 'unknown';
+    const createdAt = record?.created_at
+      ? new Date(record.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'full', timeStyle: 'short' })
+      : new Date().toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'full', timeStyle: 'short' });
+
+    await resend.emails.send({
+      from:    'Tarbiyah <notifications@tarbiyah.app>',
+      to:      'kc.sallah@gmail.com',
+      subject: `New Tarbiyah signup: ${email}`,
+      html:    `<p><strong>New user signed up</strong></p><p>Email: ${email}</p><p>Time: ${createdAt}</p>`,
+    });
+
+    console.log(`[new-user-notify] email sent for signup: ${email}`);
+    return res.json({ ok: true });
+  } catch (err: any) {
+    console.error('[new-user-notify] error:', err?.message);
+    return res.status(500).json({ error: err?.message });
   }
 });
 
