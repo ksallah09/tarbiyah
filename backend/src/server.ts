@@ -4389,7 +4389,7 @@ app.post('/internal/new-user-notify', async (req: Request, res: Response) => {
       : new Date().toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'full', timeStyle: 'short' });
 
     await resend.emails.send({
-      from:    'Tarbiyah <notifications@tarbiyah.app>',
+      from:    'Tarbiyah <onboarding@resend.dev>',
       to:      'kc.sallah@gmail.com',
       subject: `New Tarbiyah signup: ${email}`,
       html:    `<p><strong>New user signed up</strong></p><p>Email: ${email}</p><p>Time: ${createdAt}</p>`,
