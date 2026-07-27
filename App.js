@@ -502,7 +502,7 @@ export default function App() {
     KFGQPCHafs: require('./assets/fonts/KFGQPCHafs.ttf'),
   });
 
-  async function handleNotifNavigation({ screen, childId, openYouthCulture, safetyRefresh } = {}) {
+  async function handleNotifNavigation({ screen, childId, openYouthCulture } = {}) {
     if (screen === 'GardenDetail' && childId) {
       try {
         const { data: tree } = await supabase
@@ -521,7 +521,7 @@ export default function App() {
     } else if (screen === 'Community') {
       navigationRef.current?.navigate('Tabs', { screen: 'Community' });
     } else if (screen === 'Home' && openYouthCulture) {
-      if (safetyRefresh && childId) {
+      if (childId) {
         try {
           const { data: job } = await supabase
             .from('child_world_jobs')
@@ -533,6 +533,7 @@ export default function App() {
             .maybeSingle();
           if (job?.result) {
             await AsyncStorage.setItem(`tarbiyah_world_${childId}`, JSON.stringify(job.result));
+            await AsyncStorage.removeItem(`tarbiyah_world_job_${childId}`);
             await refreshChildrenAndSnaps();
           }
         } catch {}
