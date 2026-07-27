@@ -717,7 +717,7 @@ export default function HomeScreen({ navigation, route }) {
                             >
                               <View style={styles.focusSelectorAvatar}>
                                 {activeChild?.photo
-                                  ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" />
+                                  ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
                                   : <Text style={styles.focusSelectorAvatarInitial}>{focus.childName[0]}</Text>
                                 }
                               </View>
@@ -728,7 +728,7 @@ export default function HomeScreen({ navigation, route }) {
                             <View style={styles.focusChildSelector}>
                               <View style={styles.focusSelectorAvatar}>
                                 {activeChild?.photo
-                                  ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" />
+                                  ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
                                   : <Text style={styles.focusSelectorAvatarInitial}>{focus.childName[0]}</Text>
                                 }
                               </View>
@@ -755,7 +755,7 @@ export default function HomeScreen({ navigation, route }) {
                               >
                                 <View style={[styles.focusDropdownAvatar, { backgroundColor: c.color ?? '#2E7D62' }]}>
                                   {c.photo
-                                    ? <Image source={{ uri: c.photo }} style={styles.focusDropdownAvatarImg} contentFit="cover" />
+                                    ? <Image source={{ uri: c.photo }} style={styles.focusDropdownAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
                                     : <Text style={styles.focusDropdownAvatarInitial}>{c.name[0]}</Text>
                                   }
                                 </View>
