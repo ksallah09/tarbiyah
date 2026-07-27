@@ -4027,7 +4027,7 @@ Section rules:
 - schoolCulture: 2-3 items. Must name specific dynamics, games, or topics kids are discussing in school RIGHT NOW based on the culture context.
 - fashionCulture: 2-3 items. For ages 3-8 name specific character brands. For 9+ name specific aesthetics (e.g. "brat aesthetic", "gorpcore", "clean girl") and platforms (Shein, ASOS, Depop). Always include Islamic angle on modesty as dignity, not restriction.
 - starters: 3 questions. At least one should reference something specific from this week's data so it feels current, not scripted.
-- safetyWatch: Use REAL-TIME SAFETY SEARCH CONTEXT as primary source. WRONG: "Dangerous Viral Challenges". RIGHT: "The [specific named challenge] spreading on [platform] this week". Return 3-5 items. severity "high" = immediate action, "medium" = conversation this week, "low" = monitor. Action field must include Islamic parenting angle.
+- safetyWatch: Use REAL-TIME SAFETY SEARCH CONTEXT as primary source. WRONG: "Dangerous Viral Challenges". RIGHT: "The [specific named challenge] spreading on [platform] this week". Aim for 3-5 items but return fewer if the data only supports fewer — never pad to reach a minimum. severity "high" = immediate action, "medium" = conversation this week, "low" = monitor. Action field must include Islamic parenting angle.
 - TONE — CRITICAL: Never assume the child uses any platform. Conditional language always: "if your child uses TikTok...", "kids this age who are on Roblox...". Never "your child watches/uses/sees".`;
 }
 
@@ -4045,7 +4045,7 @@ CRITICAL QUALITY RULES:
    WRONG: "AI chatbots may pose risks to teens"
    RIGHT: "The [specific chatbot/challenge/trend] has been linked to [specific harm] this week"
 2. SOURCE REQUIRED: Every alert must be grounded in the real-time data provided.
-3. QUALITY OVER QUANTITY: 3–5 strong, specific alerts rather than vague ones.
+3. QUALITY OVER QUANTITY: Return as many alerts as the real-time data genuinely supports — ideally 3–5, but 1–2 strong specific alerts is better than padding to reach 3 with vague or training-knowledge content. Never invent threats to fill a quota.
 4. Every item MUST have a severity of "high", "medium", or "low".
    - high = immediate parental action needed
    - medium = worth a conversation this week
@@ -4086,7 +4086,7 @@ REAL-TIME SEARCH CONTEXT (from Google Search — use as primary source):
 ${groundingContext || 'No live grounding data available — use your knowledge of the most specific current youth safety threats.'}
 ${redditBlock}
 
-Generate 3–5 specific safety alerts for Muslim parents of a child aged ${age}. Ground every alert in the data above. The ENTIRE response must be under 1000 words.
+Generate safety alerts for Muslim parents of a child aged ${age}. Aim for 3–5 alerts, but only include alerts that are genuinely grounded in the data above. If the real-time data only supports 1–2 strong specific alerts, return only those — do not pad to reach a minimum with vague, generic, or training-knowledge content. Quality over quantity. The ENTIRE response must be under 1000 words.
 
 BEFORE writing the JSON: mentally check that each alert covers a different root threat category. If two alerts are about the same underlying risk (e.g. both about online predators, or both about a self-harm trend), merge them into one and use the saved slot for a genuinely different threat.
 
