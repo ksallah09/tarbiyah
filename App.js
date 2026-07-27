@@ -157,9 +157,10 @@ function AppSplashOverlay({ onDismiss }) {
 
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(logoOpacity,     { toValue: 1, duration: 900, useNativeDriver: true }),
+      Animated.delay(650),
+      Animated.timing(logoOpacity,     { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.delay(300),
-      Animated.timing(subtitleOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(subtitleOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.delay(1800),
       Animated.timing(screenOpacity,   { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start(() => { setVisible(false); onDismiss(); });
