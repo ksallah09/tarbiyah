@@ -69,7 +69,7 @@ import PaywallScreen from './src/screens/PaywallScreen';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
 const WORLD_CACHE_TTL          = 7    * 24 * 60 * 60 * 1000;
-const SAFETY_REFRESH_TTL       = 2.5  * 24 * 60 * 60 * 1000;
+const SAFETY_REFRESH_TTL       = 3    * 24 * 60 * 60 * 1000;
 
 const TRIAL_DAYS = 7;
 const TRIAL_KEY  = 'tarbiyah_trial_start';
@@ -135,6 +135,15 @@ async function prewarmYouthCulture() {
           }
         } catch {}
       } else if (needsSafetyRefresh) {
+        // Stamp safetyRefreshedAt locally before the request so the next open
+        // doesn't re-trigger (server patches the DB but never writes back to AsyncStorage)
+        try {
+          const raw = await AsyncStorage.getItem(cacheKey);
+          if (raw) {
+            const cached = JSON.parse(raw);
+            await AsyncStorage.setItem(cacheKey, JSON.stringify({ ...cached, safetyRefreshedAt: new Date().toISOString() }));
+          }
+        } catch {}
         try {
           fetch(`${API_URL}/child-world/safety-refresh`, {
             method: 'POST',

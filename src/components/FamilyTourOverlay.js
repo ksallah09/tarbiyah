@@ -8,15 +8,21 @@ const TOUR_KEY = 'tarbiyah_family_tour_seen';
 
 const STEPS = [
   {
-    arrowSide: 'left',
-    title: 'Progress Board',
-    body: 'Your family\'s live snapshot — children\'s wins, shared family goals, and partner activity all in one place.',
+    arrowFrac: 1 / 6,
+    title: 'Child Growth',
+    body: "See each child's wins, accomplishments, and development progress — your live view of how they're growing.",
     cta: 'Next →',
   },
   {
-    arrowSide: 'right',
+    arrowFrac: 3 / 6,
+    title: 'Parenting',
+    body: 'Track your own parenting habits and daily steps. Your consistency here shapes your children\'s character.',
+    cta: 'Next →',
+  },
+  {
+    arrowFrac: 5 / 6,
     title: 'Configure',
-    body: 'This is where you manage your family — add children, set family goals, and connect with your partner.',
+    body: 'Manage your family — add children, set family goals, and connect with your partner.',
     cta: 'Got it!',
   },
 ];
@@ -50,14 +56,14 @@ export default function FamilyTourOverlay({ segmentY, segmentH }) {
   }
 
   function advance() {
-    if (step === 0) setStep(1);
+    if (step < STEPS.length - 1) setStep(step + 1);
     else dismiss();
   }
 
   if (step === null || segmentY == null) return null;
 
   const current = STEPS[step];
-  const arrowX = current.arrowSide === 'left' ? SCREEN_W * 0.25 : SCREEN_W * 0.75;
+  const arrowX = SCREEN_W * current.arrowFrac;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">

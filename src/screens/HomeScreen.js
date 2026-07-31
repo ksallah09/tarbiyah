@@ -202,10 +202,25 @@ export default function HomeScreen({ navigation, route }) {
   const duaShareCardRef = useRef(null);
   const insightIdsRef     = useRef({ spiritual: null, scientific: null });
   const partnerChannelRef = useRef(null);
+  const focusInitialisedRef = useRef(false);
   const sheetSlide   = useRef(new Animated.Value(40)).current;
   const sheetOpacity = useRef(new Animated.Value(0)).current;
 
   const [cultureModalChildId, setCultureModalChildId] = useState(null);
+
+  // Round-robin default child: rotate which child shows first on each app open
+  useEffect(() => {
+    if (focusInitialisedRef.current || !children.length) return;
+    const focusMap = buildChildFocusMap(children, weekCompletions);
+    const eligible = children.filter(c => focusMap[c.id]);
+    if (!eligible.length) return;
+    focusInitialisedRef.current = true;
+    AsyncStorage.getItem('tarbiyah_focus_default_index').then(val => {
+      const counter = parseInt(val ?? '0', 10) || 0;
+      setFocusChildId(eligible[counter % eligible.length].id);
+      AsyncStorage.setItem('tarbiyah_focus_default_index', String(counter + 1));
+    });
+  }, [children, weekCompletions]);
 
   useEffect(() => {
     if (route?.params?.openYouthCulture) {
