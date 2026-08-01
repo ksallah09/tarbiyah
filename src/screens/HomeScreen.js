@@ -1253,7 +1253,7 @@ export default function HomeScreen({ navigation, route }) {
 
       <YouthCultureModal
         visible={cultureModalOpen}
-        onClose={() => setCultureModalOpen(false)}
+        onClose={() => { setCultureModalOpen(false); refreshChildrenAndSnaps(); }}
         children={children}
         initialChildId={cultureModalChildId}
       />
