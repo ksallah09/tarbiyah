@@ -1798,7 +1798,7 @@ const styles = StyleSheet.create({
 
   // Sheet
   sheet: { flexGrow: 1, backgroundColor: '#FFFFFF' },
-  fbDivider: { height: 8, backgroundColor: '#F3F4F6' },
+  fbDivider: { height: 8, backgroundColor: '#F3F4F6', marginHorizontal: -20 },
 
   content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
 
