@@ -9,7 +9,6 @@ import {
   AppState,
   RefreshControl,
   Dimensions,
-  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,18 +56,6 @@ export default function ProgressScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { refreshHasChildren, refreshHasFamilyGoals, hasChildren, hasFamilyGoals } = useAuth();
 
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const handleBoardScroll = useRef(
-    Animated.event(
-      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-      { useNativeDriver: false }
-    )
-  ).current;
-  const cornerRadius = scrollY.interpolate({
-    inputRange: [0, 30],
-    outputRange: [24, 0],
-    extrapolate: 'clamp',
-  });
   const [children,    setChildren]         = useState(_childrenCache);
   const [spirMonth,   setSpiritualMonth]   = useState(_spirCache);
   const [sciMonth,    setScientificMonth]  = useState(_sciCache);
@@ -186,8 +173,7 @@ export default function ProgressScreen({ navigation, route }) {
 
   const switchTab = useCallback((key) => {
     setFamilyTab(key);
-    scrollY.setValue(0);
-  }, [scrollY]);
+  }, []);
 
   async function handleLogCompletion(goalId) {
     const updated = await logCompletion(goalId);
@@ -197,18 +183,15 @@ export default function ProgressScreen({ navigation, route }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={[]}>
-      <StatusBar style="light" />
-      <View style={styles.bgTop} />
-      {familyTab === 'configure' && <View style={styles.bgBottom} />}
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" />
 
+        {/* ── White header ── */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Family</Text>
 
-        {/* ── Green header ── */}
-        <View style={[styles.header, { paddingTop: insets.top + 6, paddingBottom: 10 }]} />
-
-        {/* ── Segment control ── */}
-        <View style={styles.segmentOuter} onLayout={e => setSegmentLayout(e.nativeEvent.layout)}>
-          <View style={styles.segmentWrap}>
+          {/* ── Segment control ── */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.segmentScroll} contentContainerStyle={styles.segmentRow} onLayout={e => setSegmentLayout(e.nativeEvent.layout)}>
             {[
               ['childWins',  'Child Growth'],
               ['parenting',  'Parenting'],
@@ -222,22 +205,24 @@ export default function ProgressScreen({ navigation, route }) {
                   onPress={() => switchTab(key)}
                   activeOpacity={0.8}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                     <Text style={[styles.segmentText, familyTab === key && styles.segmentTextActive]}>{label}</Text>
                     {showSetupDot && <View style={styles.segmentDot} />}
                   </View>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
 
-        {/* ── Content area with curved top ── */}
-        <Animated.View style={[styles.contentSheet, { borderTopLeftRadius: cornerRadius, borderTopRightRadius: cornerRadius }]}>
+        <View style={styles.separator} />
+
+        {/* ── Content area ── */}
+        <View style={styles.contentSheet}>
 
         {/* ── Content tabs — single instance stays mounted so data loads once ── */}
         {familyTab !== 'configure' && (
-          <FamilySummaryBoard navigation={navigation} section={familyTab} onScroll={handleBoardScroll} />
+          <FamilySummaryBoard navigation={navigation} section={familyTab} />
         )}
 
         {/* ── Configure ── */}
@@ -246,9 +231,7 @@ export default function ProgressScreen({ navigation, route }) {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4ADE80" colors={['#4ADE80']} />}
-          onScroll={handleBoardScroll}
-          scrollEventThrottle={16}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B3D2F" colors={['#1B3D2F']} />
         >
         {/* ── Light sheet ── */}
         <View style={styles.sheet}>
@@ -597,7 +580,7 @@ export default function ProgressScreen({ navigation, route }) {
         </ScrollView>
         )}
 
-        </Animated.View> {/* contentSheet */}
+        </View> {/* contentSheet */}
 
       <EncouragementModal
         visible={!!encouragement}
@@ -615,34 +598,26 @@ export default function ProgressScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  safe:          { flex: 1, backgroundColor: '#1B3D2F' },
-  bgTop:         { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
-  bgBottom:      { position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', backgroundColor: '#F5F6F8' },
+  safe:      { flex: 1, backgroundColor: '#FFFFFF' },
+  separator: { height: 1, backgroundColor: '#F3F4F6' },
 
-  segmentOuter:      { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: '#1B3D2F' },
-  segmentWrap:       { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 3 },
-  segmentTab:        { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
-  segmentTabActive:  { backgroundColor: '#FFFFFF' },
-  segmentText:       { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
-  segmentTextActive: { color: '#1B3D2F', fontWeight: '700' },
+  header:      { paddingHorizontal: 20, paddingTop: 16, backgroundColor: '#FFFFFF' },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 14 },
+
+  segmentScroll: { marginBottom: 2 },
+  segmentRow:    { flexDirection: 'row', gap: 8, paddingBottom: 12 },
+  segmentTab: {
+    paddingHorizontal: 18, paddingVertical: 8,
+    borderRadius: 100, backgroundColor: '#F3F4F6',
+  },
+  segmentTabActive:  { backgroundColor: '#1B3D2F' },
+  segmentText:       { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  segmentTextActive: { color: '#FFFFFF', fontWeight: '600' },
   segmentDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
 
   scroll:        { flex: 1, backgroundColor: '#F5F6F8' },
   scrollContent: { flexGrow: 1, backgroundColor: '#F5F6F8' },
-  header: {
-    backgroundColor: '#1B3D2F',
-    paddingHorizontal: 24,
-    paddingBottom: 10,
-    alignItems: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
-  contentSheet: {
-    flex: 1,
-    backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-  },
+  contentSheet:  { flex: 1, backgroundColor: '#F5F6F8' },
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',
