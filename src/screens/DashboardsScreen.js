@@ -1238,7 +1238,8 @@ export default function DashboardsScreen({ navigation, route }) {
           const suggestions = areaSuggestions[area.id] ?? [];
           const loadingSuggestions = suggestionsLoading.has(area.id);
           return (
-            <View key={`complete_${area.id}`} style={styles.planCompleteCard}>
+            <React.Fragment key={`complete_${area.id}`}>
+            <View style={styles.planCompleteCard}>
               <View style={styles.planCompleteHeader}>
                 <View style={styles.planCompleteIconRing}>
                   <Ionicons name="checkmark" size={18} color="#FFFFFF" />
@@ -1285,6 +1286,7 @@ export default function DashboardsScreen({ navigation, route }) {
               ))}
             </View>
             <View style={styles.fbDivider} />
+            </React.Fragment>
           );
         })}
 
