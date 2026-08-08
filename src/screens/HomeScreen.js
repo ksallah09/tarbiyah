@@ -60,13 +60,17 @@ const DAY_INDEX = Math.floor(Date.now() / 86_400_000);
 
 function buildChildFocusMap(children, counts) {
   const map = {};
+  const planCompleteIds = new Set();
   for (const child of children) {
     const habits = [];
+    let hasAnyPlan = false;
     for (const area of (child.growthAreas ?? []).slice(0, 3)) {
       if (!area?.plan?.length) continue;
+      hasAnyPlan = true;
       const daysSince = Math.floor((Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000);
-      const weekIdx = Math.min(Math.floor(daysSince / 7), area.plan.length - 1);
-      const week = area.plan[Math.max(0, weekIdx)];
+      if (daysSince >= area.plan.length * 7) continue; // this area's plan is finished
+      const weekIdx = Math.floor(daysSince / 7);
+      const week = area.plan[weekIdx];
       (week?.habits ?? []).forEach((habit, i) => {
         habits.push({
           key: `hdone_${area.id}_${i}`,
@@ -79,13 +83,14 @@ function buildChildFocusMap(children, counts) {
         });
       });
     }
-    if (!habits.length) continue;
+    if (!hasAnyPlan) continue;
+    if (!habits.length) { planCompleteIds.add(child.id); continue; }
     habits.sort((a, b) => (counts[a.key] ?? 0) - (counts[b.key] ?? 0));
     const minCount = counts[habits[0].key] ?? 0;
     const lowestGroup = habits.filter(h => (counts[h.key] ?? 0) === minCount);
     map[child.id] = lowestGroup[DAY_INDEX % lowestGroup.length];
   }
-  return map;
+  return { map, planCompleteIds };
 }
 
 
@@ -211,8 +216,8 @@ export default function HomeScreen({ navigation, route }) {
   // Round-robin default child: rotate which child shows first on each app open
   useEffect(() => {
     if (focusInitialisedRef.current || !children.length) return;
-    const focusMap = buildChildFocusMap(children, weekCompletions);
-    const eligible = children.filter(c => focusMap[c.id]);
+    const { map: focusMap, planCompleteIds } = buildChildFocusMap(children, weekCompletions);
+    const eligible = children.filter(c => focusMap[c.id] || planCompleteIds.has(c.id));
     if (!eligible.length) return;
     focusInitialisedRef.current = true;
     AsyncStorage.getItem('tarbiyah_focus_default_index').then(val => {
@@ -705,12 +710,17 @@ export default function HomeScreen({ navigation, route }) {
 
               {/* ── Habit of the Day ── */}
               {hasChildren && (() => {
-                const focusMap = buildChildFocusMap(children, weekCompletions);
-                const eligible = children.filter(c => focusMap[c.id]);
+                const { map: focusMap, planCompleteIds } = buildChildFocusMap(children, weekCompletions);
+                const eligible = children.filter(c => focusMap[c.id] || planCompleteIds.has(c.id));
                 if (!eligible.length) return null;
-                const activeId = (focusChildId && focusMap[focusChildId]) ? focusChildId : eligible[0].id;
+                const activeId = (focusChildId && (focusMap[focusChildId] || planCompleteIds.has(focusChildId)))
+                  ? focusChildId
+                  : (eligible.find(c => focusMap[c.id])?.id ?? eligible[0].id);
+                const isPlanComplete = planCompleteIds.has(activeId);
                 const focus = focusMap[activeId];
                 const activeChild = children.find(c => c.id === activeId);
+                const childColor = isPlanComplete ? (activeChild?.color ?? '#2E7D62') : focus.childColor;
+                const childName  = isPlanComplete ? (activeChild?.name?.split(' ')[0] ?? '') : focus.childName;
                 return (
                   <>
                     <View style={styles.sectionTitleWrap}>
@@ -721,8 +731,8 @@ export default function HomeScreen({ navigation, route }) {
                     <View style={styles.focusCard}>
 
                       {/* ── Header band ── */}
-                      <View style={[styles.focusCardHeader, { backgroundColor: focus.childColor }]}>
-                        <Text style={styles.focusEyebrow}>🌱 HABIT OF THE DAY</Text>
+                      <View style={[styles.focusCardHeader, { backgroundColor: childColor }]}>
+                        <Text style={styles.focusEyebrow}>{isPlanComplete ? '✅ PLAN COMPLETE' : '🌱 HABIT OF THE DAY'}</Text>
                         <View style={{ alignItems: 'flex-end' }}>
                           {eligible.length > 1 ? (
                             <TouchableOpacity
@@ -733,10 +743,10 @@ export default function HomeScreen({ navigation, route }) {
                               <View style={styles.focusSelectorAvatar}>
                                 {activeChild?.photo
                                   ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
-                                  : <Text style={styles.focusSelectorAvatarInitial}>{focus.childName[0]}</Text>
+                                  : <Text style={styles.focusSelectorAvatarInitial}>{childName[0]}</Text>
                                 }
                               </View>
-                              <Text style={styles.focusChildSelectorText}>{focus.childName}</Text>
+                              <Text style={styles.focusChildSelectorText}>{childName}</Text>
                               <Ionicons name={focusDropdownOpen ? 'chevron-up' : 'chevron-down'} size={11} color="rgba(255,255,255,0.8)" />
                             </TouchableOpacity>
                           ) : (
@@ -744,10 +754,10 @@ export default function HomeScreen({ navigation, route }) {
                               <View style={styles.focusSelectorAvatar}>
                                 {activeChild?.photo
                                   ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
-                                  : <Text style={styles.focusSelectorAvatarInitial}>{focus.childName[0]}</Text>
+                                  : <Text style={styles.focusSelectorAvatarInitial}>{childName[0]}</Text>
                                 }
                               </View>
-                              <Text style={styles.focusChildSelectorText}>{focus.childName}</Text>
+                              <Text style={styles.focusChildSelectorText}>{childName}</Text>
                             </View>
                           )}
                           {eligible.length > 1 && (
@@ -785,23 +795,42 @@ export default function HomeScreen({ navigation, route }) {
                       )}
 
                       {/* ── Body ── */}
-                      <View style={styles.focusCardBody}>
-                        <Text style={styles.focusHabitText}>{focus.text}</Text>
-
-                        {focus.wisdom && (
-                          <View style={styles.focusWisdom}>
-                            <Ionicons name="leaf-outline" size={12} color="#7C9E8B" />
-                            <Text style={styles.focusWisdomText}>{focus.wisdom}</Text>
+                      {isPlanComplete ? (
+                        <View style={styles.focusCardBody}>
+                          <View style={styles.planCompleteWrap}>
+                            <Text style={styles.planCompleteEmoji}>🎉</Text>
+                            <Text style={styles.planCompleteTitle}>Plan Complete</Text>
+                            <Text style={styles.planCompleteBody}>
+                              {childName} has finished all their current growth plans. Start a new one to keep the momentum going.
+                            </Text>
+                            <TouchableOpacity
+                              style={[styles.planCompleteBtn, { backgroundColor: childColor }]}
+                              onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: activeId } })}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.planCompleteBtnText}>Start a new plan →</Text>
+                            </TouchableOpacity>
                           </View>
-                        )}
+                        </View>
+                      ) : (
+                        <View style={styles.focusCardBody}>
+                          <Text style={styles.focusHabitText}>{focus.text}</Text>
 
-                        <TouchableOpacity
-                          onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: activeId } })}
-                          activeOpacity={0.6}
-                        >
-                          <Text style={styles.focusLogLink}>Log it on their dashboard →</Text>
-                        </TouchableOpacity>
-                      </View>
+                          {focus.wisdom && (
+                            <View style={styles.focusWisdom}>
+                              <Ionicons name="leaf-outline" size={12} color="#7C9E8B" />
+                              <Text style={styles.focusWisdomText}>{focus.wisdom}</Text>
+                            </View>
+                          )}
+
+                          <TouchableOpacity
+                            onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: activeId } })}
+                            activeOpacity={0.6}
+                          >
+                            <Text style={styles.focusLogLink}>Log it on their dashboard →</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
                   </>
                 );
@@ -1611,6 +1640,12 @@ const styles = StyleSheet.create({
     shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1, shadowRadius: 12, elevation: 4,
   },
+  planCompleteWrap:  { alignItems: 'center', paddingVertical: 8 },
+  planCompleteEmoji: { fontSize: 32, marginBottom: 8 },
+  planCompleteTitle: { fontSize: 17, fontWeight: '800', color: '#1A1A2E', marginBottom: 6 },
+  planCompleteBody:  { fontSize: 13, color: '#6B7280', lineHeight: 20, textAlign: 'center', marginBottom: 18 },
+  planCompleteBtn:   { borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 },
+  planCompleteBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   focusCardHeader: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
