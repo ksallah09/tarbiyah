@@ -762,10 +762,11 @@ export default function DashboardsScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={[]}>
-      <StatusBar style="light" />
-      {/* ── Fixed tab pills — always visible ── */}
-      <View style={[styles.tabBar, { paddingTop: insets.top + 12 }]}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" />
+      {/* ── White header ── */}
+      <View style={styles.tabBar}>
+        <Text style={styles.tabBarTitle}>Dashboards</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -776,7 +777,7 @@ export default function DashboardsScreen({ navigation, route }) {
             return (
               <TouchableOpacity
                 key={c.id}
-                style={[styles.childPill, active && { backgroundColor: c.color, borderColor: '#FFFFFF', borderWidth: 2 }]}
+                style={[styles.childPill, active && { backgroundColor: c.color }]}
                 onPress={() => switchChild(c.id)}
                 activeOpacity={0.75}
               >
@@ -789,6 +790,7 @@ export default function DashboardsScreen({ navigation, route }) {
           })}
         </ScrollView>
       </View>
+      <View style={styles.tabSeparator} />
 
       {/* ── Family dashboard ── */}
       {activeChildId === 'family' && (
@@ -1677,7 +1679,7 @@ export default function DashboardsScreen({ navigation, route }) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F6F8' },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
 
   // Family dashboard
   partnerBanner:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EDF7F2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16, alignSelf: 'flex-start' },
@@ -1749,15 +1751,17 @@ const styles = StyleSheet.create({
   familyMomentAckCountActive:  { color: '#2E7D62' },
 
   // Fixed tab bar
-  tabBar: { backgroundColor: '#1B3D2F', paddingBottom: 14 },
-  tabRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
+  tabBar:      { backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingTop: 16 },
+  tabBarTitle: { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 14 },
+  tabRow:      { flexDirection: 'row', gap: 8, paddingBottom: 12 },
+  tabSeparator:{ height: 1, backgroundColor: '#F3F4F6' },
   childPill: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#F3F4F6',
     borderRadius: 100, paddingHorizontal: 14, paddingVertical: 8,
   },
   childPillDot: { width: 7, height: 7, borderRadius: 4 },
-  childPillText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  childPillText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   childPillTextActive: { color: '#FFFFFF', fontWeight: '700' },
 
   // Hero (scrolls away)
