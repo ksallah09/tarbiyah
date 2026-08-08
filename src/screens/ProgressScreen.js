@@ -615,9 +615,9 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: '#FFFFFF', fontWeight: '600' },
   segmentDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
 
-  scroll:        { flex: 1, backgroundColor: '#F5F6F8' },
-  scrollContent: { flexGrow: 1, backgroundColor: '#F5F6F8' },
-  contentSheet:  { flex: 1, backgroundColor: '#F5F6F8' },
+  scroll:        { flex: 1, backgroundColor: '#FFFFFF' },
+  scrollContent: { flexGrow: 1, backgroundColor: '#FFFFFF' },
+  contentSheet:  { flex: 1, backgroundColor: '#FFFFFF' },
   sheet: {
     flexGrow: 1,
     backgroundColor: '#F5F6F8',

@@ -245,7 +245,7 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
   return (
     <>
       <ScrollView
-        style={{ flex: 1, backgroundColor: '#F5F5F5' }}
+        style={{ flex: 1, backgroundColor: '#FFFFFF' }}
         contentContainerStyle={{ padding: PADDING, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#2E7D62" />}
@@ -444,7 +444,7 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
                   <Text style={s.sectionTitle}>Accomplishment Feed</Text>
                   <Text style={s.sectionSub}>Recent wins across your family</Text>
                 </View>
-                <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#F0F0F0' }}>
+                <View style={s.accompFeed}>
                   {(showAllAccomp ? accomplishments : accomplishments.slice(0, 5)).map((action, idx) => {
                     const manner    = MANNERS.find(m => m.key === action.manner);
                     const child     = children.find(c => c.id === action.child_id);
@@ -453,7 +453,9 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
                     const loveNames = Array.isArray(action.loved_by) ? action.loved_by : [];
                     const loved     = lovedActions.has(action.id) || loveNames.includes(myProfileName);
                     return (
-                      <View key={action.id} style={[s.accompItem, idx > 0 && s.accompItemBorder]}>
+                      <React.Fragment key={action.id}>
+                      {idx > 0 && <View style={s.accompDivider} />}
+                      <View style={s.accompItem}>
                         <View style={[s.accompAvatar, { backgroundColor: color }]}>
                           {child?.photo
                             ? <Image source={{ uri: child.photo }} style={s.accompAvatarPhoto} />
@@ -486,15 +488,19 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
                           <Ionicons name={loved ? 'heart' : 'heart-outline'} size={22} color={loved ? '#E11D48' : '#D1D5DB'} />
                         </TouchableOpacity>
                       </View>
+                      </React.Fragment>
                     );
                   })}
                   {accomplishments.length > 5 && (
-                    <TouchableOpacity onPress={() => setShowAllAccomp(v => !v)} style={s.showMoreBtn}>
-                      <Text style={s.showMoreText}>
-                        {showAllAccomp ? 'Show less' : `See all ${accomplishments.length} accomplishments`}
-                      </Text>
-                      <Ionicons name={showAllAccomp ? 'chevron-up' : 'chevron-down'} size={14} color="#2E7D62" />
-                    </TouchableOpacity>
+                    <>
+                      <View style={s.accompDivider} />
+                      <TouchableOpacity onPress={() => setShowAllAccomp(v => !v)} style={s.showMoreBtn}>
+                        <Text style={s.showMoreText}>
+                          {showAllAccomp ? 'Show less' : `See all ${accomplishments.length} accomplishments`}
+                        </Text>
+                        <Ionicons name={showAllAccomp ? 'chevron-up' : 'chevron-down'} size={14} color="#2E7D62" />
+                      </TouchableOpacity>
+                    </>
                   )}
                 </View>
               </View>
@@ -812,8 +818,9 @@ const s = StyleSheet.create({
   ackNameText:    { fontSize: 11, color: '#2E7D62', fontWeight: '600' },
 
   // Accomplishment feed
-  accompItem:        { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 14 },
-  accompItemBorder:  { borderTopWidth: 1, borderTopColor: '#F5F5F5' },
+  accompFeed:        { marginHorizontal: -PADDING },
+  accompDivider:     { height: 8, backgroundColor: '#F3F4F6' },
+  accompItem:        { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 14, backgroundColor: '#FFFFFF', paddingHorizontal: PADDING },
   accompAvatar:      { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   accompAvatarPhoto: { width: 36, height: 36, borderRadius: 18 },
   accompAvatarInitial: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
@@ -827,7 +834,7 @@ const s = StyleSheet.create({
   lovePill:          { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
   lovePillText:      { fontSize: 12, fontWeight: '600', color: '#E11D48' },
   loveBtn:           { paddingTop: 2 },
-  showMoreBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 14, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F5F5F5' },
+  showMoreBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 16, paddingHorizontal: PADDING, backgroundColor: '#FFFFFF' },
   showMoreText:      { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
 
   incCard:        { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16 },
