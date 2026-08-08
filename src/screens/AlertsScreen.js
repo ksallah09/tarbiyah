@@ -207,6 +207,9 @@ export default function AlertsScreen() {
   const [filter,       setFilter]       = useState('All');
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [lastSeen,     setLastSeen]     = useState(null);
+  const [showOlder,    setShowOlder]    = useState(false);
+
+  const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -235,7 +238,10 @@ export default function AlertsScreen() {
     setRefreshing(false);
   }
 
-  const filtered = filter === 'All' ? alerts : alerts.filter(a => a.severity === filter);
+  const bySeverity = filter === 'All' ? alerts : alerts.filter(a => a.severity === filter);
+  const recent  = bySeverity.filter(a => new Date(a.published_at) >= THIRTY_DAYS_AGO);
+  const older   = bySeverity.filter(a => new Date(a.published_at) <  THIRTY_DAYS_AGO);
+  const filtered = showOlder ? bySeverity : recent;
 
   if (selectedAlert) {
     return <AlertDetail alert={selectedAlert} onBack={() => setSelectedAlert(null)} />;
@@ -290,6 +296,22 @@ export default function AlertsScreen() {
               onPress={() => setSelectedAlert(alert)}
             />
           ))}
+
+          {/* Older alerts toggle */}
+          {!showOlder && older.length > 0 && (
+            <TouchableOpacity style={s.olderBtn} onPress={() => setShowOlder(true)} activeOpacity={0.7}>
+              <Ionicons name="time-outline" size={15} color="#6B7280" />
+              <Text style={s.olderBtnText}>See {older.length} older alert{older.length !== 1 ? 's' : ''}</Text>
+              <Ionicons name="chevron-down" size={15} color="#6B7280" />
+            </TouchableOpacity>
+          )}
+          {showOlder && older.length > 0 && (
+            <TouchableOpacity style={s.olderBtn} onPress={() => setShowOlder(false)} activeOpacity={0.7}>
+              <Ionicons name="chevron-up" size={15} color="#6B7280" />
+              <Text style={s.olderBtnText}>Hide older alerts</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={{ height: insets.bottom + 20 }} />
         </ScrollView>
       )}
@@ -382,6 +404,12 @@ const s = StyleSheet.create({
     borderRadius: 12,
   },
   footerText: { flex: 1, fontSize: 13, color: '#9CA3AF', lineHeight: 20 },
+
+  olderBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 18, borderTopWidth: 1, borderTopColor: '#F3F4F6',
+  },
+  olderBtnText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
 
   // States
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
