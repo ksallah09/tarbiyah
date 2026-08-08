@@ -45,12 +45,8 @@ export async function purchasePackage(pkg) {
 }
 
 export async function restorePurchases() {
-  try {
-    const info = await Purchases.restorePurchases();
-    return !!info.entitlements.active[ENTITLEMENT_ID];
-  } catch {
-    return false;
-  }
+  const info = await Purchases.restorePurchases();
+  return !!info.entitlements.active[ENTITLEMENT_ID];
 }
 
 export async function loginRevenueCat(userId) {

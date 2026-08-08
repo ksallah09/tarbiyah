@@ -599,6 +599,12 @@ export default function App() {
         await SplashScreen.hideAsync();
       })
       .catch(async () => {
+        // Boot sequence failed — still attempt entitlement check so a subscribed
+        // user isn't locked out by a transient error during startup
+        try {
+          const active = await checkEntitlement();
+          await applyAccess(active);
+        } catch {}
         setLoading(false);
         await SplashScreen.hideAsync();
       });
