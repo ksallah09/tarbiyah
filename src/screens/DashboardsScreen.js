@@ -1117,10 +1117,9 @@ export default function DashboardsScreen({ navigation, route }) {
       {/* ── Scrollable content ── */}
       {activeChildId !== 'family' && (
       <>
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', backgroundColor: '#F5F6F8' }} pointerEvents="none" />
       <Animated.ScrollView
         ref={scrollRef}
-        style={{ flex: 1, opacity: fadeAnim, backgroundColor: '#1B3D2F' }}
+        style={{ flex: 1, opacity: fadeAnim, backgroundColor: '#F5F6F8' }}
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
@@ -1765,16 +1764,16 @@ const styles = StyleSheet.create({
   childPillTextActive: { color: '#FFFFFF', fontWeight: '700' },
 
   // Hero (scrolls away)
-  hero: { backgroundColor: '#1B3D2F', paddingHorizontal: 20, paddingBottom: 14 },
+  hero: { backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingBottom: 16, paddingTop: 16 },
   heroRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 
   // Child info
   headerDate: { flex: 1, paddingRight: 12 },
   headerChildName: {
-    fontSize: 22, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.3, lineHeight: 28,
+    fontSize: 22, fontWeight: '700', color: '#111827', letterSpacing: -0.3, lineHeight: 28,
   },
   headerChildMeta: {
-    fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '500', marginTop: 2,
+    fontSize: 12, color: '#9CA3AF', fontWeight: '500', marginTop: 2,
   },
 
   // Active child avatar
@@ -1791,7 +1790,7 @@ const styles = StyleSheet.create({
   activeAvatarInitial: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
 
   // Sheet
-  sheet: { flexGrow: 1, backgroundColor: '#F5F6F8', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  sheet: { flexGrow: 1, backgroundColor: '#F5F6F8' },
 
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
 
@@ -1805,11 +1804,11 @@ const styles = StyleSheet.create({
 
 
   // Developmental phase card
-  phasePill:        { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
+  phasePill:        { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8, backgroundColor: '#F3F4F6', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
   phasePillEmoji:   { fontSize: 13 },
-  phasePillEyebrow: { fontSize: 8, fontWeight: '700', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.8, marginBottom: 1 },
-  phasePillText:    { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.9)' },
-  phasePillArrow:   { width: 16, height: 16, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  phasePillEyebrow: { fontSize: 8, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.8, marginBottom: 1 },
+  phasePillText:    { fontSize: 11, fontWeight: '600', color: '#1B3D2F' },
+  phasePillArrow:   { width: 16, height: 16, borderRadius: 8, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
   phaseModalOverlay:{ flex: 1, backgroundColor: 'transparent', justifyContent: 'flex-end' },
   phaseModalSheet:  { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 0, maxHeight: '80%', shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 20 },
   phaseModalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
