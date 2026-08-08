@@ -220,11 +220,13 @@ export default function AlertsScreen() {
     } catch {}
   }, []);
 
-  // Mark all read and load alerts when tab is focused
+  // Capture lastSeen BEFORE marking read, so dots render correctly this session
   useFocusEffect(useCallback(() => {
-    AsyncStorage.getItem('tarbiyah_alerts_last_seen').then(val => setLastSeen(val));
+    AsyncStorage.getItem('tarbiyah_alerts_last_seen').then(val => {
+      setLastSeen(val);
+      markAlertsRead();
+    });
     fetchAlerts().finally(() => setLoading(false));
-    markAlertsRead();
   }, [fetchAlerts, markAlertsRead]));
 
   async function handleRefresh() {
@@ -328,7 +330,7 @@ const s = StyleSheet.create({
   badgeText:   { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
   category:    { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
   timeRow:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  unreadDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6' },
+  unreadDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' },
   timeAgo:     { fontSize: 12, color: '#9CA3AF' },
   cardTitle:   { fontSize: 17, fontWeight: '800', color: '#111827', lineHeight: 24, marginBottom: 6 },
   cardDesc:    { fontSize: 14, color: '#6B7280', lineHeight: 21, marginBottom: 10 },
