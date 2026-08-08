@@ -260,7 +260,7 @@ function CustomTabBar({ state, navigation }) {
           >
             <>
               {focused && <View style={styles.tabPill} />}
-              <View>
+              <View style={styles.tabIconWrap}>
                 <Ionicons
                   name={focused ? cfg.filled : cfg.outline}
                   size={22}
@@ -293,9 +293,9 @@ function Tabs() {
     <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }} lazy={false}>
       <Tab.Screen name="Home"       component={HomeScreen} />
       <Tab.Screen name="Family"     component={ProgressScreen} />
+      <Tab.Screen name="Alerts"     component={AlertsScreen} />
       <Tab.Screen name="Dashboards" component={DashboardsScreen} />
       <Tab.Screen name="Learn"      component={LearnScreen} />
-      <Tab.Screen name="Alerts"     component={AlertsScreen} />
     </Tab.Navigator>
   );
 }
@@ -814,6 +814,11 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  tabIconWrap: {
+    width: 32, height: 22,
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'visible',
   },
   tabDot: {
     position: 'absolute', top: -1, right: -3,

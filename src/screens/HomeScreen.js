@@ -164,7 +164,7 @@ async function getProfileName() {
 }
 
 export default function HomeScreen({ navigation, route }) {
-  const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft } = useAuth();
+  const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft, alertUnreadCount } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [dailyData, setDailyData]            = useState(null);
@@ -528,19 +528,20 @@ export default function HomeScreen({ navigation, route }) {
 
               {/* Header right: shield + profile */}
               <View style={styles.heroRightRow}>
-                {hasChildren && (() => {
-                  const hasAnyAlerts = children.some(c => (worldSnaps[c.id]?.safetyWatch ?? []).length > 0);
-                  return (
-                    <TouchableOpacity
-                      style={styles.heroShieldBtn}
-                      onPress={() => setCultureModalOpen(true)}
-                      activeOpacity={0.75}
-                    >
-                      <Ionicons name="globe-outline" size={22} color="rgba(255,255,255,0.85)" />
-                      {hasAnyAlerts && <View style={styles.heroShieldDot} />}
-                    </TouchableOpacity>
-                  );
-                })()}
+                <TouchableOpacity
+                  style={styles.heroShieldBtn}
+                  onPress={() => navigation.navigate('Alerts')}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="shield-outline" size={22} color="rgba(255,255,255,0.85)" />
+                  {alertUnreadCount > 0 && (
+                    <View style={styles.heroShieldBadge}>
+                      <Text style={styles.heroShieldBadgeText}>
+                        {alertUnreadCount > 9 ? '9+' : alertUnreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.heroProfileBtn}
@@ -1389,12 +1390,15 @@ const styles = StyleSheet.create({
   heroText: { flex: 1 },
   heroRightRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   heroShieldBtn: { position: 'relative', padding: 4 },
-  heroShieldDot: {
-    position: 'absolute', top: 2, right: 2,
-    width: 8, height: 8, borderRadius: 4,
+  heroShieldBadge: {
+    position: 'absolute', top: 0, right: 0,
+    minWidth: 16, height: 16, borderRadius: 8,
     backgroundColor: '#EF4444',
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
     borderWidth: 1.5, borderColor: '#1B3D2F',
   },
+  heroShieldBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
   heroProfileBtn: {
     padding: 4,
     alignItems: 'center',
