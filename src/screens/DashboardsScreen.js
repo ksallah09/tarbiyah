@@ -1119,7 +1119,7 @@ export default function DashboardsScreen({ navigation, route }) {
       <>
       <Animated.ScrollView
         ref={scrollRef}
-        style={{ flex: 1, opacity: fadeAnim, backgroundColor: '#F5F6F8' }}
+        style={{ flex: 1, opacity: fadeAnim, backgroundColor: '#FFFFFF' }}
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
@@ -1165,6 +1165,7 @@ export default function DashboardsScreen({ navigation, route }) {
         {/* ── Growth areas (phase detail now in modal via hero pill) ── */}
         {focusAreas.length > 0 && (
                 <View style={styles.growthCard}>
+
                 <View style={styles.phaseGrowthSection}>
                   <View style={styles.phaseGrowthHeader}>
                     <View>
@@ -1201,6 +1202,7 @@ export default function DashboardsScreen({ navigation, route }) {
                 </View>
                 </View>
               )}
+        <View style={styles.fbDivider} />
 
         {/* ── Empty state — no growth areas ── */}
         {focusAreas.length === 0 && (
@@ -1282,6 +1284,7 @@ export default function DashboardsScreen({ navigation, route }) {
                 </TouchableOpacity>
               ))}
             </View>
+            <View style={styles.fbDivider} />
           );
         })}
 
@@ -1408,6 +1411,7 @@ export default function DashboardsScreen({ navigation, route }) {
               </View>
             </View>
 
+            <View style={styles.fbDivider} />
             {/* ── Activities — swipeable cards per area ── */}
             <View style={[styles.weekBlock, { marginBottom: 4 }]}>
               <View style={styles.weekBlockHeader}>
@@ -1526,6 +1530,7 @@ export default function DashboardsScreen({ navigation, route }) {
           </>
         )}
 
+        <View style={styles.fbDivider} />
         {/* Incidents */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>DIFFICULT MOMENTS</Text>
@@ -1790,9 +1795,10 @@ const styles = StyleSheet.create({
   activeAvatarInitial: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
 
   // Sheet
-  sheet: { flexGrow: 1, backgroundColor: '#F5F6F8' },
+  sheet: { flexGrow: 1, backgroundColor: '#FFFFFF' },
+  fbDivider: { height: 8, backgroundColor: '#F3F4F6' },
 
-  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
+  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
 
   // Sections
   sectionRow: {
@@ -1881,8 +1887,8 @@ const styles = StyleSheet.create({
   },
   specialNeedsNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 10, backgroundColor: '#FEF9EE', borderRadius: 8, padding: 10 },
   specialNeedsNoteText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
-  growthCard:         { backgroundColor: '#FFFFFF', borderRadius: 18, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2, marginBottom: 4 },
-  phaseGrowthSection: { padding: 12 },
+  growthCard:         { backgroundColor: '#FFFFFF' },
+  phaseGrowthSection: { paddingVertical: 12 },
   phaseGrowthHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   phaseGrowthTitle:   { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
   phaseGrowthEdit:    { fontSize: 12, fontWeight: '700', color: '#2E7D62' },
@@ -2032,15 +2038,11 @@ const styles = StyleSheet.create({
 
   // This Week cards
   weekBlock: {
-    backgroundColor: '#FFFFFF', borderRadius: 18,
-    paddingTop: 16, paddingBottom: 8, marginBottom: 10,
-    ...CARD_SHADOW,
+    backgroundColor: '#FFFFFF',
+    paddingTop: 16, paddingBottom: 8,
   },
-  weekBlockSwipeClip: {
-    overflow: 'hidden', borderBottomLeftRadius: 18, borderBottomRightRadius: 18,
-    width: '100%',
-  },
-  weekBlockHeader: { paddingHorizontal: 16, marginBottom: 0 },
+  weekBlockSwipeClip: { overflow: 'hidden', width: '100%' },
+  weekBlockHeader: { paddingHorizontal: 0, marginBottom: 0 },
   weekItemRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14,
@@ -2102,8 +2104,8 @@ const styles = StyleSheet.create({
   // Growth areas
   milestoneRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#FFF', borderRadius: 14, padding: 12, marginBottom: 6,
-    ...CARD_SHADOW, borderWidth: 1, borderColor: '#EEF0F2',
+    backgroundColor: '#FFFFFF', paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
   milestoneNumBadge: {
     width: 30, height: 30, borderRadius: 15,
@@ -2188,9 +2190,7 @@ const styles = StyleSheet.create({
 
   // Plan completion card
   planCompleteCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 20, marginBottom: 16,
-    borderWidth: 1, borderColor: '#D1FAE5',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    backgroundColor: '#FFFFFF', paddingVertical: 20,
   },
   planCompleteHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
   planCompleteIconRing: {
@@ -2234,8 +2234,8 @@ const styles = StyleSheet.create({
 
   incidentEntryCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, marginBottom: 8,
-    ...CARD_SHADOW,
+    backgroundColor: '#FFFFFF', paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
   incidentIconWrap: {
     width: 36, height: 36, borderRadius: 10,
