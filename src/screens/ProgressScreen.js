@@ -231,7 +231,7 @@ export default function ProgressScreen({ navigation, route }) {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B3D2F" colors={['#1B3D2F']} />
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B3D2F" colors={['#1B3D2F']} />}
         >
         {/* ── Light sheet ── */}
         <View style={styles.sheet}>
