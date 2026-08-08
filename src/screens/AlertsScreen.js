@@ -336,7 +336,7 @@ const s = StyleSheet.create({
   cardDesc:    { fontSize: 14, color: '#6B7280', lineHeight: 21, marginBottom: 10 },
   readMoreRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 16 },
   readMore:    { fontSize: 14, fontWeight: '600' },
-  divider:     { height: 1, backgroundColor: '#F3F4F6' },
+  divider:     { height: 8, backgroundColor: '#F3F4F6', marginHorizontal: -20 },
 
   // Detail
   detailHeader:      { paddingHorizontal: 20, paddingBottom: 24 },
