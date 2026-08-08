@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { loadModules, loadModulesCached, deleteModule } from '../utils/modules';
@@ -94,21 +95,21 @@ export default function LearnScreen({ navigation, route }) {
   function closeWizard() { setShowWizard(false); setInput(''); }
 
   return (
-    <SafeAreaView style={styles.safe} edges={[]}>
-      <View style={styles.bgTop} />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" />
+
+      {/* ── White header ── */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Learn</Text>
+        <Text style={styles.headerSub}>
+          Understand the science and wisdom behind parenting challenges — on the topics you choose.
+        </Text>
+      </View>
+      <View style={styles.separator} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
 
-        {/* ── Hero ── */}
-        <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.heroLabel}>PARENTING EDUCATION</Text>
-          <Text style={styles.heroTitle}>Learn</Text>
-          <Text style={styles.heroSub}>
-            Understand the science and wisdom behind parenting challenges — on the topics you choose.
-          </Text>
-        </View>
-
-        {/* ── Content sheet ── */}
+        {/* ── Content ── */}
         <View style={styles.sheet}>
           <View style={styles.content}>
 
@@ -278,33 +279,17 @@ export default function LearnScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F6F8' },
-  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
+  safe:      { flex: 1, backgroundColor: '#FFFFFF' },
+  separator: { height: 1, backgroundColor: '#F3F4F6' },
 
-  // ── Hero ──
-  hero: {
-    backgroundColor: '#1B3D2F',
-    paddingHorizontal: 24,
-    paddingBottom: 20,
-  },
-  heroLabel: {
-    fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
-    color: 'rgba(255,255,255,0.38)', marginBottom: 8,
-  },
-  heroTitle: {
-    fontSize: 34, fontWeight: '800', color: '#FFFFFF',
-    letterSpacing: -0.5, lineHeight: 40, marginBottom: 10,
-  },
-  heroSub: {
-    fontSize: 14, color: 'rgba(255,255,255,0.58)', lineHeight: 22,
-  },
+  // ── Header ──
+  header:     { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, backgroundColor: '#FFFFFF' },
+  headerTitle:{ fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 6 },
+  headerSub:  { fontSize: 14, color: '#9CA3AF', lineHeight: 21 },
 
   // ── Sheet ──
-  sheet: {
-    flexGrow: 1, backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden',
-  },
-  content: { paddingHorizontal: 20, paddingTop: 24 },
+  sheet:   { flexGrow: 1, backgroundColor: '#FFFFFF' },
+  content: { paddingHorizontal: 20, paddingTop: 20 },
 
   // ── Section header ──
   sectionRow: {
@@ -330,11 +315,9 @@ const styles = StyleSheet.create({
 
   // ── Module cards ──
   moduleCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 18, marginBottom: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 10,
     overflow: 'hidden',
-    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
-    borderWidth: 1, borderColor: '#EEF0F2',
+    borderWidth: 1, borderColor: '#F3F4F6',
   },
   moduleBarBg: { height: 4, backgroundColor: '#EEF0F2' },
   moduleBarFill: { height: 4, borderRadius: 2 },
@@ -369,11 +352,9 @@ const styles = StyleSheet.create({
   // ── Empty / start state ──
   startCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
     marginBottom: 24,
-    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1, shadowRadius: 14, elevation: 4,
-    borderWidth: 1, borderColor: '#D6EFE3',
+    borderWidth: 1, borderColor: '#F3F4F6',
     borderLeftWidth: 4, borderLeftColor: '#2E7D62',
   },
   startCardIcon: {
@@ -391,11 +372,9 @@ const styles = StyleSheet.create({
   suggestedGrid: { gap: 8 },
   suggestedChip: {
     flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF', borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
-    borderWidth: 1, borderColor: '#EEF0F2',
+    backgroundColor: '#FFFFFF', borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderWidth: 1, borderColor: '#F3F4F6',
   },
   suggestedChipText: {
     flex: 1, fontSize: 13, color: '#374151', lineHeight: 19,
