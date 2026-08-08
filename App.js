@@ -18,6 +18,7 @@ SplashScreen.preventAutoHideAsync();
 
 import HomeScreen          from './src/screens/HomeScreen';
 import LibraryScreen       from './src/screens/LibraryScreen';
+import AlertsScreen        from './src/screens/AlertsScreen';
 import ProgressScreen      from './src/screens/ProgressScreen';
 import LearnScreen         from './src/screens/LearnScreen';
 import GuideMeNowScreen    from './src/screens/GuideMeNowScreen';
@@ -235,12 +236,12 @@ const TAB_CONFIG = {
   Family:     { filled: 'people',  outline: 'people-outline' },
   Dashboards: { filled: 'apps',    outline: 'apps-outline' },
   Learn:      { filled: 'layers',  outline: 'layers-outline' },
-  Community:  { filled: 'globe',   outline: 'globe-outline' },
+  Alerts:     { filled: 'shield',  outline: 'shield-outline' },
 };
 
 function CustomTabBar({ state, navigation }) {
   const insets = useSafeAreaInsets();
-  const { hasChildren, hasFamilyGoals } = useAuth();
+  const { hasChildren, hasFamilyGoals, alertUnreadCount } = useAuth();
   const showFamilyDot = !hasChildren || !hasFamilyGoals;
   return (
     <View style={[styles.tabBar, { paddingBottom: insets.bottom || 14 }]}>
@@ -248,7 +249,8 @@ function CustomTabBar({ state, navigation }) {
       {state.routes.map((route, index) => {
         const focused = state.index === index;
         const cfg     = TAB_CONFIG[route.name];
-        const showDot = route.name === 'Family' && showFamilyDot && !focused;
+        const showDot    = route.name === 'Family' && showFamilyDot && !focused;
+        const alertBadge = route.name === 'Alerts' && alertUnreadCount > 0 && !focused;
         return (
           <TouchableOpacity
             key={route.key}
@@ -265,6 +267,13 @@ function CustomTabBar({ state, navigation }) {
                   color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.35)'}
                 />
                 {showDot && <View style={styles.tabDot} />}
+                {alertBadge && (
+                  <View style={styles.tabBadge}>
+                    <Text style={styles.tabBadgeText}>
+                      {alertUnreadCount > 9 ? '9+' : alertUnreadCount}
+                    </Text>
+                  </View>
+                )}
               </View>
               <Text style={[styles.tabLabel, { color: focused ? '#FFFFFF' : 'rgba(255,255,255,0.35)' }]}>
                 {route.name}
@@ -286,7 +295,7 @@ function Tabs() {
       <Tab.Screen name="Family"     component={ProgressScreen} />
       <Tab.Screen name="Dashboards" component={DashboardsScreen} />
       <Tab.Screen name="Learn"      component={LearnScreen} />
-      <Tab.Screen name="Community"  component={LibraryScreen} />
+      <Tab.Screen name="Alerts"     component={AlertsScreen} />
     </Tab.Navigator>
   );
 }
@@ -412,7 +421,7 @@ function OnboardingStack() {
 
 // ─── Root — decides onboarding vs main app ────────────────────────────────────
 
-export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {}, onSubscribed: () => {}, hasChildren: false, hasFamilyGoals: false, refreshHasChildren: () => {}, refreshHasFamilyGoals: () => {}, children: [], worldSnaps: {}, refreshChildrenAndSnaps: async () => {}, refreshWorldData: async () => {}, isSubscribed: false, trialDaysLeft: TRIAL_DAYS });
+export const AuthContext = createContext({ signOut: () => {}, completeOnboarding: () => {}, setHasAccess: () => {}, onSubscribed: () => {}, hasChildren: false, hasFamilyGoals: false, refreshHasChildren: () => {}, refreshHasFamilyGoals: () => {}, children: [], worldSnaps: {}, refreshChildrenAndSnaps: async () => {}, refreshWorldData: async () => {}, isSubscribed: false, trialDaysLeft: TRIAL_DAYS, alertUnreadCount: 0, markAlertsRead: async () => {} });
 export function useAuth() { return useContext(AuthContext); }
 
 export default function App() {
@@ -426,6 +435,7 @@ export default function App() {
   const [hasFamilyGoals,  setHasFamilyGoals]  = useState(false);
   const [children,        setChildren]        = useState([]);
   const [worldSnaps,      setWorldSnaps]      = useState({});
+  const [alertUnreadCount, setAlertUnreadCount] = useState(0);
 
   async function refreshChildrenAndSnaps() {
     try {
@@ -447,6 +457,25 @@ export default function App() {
   async function refreshWorldData() {
     await refreshChildrenAndSnaps();
     prewarmYouthCulture();
+  }
+
+  async function refreshAlertUnreadCount() {
+    try {
+      const lastSeen = await AsyncStorage.getItem('tarbiyah_alerts_last_seen');
+      const { count } = await supabase
+        .from('alerts')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'published')
+        .is('archived_at', null)
+        .in('severity', ['High', 'Important'])
+        .gt('published_at', lastSeen ?? new Date(0).toISOString());
+      setAlertUnreadCount(count ?? 0);
+    } catch {}
+  }
+
+  async function markAlertsRead() {
+    await AsyncStorage.setItem('tarbiyah_alerts_last_seen', new Date().toISOString());
+    setAlertUnreadCount(0);
   }
 
   async function applyAccess(subscribed) {
@@ -527,8 +556,8 @@ export default function App() {
       navigationRef.current?.navigate('Tabs', { screen: 'Family' });
     } else if (screen === 'Family') {
       navigationRef.current?.navigate('Tabs', { screen: 'Family' });
-    } else if (screen === 'Community') {
-      navigationRef.current?.navigate('Tabs', { screen: 'Community' });
+    } else if (screen === 'Alerts') {
+      navigationRef.current?.navigate('Tabs', { screen: 'Alerts' });
     } else if (screen === 'Home' && openYouthCulture) {
       if (childId) {
         try {
@@ -585,6 +614,7 @@ export default function App() {
         refreshChildrenAndSnaps();
         refreshHasFamilyGoals();
         prewarmYouthCulture();
+        refreshAlertUnreadCount();
         if (complete) {
           if (!__DEV__) {
             const active = await checkEntitlement();
@@ -657,6 +687,7 @@ export default function App() {
         getFamilySyncStatus().catch(() => {});
         // Pre-generate youth culture content for all children
         prewarmYouthCulture();
+        refreshAlertUnreadCount();
         // Log in to RevenueCat and recheck entitlement
         if (session?.user?.id) {
           loginRevenueCat(session.user.id).catch(() => {});
@@ -718,7 +749,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, onSubscribed: () => { setHasAccess(true); setIsSubscribed(true); }, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData, isSubscribed, trialDaysLeft }}>
+    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, onSubscribed: () => { setHasAccess(true); setIsSubscribed(true); }, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData, isSubscribed, trialDaysLeft, alertUnreadCount, markAlertsRead }}>
       <NavigationContainer
         ref={navigationRef}
         onReady={() => {
@@ -788,5 +819,15 @@ const styles = StyleSheet.create({
     position: 'absolute', top: -1, right: -3,
     width: 8, height: 8, borderRadius: 4,
     backgroundColor: '#4ADE80',
+  },
+  tabBadge: {
+    position: 'absolute', top: -4, right: -8,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  tabBadgeText: {
+    fontSize: 9, fontWeight: '800', color: '#FFFFFF',
   },
 });

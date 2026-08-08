@@ -98,7 +98,7 @@ export async function savePushTokenToSupabase() {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ push_token: tokenData })
+      .update({ push_token: tokenData, notify_push: true, notify_safety: true })
       .eq('user_id', userId);
     console.log('[PushToken] saved. error:', error ?? 'none');
   } catch (e) {

@@ -4377,6 +4377,23 @@ app.get('/child-world', requireAuth, async (req: AuthRequest, res: Response) => 
   }
 });
 
+// ── GET /alerts — fetch published safety alerts for the mobile app ────────────
+app.get('/alerts', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('alerts')
+      .select('*')
+      .eq('status', 'published')
+      .is('archived_at', null)
+      .order('published_at', { ascending: false });
+    if (error) throw error;
+    return res.json(data ?? []);
+  } catch (err: any) {
+    console.error('GET /alerts error:', err);
+    return res.status(500).json({ error: err?.message ?? 'Failed to fetch alerts.' });
+  }
+});
+
 // ── POST /internal/new-user-notify — called by Supabase webhook on auth.users INSERT ──
 const resend = new Resend(process.env.RESEND_API_KEY);
 

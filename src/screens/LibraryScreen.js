@@ -146,7 +146,7 @@ function ResourceThumb({ uri, accentColor, cardStyle, accentStyle, onHide }) {
 
 export default function LibraryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState('resources');
+  const [activeTab, setActiveTab] = useState('local');
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const swipeHintX = useRef(new Animated.Value(0)).current;
   const swipeHintOpacity = useRef(new Animated.Value(0)).current;
@@ -1087,8 +1087,8 @@ export default function LibraryScreen({ navigation }) {
         <View style={styles.tabSegmentOuter}>
           <View style={styles.tabSegmentWrap}>
             {[
-              { key: 'resources', label: 'Resources',  dot: false },
               { key: 'local',     label: 'Local',      dot: false },
+              { key: 'resources', label: 'Resources',  dot: false },
               { key: 'dua',       label: "Du'a Board", dot: showDuaDot },
               { key: 'myposts',   label: 'My Posts',   dot: false },
             ].map(tab => {
