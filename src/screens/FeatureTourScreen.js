@@ -22,13 +22,13 @@ const MOCK_TAB_HEIGHT = 60;
 const MOCK_TABS = [
   { name: 'Home',       icon: 'home-outline',    filled: 'home'    },
   { name: 'Family',     icon: 'people-outline',  filled: 'people'  },
+  { name: 'Alerts',     icon: 'shield-outline',  filled: 'shield'  },
   { name: 'Dashboards', icon: 'apps-outline',    filled: 'apps'    },
   { name: 'Learn',      icon: 'layers-outline',  filled: 'layers'  },
-  { name: 'Community',  icon: 'globe-outline',   filled: 'globe'   },
 ];
 
 // Which tab index each slide highlights (null = none)
-const SLIDE_TAB = [null, 0, 1, 2, 2, 3, 4];
+const SLIDE_TAB = [null, 0, 1, 3, 3, 4, 2];
 
 const SLIDES = [
   {
@@ -74,11 +74,11 @@ const SLIDES = [
     body: "Describe any parenting challenge and get a full AI-generated audio learning module — tailored to your situation and ready to listen to hands-free.",
   },
   {
-    key: 'community',
-    icon: 'people-outline',
+    key: 'alerts',
+    icon: 'shield-checkmark-outline',
     iconColor: '#D4A843',
-    title: 'Parents Helping Parents',
-    body: 'Browse curated Islamic parenting resources, request what you need, and share what has worked for your family.',
+    title: 'Safety Alerts',
+    body: "Stay a step ahead of what's affecting children and teens. Weekly AI-generated alerts covering online risks, social media threats, and emerging youth trends — filtered by your child's age.",
   },
 ];
 
