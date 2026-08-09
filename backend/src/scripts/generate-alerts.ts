@@ -220,7 +220,24 @@ function deduplicateBySource(rows: any[]): any[] {
 
 // ── Push notifications ────────────────────────────────────────────────────────
 
-async function sendPushNotifications(alertTitles: string[]): Promise<void> {
+function buildAlertDigestBody(titles: string[]): string {
+  const MAX = 130;
+  const bullets = titles.map(t => `• ${t}`);
+  const full = bullets.join(' · ');
+  if (full.length <= MAX) return full;
+  let body = '';
+  let included = 0;
+  for (const b of bullets) {
+    const candidate = body ? `${body} · ${b}` : b;
+    if (candidate.length > MAX - 10) break;
+    body = candidate;
+    included++;
+  }
+  const remaining = titles.length - included;
+  return remaining > 0 ? `${body} +${remaining} more` : body;
+}
+
+async function sendPushNotifications(inserted: { title: string; severity: string }[]): Promise<void> {
   const { data } = await supabase
     .from('profiles')
     .select('push_token')
@@ -234,10 +251,21 @@ async function sendPushNotifications(alertTitles: string[]): Promise<void> {
     return;
   }
 
-  const body = alertTitles[0] ?? 'New safety alerts are available';
+  const highCount      = inserted.filter(r => r.severity === 'High').length;
+  const importantCount = inserted.filter(r => r.severity === 'Important').length;
+  const total          = inserted.length;
+
+  const title = highCount > 0
+    ? `⚠️ ${highCount} High Priority Alert${highCount !== 1 ? 's' : ''}`
+    : importantCount > 0
+    ? `📋 ${importantCount} New Alert${importantCount !== 1 ? 's' : ''} This Week`
+    : `🔔 ${total} New Safety Update${total !== 1 ? 's' : ''}`;
+
+  const body = buildAlertDigestBody(inserted.map(r => r.title));
+
   const messages = tokens.map((token: string) => ({
     to:        token,
-    title:     '⚠️ New Safety Alert',
+    title,
     body,
     data:      { screen: 'Alerts' },
     sound:     'default',
@@ -246,14 +274,20 @@ async function sendPushNotifications(alertTitles: string[]): Promise<void> {
 
   for (let i = 0; i < messages.length; i += 100) {
     const chunk = messages.slice(i, i + 100);
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body:    JSON.stringify(chunk),
     });
+    if (!res.ok) console.warn(`[alerts] Expo Push error: ${res.status}`);
+    else {
+      const result = await res.json();
+      const errors = result.data?.filter((r: any) => r.status === 'error') ?? [];
+      if (errors.length) console.warn(`[alerts] ${errors.length} delivery errors`);
+    }
     console.log(`[alerts] Push chunk sent: ${chunk.length} tokens.`);
   }
-  console.log(`[alerts] Push notifications sent to ${tokens.length} users.`);
+  console.log(`[alerts] Push notifications sent to ${tokens.length} users — "${title}"`);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -314,10 +348,7 @@ async function main() {
   (inserted ?? []).forEach((r: any) => console.log(`  [${r.severity}] ${r.title}`));
 
   // 7. Send push notifications
-  const highTitles = (inserted ?? [])
-    .filter((r: any) => r.severity === 'High' || r.severity === 'Important')
-    .map((r: any) => r.title);
-  await sendPushNotifications(highTitles.length ? highTitles : (inserted ?? []).map((r: any) => r.title));
+  await sendPushNotifications(inserted ?? []);
 
   console.log('[alerts] ── Run complete ──');
 }

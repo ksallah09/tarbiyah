@@ -61,7 +61,7 @@ import FeatureTourScreen from './src/screens/FeatureTourScreen';
 import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
-import { requestNotificationPermission, savePushTokenToSupabase } from './src/utils/notifications';
+import { requestNotificationPermission, savePushTokenToSupabase, ensureAndroidChannel, unregisterPushToken } from './src/utils/notifications';
 import { syncChildProfilesFromSupabase, getAllChildProfiles } from './src/utils/childProfiles';
 import { getFamilySyncStatus } from './src/utils/familySync';
 import { loadFamilyGoals } from './src/utils/familyGoals';
@@ -461,21 +461,20 @@ export default function App() {
 
   async function refreshAlertUnreadCount() {
     try {
-      const lastSeen = await AsyncStorage.getItem('tarbiyah_alerts_last_seen');
-      const { count } = await supabase
+      const raw = await AsyncStorage.getItem('tarbiyah_alerts_read_ids');
+      const readIds = new Set(raw ? JSON.parse(raw) : []);
+      const { data } = await supabase
         .from('alerts')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .eq('status', 'published')
-        .is('archived_at', null)
-        .in('severity', ['High', 'Important'])
-        .gt('published_at', lastSeen ?? new Date(0).toISOString());
-      setAlertUnreadCount(count ?? 0);
+        .is('archived_at', null);
+      const count = (data ?? []).filter(a => !readIds.has(a.id)).length;
+      setAlertUnreadCount(count);
     } catch {}
   }
 
   async function markAlertsRead() {
-    await AsyncStorage.setItem('tarbiyah_alerts_last_seen', new Date().toISOString());
-    setAlertUnreadCount(0);
+    await refreshAlertUnreadCount();
   }
 
   async function applyAccess(subscribed) {
@@ -665,6 +664,7 @@ export default function App() {
           'tarbiyah_child_profiles',
         ]).catch(() => {});
         logoutRevenueCat().catch(() => {});
+        if (session?.user?.id) unregisterPushToken(session.user.id).catch(() => {});
         setHasAccess(__DEV__);
         setIsSubscribed(false);
         setOnboarded(false);
@@ -705,7 +705,8 @@ export default function App() {
           .catch(() => {});
       }
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-        // Save push token on every sign-in and session restore
+        // Ensure Android channel exists, then refresh push token
+        ensureAndroidChannel().catch(() => {});
         if (session?.user?.id) savePushTokenToSupabase().catch(() => {});
       }
       // Background token refresh failed — clear stale session and send to sign-in
@@ -749,12 +750,16 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, onSubscribed: () => { setHasAccess(true); setIsSubscribed(true); }, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData, isSubscribed, trialDaysLeft, alertUnreadCount, markAlertsRead }}>
+    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, onSubscribed: () => { setHasAccess(true); setIsSubscribed(true); }, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData, isSubscribed, trialDaysLeft, alertUnreadCount, markAlertsRead, refreshAlertUnreadCount }}>
       <NavigationContainer
         ref={navigationRef}
         onReady={() => {
-          const response = Notifications.getLastNotificationResponse();
-          if (response) handleNotifNavigation(response.notification.request.content.data ?? {});
+          Notifications.getLastNotificationResponseAsync().then(response => {
+            if (response) {
+              handleNotifNavigation(response.notification.request.content.data ?? {});
+              Notifications.clearLastNotificationResponseAsync().catch(() => {});
+            }
+          }).catch(() => {});
         }}
       >
         <RootStack.Navigator screenOptions={{ headerShown: false }}>

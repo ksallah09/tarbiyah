@@ -8,21 +8,27 @@ import { supabase } from './supabase';
 // ─── Notification handler (must be set before any scheduling) ─────────────────
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldShowAlert:  true,
+    shouldPlaySound:  true,
+    shouldSetBadge:   true,
+    shouldShowBanner: true,
+    shouldShowList:   true,
   }),
 });
 
-// ─── Android channel (required for Android 8+) ────────────────────────────────
-if (Platform.OS === 'android') {
-  Notifications.setNotificationChannelAsync('default', {
-    name: 'Tarbiyah',
-    importance: Notifications.AndroidImportance.HIGH,
-    sound: true,
+// ─── Android channel — call on app startup AND at login, not just registration ─
+export async function ensureAndroidChannel() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name:             'Tarbiyah',
+    importance:       Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
+    lightColor:       '#1B3D2F',
   });
 }
+
+// Run immediately at import so the channel exists before any local notification fires
+ensureAndroidChannel().catch(() => {});
 
 const DAILY_NOTIF_ID_KEY        = 'tarbiyah_daily_notif_id';
 const WEEKLY_SHARE_NOTIF_ID_KEY = 'tarbiyah_weekly_share_notif_id';
@@ -103,6 +109,14 @@ export async function savePushTokenToSupabase() {
     console.log('[PushToken] saved. error:', error ?? 'none');
   } catch (e) {
     console.warn('[PushToken] error:', e?.message ?? e);
+  }
+}
+
+export async function unregisterPushToken(userId) {
+  try {
+    await supabase.from('profiles').update({ push_token: null }).eq('user_id', userId);
+  } catch (e) {
+    console.warn('[PushToken] unregister error:', e?.message ?? e);
   }
 }
 

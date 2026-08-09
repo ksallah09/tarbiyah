@@ -294,7 +294,6 @@ const WORLD_SNAPSHOTS = {
 };
 
 const SECTION_CONFIG = [
-  { key: 'safetyWatch',   emoji: '🛡️', label: 'Safety Alerts',                 safety: true },
   { key: 'onlineWorld',   emoji: '📱', label: 'What They May Be Seeing Online' },
   { key: 'slang',         emoji: '💬', label: 'Slang This Week'                },
   { key: 'humor',         emoji: '😂', label: 'What Kids Are Laughing At'      },
@@ -302,7 +301,6 @@ const SECTION_CONFIG = [
   { key: 'habits',        emoji: '🔄', label: 'Youth Habits'                   },
   { key: 'schoolCulture', emoji: '🏫', label: 'School Culture'                 },
   { key: 'fashionCulture',emoji: '👟', label: 'Fashion & Style'               },
-  { key: 'starters',      emoji: '🗣️', label: 'Ask This Week'                 },
   { key: 'islamicLens',   emoji: '🌙', label: 'Islamic Lens'                   },
 ];
 
@@ -684,9 +682,8 @@ export function ChildWorldCard({ child, flush = false }) {
       )}
       <View style={{ opacity: (loading || preparing) ? 0.35 : 1 }} pointerEvents={(loading || preparing) ? 'none' : 'auto'}>
         {[
-          'safetyWatch',
           'onlineWorld',
-          ...((child?.age ?? 0) > 7 ? ['slang', 'humor', 'habits', 'schoolCulture', 'fashionCulture', 'starters'] : []),
+          ...((child?.age ?? 0) > 7 ? ['slang', 'humor', 'habits', 'schoolCulture', 'fashionCulture'] : []),
           'concerns',
           'islamicLens',
         ].map(key => (

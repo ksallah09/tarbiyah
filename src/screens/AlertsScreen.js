@@ -48,6 +48,24 @@ const SEVERITY = {
 
 const FILTERS = ['All', 'High', 'Important', 'Watch'];
 
+const AGE_FILTERS = [
+  { label: 'All',      min: 0,  max: 99 },
+  { label: '5–8',      min: 5,  max: 8  },
+  { label: '9–12',     min: 9,  max: 12 },
+  { label: '13–15',    min: 13, max: 15 },
+  { label: '16+',      min: 16, max: 99 },
+];
+
+function rangeOverlaps(ageRanges = [], min, max) {
+  if (min === 0 && max === 99) return true;
+  return ageRanges.some(r => {
+    const parts = String(r).split(/[-–]/).map(Number);
+    const lo = parts[0] ?? 0;
+    const hi = parts[1] ?? parts[0] ?? 99;
+    return lo <= max && hi >= min;
+  });
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function timeAgo(dateStr) {
@@ -199,17 +217,35 @@ function AlertDetail({ alert, onBack }) {
 
 export default function AlertsScreen() {
   const insets = useSafeAreaInsets();
-  const { markAlertsRead } = useAuth();
+  const { markAlertsRead, refreshAlertUnreadCount } = useAuth();
 
-  const [alerts,       setAlerts]       = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [refreshing,   setRefreshing]   = useState(false);
-  const [filter,       setFilter]       = useState('All');
+  const [alerts,        setAlerts]        = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [refreshing,    setRefreshing]    = useState(false);
+  const [filter,        setFilter]        = useState('All');
+  const [ageFilter,     setAgeFilter]     = useState(AGE_FILTERS[0]);
   const [selectedAlert, setSelectedAlert] = useState(null);
-  const [lastSeen,     setLastSeen]     = useState(null);
-  const [showOlder,    setShowOlder]    = useState(false);
+  const [readIds,       setReadIds]       = useState(new Set());
+  const [showOlder,     setShowOlder]     = useState(false);
 
   const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const READ_IDS_KEY = 'tarbiyah_alerts_read_ids';
+
+  const loadReadIds = useCallback(async () => {
+    const raw = await AsyncStorage.getItem(READ_IDS_KEY);
+    setReadIds(new Set(raw ? JSON.parse(raw) : []));
+  }, []);
+
+  const markAlertRead = useCallback(async (id) => {
+    setReadIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      AsyncStorage.setItem(READ_IDS_KEY, JSON.stringify([...next])).then(() => {
+        refreshAlertUnreadCount();
+      });
+      return next;
+    });
+  }, [refreshAlertUnreadCount]);
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -223,14 +259,11 @@ export default function AlertsScreen() {
     } catch {}
   }, []);
 
-  // Capture lastSeen BEFORE marking read, so dots render correctly this session
   useFocusEffect(useCallback(() => {
-    AsyncStorage.getItem('tarbiyah_alerts_last_seen').then(val => {
-      setLastSeen(val);
-      markAlertsRead();
-    });
+    loadReadIds();
+    markAlertsRead(); // clears the shield badge count
     fetchAlerts().finally(() => setLoading(false));
-  }, [fetchAlerts, markAlertsRead]));
+  }, [loadReadIds, fetchAlerts, markAlertsRead]));
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -239,9 +272,10 @@ export default function AlertsScreen() {
   }
 
   const bySeverity = filter === 'All' ? alerts : alerts.filter(a => a.severity === filter);
-  const recent  = bySeverity.filter(a => new Date(a.published_at) >= THIRTY_DAYS_AGO);
-  const older   = bySeverity.filter(a => new Date(a.published_at) <  THIRTY_DAYS_AGO);
-  const filtered = showOlder ? bySeverity : recent;
+  const byAge      = bySeverity.filter(a => rangeOverlaps(a.age_ranges, ageFilter.min, ageFilter.max));
+  const recent  = byAge.filter(a => new Date(a.published_at) >= THIRTY_DAYS_AGO);
+  const older   = byAge.filter(a => new Date(a.published_at) <  THIRTY_DAYS_AGO);
+  const filtered = showOlder ? byAge : recent;
 
   if (selectedAlert) {
     return <AlertDetail alert={selectedAlert} onBack={() => setSelectedAlert(null)} />;
@@ -255,7 +289,7 @@ export default function AlertsScreen() {
       <View style={[s.header, { paddingTop: 16 }]}>
         <Text style={s.heading}>Alerts</Text>
 
-        {/* Filter tabs */}
+        {/* Severity filter */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filterRow}>
           {FILTERS.map(f => (
             <TouchableOpacity
@@ -267,6 +301,23 @@ export default function AlertsScreen() {
               <Text style={[s.filterTabText, filter === f && s.filterTabTextActive]}>{f}</Text>
             </TouchableOpacity>
           ))}
+        </ScrollView>
+
+        {/* Age filter */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.ageFilterScroll} contentContainerStyle={s.ageFilterRow}>
+          {AGE_FILTERS.map(af => {
+            const active = af.label === ageFilter.label;
+            return (
+              <TouchableOpacity
+                key={af.label}
+                style={[s.ageTab, active && s.ageTabActive]}
+                onPress={() => setAgeFilter(af)}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.ageTabText, active && s.ageTabTextActive]}>{af.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -292,8 +343,8 @@ export default function AlertsScreen() {
             <AlertCard
               key={alert.id}
               alert={alert}
-              isUnread={lastSeen ? new Date(alert.published_at) > new Date(lastSeen) : true}
-              onPress={() => setSelectedAlert(alert)}
+              isUnread={!readIds.has(alert.id)}
+              onPress={() => { markAlertRead(alert.id); setSelectedAlert(alert); }}
             />
           ))}
 
@@ -334,6 +385,18 @@ const s = StyleSheet.create({
   filterTabActive:     { backgroundColor: '#1B3D2F' },
   filterTabText:       { fontSize: 14, fontWeight: '600', color: '#6B7280' },
   filterTabTextActive: { color: '#FFFFFF' },
+
+  ageFilterScroll: { marginBottom: 4 },
+  ageFilterRow:    { flexDirection: 'row', gap: 6, paddingBottom: 12 },
+  ageTab: {
+    paddingHorizontal: 14, paddingVertical: 5,
+    borderRadius: 100,
+    backgroundColor: 'transparent',
+    borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  ageTabActive:     { backgroundColor: '#F0F7F4', borderColor: '#1B3D2F' },
+  ageTabText:       { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
+  ageTabTextActive: { color: '#1B3D2F' },
   separator:           { height: 1, backgroundColor: '#F3F4F6' },
 
   // Cards

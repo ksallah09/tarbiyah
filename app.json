@@ -15,7 +15,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.tarbiyah.parenting",
       "usesAppleSignIn": true,
-      "buildNumber": "31",
+      "buildNumber": "32",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",

@@ -109,137 +109,139 @@ export default function InsightDetailScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
       <StatusBar style="light" />
-      {/* ── Image Header ── */}
-      <ImageBackground
-        source={headerImage}
-        style={styles.header}
-        imageStyle={styles.headerImg}
-        resizeMode="cover"
-      >
-        <LinearGradient
-          colors={overlayColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={[styles.headerOverlay, { paddingTop: insets.top + 12 }]}
+
+      {/* ── Fixed nav overlay ── */}
+      <View style={[styles.navBar, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <View style={styles.headerNav}>
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={() => navigation.goBack()}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="chevron-back" size={22} color="#fff" />
-              <Text style={styles.backLabel}>Back</Text>
-            </TouchableOpacity>
-            <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.headerActionBtn} onPress={handleShare} disabled={sharing}>
-                {sharing
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Ionicons name="share-outline" size={20} color="#fff" />
-                }
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.headerActionBtn} onPress={toggleSave}>
-                <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <Ionicons name="chevron-back" size={22} color="#fff" />
+          <Text style={styles.backLabel}>Back</Text>
+        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerActionBtn} onPress={handleShare} disabled={sharing}>
+            {sharing
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Ionicons name="share-outline" size={20} color="#fff" />
+            }
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerActionBtn} onPress={toggleSave}>
+            <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-          <View style={styles.typePill}>
-            <Text style={styles.typePillText}>{typeLabel}</Text>
-          </View>
-
-          {insight.insightTitle ? (
-            <Text style={styles.headerInsightTitle}>{insight.insightTitle}</Text>
-          ) : null}
-
-          <Text style={styles.headerSubtitle}>{insight.dailyInsight}</Text>
-        </LinearGradient>
-      </ImageBackground>
-
-      {/* ── Content ── */}
+      {/* ── Full-screen scroll ── */}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Key Takeaway ── */}
-        <Text style={[styles.sectionLabel, { color: accentColor }]}>KEY TAKEAWAY</Text>
-        <Text style={styles.bodyText}>{insight.body}</Text>
-
-        <View style={styles.divider} />
-
-        {/* ── Action step ── */}
-        {insight.actionStep && (
-          <>
-            <Text style={[styles.sectionLabel, { color: accentColor }]}>{goalLabel.toUpperCase()}</Text>
-            <Text style={styles.bodyText}>{insight.actionStep}</Text>
-            <View style={styles.divider} />
-          </>
-        )}
-
-        <TouchableOpacity
-          style={[styles.readBtn, { backgroundColor: read ? '#E8F5EF' : accentColor }]}
-          onPress={handleMarkRead}
-          activeOpacity={read ? 1 : 0.82}
-          disabled={read}
+        {/* Header image scrolls with content */}
+        <ImageBackground
+          source={headerImage}
+          style={styles.header}
+          imageStyle={styles.headerImg}
+          resizeMode="cover"
         >
-          <Ionicons
-            name={read ? 'checkmark-circle' : 'checkmark-circle-outline'}
-            size={22}
-            color={read ? accentColor : '#FFFFFF'}
-          />
-          <Text style={[styles.readBtnText, { color: read ? accentColor : '#FFFFFF' }]}>
-            {read ? 'You read this' : 'Mark as Read'}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.divider} />
-
-        {/* ── Source attribution ── */}
-        {insight.sourceDetail && (
-          <>
-            <View style={styles.sourceBlock}>
-              <Text style={styles.sourceExtractedLabel}>THIS INSIGHT WAS INSPIRED BY</Text>
-              <Text style={styles.sourceTitle}>"{insight.sourceDetail.sourceTitle}"</Text>
-              {insight.sourceDetail?.speakerOrAuthor ? (
-                <Text style={styles.sourceBylineName}>{insight.sourceDetail.speakerOrAuthor}</Text>
-              ) : null}
-              <TouchableOpacity
-                style={[styles.sourceLink, { borderColor: accentColor + '40', backgroundColor: accentColor + '08' }]}
-                onPress={() => {
-                  const url = insight.sourceDetail?.sourceUrl ?? insight.source;
-                  if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-                    Linking.openURL(url);
-                  }
-                }}
-                activeOpacity={0.75}
-              >
-                <Ionicons name={sourceIcon} size={14} color={accentColor} />
-                <Text style={[styles.sourceLinkText, { color: accentColor }]}>
-                  View Source
-                </Text>
-                <Ionicons name="open-outline" size={13} color={accentColor} style={{ marginLeft: 'auto' }} />
-              </TouchableOpacity>
+          <LinearGradient
+            colors={overlayColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={[styles.headerOverlay, { paddingTop: insets.top + 64 }]}
+          >
+            <View style={styles.typePill}>
+              <Text style={styles.typePillText}>{typeLabel}</Text>
             </View>
-            <View style={styles.divider} />
-          </>
-        )}
 
-        {/* ── Tags ── */}
-        {insight.tags?.length > 0 && (
-          <>
-            <Text style={[styles.sectionLabel, { color: accentColor }]}>TOPICS</Text>
-            <View style={styles.tagsRow}>
-              {insight.tags.map(tag => (
-                <View key={tag} style={[styles.tag, { backgroundColor: accentColor + '15' }]}>
-                  <Text style={[styles.tagText, { color: accentColor }]}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
+            {insight.insightTitle ? (
+              <Text style={styles.headerInsightTitle}>{insight.insightTitle}</Text>
+            ) : null}
+          </LinearGradient>
+        </ImageBackground>
 
-        <View style={{ height: 32 }} />
+        {/* ── Content ── */}
+        <View style={styles.content}>
+          {/* ── Key Takeaway ── */}
+          <Text style={[styles.sectionLabel, { color: accentColor }]}>KEY TAKEAWAY</Text>
+          <Text style={styles.bodyText}>{insight.body}</Text>
+
+          <View style={styles.divider} />
+
+          {/* ── Action step ── */}
+          {insight.actionStep && (
+            <>
+              <Text style={[styles.sectionLabel, { color: accentColor }]}>{goalLabel.toUpperCase()}</Text>
+              <Text style={styles.bodyText}>{insight.actionStep}</Text>
+              <View style={styles.divider} />
+            </>
+          )}
+
+          <TouchableOpacity
+            style={[styles.readBtn, { backgroundColor: read ? '#E8F5EF' : accentColor }]}
+            onPress={handleMarkRead}
+            activeOpacity={read ? 1 : 0.82}
+            disabled={read}
+          >
+            <Ionicons
+              name={read ? 'checkmark-circle' : 'checkmark-circle-outline'}
+              size={22}
+              color={read ? accentColor : '#FFFFFF'}
+            />
+            <Text style={[styles.readBtnText, { color: read ? accentColor : '#FFFFFF' }]}>
+              {read ? 'You read this' : 'Mark as Read'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          {/* ── Source attribution ── */}
+          {insight.sourceDetail && (
+            <>
+              <View style={styles.sourceBlock}>
+                <Text style={styles.sourceExtractedLabel}>THIS INSIGHT WAS INSPIRED BY</Text>
+                <Text style={styles.sourceTitle}>"{insight.sourceDetail.sourceTitle}"</Text>
+                {insight.sourceDetail?.speakerOrAuthor ? (
+                  <Text style={styles.sourceBylineName}>{insight.sourceDetail.speakerOrAuthor}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.sourceLink, { borderColor: accentColor + '40', backgroundColor: accentColor + '08' }]}
+                  onPress={() => {
+                    const url = insight.sourceDetail?.sourceUrl ?? insight.source;
+                    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                      Linking.openURL(url);
+                    }
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name={sourceIcon} size={14} color={accentColor} />
+                  <Text style={[styles.sourceLinkText, { color: accentColor }]}>
+                    View Source
+                  </Text>
+                  <Ionicons name="open-outline" size={13} color={accentColor} style={{ marginLeft: 'auto' }} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.divider} />
+            </>
+          )}
+
+          {/* ── Tags ── */}
+          {insight.tags?.length > 0 && (
+            <>
+              <Text style={[styles.sectionLabel, { color: accentColor }]}>TOPICS</Text>
+              <View style={styles.tagsRow}>
+                {insight.tags.map(tag => (
+                  <View key={tag} style={[styles.tag, { backgroundColor: accentColor + '15' }]}>
+                    <Text style={[styles.tagText, { color: accentColor }]}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+
+          <View style={{ height: 32 }} />
+        </View>
       </ScrollView>
 
       {/* ── Off-screen share card (captured as image) ── */}
@@ -296,20 +298,16 @@ export default function InsightDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#FFFFFF' },
 
-  // ── Header ──
-  header: {
-    overflow: 'hidden',
-  },
-  headerImg: {},
-  headerOverlay: {
-    paddingHorizontal: hp,
-    paddingBottom: 30,
-  },
-  headerNav: {
+  // ── Fixed nav ──
+  navBar: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    zIndex: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    paddingHorizontal: hp,
+    paddingBottom: 12,
   },
   backBtn: {
     flexDirection: 'row',
@@ -320,6 +318,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   headerActions: {
     flexDirection: 'row',
@@ -329,9 +330,23 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // ── Header ──
+  header: {
+    overflow: 'hidden',
+    minHeight: 300,
+  },
+  headerImg: {},
+  headerOverlay: {
+    flex: 1,
+    paddingHorizontal: hp,
+    paddingBottom: 30,
+    justifyContent: 'flex-end',
+    gap: 10,
   },
   typePill: {
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -365,7 +380,7 @@ const styles = StyleSheet.create({
 
   // ── Scroll ──
   scroll: { flex: 1, backgroundColor: '#FFFFFF' },
-  content: { paddingHorizontal: hp, paddingTop: 28 },
+  content: { paddingHorizontal: hp, paddingTop: 28, backgroundColor: '#FFFFFF' },
 
   // ── Section label ──
   sectionLabel: {

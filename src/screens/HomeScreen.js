@@ -18,8 +18,8 @@ try { captureRef = require('react-native-view-shot').captureRef; } catch {}
 let Sharing = null;
 try { Sharing = require('expo-sharing'); } catch {}
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const TIP_CARD_WIDTH = SCREEN_WIDTH - 80; // 20 left inset + 12 gap + 48 peek
+const SCREEN_WIDTH    = Dimensions.get('window').width;
+const TIP_CARD_WIDTH  = SCREEN_WIDTH - 80; // 20 left inset + 12 gap + 48 peek
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -164,7 +164,7 @@ async function getProfileName() {
 }
 
 export default function HomeScreen({ navigation, route }) {
-  const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft, alertUnreadCount } = useAuth();
+  const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft, alertUnreadCount, refreshAlertUnreadCount } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [dailyData, setDailyData]            = useState(null);
@@ -181,6 +181,7 @@ export default function HomeScreen({ navigation, route }) {
   const [imgIndex, setImgIndex]              = useState(DAY_INDEX);
   const [spiritReadToday, setSpiritReadToday] = useState(false);
   const [sciReadToday,    setSciReadToday]    = useState(false);
+  const [insightIndex,    setInsightIndex]    = useState(0);
   // const [trendingChallenges, setTrendingChallenges] = useState([]); // TODO: re-enable in future release
   const [streak,      setStreak]      = useState(0);
   const [sciStreak,   setSciStreak]   = useState(0);
@@ -190,6 +191,7 @@ export default function HomeScreen({ navigation, route }) {
   const [myMonthTotal,      setMyMonthTotal]      = useState(0);
   const [partnerMonthTotal, setPartnerMonthTotal] = useState(0);
   const [cultureModalOpen, setCultureModalOpen] = useState(false);
+  const [recentAlerts, setRecentAlerts] = useState([]);
   const [familyGoals,      setFamilyGoals]      = useState([]);
   const [goalCompletions,  setGoalCompletions]  = useState([]);
   const [weekCompletions, setWeekCompletions] = useState({});
@@ -205,6 +207,8 @@ export default function HomeScreen({ navigation, route }) {
   const [duaSharing, setDuaSharing] = useState(false);
   const [challengeFocus, setChallengeF] = useState(0);
   const duaShareCardRef = useRef(null);
+  const insightScrollRef  = useRef(null);
+  const insightIntervalRef = useRef(null);
   const insightIdsRef     = useRef({ spiritual: null, scientific: null });
   const partnerChannelRef = useRef(null);
   const focusInitialisedRef = useRef(false);
@@ -368,6 +372,8 @@ export default function HomeScreen({ navigation, route }) {
       getStreak('quran').then(setQuranStreak);
       isReadToday('quran', dailyAyah.reference).then(setAyahRead);
       refreshChildrenAndSnaps();
+      refreshAlertUnreadCount();
+      supabase.from('alerts').select('id,severity,title,published_at').order('published_at', { ascending: false }).limit(3).then(({ data }) => setRecentAlerts(data ?? []));
       loadFamilyGoalsCached().then(setFamilyGoals);
       loadFamilyGoals().then(setFamilyGoals);
       loadCompletions().then(setGoalCompletions);
@@ -471,6 +477,21 @@ export default function HomeScreen({ navigation, route }) {
     if (scienceInsight?.id) isReadToday('scientific', scienceInsight.id).then(setSciReadToday);
     else setSciReadToday(false);
   }, [scienceInsight?.id]);
+
+  // Auto-advance insight carousel every 5s; pauses on manual swipe
+  useEffect(() => {
+    if (!spiritualInsight || !scienceInsight) return;
+    const totalCards = 2;
+    insightIntervalRef.current = setInterval(() => {
+      setInsightIndex(prev => {
+        const next = (prev + 1) % totalCards;
+        insightScrollRef.current?.scrollTo({ x: next * SCREEN_WIDTH, animated: true });
+        return next;
+      });
+    }, 5000);
+    return () => clearInterval(insightIntervalRef.current);
+  }, [spiritualInsight?.id, scienceInsight?.id]);
+
   useEffect(() => {
     if (loading) return;
     Animated.parallel([
@@ -533,7 +554,7 @@ export default function HomeScreen({ navigation, route }) {
                   onPress={() => navigation.navigate('Alerts')}
                   activeOpacity={0.75}
                 >
-                  <Ionicons name="shield-outline" size={22} color="rgba(255,255,255,0.85)" />
+                  <Ionicons name="shield-outline" size={26} color="rgba(255,255,255,0.85)" />
                   {alertUnreadCount > 0 && (
                     <View style={styles.heroShieldBadge}>
                       <Text style={styles.heroShieldBadgeText}>
@@ -560,7 +581,6 @@ export default function HomeScreen({ navigation, route }) {
                 </TouchableOpacity>
               </View>
             </View>
-
           </View>
 
           {/* ── Content ── */}
@@ -596,118 +616,113 @@ export default function HomeScreen({ navigation, route }) {
                   onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'configure' } })}
                   activeOpacity={0.85}
                 >
-                  <View style={styles.setupBannerIcon}>
-                    <Text style={{ fontSize: 20 }}>🌱</Text>
-                  </View>
+                  <Text style={{ fontSize: 15 }}>🌱</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.setupBannerTitle}>Finish setting up your family</Text>
                     <Text style={styles.setupBannerSub}>
-                      {!hasChildren && !hasFamilyGoals
-                        ? 'Add your children and set family goals to complete setup.'
-                        : !hasChildren
-                          ? 'Add your children to unlock personalised dashboards and growth plans.'
-                          : 'Set family goals to complete setup.'}
+                      {!hasChildren && !hasFamilyGoals ? 'Add children & goals' : !hasChildren ? 'Add your children' : 'Set family goals'}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#2E7D62" />
+                  <Ionicons name="chevron-forward" size={14} color="#2E7D62" />
                 </TouchableOpacity>
               )}
 
 
-              {/* TODAY'S PARENTING INSIGHTS */}
-              <View style={styles.sectionTitleWrap}>
-                <Text style={styles.sectionEyebrow}>DAILY</Text>
-                <Text style={styles.sectionTitle}>Today's Insights</Text>
-              </View>
-
-
-              {spiritualInsight && (
-                <TouchableOpacity
-                  style={styles.insightCard}
-                  activeOpacity={0.9}
-                  onPress={() => navigation.navigate('InsightDetail', { insight: spiritualInsight, headerImage: dailySpiritualImage })}
-                >
-                  <ImageBackground
-                    source={dailySpiritualImage}
-                    style={styles.insightCardBg}
-                    imageStyle={styles.insightCardImg}
-                    resizeMode="cover"
-                  >
-                    <LinearGradient
-                      colors={['rgba(10,30,20,0.25)', 'rgba(10,30,20,0.82)']}
-                      start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                      style={styles.insightCardOverlay}
+              {/* TODAY'S INSIGHTS — full-bleed swipe carousel */}
+              {(spiritualInsight || scienceInsight) && (() => {
+                const cards = [
+                  spiritualInsight && {
+                    key: 'spiritual', insight: spiritualInsight, image: dailySpiritualImage,
+                    readToday: spiritReadToday, icon: 'moon', label: 'Daily Spiritual Insight',
+                    pill: styles.insightTypePill,
+                    gradient: ['rgba(10,30,20,0.1)', 'rgba(10,30,20,0.88)'],
+                  },
+                  scienceInsight && {
+                    key: 'science', insight: scienceInsight, image: dailyScienceImage,
+                    readToday: sciReadToday, icon: 'bulb-outline', label: 'Daily Research Insight',
+                    pill: [styles.insightTypePill, styles.insightTypePillAmber],
+                    gradient: ['rgba(30,15,5,0.1)', 'rgba(30,15,5,0.88)'],
+                  },
+                ].filter(Boolean);
+                return (
+                  <>
+                    <ScrollView
+                      ref={insightScrollRef}
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      style={{ marginHorizontal: -hp }}
+                      onScrollBeginDrag={() => clearInterval(insightIntervalRef.current)}
+                      onMomentumScrollEnd={e => {
+                        const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+                        setInsightIndex(idx);
+                        // Resume auto-advance after manual swipe
+                        clearInterval(insightIntervalRef.current);
+                        insightIntervalRef.current = setInterval(() => {
+                          setInsightIndex(prev => {
+                            const next = (prev + 1) % 2;
+                            insightScrollRef.current?.scrollTo({ x: next * SCREEN_WIDTH, animated: true });
+                            return next;
+                          });
+                        }, 5000);
+                      }}
                     >
-                      <View style={styles.insightCardTop}>
-                        <View style={styles.insightTypePill}>
-                          <Ionicons name="moon" size={10} color="rgba(255,255,255,0.9)" />
-                          <Text style={styles.insightTypeText}>Spiritual Insight</Text>
+                      {cards.map(card => (
+                        <TouchableOpacity
+                          key={card.key}
+                          style={[styles.insightCard, { width: SCREEN_WIDTH }]}
+                          activeOpacity={0.9}
+                          onPress={() => navigation.navigate('InsightDetail', { insight: card.insight, headerImage: card.image })}
+                        >
+                          <ImageBackground source={card.image} style={styles.insightCardFeaturedBg} imageStyle={styles.insightCardImg} resizeMode="cover">
+                            <LinearGradient colors={card.gradient} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.insightCardOverlay}>
+                              <View style={styles.insightCardTop}>
+                                <View style={card.pill}>
+                                  <Ionicons name={card.icon} size={10} color="rgba(255,255,255,0.9)" />
+                                  <Text style={styles.insightTypeText}>{card.label}</Text>
+                                </View>
+                                {card.readToday && (
+                                  <View style={styles.insightReadBadge}>
+                                    <Ionicons name="checkmark-circle" size={11} color="#4ADE80" />
+                                    <Text style={styles.insightReadBadgeText}>READ</Text>
+                                  </View>
+                                )}
+                              </View>
+                              <View style={styles.insightCardBottom}>
+                                <Text style={styles.insightCardFeaturedTitle}>{card.insight.insightTitle}</Text>
+                                <Text style={styles.insightCardBody} numberOfLines={3}>{card.insight.body}</Text>
+                                <View style={styles.insightCardFooter}>
+                                  <View style={styles.insightReadMore}>
+                                    <Text style={styles.insightReadMoreText}>Read more</Text>
+                                    <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
+                                  </View>
+                                </View>
+                              </View>
+                            </LinearGradient>
+                          </ImageBackground>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    {cards.length > 1 && (
+                      <>
+                        <View style={styles.insightDots}>
+                          {cards.map((_, i) => (
+                            <View key={i} style={[styles.insightDot, i === insightIndex && styles.insightDotActive]} />
+                          ))}
                         </View>
-                      </View>
-                      <View style={styles.insightCardBottom}>
-                        <Text style={styles.insightCardTitle}>{spiritualInsight.insightTitle}</Text>
-                        <Text style={styles.insightCardBody} numberOfLines={3}>{spiritualInsight.body}</Text>
-                        <View style={styles.insightCardFooter}>
-                          {spiritReadToday && (
-                            <View style={styles.insightReadTodayPill}>
-                              <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
-                              <Text style={styles.insightReadTodayText}>Read today</Text>
-                            </View>
-                          )}
-                          <View style={styles.insightReadMore}>
-                            <Text style={styles.insightReadMoreText}>Read more</Text>
-                            <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
-                          </View>
+                        <View style={styles.insightSwipeHint}>
+                          <Text style={styles.insightSwipeHintTop}>Swipe to read</Text>
+                          <Text style={styles.insightSwipeHintSub} numberOfLines={1}>
+                            {insightIndex === 0
+                              ? `Research Insight: ${scienceInsight?.insightTitle ?? ''}`
+                              : `Spiritual Insight: ${spiritualInsight?.insightTitle ?? ''}`}
+                          </Text>
                         </View>
-                      </View>
-                    </LinearGradient>
-                  </ImageBackground>
-                </TouchableOpacity>
-              )}
-
-              {scienceInsight && (
-                <TouchableOpacity
-                  style={styles.insightCard}
-                  activeOpacity={0.9}
-                  onPress={() => navigation.navigate('InsightDetail', { insight: scienceInsight, headerImage: dailyScienceImage })}
-                >
-                  <ImageBackground
-                    source={dailyScienceImage}
-                    style={styles.insightCardBg}
-                    imageStyle={styles.insightCardImg}
-                    resizeMode="cover"
-                  >
-                    <LinearGradient
-                      colors={['rgba(30,15,5,0.25)', 'rgba(30,15,5,0.82)']}
-                      start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                      style={styles.insightCardOverlay}
-                    >
-                      <View style={styles.insightCardTop}>
-                        <View style={[styles.insightTypePill, styles.insightTypePillAmber]}>
-                          <Ionicons name="bulb-outline" size={10} color="rgba(255,255,255,0.9)" />
-                          <Text style={styles.insightTypeText}>Research Insight</Text>
-                        </View>
-                      </View>
-                      <View style={styles.insightCardBottom}>
-                        <Text style={styles.insightCardTitle}>{scienceInsight.insightTitle}</Text>
-                        <Text style={styles.insightCardBody} numberOfLines={3}>{scienceInsight.body}</Text>
-                        <View style={styles.insightCardFooter}>
-                          {sciReadToday && (
-                            <View style={styles.insightReadTodayPill}>
-                              <Ionicons name="checkmark-circle" size={13} color="#4ADE80" />
-                              <Text style={styles.insightReadTodayText}>Read today</Text>
-                            </View>
-                          )}
-                          <View style={styles.insightReadMore}>
-                            <Text style={styles.insightReadMoreText}>Read more</Text>
-                            <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.8)" />
-                          </View>
-                        </View>
-                      </View>
-                    </LinearGradient>
-                  </ImageBackground>
-                </TouchableOpacity>
-              )}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* ── Habit of the Day ── */}
               {hasChildren && (() => {
@@ -724,48 +739,49 @@ export default function HomeScreen({ navigation, route }) {
                 const childName  = isPlanComplete ? (activeChild?.name?.split(' ')[0] ?? '') : focus.childName;
                 return (
                   <>
-                    <View style={styles.sectionTitleWrap}>
-                      <Text style={styles.sectionEyebrow}>DAILY</Text>
-                      <Text style={styles.sectionTitle}>Practical Steps</Text>
+                    <View style={styles.fbDivider} />
+                    <View style={[styles.sectionTitleWrap, { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }]}>
+                      <View>
+                        <Text style={styles.sectionEyebrow}>DAILY</Text>
+                        <Text style={styles.sectionTitle}>Habit of the Day</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                        {eligible.length > 1 ? (
+                          <TouchableOpacity
+                            style={[styles.focusChildSelector, { backgroundColor: childColor + '18' }]}
+                            onPress={() => setFocusDropdownOpen(o => !o)}
+                            activeOpacity={0.7}
+                          >
+                            <View style={[styles.focusSelectorAvatar, { backgroundColor: childColor }]}>
+                              {activeChild?.photo
+                                ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
+                                : <Text style={styles.focusSelectorAvatarInitial}>{childName[0]}</Text>
+                              }
+                            </View>
+                            <Text style={[styles.focusChildSelectorText, { color: childColor }]}>{childName}</Text>
+                            <Ionicons name={focusDropdownOpen ? 'chevron-up' : 'chevron-down'} size={11} color={childColor} />
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={[styles.focusChildSelector, { backgroundColor: childColor + '18' }]}>
+                            <View style={[styles.focusSelectorAvatar, { backgroundColor: childColor }]}>
+                              {activeChild?.photo
+                                ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
+                                : <Text style={styles.focusSelectorAvatarInitial}>{childName[0]}</Text>
+                              }
+                            </View>
+                            <Text style={[styles.focusChildSelectorText, { color: childColor }]}>{childName}</Text>
+                          </View>
+                        )}
+                        {eligible.length > 1 && (
+                          <Text style={styles.focusSwitchHint}>Tap to switch child</Text>
+                        )}
+                      </View>
                     </View>
 
                     <View style={styles.focusCard}>
-
-                      {/* ── Header band ── */}
-                      <View style={[styles.focusCardHeader, { backgroundColor: childColor }]}>
-                        <Text style={styles.focusEyebrow}>{isPlanComplete ? '✅ PLAN COMPLETE' : '🌱 HABIT OF THE DAY'}</Text>
-                        <View style={{ alignItems: 'flex-end' }}>
-                          {eligible.length > 1 ? (
-                            <TouchableOpacity
-                              style={styles.focusChildSelector}
-                              onPress={() => setFocusDropdownOpen(o => !o)}
-                              activeOpacity={0.7}
-                            >
-                              <View style={styles.focusSelectorAvatar}>
-                                {activeChild?.photo
-                                  ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
-                                  : <Text style={styles.focusSelectorAvatarInitial}>{childName[0]}</Text>
-                                }
-                              </View>
-                              <Text style={styles.focusChildSelectorText}>{childName}</Text>
-                              <Ionicons name={focusDropdownOpen ? 'chevron-up' : 'chevron-down'} size={11} color="rgba(255,255,255,0.8)" />
-                            </TouchableOpacity>
-                          ) : (
-                            <View style={styles.focusChildSelector}>
-                              <View style={styles.focusSelectorAvatar}>
-                                {activeChild?.photo
-                                  ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
-                                  : <Text style={styles.focusSelectorAvatarInitial}>{childName[0]}</Text>
-                                }
-                              </View>
-                              <Text style={styles.focusChildSelectorText}>{childName}</Text>
-                            </View>
-                          )}
-                          {eligible.length > 1 && (
-                            <Text style={styles.focusSwitchHint}>Tap to switch child</Text>
-                          )}
-                        </View>
-                      </View>
+                      {isPlanComplete && (
+                        <Text style={styles.focusEyebrow}>✅ Plan Complete</Text>
+                      )}
 
                       {/* ── Dropdown ── */}
                       {focusDropdownOpen && eligible.length > 1 && (
@@ -840,106 +856,69 @@ export default function HomeScreen({ navigation, route }) {
 
 
 
-              {/* SAFETY WATCH DIGEST */}
-              {/* Safety Watch — teaser when no children, digest when children exist */}
+              {/* YOUTH NEWS */}
               {(() => {
+                const ALERT_COLORS = { High: '#EF4444', Important: '#F59E0B', Watch: '#3B82F6' };
                 const rank = { high: 0, medium: 1, low: 2 };
-                const totalCount = children.reduce((sum, c) => {
+                const trends = children.flatMap(c => {
                   const snap = worldSnaps[c.id];
-                  return sum + (snap?.safetyWatch ?? []).length;
-                }, 0);
-                const preview = children.flatMap(c => {
-                  const snap = worldSnaps[c.id];
-                  return (snap?.safetyWatch ?? [])
-                    .map(a => ({ ...a, childName: c.name, childColor: c.color }))
-                    .sort((a, b) => (rank[a.severity] ?? 1) - (rank[b.severity] ?? 1))
-                    .slice(0, 2);
-                });
-                const hasAlerts = totalCount > 0;
-                const remaining = totalCount - preview.length;
+                  return (snap?.safetyWatch ?? []).map(a => ({ ...a, childName: c.name, childColor: c.color }));
+                }).sort((a, b) => (rank[a.severity] ?? 1) - (rank[b.severity] ?? 1)).slice(0, 3);
 
                 return (
                   <>
-                    <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                    <View style={styles.fbDivider} />
+                    <View style={styles.sectionTitleWrap}>
                       <Text style={styles.sectionEyebrow}>THIS WEEK</Text>
-                      <Text style={styles.sectionTitle}>Safety Watch</Text>
+                      <Text style={styles.sectionTitle}>Youth News</Text>
                     </View>
 
-                    {!hasChildren ? (
-                      /* Feature teaser — no children added yet */
-                      <TouchableOpacity
-                        style={styles.safetyTeaser}
-                        activeOpacity={0.88}
-                        onPress={() => navigation.navigate('AddChildWizard')}
-                      >
-                        <View style={styles.safetyTeaserHeader}>
-                          <View style={styles.safetyTeaserIconWrap}>
-                            <Ionicons name="shield-outline" size={20} color="#FFFFFF" />
+                    {/* Part 1 — Safety Alerts */}
+                    <View>
+                      <View style={styles.ynSubRow}>
+                        <Text style={styles.ynSubLabel}>SAFETY ALERTS</Text>
+                      </View>
+                      {recentAlerts.length === 0 ? (
+                        <Text style={styles.ynEmpty}>No recent alerts</Text>
+                      ) : (
+                        recentAlerts.map(alert => (
+                          <View key={alert.id} style={styles.ynItemRow}>
+                            <View style={[styles.ynDot, { backgroundColor: ALERT_COLORS[alert.severity] ?? '#9CA3AF' }]} />
+                            <Text style={styles.ynItemTitle} numberOfLines={1}>{alert.title}</Text>
+                            <Text style={styles.ynItemMeta}>{alert.severity}</Text>
                           </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.safetyTeaserTitle}>Guidance begins with Understanding</Text>
-                            <Text style={styles.safetyTeaserSub}>Weekly Youth Culture Updates</Text>
-                          </View>
-                        </View>
-                        {[
-                          { emoji: '🛡️', text: 'Real-time safety alerts by age group' },
-                          { emoji: '📈', text: 'Youth culture & online trends this week' },
-                          { emoji: '🔍', text: 'Islamic lens on what kids are exposed to' },
-                        ].map((item, i) => (
-                          <View key={i} style={styles.safetyTeaserRow}>
-                            <Text style={{ fontSize: 13 }}>{item.emoji}</Text>
-                            <Text style={styles.safetyTeaserRowText}>{item.text}</Text>
-                          </View>
-                        ))}
-                        <Text style={styles.safetyTeaserPowered}>Powered by Google Trends, YouTube, Reddit, and more</Text>
-                        <View style={styles.safetyTeaserCTA}>
-                          <Text style={styles.safetyTeaserCTAText}>Add a child to unlock</Text>
-                          <Ionicons name="arrow-forward" size={14} color="#1B3D2F" />
-                        </View>
-                      </TouchableOpacity>
-                    ) : (
-                      /* Safety digest — children exist */
-                      <TouchableOpacity
-                        style={[styles.safetyDigestCard, hasAlerts && styles.safetyDigestCardAlert]}
-                        activeOpacity={0.88}
-                        onPress={() => setCultureModalOpen(true)}
-                      >
-                        <View style={styles.safetyDigestHeader}>
-                          <View style={[styles.safetyDigestIconWrap, !hasAlerts && { backgroundColor: '#EDF7F2' }]}>
-                            <Text style={{ fontSize: 18 }}>{hasAlerts ? '🛡️' : '✅'}</Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.safetyDigestTitle, !hasAlerts && { color: '#1B4D3E' }]}>
-                              {hasAlerts
-                                ? `${totalCount} safety alert${totalCount > 1 ? 's' : ''}`
-                                : 'No safety alerts this week'}
-                            </Text>
-                            <Text style={[styles.safetyDigestSub, !hasAlerts && { color: '#2E7D62' }]}>
-                              {hasAlerts ? 'Tap to view full youth culture digest' : 'Tap to view youth culture digest'}
-                            </Text>
-                          </View>
-                          <Ionicons name="chevron-forward" size={16} color={hasAlerts ? '#DC2626' : '#2E7D62'} />
-                        </View>
+                        ))
+                      )}
+                    </View>
 
-                        {hasAlerts && preview.map((alert, i) => (
-                          <View key={i} style={styles.safetyDigestRow}>
-                            <View style={[styles.safetyDigestSeverityDot, {
-                              backgroundColor: alert.severity === 'high' ? '#DC2626' : alert.severity === 'medium' ? '#D4871A' : '#9CA3AF',
-                            }]} />
-                            <Text style={styles.safetyDigestThreat} numberOfLines={1}>{alert.threat}</Text>
-                            {children.length > 1 && (
-                              <View style={[styles.safetyDigestChildPill, { backgroundColor: alert.childColor + '22' }]}>
-                                <Text style={[styles.safetyDigestChildName, { color: alert.childColor }]}>{alert.childName}</Text>
-                              </View>
-                            )}
-                          </View>
-                        ))}
+                    <TouchableOpacity
+                      style={styles.ynAlertsBtn}
+                      onPress={() => navigation.navigate('Alerts')}
+                      activeOpacity={0.82}
+                    >
+                      <Text style={styles.ynAlertsBtnEmoji}>🔔</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.ynAlertsBtnLabel}>See More Alerts</Text>
+                        <Text style={styles.ynAlertsBtnSub}>Stay informed on safety alerts</Text>
+                      </View>
+                      <Ionicons name="arrow-forward" size={16} color="#92400E" />
+                    </TouchableOpacity>
 
-                        {remaining > 0 && (
-                          <Text style={styles.safetyDigestMore}>+{remaining} more</Text>
-                        )}
-                      </TouchableOpacity>
-                    )}
+                    <View style={styles.ynPartDivider} />
+
+                    {/* Part 2 — Youth Trends */}
+                    <TouchableOpacity
+                      style={styles.ynTrendsBtn}
+                      onPress={() => hasChildren ? setCultureModalOpen(true) : navigation.navigate('AddChildWizard')}
+                      activeOpacity={0.82}
+                    >
+                      <Text style={styles.ynTrendsBtnEmoji}>🌍</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.ynTrendsBtnLabel}>See This Week's Youth Trends</Text>
+                        <Text style={styles.ynTrendsBtnSub}>Connection begins with understanding</Text>
+                      </View>
+                      <Ionicons name="arrow-forward" size={16} color="#1B3D2F" />
+                    </TouchableOpacity>
                   </>
                 );
               })()}
@@ -950,7 +929,8 @@ export default function HomeScreen({ navigation, route }) {
                 const overflow = familyGoals.length - preview.length;
                 return (
                   <>
-                    <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                    <View style={styles.fbDivider} />
+                    <View style={styles.sectionTitleWrap}>
                       <Text style={styles.sectionEyebrow}>THIS WEEK</Text>
                       <Text style={styles.sectionTitle}>Family Goals</Text>
                     </View>
@@ -1062,7 +1042,8 @@ export default function HomeScreen({ navigation, route }) {
                 if (!syncStatus.linked) {
                   return (
                     <>
-                      <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                      <View style={styles.fbDivider} />
+                      <View style={styles.sectionTitleWrap}>
                         <Text style={styles.sectionEyebrow}>THIS MONTH</Text>
                         <Text style={styles.sectionTitle}>Monthly Leaderboard</Text>
                       </View>
@@ -1070,7 +1051,7 @@ export default function HomeScreen({ navigation, route }) {
                         <View style={styles.homeLbColRow}>
                           <Text style={styles.homeLbColLabel}>YOU</Text>
                           <View style={{ flex: 1 }} />
-                          <Text style={[styles.homeLbColLabel, { color: 'rgba(255,255,255,0.25)' }]}>PARTNER</Text>
+                          <Text style={[styles.homeLbColLabel, { color: '#D1D5DB' }]}>PARTNER</Text>
                         </View>
                         {ROWS.map(r => (
                           <View key={r.label} style={styles.homeLbRow}>
@@ -1083,11 +1064,11 @@ export default function HomeScreen({ navigation, route }) {
                                 <Ionicons name={r.icon} size={10} color={r.color} />
                                 <Text style={[styles.homeLbCatText, { color: r.color }]}>{r.label}</Text>
                               </View>
-                              <View style={[styles.homeLbBarWrap, { opacity: 0.25 }]}>
-                                <View style={[styles.homeLbBarFillR, { width: '40%', backgroundColor: '#FFFFFF' }]} />
+                              <View style={[styles.homeLbBarWrap, { opacity: 0.3 }]}>
+                                <View style={[styles.homeLbBarFillR, { width: '40%', backgroundColor: '#D1D5DB' }]} />
                               </View>
                             </View>
-                            <Text style={[styles.homeLbScore, { color: 'rgba(255,255,255,0.15)' }]}>?</Text>
+                            <Text style={[styles.homeLbScore, { color: '#D1D5DB' }]}>?</Text>
                           </View>
                         ))}
                         <View style={styles.homeLbDivider} />
@@ -1110,7 +1091,8 @@ export default function HomeScreen({ navigation, route }) {
                     : { text: "You're tied — great effort, both of you!", icon: 'people-outline', iconColor: '#93C5FD' };
                 return (
                   <>
-                    <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+                    <View style={styles.fbDivider} />
+                    <View style={styles.sectionTitleWrap}>
                       <Text style={styles.sectionEyebrow}>THIS MONTH</Text>
                       <Text style={styles.sectionTitle}>Monthly Leaderboard</Text>
                     </View>
@@ -1162,7 +1144,8 @@ export default function HomeScreen({ navigation, route }) {
               {/* YOU'RE NOT ALONE — hidden, re-enable in future release */}
 
               {/* VERSES OF THE DAY */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 24 }]}>
+              <View style={styles.fbDivider} />
+              <View style={styles.sectionTitleWrap}>
                 <Text style={styles.sectionEyebrow}>QURAN</Text>
                 <Text style={styles.sectionTitle}>Verses of the Day</Text>
               </View>
@@ -1219,7 +1202,8 @@ export default function HomeScreen({ navigation, route }) {
               </TouchableOpacity>
 
               {/* DUA OF THE DAY */}
-              <View style={[styles.sectionTitleWrap, { marginTop: 8 }]}>
+              <View style={styles.fbDivider} />
+              <View style={styles.sectionTitleWrap}>
                 <Text style={styles.sectionEyebrow}>DAILY</Text>
                 <Text style={styles.sectionTitle}>Dua of the Day</Text>
               </View>
@@ -1334,18 +1318,18 @@ const styles = StyleSheet.create({
 
   // ── Family Goals ──
   goalsContainer:  { overflow: 'hidden' },
-  goalsCard:          { backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', marginBottom: 4 },
+  goalsCard:          { backgroundColor: '#FFFFFF', overflow: 'hidden', marginBottom: 0 },
   goalsSeeAll:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F0F4F2' },
   goalsSeeAllText:    { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
-  goalsTeaser:        { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 4 },
+  goalsTeaser:        { backgroundColor: '#FFFFFF', padding: 16, marginBottom: 0 },
   goalsTeaserRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   goalsTeaserIconWrap:{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
   goalsTeaserTitle:   { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 3 },
   goalsTeaserSub:     { fontSize: 12, color: '#6B7280', lineHeight: 17 },
   goalsTeaserCTA:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#EDF7F2', borderRadius: 12, paddingVertical: 11 },
   goalsTeaserCTAText: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
-  goalDivider:     { height: 1, backgroundColor: '#F0F4F2', marginHorizontal: 16 },
-  goalRow:         { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16 },
+  goalDivider:     { height: 1, backgroundColor: '#F0F4F2', marginRight: 16 },
+  goalRow:         { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 16, paddingRight: 16 },
   goalIconWrap:    { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   goalBody:        { flex: 1 },
   goalTitleRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
@@ -1370,7 +1354,7 @@ const styles = StyleSheet.create({
   celebBtn:      { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32 },
   celebBtnText:  { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
-  bgBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 300, backgroundColor: '#F5F6F8' },
+  bgBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 300, backgroundColor: '#FFFFFF' },
 
   // ── Hero header ──
   hero: {
@@ -1405,16 +1389,16 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   heroProfileAvatar: {
-    width: 26, height: 26, borderRadius: 13,
+    width: 34, height: 34, borderRadius: 17,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center', justifyContent: 'center',
   },
   heroProfilePhoto: {
-    width: 26, height: 26, borderRadius: 13,
+    width: 34, height: 34, borderRadius: 17,
   },
   heroProfileInitial: {
-    fontSize: 12, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 14, fontWeight: '700', color: '#FFFFFF',
   },
   heroProfileDate: {
     fontSize: 10, fontWeight: '500', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.3,
@@ -1510,31 +1494,20 @@ const styles = StyleSheet.create({
   // ── Content sheet ──
   sheet: {
     flexGrow: 1,
-    backgroundColor: '#F5F6F8',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: { flexGrow: 1 },
-  contentPad: { paddingHorizontal: hp, paddingTop: 8, paddingBottom: 36 },
+  contentPad: { paddingHorizontal: hp, paddingTop: 0, paddingBottom: 36 },
+  fbDivider: { height: 8, backgroundColor: '#F3F4F6', marginHorizontal: -hp },
 
   // ── Section titles ──
   // Safety Watch digest card
   safetyDigestCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
     padding: 16,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#1B3D2F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: 0,
   },
   safetyDigestCardAlert: {
-    borderColor: '#FECACA',
     backgroundColor: '#FFFAFA',
   },
   safetyDigestHeader: {
@@ -1614,35 +1587,64 @@ const styles = StyleSheet.create({
     fontSize: 14, fontWeight: '700', color: '#1B3D2F',
   },
 
+  // ── Youth News two-part section ──
+  ynSubRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  ynSubLabel:  { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.8, flex: 1 },
+  ynSeeLink:   { fontSize: 12, fontWeight: '700', color: '#1B3D2F' },
+  ynItemRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
+  ynDot:       { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
+  ynItemTitle: { flex: 1, fontSize: 13, fontWeight: '600', color: '#374151' },
+  ynItemMeta:  { fontSize: 11, fontWeight: '600', color: '#9CA3AF' },
+  ynPartDivider: { height: 1, backgroundColor: '#F3F4F6', marginHorizontal: -hp },
+  ynEmpty:     { fontSize: 12, color: '#9CA3AF', paddingBottom: 4 },
+  ynAlertsBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, marginHorizontal: -hp, paddingHorizontal: hp,
+    backgroundColor: '#FFFBEB',
+    borderBottomWidth: 1, borderBottomColor: '#FDE68A',
+  },
+  ynAlertsBtnEmoji: { fontSize: 18 },
+  ynAlertsBtnLabel: { fontSize: 14, fontWeight: '700', color: '#92400E' },
+  ynAlertsBtnSub:   { fontSize: 12, color: '#78716C', marginTop: 2 },
+  ynTrendsBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, marginHorizontal: -hp, paddingHorizontal: hp,
+    backgroundColor: '#F0F7F4',
+    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+  },
+  ynTrendsBtnEmoji: { fontSize: 18 },
+  ynTrendsBtnLabel: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
+  ynTrendsBtnSub:   { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  ynChildPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  ynChildName: { fontSize: 11, fontWeight: '700' },
+
   trialBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#FFF8EC', borderRadius: 14, padding: 12,
-    marginBottom: 6, borderWidth: 1, borderColor: '#F5D78E',
+    backgroundColor: '#FFF8EC', paddingVertical: 12, paddingHorizontal: hp,
+    marginHorizontal: -hp, marginBottom: 0,
+    borderBottomWidth: 1, borderBottomColor: '#F5D78E',
   },
   trialBannerLeft:    { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  trialBannerEmoji:   { fontSize: 20 },
+  trialBannerEmoji:   { fontSize: 18 },
   trialBannerTitle:   { fontSize: 13, fontWeight: '700', color: '#92400E', marginBottom: 1 },
   trialBannerSub:     { fontSize: 11, color: '#B45309' },
   trialBannerBtn:     { backgroundColor: '#1B3D2F', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginLeft: 10 },
   trialBannerBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 
   setupBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#EDF7F2', borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: '#C6E8DA', marginBottom: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#EDF7F2', paddingVertical: 10, paddingHorizontal: hp,
+    marginHorizontal: -hp, marginBottom: 0,
+    borderBottomWidth: 1, borderBottomColor: '#C6E8DA',
   },
-  setupBannerIcon: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-  },
-  setupBannerTitle: { fontSize: 14, fontWeight: '800', color: '#1B3D2F', marginBottom: 2 },
-  setupBannerSub:   { fontSize: 12, color: '#4B7A60', lineHeight: 17 },
+  setupBannerIcon: {},
+  setupBannerTitle: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+  setupBannerSub:   { fontSize: 11, color: '#4B7A60' },
 
   focusCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 4,
+    backgroundColor: '#FFFFFF', marginBottom: 0,
+    marginHorizontal: -hp,
     overflow: 'hidden',
-    shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1, shadowRadius: 12, elevation: 4,
   },
   planCompleteWrap:  { alignItems: 'center', paddingVertical: 8 },
   planCompleteEmoji: { fontSize: 32, marginBottom: 8 },
@@ -1652,17 +1654,17 @@ const styles = StyleSheet.create({
   planCompleteBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   focusCardHeader: {
     flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: hp, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
-  focusCardBody: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 },
-  focusEyebrow: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: 0.5 },
+  focusCardBody: { paddingHorizontal: hp, paddingTop: 14, paddingBottom: 16 },
+  focusEyebrow: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginLeft: 'auto' },
   focusChildSelector: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
-    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 100,
+    borderRadius: 100,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  focusChildSelectorText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  focusChildSelectorText: { fontSize: 13, fontWeight: '700', color: '#111827' },
   focusSelectorAvatar: {
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.3)',
@@ -1670,7 +1672,7 @@ const styles = StyleSheet.create({
   },
   focusSelectorAvatarImg:     { width: 24, height: 24, borderRadius: 12 },
   focusSelectorAvatarInitial: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  focusSwitchHint: { fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 5, textAlign: 'right' },
+  focusSwitchHint: { fontSize: 10, color: '#9CA3AF', marginTop: 5, paddingLeft: 4 },
   focusDropdown: {
     backgroundColor: '#F8FAF9', borderBottomLeftRadius: 16, borderBottomRightRadius: 16,
     borderTopWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden',
@@ -1695,7 +1697,8 @@ const styles = StyleSheet.create({
   focusWisdomText: { flex: 1, fontSize: 12, color: '#1B4D3E', lineHeight: 18, fontWeight: '500' },
   focusLogLink: { fontSize: 12, fontWeight: '600', color: '#2E7D62', textAlign: 'right' },
   sectionTitleWrap: {
-    marginTop: 10,
+    marginTop: 0,
+    paddingTop: 20,
     marginBottom: 14,
   },
   sectionEyebrow: {
@@ -1703,7 +1706,7 @@ const styles = StyleSheet.create({
     color: '#2E7D62', letterSpacing: 1, marginBottom: 2,
   },
   sectionTitle: {
-    fontSize: 16, fontWeight: '800', color: '#1B3D2F',
+    fontSize: 20, fontWeight: '800', color: '#1B3D2F',
   },
   sectionUnderline: {
     width: 3, height: 13, borderRadius: 2,
@@ -1724,14 +1727,14 @@ const styles = StyleSheet.create({
     fontSize: 12, color: '#9CA3AF', fontWeight: '500',
   },
   insightCard: {
-    borderRadius: 22, overflow: 'hidden', marginBottom: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18, shadowRadius: 16, elevation: 7,
+    overflow: 'hidden', marginBottom: 0,
   },
+  insightCardFeaturedBg: { width: '100%', height: 300 },
+  insightCardSecondaryBg: { width: '100%', height: 148 },
   insightCardBg: { width: '100%', height: 220 },
-  insightCardImg: { borderRadius: 22 },
+  insightCardImg: { borderRadius: 0 },
   insightCardOverlay: {
-    flex: 1, borderRadius: 22, padding: 18,
+    flex: 1, padding: 18,
     justifyContent: 'space-between',
   },
   insightCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -1747,20 +1750,39 @@ const styles = StyleSheet.create({
   },
   insightTypePill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(46,125,98,0.55)',
     paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: 100,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
   insightTypePillAmber: { backgroundColor: 'rgba(160,82,26,0.55)' },
+  insightTypePillAmberSolid: { backgroundColor: '#B45309' },
+  insightSecondaryRow: {
+    gap: 6, paddingVertical: 16,
+  },
+  insightSecondaryTitle: {
+    fontSize: rs(16), fontWeight: '700', color: '#111827',
+    lineHeight: 22, letterSpacing: -0.2,
+  },
+  insightSecondaryPreview: {
+    fontSize: 13, color: '#6B7280', lineHeight: 19,
+  },
+  insightSecondaryReadMore: {
+    fontSize: 12, fontWeight: '600', color: '#9CA3AF',
+  },
   insightTypeText: {
     fontSize: 10, fontWeight: '700', letterSpacing: 1.1,
     textTransform: 'uppercase', color: 'rgba(255,255,255,0.92)',
   },
   insightCardBottom: { gap: 8 },
+  insightCardFeaturedTitle: {
+    fontSize: rs(26), fontWeight: '800', color: '#FFFFFF',
+    lineHeight: 32, letterSpacing: -0.5,
+  },
   insightCardTitle: {
-    fontSize: rs(20), fontWeight: '800', color: '#FFFFFF',
-    lineHeight: 26, letterSpacing: -0.3,
+    fontSize: rs(17), fontWeight: '700', color: '#FFFFFF',
+    lineHeight: 22, letterSpacing: -0.2,
   },
   insightCardBody: {
     fontSize: 13, color: 'rgba(255,255,255,0.78)', lineHeight: 20,
@@ -1776,6 +1798,12 @@ const styles = StyleSheet.create({
   insightReadTodayPill: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   insightReadTodayText: { fontSize: 12, fontWeight: '600', color: '#4ADE80' },
   insightReadMore: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
+  insightDots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 10, paddingBottom: 4 },
+  insightDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D1D5DB' },
+  insightDotActive: { width: 16, height: 6, borderRadius: 3, backgroundColor: '#1B3D2F' },
+  insightSwipeHint: { alignItems: 'center', paddingBottom: 6 },
+  insightSwipeHintTop: { fontSize: 11, fontWeight: '500', color: '#9CA3AF' },
+  insightSwipeHintSub: { fontSize: 12, fontWeight: '600', color: '#374151', marginTop: 2 },
   insightReadMoreText: {
     fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)',
   },
@@ -2166,38 +2194,34 @@ const styles = StyleSheet.create({
   },
   childEmptyBtnText: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
 
-  // ── Home leaderboard card ──
-  homeLeaderCard: {
-    backgroundColor: '#1B3D2F', borderRadius: 20, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12, shadowRadius: 12, elevation: 4,
-  },
+  // ── Home leaderboard (flat / white) ──
+  homeLeaderCard: { paddingBottom: 8 },
   homeLbLockPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(201,168,76,0.15)', borderRadius: 100,
+    backgroundColor: '#FEF9EE', borderRadius: 100,
     paddingHorizontal: 8, paddingVertical: 3,
   },
-  homeLbLockText: { fontSize: 10, fontWeight: '600', color: '#C9A84C' },
+  homeLbLockText: { fontSize: 10, fontWeight: '600', color: '#B45309' },
   homeLbColRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  homeLbColLabel: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+  homeLbColLabel: { fontSize: 14, fontWeight: '800', color: '#111827', letterSpacing: 0.5 },
   homeLbRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
-  homeLbScore: { width: 28, fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.55)', textAlign: 'center' },
-  homeLbScoreWin: { color: '#FFFFFF' },
+  homeLbScore: { width: 28, fontSize: 13, fontWeight: '700', color: '#9CA3AF', textAlign: 'center' },
+  homeLbScoreWin: { color: '#111827' },
   homeLbMid: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  homeLbBarWrap: { flex: 1, height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' },
+  homeLbBarWrap: { flex: 1, height: 4, backgroundColor: '#F3F4F6', borderRadius: 2, overflow: 'hidden' },
   homeLbBarFillL: { height: 4, borderRadius: 2, alignSelf: 'flex-end' },
   homeLbBarFillR: { height: 4, borderRadius: 2 },
   homeLbCatPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
   homeLbCatText: { fontSize: 10, fontWeight: '600' },
-  homeLbDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 10 },
+  homeLbDivider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 10 },
   homeLbTotalRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  homeLbTotalNum: { width: 28, fontSize: 15, fontWeight: '800', color: 'rgba(255,255,255,0.55)', textAlign: 'center' },
-  homeLbTotalLabel: { flex: 1, fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.35)', textAlign: 'center', letterSpacing: 1 },
+  homeLbTotalNum: { width: 28, fontSize: 15, fontWeight: '800', color: '#9CA3AF', textAlign: 'center' },
+  homeLbTotalLabel: { flex: 1, fontSize: 10, fontWeight: '700', color: '#9CA3AF', textAlign: 'center', letterSpacing: 1 },
   homeLbWinnerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  homeLbWinner: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)' },
+  homeLbWinner: { fontSize: 12, fontWeight: '600', color: '#374151' },
   homeLbUnlockBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: '#D4A843', borderRadius: 12, paddingVertical: 11,
+    paddingVertical: 11,
   },
   homeLbUnlockText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
 });

@@ -205,29 +205,24 @@ export default function ChallengeCard({ navigation, onChallenge, focusCount = 0 
   if (!partnerSyncOn || !partnerLinked) return null;
 
   return (
+    <>
+    <View style={{ height: 8, backgroundColor: '#F3F4F6', marginHorizontal: -20 }} />
     <View style={cc.wrap}>
       <View style={cc.sectionHeader}>
         <View style={{ flex: 1 }}>
           <Text style={cc.sectionEyebrow}>FAMILY</Text>
           <Text style={cc.sectionTitle}>Partner Competitions</Text>
         </View>
-        {!challenge && (
-          <TouchableOpacity style={cc.newBtn} onPress={onChallenge} activeOpacity={0.85}>
-            <Ionicons name="add" size={14} color="#FFFFFF" />
-            <Text style={cc.newBtnText}>New Challenge</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* No active challenge */}
+      {/* No active challenge — compact row */}
       {!challenge && (
-        <TouchableOpacity style={cc.emptyCard} onPress={onChallenge} activeOpacity={0.8}>
-          <Text style={cc.emptyEmoji}>🏆</Text>
-          <Text style={cc.emptyTitle}>No active challenge</Text>
-          <Text style={cc.emptySub}>Challenge your partner to a friendly competition</Text>
-          <View style={cc.emptyBtn}>
-            <Text style={cc.emptyBtnText}>Start a challenge →</Text>
+        <TouchableOpacity style={cc.newChallengeRow} onPress={onChallenge} activeOpacity={0.8}>
+          <View style={cc.newChallengeIconWrap}>
+            <Ionicons name="add-circle-outline" size={20} color="#1B3D2F" />
           </View>
+          <Text style={cc.newChallengeRowText}>Start a challenge with {partnerName}</Text>
+          <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
         </TouchableOpacity>
       )}
 
@@ -382,25 +377,20 @@ export default function ChallengeCard({ navigation, onChallenge, focusCount = 0 
         </View>
       )}
     </View>
+    </>
   );
 }
 
 const cc = StyleSheet.create({
-  wrap:          { marginTop: 20 },
+  wrap:          { marginTop: 0, paddingTop: 20 },
   sectionHeader:  { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   sectionEyebrow: { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 1, marginBottom: 2 },
-  sectionTitle:   { fontSize: 16, fontWeight: '800', color: '#1B3D2F' },
-  newBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1B3D2F', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6 },
-  newBtnText:    { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+  sectionTitle:   { fontSize: 20, fontWeight: '800', color: '#1B3D2F' },
+  newChallengeRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingBottom: 16 },
+  newChallengeIconWrap:{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center' },
+  newChallengeRowText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#374151' },
 
-  emptyCard:   { backgroundColor: '#F9FAFB', borderRadius: 18, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: '#F0F0F0', borderStyle: 'dashed', gap: 6 },
-  emptyEmoji:  { fontSize: 36, marginBottom: 4 },
-  emptyTitle:  { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
-  emptySub:    { fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19 },
-  emptyBtn:    { marginTop: 4 },
-  emptyBtnText:{ fontSize: 13, fontWeight: '700', color: '#2E7D62' },
-
-  card:        { backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18, borderWidth: 1.5, borderColor: '#F0F0F0', gap: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2 },
+  card:        { gap: 14, paddingBottom: 8 },
   cardTop:     { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   cardEmoji:   { fontSize: 28 },
   cardType:    { fontSize: 14, fontWeight: '800', marginBottom: 3 },
@@ -428,10 +418,10 @@ const cc = StyleSheet.create({
 
   abandonRow:  { alignItems: 'center' },
 
-  winsCard:         { backgroundColor: '#FFFFFF', borderRadius: 16, marginTop: 12, overflow: 'hidden', borderWidth: 1.5, borderColor: '#F5E9C4' },
-  winsCardHeader:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFBF0', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F5E9C4' },
-  winsCardTitle:    { fontSize: 10, fontWeight: '700', color: '#B45309', letterSpacing: 1 },
-  winsRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 },
+  winsCard:         { marginTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  winsCardHeader:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 14, paddingBottom: 4 },
+  winsCardTitle:    { fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1 },
+  winsRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
   winsSide:         { flex: 1, alignItems: 'center' },
   winsCount:        { fontSize: 32, fontWeight: '800', color: '#D1D5DB', lineHeight: 36 },
   winsCountWinner:  { color: '#C9A84C' },

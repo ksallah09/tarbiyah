@@ -51,7 +51,8 @@ export default function YouthCultureModal({ visible, onClose, children = [], ini
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.headerEyebrow}>THIS WEEK</Text>
-              <Text style={styles.headerTitle}>Youth Culture Digest</Text>
+              <Text style={styles.headerTitle}>Youth Culture Trends</Text>
+              <Text style={styles.headerSub}>Connection begins with understanding</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
               <Ionicons name="close" size={18} color="#374151" />
@@ -210,6 +211,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20, fontWeight: '800', color: '#1A1A2E',
+  },
+  headerSub: {
+    fontSize: 12, color: '#6B7280', marginTop: 3,
   },
   closeBtn: {
     width: 32, height: 32, borderRadius: 16,
