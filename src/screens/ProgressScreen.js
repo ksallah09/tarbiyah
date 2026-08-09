@@ -590,7 +590,7 @@ export default function ProgressScreen({ navigation, route }) {
         onClose={() => setEncouragement(null)}
       />
       <FamilyTourOverlay
-        segmentY={segmentLayout?.y}
+        segmentY={segmentLayout != null ? insets.top + segmentLayout.y : undefined}
         segmentH={segmentLayout?.height}
       />
     </SafeAreaView>
