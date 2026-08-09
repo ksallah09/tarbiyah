@@ -831,14 +831,24 @@ export default function HomeScreen({ navigation, route }) {
                         </View>
                       ) : (
                         <View style={styles.focusCardBody}>
-                          <Text style={styles.focusHabitText}>{focus.text}</Text>
-
-                          {focus.wisdom && (
-                            <View style={styles.focusWisdom}>
-                              <Ionicons name="leaf-outline" size={12} color="#7C9E8B" />
-                              <Text style={styles.focusWisdomText}>{focus.wisdom}</Text>
+                          <View style={styles.focusHabitRow}>
+                            <View style={[styles.focusHabitIconCircle, { backgroundColor: childColor + '18' }]}>
+                              <Text style={{ fontSize: 22 }}>🌱</Text>
                             </View>
-                          )}
+                            <Text style={styles.focusHabitText}>{focus.text}</Text>
+                          </View>
+
+                          {focus.wisdom && (() => {
+                            const dot   = focus.wisdom.indexOf('. ');
+                            const title = dot > 0 ? focus.wisdom.slice(0, dot + 1) : focus.wisdom;
+                            const body  = dot > 0 ? focus.wisdom.slice(dot + 2) : '';
+                            return (
+                              <View style={styles.focusWisdom}>
+                                <Text style={styles.focusWisdomTitle}>{title}</Text>
+                                {!!body && <Text style={styles.focusWisdomBody}>{body}</Text>}
+                              </View>
+                            );
+                          })()}
 
                           <TouchableOpacity
                             onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: activeId } })}
@@ -1657,7 +1667,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: hp, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
-  focusCardBody: { paddingHorizontal: hp, paddingTop: 14, paddingBottom: 16 },
+  focusCardBody: { paddingHorizontal: hp, paddingTop: 20, paddingBottom: 20 },
+  focusHabitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 16 },
+  focusHabitIconCircle: {
+    width: 48, height: 48, borderRadius: 24,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
   focusEyebrow: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginLeft: 'auto' },
   focusChildSelector: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
@@ -1689,12 +1704,13 @@ const styles = StyleSheet.create({
   focusDropdownAvatarInitial: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
   focusDropdownItemText:   { fontSize: 13, fontWeight: '500', color: '#6B7280' },
   focusDropdownItemActive: { color: '#1A1A2E', fontWeight: '700' },
-  focusHabitText: { fontSize: 15, fontWeight: '400', color: '#1A1A2E', lineHeight: 23, marginBottom: 12 },
+  focusHabitText: { flex: 1, fontSize: 15, fontWeight: '400', color: '#1A1A2E', lineHeight: 23 },
   focusWisdom: {
-    flexDirection: 'row', gap: 7, alignItems: 'flex-start',
-    backgroundColor: '#EDF7F2', borderRadius: 8, padding: 10, marginBottom: 12,
+    backgroundColor: '#EDF7F2', borderRadius: 14, padding: 16, marginBottom: 16,
   },
-  focusWisdomText: { flex: 1, fontSize: 12, color: '#1B4D3E', lineHeight: 18, fontWeight: '500' },
+  focusWisdomTitle: { fontSize: 14, fontWeight: '700', color: '#1B3D2F', lineHeight: 20, marginBottom: 4 },
+  focusWisdomBody:  { fontSize: 13, color: '#374151', lineHeight: 20 },
+  focusWisdomText:  {},
   focusLogLink: { fontSize: 12, fontWeight: '600', color: '#2E7D62', textAlign: 'right' },
   sectionTitleWrap: {
     marginTop: 0,

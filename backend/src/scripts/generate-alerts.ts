@@ -281,8 +281,8 @@ async function sendPushNotifications(inserted: { title: string; severity: string
     });
     if (!res.ok) console.warn(`[alerts] Expo Push error: ${res.status}`);
     else {
-      const result = await res.json();
-      const errors = result.data?.filter((r: any) => r.status === 'error') ?? [];
+      const result = await res.json() as any;
+      const errors = (result.data ?? []).filter((r: any) => r.status === 'error');
       if (errors.length) console.warn(`[alerts] ${errors.length} delivery errors`);
     }
     console.log(`[alerts] Push chunk sent: ${chunk.length} tokens.`);
