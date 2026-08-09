@@ -725,10 +725,46 @@ export default function HomeScreen({ navigation, route }) {
               })()}
 
               {/* ── Habit of the Day ── */}
-              {hasChildren && (() => {
-                const { map: focusMap, planCompleteIds } = buildChildFocusMap(children, weekCompletions);
-                const eligible = children.filter(c => focusMap[c.id] || planCompleteIds.has(c.id));
-                if (!eligible.length) return null;
+              {(() => {
+                const { map: focusMap, planCompleteIds } = hasChildren
+                  ? buildChildFocusMap(children, weekCompletions)
+                  : { map: {}, planCompleteIds: new Set() };
+                const eligible = hasChildren
+                  ? children.filter(c => focusMap[c.id] || planCompleteIds.has(c.id))
+                  : [];
+
+                if (!hasChildren || !eligible.length) {
+                  return (
+                    <>
+                      <View style={styles.fbDivider} />
+                      <View style={styles.sectionTitleWrap}>
+                        <Text style={styles.sectionEyebrow}>DAILY</Text>
+                        <Text style={styles.sectionTitle}>Habit of the Day</Text>
+                      </View>
+                      <View style={styles.habitCtaCard}>
+                        <Text style={styles.habitCtaEmoji}>🌱</Text>
+                        <Text style={styles.habitCtaTitle}>
+                          {!hasChildren
+                            ? 'Add a child to unlock daily habit recommendations'
+                            : 'Start a growth plan to unlock daily habit recommendations'}
+                        </Text>
+                        <Text style={styles.habitCtaBody}>
+                          {!hasChildren
+                            ? 'Daily habits are personalised to each child\'s age and growth area.'
+                            : 'Set a weekly growth plan for your child to get a tailored habit each day.'}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.habitCtaBtn}
+                          onPress={() => navigation.navigate('Family')}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="people-outline" size={14} color="#FFFFFF" />
+                          <Text style={styles.habitCtaBtnText}>Go to Family Tab</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  );
+                }
                 const activeId = (focusChildId && (focusMap[focusChildId] || planCompleteIds.has(focusChildId)))
                   ? focusChildId
                   : (eligible.find(c => focusMap[c.id])?.id ?? eligible[0].id);
@@ -917,18 +953,36 @@ export default function HomeScreen({ navigation, route }) {
                     <View style={styles.ynPartDivider} />
 
                     {/* Part 2 — Youth Trends */}
-                    <TouchableOpacity
-                      style={styles.ynTrendsBtn}
-                      onPress={() => hasChildren ? setCultureModalOpen(true) : navigation.navigate('AddChildWizard')}
-                      activeOpacity={0.82}
-                    >
-                      <Text style={styles.ynTrendsBtnEmoji}>🌍</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.ynTrendsBtnLabel}>See This Week's Youth Trends</Text>
-                        <Text style={styles.ynTrendsBtnSub}>Connection begins with understanding</Text>
+                    {hasChildren ? (
+                      <TouchableOpacity
+                        style={styles.ynTrendsBtn}
+                        onPress={() => setCultureModalOpen(true)}
+                        activeOpacity={0.82}
+                      >
+                        <Text style={styles.ynTrendsBtnEmoji}>🌍</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.ynTrendsBtnLabel}>See This Week's Youth Trends</Text>
+                          <Text style={styles.ynTrendsBtnSub}>Connection begins with understanding</Text>
+                        </View>
+                        <Ionicons name="arrow-forward" size={16} color="#1B3D2F" />
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.ynTrendsBtn}>
+                        <Text style={styles.ynTrendsBtnEmoji}>🌍</Text>
+                        <View style={{ flex: 1, gap: 6 }}>
+                          <Text style={styles.ynTrendsBtnLabel}>This Week's Youth Trends</Text>
+                          <Text style={styles.ynTrendsBtnSub}>Once you add at least 1 child in the Family tab, come back here to see the trends shaping their world.</Text>
+                          <TouchableOpacity
+                            style={[styles.habitCtaBtn, { alignSelf: 'flex-start', marginTop: 4 }]}
+                            onPress={() => navigation.navigate('Family')}
+                            activeOpacity={0.85}
+                          >
+                            <Ionicons name="people-outline" size={14} color="#FFFFFF" />
+                            <Text style={styles.habitCtaBtnText}>Go to Family Tab</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                      <Ionicons name="arrow-forward" size={16} color="#1B3D2F" />
-                    </TouchableOpacity>
+                    )}
                   </>
                 );
               })()}
@@ -1650,6 +1704,22 @@ const styles = StyleSheet.create({
   setupBannerIcon: {},
   setupBannerTitle: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
   setupBannerSub:   { fontSize: 11, color: '#4B7A60' },
+
+  habitCtaCard: {
+    backgroundColor: '#F0F7F4', borderRadius: 16,
+    padding: 20, marginBottom: 16, alignItems: 'center',
+  },
+  habitCtaEmoji:   { fontSize: 32, marginBottom: 12 },
+  habitCtaTitle:   { fontSize: 15, fontWeight: '700', color: '#1A1A2E', textAlign: 'center', marginBottom: 6, lineHeight: 22 },
+  habitCtaBody:    { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 20, marginBottom: 18 },
+  habitCtaActions: { flexDirection: 'row', gap: 10 },
+  habitCtaBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#1B3D2F', borderRadius: 100,
+    paddingHorizontal: 18, paddingVertical: 10,
+  },
+
+  habitCtaBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 
   focusCard: {
     backgroundColor: '#FFFFFF', marginBottom: 0,

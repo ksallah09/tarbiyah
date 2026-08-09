@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { loadModules, loadModulesCached, deleteModule } from '../utils/modules';
+import LearnTourOverlay from '../components/LearnTourOverlay';
 
 let _modulesCache = null;
 
@@ -274,6 +275,7 @@ export default function LearnScreen({ navigation, route }) {
           </SafeAreaView>
       </Modal>
 
+      <LearnTourOverlay />
     </SafeAreaView>
   );
 }

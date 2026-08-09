@@ -71,14 +71,14 @@ const SLIDES = [
     icon: 'layers-outline',
     iconColor: '#D4A843',
     title: 'Learn On Demand',
-    body: "Describe any parenting challenge and get a full AI-generated audio learning module — tailored to your situation and ready to listen to hands-free.",
+    body: "Describe any parenting challenge and get a full audio learning module — tailored to your situation and ready to listen to hands-free.",
   },
   {
     key: 'alerts',
     icon: 'shield-checkmark-outline',
     iconColor: '#D4A843',
     title: 'Safety Alerts',
-    body: "Stay a step ahead of what's affecting children and teens. Weekly AI-generated alerts covering online risks, social media threats, and emerging youth trends — filtered by your child's age.",
+    body: "Stay a step ahead of what's affecting children and teens. We connect to Google Trends, Reddit, and social media providers weekly — surfacing the risks most relevant to your child's age.",
   },
 ];
 

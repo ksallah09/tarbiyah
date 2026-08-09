@@ -73,7 +73,6 @@ export default function ProgressScreen({ navigation, route }) {
   const [partnerSyncOn, setPartnerSyncOn] = useState(true);
   const [refreshing,  setRefreshing]       = useState(false);
   const [familyTab,       setFamilyTab]       = useState(route?.params?.tab === 'configure' ? 'configure' : 'childWins');
-  const [segmentLayout,   setSegmentLayout]   = useState(null);
   const hasMountedRef = useRef(false);
 
   const refreshAll = useCallback(() => {
@@ -191,7 +190,7 @@ export default function ProgressScreen({ navigation, route }) {
           <Text style={styles.headerTitle}>Family</Text>
 
           {/* ── Segment control ── */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.segmentScroll} contentContainerStyle={styles.segmentRow} onLayout={e => setSegmentLayout(e.nativeEvent.layout)}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.segmentScroll} contentContainerStyle={styles.segmentRow}>
             {[
               ['childWins',  'Child Growth'],
               ['parenting',  'Parenting'],
@@ -589,10 +588,7 @@ export default function ProgressScreen({ navigation, route }) {
         body={encouragement?.body}
         onClose={() => setEncouragement(null)}
       />
-      <FamilyTourOverlay
-        segmentY={segmentLayout != null ? insets.top + segmentLayout.y : undefined}
-        segmentH={segmentLayout?.height}
-      />
+      <FamilyTourOverlay />
     </SafeAreaView>
   );
 }

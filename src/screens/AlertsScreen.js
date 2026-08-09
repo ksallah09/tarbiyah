@@ -10,6 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../utils/supabase';
 import { useAuth } from '../../App';
+import AlertsTourOverlay from '../components/AlertsTourOverlay';
 
 // ── Severity config ───────────────────────────────────────────────────────────
 
@@ -88,7 +89,7 @@ function AlertCard({ alert, isUnread, onPress }) {
       <View style={s.cardTop}>
         {/* Left icon */}
         <View style={[s.iconBox, { backgroundColor: cfg.iconBg }]}>
-          <Ionicons name={cfg.icon} size={20} color="#FFFFFF" />
+          <Ionicons name={cfg.icon} size={16} color="#FFFFFF" />
         </View>
 
         {/* Badge + category */}
@@ -113,7 +114,7 @@ function AlertCard({ alert, isUnread, onPress }) {
 
       <View style={s.readMoreRow}>
         <Text style={[s.readMore, { color: cfg.accentText }]}>Read more</Text>
-        <Ionicons name="arrow-forward" size={13} color={cfg.accentText} />
+        <Ionicons name="arrow-forward" size={11} color={cfg.accentText} />
       </View>
 
       <View style={s.divider} />
@@ -366,6 +367,8 @@ export default function AlertsScreen() {
           <View style={{ height: insets.bottom + 20 }} />
         </ScrollView>
       )}
+
+      <AlertsTourOverlay />
     </SafeAreaView>
   );
 }
@@ -400,26 +403,26 @@ const s = StyleSheet.create({
   separator:           { height: 1, backgroundColor: '#F3F4F6' },
 
   // Cards
-  card:      { paddingHorizontal: 20, paddingTop: 18, backgroundColor: '#FFFFFF' },
+  card:      { paddingHorizontal: 20, paddingTop: 14, backgroundColor: '#FFFFFF' },
   cardTop:   { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
   iconBox: {
-    width: 44, height: 44, borderRadius: 12,
+    width: 36, height: 36, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
   cardMeta:  { flex: 1, gap: 3 },
   badge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 2,
+    borderRadius: 5,
   },
-  badgeText:   { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  category:    { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+  badgeText:   { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  category:    { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
   timeRow:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  unreadDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' },
-  timeAgo:     { fontSize: 12, color: '#9CA3AF' },
-  cardTitle:   { fontSize: 17, fontWeight: '800', color: '#111827', lineHeight: 24, marginBottom: 6 },
-  cardDesc:    { fontSize: 14, color: '#6B7280', lineHeight: 21, marginBottom: 10 },
-  readMoreRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 16 },
+  unreadDot:   { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#22C55E' },
+  timeAgo:     { fontSize: 11, color: '#9CA3AF' },
+  cardTitle:   { fontSize: 15, fontWeight: '800', color: '#111827', lineHeight: 22, marginBottom: 5 },
+  cardDesc:    { fontSize: 13, color: '#6B7280', lineHeight: 20, marginBottom: 8 },
+  readMoreRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
   readMore:    { fontSize: 14, fontWeight: '600' },
   divider:     { height: 8, backgroundColor: '#F3F4F6', marginHorizontal: -20 },
 
