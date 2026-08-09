@@ -40,11 +40,11 @@ export default function OnboardingCultureRaising({ navigation, route }) {
     const finalRaisingIn = raisingIn === 'Other' && otherText.trim()
       ? otherText.trim()
       : raisingIn;
-    navigation.navigate('OnboardingCommunity', { ...data, raisingIn: finalRaisingIn });
+    navigation.navigate('OnboardingReminder', { ...data, raisingIn: finalRaisingIn, communities: [] });
   }
 
   function handleSkip() {
-    navigation.navigate('OnboardingCommunity', { ...data, raisingIn: null });
+    navigation.navigate('OnboardingReminder', { ...data, raisingIn: null, communities: [] });
   }
 
   const filtered = query.trim()
