@@ -30,9 +30,8 @@ export async function ensureAndroidChannel() {
 // Run immediately at import so the channel exists before any local notification fires
 ensureAndroidChannel().catch(() => {});
 
-const DAILY_NOTIF_ID_KEY        = 'tarbiyah_daily_notif_id';
-const WEEKLY_SHARE_NOTIF_ID_KEY = 'tarbiyah_weekly_share_notif_id';
-const GARDEN_REMINDER_IDS_KEY   = 'tarbiyah_garden_reminder_ids';
+const DAILY_NOTIF_ID_KEY      = 'tarbiyah_daily_notif_id';
+const GARDEN_REMINDER_IDS_KEY = 'tarbiyah_garden_reminder_ids';
 const DAILY_CACHE_KEY           = 'tarbiyah_daily_cache';
 const PROFILE_KEY               = 'tarbiyah_profile';
 
@@ -171,43 +170,6 @@ export async function scheduleDailyNotification(reminderTimeStr) {
   });
 
   await AsyncStorage.setItem(DAILY_NOTIF_ID_KEY, id);
-}
-
-// ─── Schedule weekly share reminder (Fridays at 7 PM) ────────────────────────
-export async function scheduleWeeklyShareNotification() {
-  const granted = await requestNotificationPermission();
-  if (!granted) return;
-
-  await cancelWeeklyShareNotification();
-
-  const id = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '📚 Help a fellow parent today',
-      body: 'Share a resource that\'s helped your family — a video, article, or activity. It only takes a minute.',
-      sound: true,
-      data: { screen: 'Community' },
-      android: { channelId: 'default' },
-    },
-    trigger: {
-      type: 'calendar',
-      repeats: true,
-      weekday: 6, // Friday (1=Sunday … 6=Friday)
-      hour: 19,
-      minute: 0,
-    },
-  });
-
-  await AsyncStorage.setItem(WEEKLY_SHARE_NOTIF_ID_KEY, id);
-}
-
-export async function cancelWeeklyShareNotification() {
-  try {
-    const id = await AsyncStorage.getItem(WEEKLY_SHARE_NOTIF_ID_KEY);
-    if (id) {
-      await Notifications.cancelScheduledNotificationAsync(id);
-      await AsyncStorage.removeItem(WEEKLY_SHARE_NOTIF_ID_KEY);
-    }
-  } catch {}
 }
 
 // ─── Garden reminder — fires every 3 days, rotating message pool ─────────────
@@ -700,7 +662,6 @@ export async function refreshDailyNotification() {
 
     const reminderTime = profile.reminderTime ?? '8:00 AM';
     await scheduleDailyNotification(reminderTime);
-    await scheduleWeeklyShareNotification();
     await scheduleGardenReminderNotifications();
   } catch {}
 }
@@ -737,9 +698,8 @@ export async function notifyModuleReady(topic) {
 
 // ─── Child habit & activity notifications (B + C + D) ─────────────────────────
 
-const HABIT_NOTIF_IDS_KEY    = 'tarbiyah_habit_notif_ids';
-const ACTIVITY_NOTIF_IDS_KEY = 'tarbiyah_activity_notif_ids';
-const CHILD_PROFILES_KEY     = 'tarbiyah_child_profiles';
+const HABIT_NOTIF_IDS_KEY = 'tarbiyah_habit_notif_ids';
+const CHILD_PROFILES_KEY  = 'tarbiyah_child_profiles';
 
 // Expo calendar trigger weekday: 1=Sun 2=Mon 3=Tue 4=Wed 5=Thu 6=Fri 7=Sat
 const DAY_META = {
@@ -764,17 +724,6 @@ function getCurrentWeekHabit(child, dayIdx = 0) {
   const weekIdx = Math.min(Math.floor(daysSince / 7), area.plan.length - 1);
   const habits = area.plan[Math.max(0, weekIdx)]?.habits ?? [];
   return habits.length ? habits[dayIdx % habits.length] : null;
-}
-
-function getCurrentWeekActivity(child, dayIdx = 0) {
-  const area = (child?.growthAreas ?? [])[0];
-  if (!area?.plan?.length) return null;
-  const daysSince = Math.floor(
-    (Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000
-  );
-  const weekIdx = Math.min(Math.floor(daysSince / 7), area.plan.length - 1);
-  const activities = area.plan[Math.max(0, weekIdx)]?.activities ?? [];
-  return activities.length ? activities[dayIdx % activities.length] : null;
 }
 
 function truncateToSentence(text, maxLen = 110) {
@@ -813,7 +762,6 @@ export async function scheduleChildHabitNotifications() {
     if (profile.notifications === false) return;
 
     await cancelByKey(HABIT_NOTIF_IDS_KEY);
-    await cancelByKey(ACTIVITY_NOTIF_IDS_KEY);
 
     if (!children.length) return;
 
@@ -854,25 +802,6 @@ export async function scheduleChildHabitNotifications() {
     }
 
     await AsyncStorage.setItem(HABIT_NOTIF_IDS_KEY, JSON.stringify(habitIds));
-
-    // Friday 3pm — weekly activity preview (only if actual content exists)
-    const fridayChild = children[DAY_META.fri.idx % children.length];
-    const activity    = getCurrentWeekActivity(fridayChild, DAY_META.fri.idx);
-
-    if (activity?.text) {
-      const activityText = `${truncateToSentence(activity.text, 100)} Open Tarbiyah to see more.`;
-      const activityId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "🎯 This week's activity",
-          body: `${fridayChild.name}: ${activityText}`,
-          sound: true,
-          data: { screen: 'Dashboards', childId: fridayChild.id },
-          android: { channelId: 'default' },
-        },
-        trigger: { type: 'calendar', repeats: false, weekday: 6, hour: 15, minute: 0 },
-      });
-      await AsyncStorage.setItem(ACTIVITY_NOTIF_IDS_KEY, JSON.stringify([activityId]));
-    }
   } catch (err) {
     console.error('scheduleChildHabitNotifications error:', err);
   }
