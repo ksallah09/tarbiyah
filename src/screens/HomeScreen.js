@@ -42,6 +42,7 @@ import ChallengeCard from '../components/ChallengeCard';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
 import YouthCultureModal from './YouthCultureModal';
+import SetupModal from '../components/SetupModal';
 import { useAuth } from '../../App';
 import { Image } from 'expo-image';
 
@@ -609,23 +610,39 @@ export default function HomeScreen({ navigation, route }) {
                 </View>
               )}
 
-              {/* Setup banner — shown until children are added */}
-              {(!hasChildren || !hasFamilyGoals) && (
-                <TouchableOpacity
-                  style={styles.setupBanner}
-                  onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'configure' } })}
-                  activeOpacity={0.85}
-                >
-                  <Text style={{ fontSize: 15 }}>🌱</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.setupBannerTitle}>Finish setting up your family</Text>
-                    <Text style={styles.setupBannerSub}>
-                      {!hasChildren && !hasFamilyGoals ? 'Add children & goals' : !hasChildren ? 'Add your children' : 'Set family goals'}
-                    </Text>
+              {/* Setup checklist — shown until all 3 steps complete */}
+              {(() => {
+                const hasGrowthPlan = children.some(c => (c.growthAreas ?? []).some(a => a?.plan?.length));
+                const allDone = hasChildren && hasGrowthPlan && hasFamilyGoals;
+                if (allDone) return null;
+                const steps = [
+                  { label: 'Add a child',        done: hasChildren,    onPress: () => navigation.navigate('Family', { tab: 'configure' }) },
+                  { label: 'Start a growth plan', done: hasGrowthPlan,  onPress: () => navigation.navigate('Dashboards') },
+                  { label: 'Set family goals',    done: hasFamilyGoals, onPress: () => navigation.navigate('Family', { tab: 'childWins' }) },
+                ];
+                return (
+                  <View style={styles.setupCard}>
+                    <Text style={styles.setupCardEyebrow}>GET STARTED</Text>
+                    <Text style={styles.setupCardTitle}>Set Up Your Tarbiyah Experience</Text>
+                    {steps.map((step, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.setupStep}
+                        onPress={step.done ? undefined : step.onPress}
+                        activeOpacity={step.done ? 1 : 0.75}
+                      >
+                        <View style={[styles.setupStepCheck, step.done && styles.setupStepCheckDone]}>
+                          {step.done && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+                        </View>
+                        <Text style={[styles.setupStepLabel, step.done && styles.setupStepLabelDone]}>
+                          {step.label}
+                        </Text>
+                        {!step.done && <Ionicons name="chevron-forward" size={13} color="#2E7D62" />}
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                  <Ionicons name="chevron-forward" size={14} color="#2E7D62" />
-                </TouchableOpacity>
-              )}
+                );
+              })()}
 
 
               {/* TODAY'S INSIGHTS — full-bleed swipe carousel */}
@@ -1336,6 +1353,8 @@ export default function HomeScreen({ navigation, route }) {
         initialChildId={cultureModalChildId}
       />
 
+      <SetupModal navigation={navigation} />
+
       </SafeAreaView>
 
       {/* ── Off-screen dua share card ── */}
@@ -1695,15 +1714,31 @@ const styles = StyleSheet.create({
   trialBannerBtn:     { backgroundColor: '#1B3D2F', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginLeft: 10 },
   trialBannerBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 
-  setupBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#EDF7F2', paddingVertical: 10, paddingHorizontal: hp,
-    marginHorizontal: -hp, marginBottom: 0,
-    borderBottomWidth: 1, borderBottomColor: '#C6E8DA',
+  setupCard: {
+    backgroundColor: '#F0F7F4', borderRadius: 16,
+    padding: 18, marginBottom: 20,
   },
-  setupBannerIcon: {},
-  setupBannerTitle: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
-  setupBannerSub:   { fontSize: 11, color: '#4B7A60' },
+  setupCardEyebrow: {
+    fontSize: 10, fontWeight: '800', color: '#2E7D62',
+    letterSpacing: 1, marginBottom: 4,
+  },
+  setupCardTitle: {
+    fontSize: 15, fontWeight: '800', color: '#1A1A2E',
+    marginBottom: 16, lineHeight: 21,
+  },
+  setupStep: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 9,
+    borderTopWidth: 1, borderTopColor: 'rgba(46,125,98,0.1)',
+  },
+  setupStepCheck: {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#2E7D62',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  setupStepCheckDone: { backgroundColor: '#2E7D62', borderColor: '#2E7D62' },
+  setupStepLabel:     { flex: 1, fontSize: 14, fontWeight: '600', color: '#1A1A2E' },
+  setupStepLabelDone: { color: '#9CA3AF', textDecorationLine: 'line-through' },
 
   habitCtaCard: {
     backgroundColor: '#F0F7F4', borderRadius: 16,
@@ -1726,7 +1761,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -hp,
     overflow: 'hidden',
   },
-  planCompleteWrap:  { alignItems: 'center', paddingVertical: 8 },
+  planCompleteWrap:  { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16 },
   planCompleteEmoji: { fontSize: 32, marginBottom: 8 },
   planCompleteTitle: { fontSize: 17, fontWeight: '800', color: '#1A1A2E', marginBottom: 6 },
   planCompleteBody:  { fontSize: 13, color: '#6B7280', lineHeight: 20, textAlign: 'center', marginBottom: 18 },

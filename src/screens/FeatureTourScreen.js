@@ -28,7 +28,8 @@ const MOCK_TABS = [
 ];
 
 // Which tab index each slide highlights (null = none)
-const SLIDE_TAB = [null, 0, 1, 3, 3, 4, 2];
+// Tabs: 0=Home, 1=Family, 2=Alerts, 3=Dashboards, 4=Learn
+const SLIDE_TAB = [null, 0, 0, 1, 2, 3, 4];
 
 const SLIDES = [
   {
@@ -46,11 +47,25 @@ const SLIDES = [
     body: 'Every day brings a fresh spiritual insight and a research-backed parenting tip — automatically personalised to the context of your family.',
   },
   {
+    key: 'culture',
+    icon: 'globe-outline',
+    iconColor: '#D4A843',
+    title: 'This Week in Youth Culture',
+    body: "Stay fluent in your child's world. Live trend data from Google, YouTube, Reddit and more — decoded through an Islamic parenting lens every week.",
+  },
+  {
     key: 'family',
     icon: 'people-outline',
     iconColor: '#4ADE80',
     title: 'Family Goals & Connection',
     body: 'Strengthen family connection. Set shared goals for your whole family and log progress. Small moments of growth, captured and remembered.',
+  },
+  {
+    key: 'alerts',
+    icon: 'shield-checkmark-outline',
+    iconColor: '#D4A843',
+    title: 'Safety Alerts',
+    body: "Stay a step ahead of what's affecting children and teens. We connect to Google Trends, Reddit, and social media providers weekly — surfacing the risks most relevant to your child's age.",
   },
   {
     key: 'dashboard',
@@ -60,25 +75,11 @@ const SLIDES = [
     body: "Each child gets their own dashboard — a personalised weekly plan of habits and activities built around their specific growth area.",
   },
   {
-    key: 'culture',
-    icon: 'globe-outline',
-    iconColor: '#4ADE80',
-    title: 'This Week in Youth Culture',
-    body: "Stay fluent in your child's world. Live trend data from Google, YouTube, Reddit and more — decoded through an Islamic parenting lens every week.",
-  },
-  {
     key: 'learn',
     icon: 'layers-outline',
-    iconColor: '#D4A843',
+    iconColor: '#4ADE80',
     title: 'Learn On Demand',
     body: "Describe any parenting challenge and get a full audio learning module — tailored to your situation and ready to listen to hands-free.",
-  },
-  {
-    key: 'alerts',
-    icon: 'shield-checkmark-outline',
-    iconColor: '#D4A843',
-    title: 'Safety Alerts',
-    body: "Stay a step ahead of what's affecting children and teens. We connect to Google Trends, Reddit, and social media providers weekly — surfacing the risks most relevant to your child's age.",
   },
 ];
 
