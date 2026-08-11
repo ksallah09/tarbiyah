@@ -151,7 +151,8 @@ export default function InsightDetailScreen({ route, navigation }) {
             end={{ x: 0, y: 1 }}
             style={[styles.headerOverlay, { paddingTop: insets.top + 64 }]}
           >
-            <View style={styles.typePill}>
+            <View style={[styles.typePill, { backgroundColor: isSpiritual ? '#2E7D62' : '#B45309' }]}>
+              <Ionicons name={isSpiritual ? 'moon' : 'bulb-outline'} size={12} color="#FFFFFF" />
               <Text style={styles.typePillText}>{typeLabel}</Text>
             </View>
 
@@ -349,17 +350,17 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   typePill: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     borderRadius: 100,
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 6,
     alignSelf: 'flex-start',
     marginBottom: 14,
   },
   typePillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.9)',
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
@@ -368,7 +369,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     lineHeight: 31,
-    marginBottom: 10,
+    marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 15,
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
 
   // ── Scroll ──
   scroll: { flex: 1, backgroundColor: '#FFFFFF' },
-  content: { paddingHorizontal: hp, paddingTop: 28, backgroundColor: '#FFFFFF' },
+  content: { paddingHorizontal: hp, paddingTop: 16, backgroundColor: '#FFFFFF' },
 
   // ── Section label ──
   sectionLabel: {

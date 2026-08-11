@@ -165,7 +165,7 @@ async function getProfileName() {
 }
 
 export default function HomeScreen({ navigation, route }) {
-  const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft, alertUnreadCount, refreshAlertUnreadCount } = useAuth();
+  const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft, alertUnreadCount, refreshAlertUnreadCount, splashDismissed } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [dailyData, setDailyData]            = useState(null);
@@ -217,6 +217,14 @@ export default function HomeScreen({ navigation, route }) {
   const sheetOpacity = useRef(new Animated.Value(0)).current;
 
   const [cultureModalChildId, setCultureModalChildId] = useState(null);
+  const setupModalRef = useRef(null);
+  const hasGrowthPlan = children.some(c => (c.growthAreas ?? []).some(a => a?.plan?.length));
+
+  useEffect(() => {
+    if (!loading && splashDismissed) {
+      setupModalRef.current?.showOnce();
+    }
+  }, [loading, splashDismissed]);
 
   // Round-robin default child: rotate which child shows first on each app open
   useEffect(() => {
@@ -610,37 +618,34 @@ export default function HomeScreen({ navigation, route }) {
                 </View>
               )}
 
-              {/* Setup checklist — shown until all 3 steps complete */}
+              {/* Setup banner — shown until all steps complete */}
               {(() => {
-                const hasGrowthPlan = children.some(c => (c.growthAreas ?? []).some(a => a?.plan?.length));
-                const allDone = hasChildren && hasGrowthPlan && hasFamilyGoals;
-                if (allDone) return null;
-                const steps = [
-                  { label: 'Add a child',        done: hasChildren,    onPress: () => navigation.navigate('Family', { tab: 'configure' }) },
-                  { label: 'Start a growth plan', done: hasGrowthPlan,  onPress: () => navigation.navigate('Dashboards') },
-                  { label: 'Set family goals',    done: hasFamilyGoals, onPress: () => navigation.navigate('Family', { tab: 'childWins' }) },
-                ];
+                if (hasChildren && hasGrowthPlan && hasFamilyGoals) return null;
+                const completedCount = [hasChildren, hasGrowthPlan, hasFamilyGoals].filter(Boolean).length;
+                const pct = `${(completedCount / 3) * 100}%`;
                 return (
-                  <View style={styles.setupCard}>
-                    <Text style={styles.setupCardEyebrow}>GET STARTED</Text>
-                    <Text style={styles.setupCardTitle}>Set Up Your Tarbiyah Experience</Text>
-                    {steps.map((step, i) => (
-                      <TouchableOpacity
-                        key={i}
-                        style={styles.setupStep}
-                        onPress={step.done ? undefined : step.onPress}
-                        activeOpacity={step.done ? 1 : 0.75}
-                      >
-                        <View style={[styles.setupStepCheck, step.done && styles.setupStepCheckDone]}>
-                          {step.done && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+                  <TouchableOpacity
+                    style={styles.setupBanner}
+                    onPress={() => setupModalRef.current?.show()}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.setupBannerInner}>
+                      <View style={styles.setupBannerTop}>
+                        <Text style={styles.setupBannerEmoji}>🌱</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.setupBannerTitle}>Set Up Your Tarbiyah Experience</Text>
+                          <Text style={styles.setupBannerSub}>Bring the app to life for your family</Text>
                         </View>
-                        <Text style={[styles.setupStepLabel, step.done && styles.setupStepLabelDone]}>
-                          {step.label}
-                        </Text>
-                        {!step.done && <Ionicons name="chevron-forward" size={13} color="#2E7D62" />}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                        <Ionicons name="chevron-forward" size={13} color="#2E7D62" />
+                      </View>
+                      <View style={styles.setupBannerProgressRow}>
+                        <View style={styles.setupBannerTrack}>
+                          <View style={[styles.setupBannerFill, { width: pct }]} />
+                        </View>
+                        <Text style={styles.setupBannerLabel}>{completedCount} of 3</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
                 );
               })()}
 
@@ -662,7 +667,7 @@ export default function HomeScreen({ navigation, route }) {
                   },
                 ].filter(Boolean);
                 return (
-                  <>
+                  <View style={{ position: 'relative' }}>
                     <ScrollView
                       ref={insightScrollRef}
                       horizontal
@@ -673,7 +678,6 @@ export default function HomeScreen({ navigation, route }) {
                       onMomentumScrollEnd={e => {
                         const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
                         setInsightIndex(idx);
-                        // Resume auto-advance after manual swipe
                         clearInterval(insightIntervalRef.current);
                         insightIntervalRef.current = setInterval(() => {
                           setInsightIndex(prev => {
@@ -695,7 +699,7 @@ export default function HomeScreen({ navigation, route }) {
                             <LinearGradient colors={card.gradient} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.insightCardOverlay}>
                               <View style={styles.insightCardTop}>
                                 <View style={card.pill}>
-                                  <Ionicons name={card.icon} size={10} color="rgba(255,255,255,0.9)" />
+                                  <Ionicons name={card.icon} size={12} color="#FFFFFF" />
                                   <Text style={styles.insightTypeText}>{card.label}</Text>
                                 </View>
                                 {card.readToday && (
@@ -721,23 +725,13 @@ export default function HomeScreen({ navigation, route }) {
                       ))}
                     </ScrollView>
                     {cards.length > 1 && (
-                      <>
-                        <View style={styles.insightDots}>
-                          {cards.map((_, i) => (
-                            <View key={i} style={[styles.insightDot, i === insightIndex && styles.insightDotActive]} />
-                          ))}
-                        </View>
-                        <View style={styles.insightSwipeHint}>
-                          <Text style={styles.insightSwipeHintTop}>Swipe to read</Text>
-                          <Text style={styles.insightSwipeHintSub} numberOfLines={1}>
-                            {insightIndex === 0
-                              ? `Research Insight: ${scienceInsight?.insightTitle ?? ''}`
-                              : `Spiritual Insight: ${spiritualInsight?.insightTitle ?? ''}`}
-                          </Text>
-                        </View>
-                      </>
+                      <View style={styles.insightDotsOverlay} pointerEvents="none">
+                        {cards.map((_, i) => (
+                          <View key={i} style={[styles.insightDot, i === insightIndex && styles.insightDotActive]} />
+                        ))}
+                      </View>
                     )}
-                  </>
+                  </View>
                 );
               })()}
 
@@ -793,12 +787,13 @@ export default function HomeScreen({ navigation, route }) {
                 return (
                   <>
                     <View style={styles.fbDivider} />
-                    <View style={[styles.sectionTitleWrap, { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }]}>
-                      <View>
-                        <Text style={styles.sectionEyebrow}>DAILY</Text>
-                        <Text style={styles.sectionTitle}>Habit of the Day</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <View style={styles.focusCard}>
+                      {/* ── Header ── */}
+                      <View style={styles.focusCardHeader}>
+                        <View>
+                          <Text style={styles.sectionEyebrow}>DAILY</Text>
+                          <Text style={styles.sectionTitle}>Habit of the Day</Text>
+                        </View>
                         {eligible.length > 1 ? (
                           <TouchableOpacity
                             style={[styles.focusChildSelector, { backgroundColor: childColor + '18' }]}
@@ -825,16 +820,7 @@ export default function HomeScreen({ navigation, route }) {
                             <Text style={[styles.focusChildSelectorText, { color: childColor }]}>{childName}</Text>
                           </View>
                         )}
-                        {eligible.length > 1 && (
-                          <Text style={styles.focusSwitchHint}>Tap to switch child</Text>
-                        )}
                       </View>
-                    </View>
-
-                    <View style={styles.focusCard}>
-                      {isPlanComplete && (
-                        <Text style={styles.focusEyebrow}>✅ Plan Complete</Text>
-                      )}
 
                       {/* ── Dropdown ── */}
                       {focusDropdownOpen && eligible.length > 1 && (
@@ -897,8 +883,13 @@ export default function HomeScreen({ navigation, route }) {
                             const body  = dot > 0 ? focus.wisdom.slice(dot + 2) : '';
                             return (
                               <View style={styles.focusWisdom}>
-                                <Text style={styles.focusWisdomTitle}>{title}</Text>
-                                {!!body && <Text style={styles.focusWisdomBody}>{body}</Text>}
+                                <View style={styles.focusWisdomRow}>
+                                  <Ionicons name="chatbubble-ellipses-outline" size={18} color="#2E7D62" style={{ marginTop: 1, flexShrink: 0 }} />
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={styles.focusWisdomTitle}>{title}</Text>
+                                    {!!body && <Text style={styles.focusWisdomBody}>{body}</Text>}
+                                  </View>
+                                </View>
                               </View>
                             );
                           })()}
@@ -1332,7 +1323,7 @@ export default function HomeScreen({ navigation, route }) {
                 </TouchableOpacity>
               )}
 
-              <View style={{ height: 32 }} />
+              <View style={{ height: 12 }} />
             </View>
           </Animated.View>
 
@@ -1353,7 +1344,13 @@ export default function HomeScreen({ navigation, route }) {
         initialChildId={cultureModalChildId}
       />
 
-      <SetupModal navigation={navigation} />
+      <SetupModal
+        ref={setupModalRef}
+        navigation={navigation}
+        hasChildren={hasChildren}
+        hasGrowthPlan={hasGrowthPlan}
+        hasFamilyGoals={hasFamilyGoals}
+      />
 
       </SafeAreaView>
 
@@ -1580,8 +1577,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   scrollContent: { flexGrow: 1 },
-  contentPad: { paddingHorizontal: hp, paddingTop: 0, paddingBottom: 36 },
-  fbDivider: { height: 8, backgroundColor: '#F3F4F6', marginHorizontal: -hp },
+  contentPad: { paddingHorizontal: hp, paddingTop: 0, paddingBottom: 16 },
+  fbDivider: { height: 8, backgroundColor: '#E5E7EB', marginHorizontal: -hp },
 
   // ── Section titles ──
   // Safety Watch digest card
@@ -1714,31 +1711,30 @@ const styles = StyleSheet.create({
   trialBannerBtn:     { backgroundColor: '#1B3D2F', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginLeft: 10 },
   trialBannerBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 
-  setupCard: {
-    backgroundColor: '#F0F7F4', borderRadius: 16,
-    padding: 18, marginBottom: 20,
+  setupBanner: {
+    backgroundColor: '#EDF7F2',
+    paddingVertical: 12, paddingHorizontal: hp,
+    marginHorizontal: -hp, marginBottom: 0,
+    borderBottomWidth: 1, borderBottomColor: '#C6E8DA',
   },
-  setupCardEyebrow: {
-    fontSize: 10, fontWeight: '800', color: '#2E7D62',
-    letterSpacing: 1, marginBottom: 4,
+  setupBannerInner: { gap: 8 },
+  setupBannerTop: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
   },
-  setupCardTitle: {
-    fontSize: 15, fontWeight: '800', color: '#1A1A2E',
-    marginBottom: 16, lineHeight: 21,
+  setupBannerEmoji: { fontSize: 20 },
+  setupBannerTitle: { fontSize: 13, fontWeight: '800', color: '#1B3D2F', marginBottom: 2 },
+  setupBannerSub:   { fontSize: 11, color: '#4B7A60' },
+  setupBannerProgressRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
   },
-  setupStep: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 9,
-    borderTopWidth: 1, borderTopColor: 'rgba(46,125,98,0.1)',
+  setupBannerTrack: {
+    flex: 1, height: 5, borderRadius: 3,
+    backgroundColor: '#C6E8DA', overflow: 'hidden',
   },
-  setupStepCheck: {
-    width: 20, height: 20, borderRadius: 10,
-    borderWidth: 1.5, borderColor: '#2E7D62',
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  setupBannerFill: {
+    height: '100%', borderRadius: 3, backgroundColor: '#2E7D62',
   },
-  setupStepCheckDone: { backgroundColor: '#2E7D62', borderColor: '#2E7D62' },
-  setupStepLabel:     { flex: 1, fontSize: 14, fontWeight: '600', color: '#1A1A2E' },
-  setupStepLabelDone: { color: '#9CA3AF', textDecorationLine: 'line-through' },
+  setupBannerLabel: { fontSize: 11, fontWeight: '700', color: '#4B7A60' },
 
   habitCtaCard: {
     backgroundColor: '#F0F7F4', borderRadius: 16,
@@ -1768,9 +1764,9 @@ const styles = StyleSheet.create({
   planCompleteBtn:   { borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 },
   planCompleteBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   focusCardHeader: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: hp, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+    flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
+    paddingHorizontal: hp, paddingTop: 20, paddingBottom: 14,
+    backgroundColor: '#FFFFFF',
   },
   focusCardBody: { paddingHorizontal: hp, paddingTop: 20, paddingBottom: 20 },
   focusHabitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 16 },
@@ -1809,10 +1805,38 @@ const styles = StyleSheet.create({
   focusDropdownAvatarInitial: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
   focusDropdownItemText:   { fontSize: 13, fontWeight: '500', color: '#6B7280' },
   focusDropdownItemActive: { color: '#1A1A2E', fontWeight: '700' },
-  focusHabitText: { flex: 1, fontSize: 15, fontWeight: '400', color: '#1A1A2E', lineHeight: 23 },
+  focusHabitText: { flex: 1, fontSize: 14, fontWeight: '500', color: '#1B3D2F', lineHeight: 21 },
+  focusMosqueHeader: {
+    height: 90, paddingHorizontal: hp, paddingVertical: 16,
+    justifyContent: 'center', overflow: 'hidden',
+  },
+  focusMosqueHeaderImg: { resizeMode: 'cover' },
+  focusMosqueHeaderContent: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    zIndex: 1,
+  },
+  focusMosqueEyebrow: {
+    fontSize: 10, fontWeight: '700', color: '#6ABFA0',
+    letterSpacing: 1, marginBottom: 4,
+  },
+  focusMosqueTitle: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },
+  focusMosqueSelector: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 100,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  focusMosqueSelectorAvatar: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: '#111', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  focusMosqueSelectorAvatarImg: { width: 26, height: 26, borderRadius: 13 },
+  focusMosqueSelectorInitial:   { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
+  focusMosqueSelectorText:      { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+
   focusWisdom: {
     backgroundColor: '#EDF7F2', borderRadius: 14, padding: 16, marginBottom: 16,
   },
+  focusWisdomRow:  { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   focusWisdomTitle: { fontSize: 14, fontWeight: '700', color: '#1B3D2F', lineHeight: 20, marginBottom: 4 },
   focusWisdomBody:  { fontSize: 13, color: '#374151', lineHeight: 20 },
   focusWisdomText:  {},
@@ -1870,14 +1894,13 @@ const styles = StyleSheet.create({
     fontSize: 10, fontWeight: '700', color: '#4ADE80', letterSpacing: 0.8,
   },
   insightTypePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(46,125,98,0.55)',
-    paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: '#2E7D62',
+    paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 100,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  insightTypePillAmber: { backgroundColor: 'rgba(160,82,26,0.55)' },
+  insightTypePillAmber: { backgroundColor: '#B45309' },
   insightTypePillAmberSolid: { backgroundColor: '#B45309' },
   insightSecondaryRow: {
     gap: 6, paddingVertical: 16,
@@ -1893,8 +1916,8 @@ const styles = StyleSheet.create({
     fontSize: 12, fontWeight: '600', color: '#9CA3AF',
   },
   insightTypeText: {
-    fontSize: 10, fontWeight: '700', letterSpacing: 1.1,
-    textTransform: 'uppercase', color: 'rgba(255,255,255,0.92)',
+    fontSize: 11, fontWeight: '800', letterSpacing: 0.8,
+    textTransform: 'uppercase', color: '#FFFFFF',
   },
   insightCardBottom: { gap: 8 },
   insightCardFeaturedTitle: {
@@ -1919,12 +1942,12 @@ const styles = StyleSheet.create({
   insightReadTodayPill: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   insightReadTodayText: { fontSize: 12, fontWeight: '600', color: '#4ADE80' },
   insightReadMore: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
-  insightDots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 10, paddingBottom: 4 },
-  insightDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D1D5DB' },
-  insightDotActive: { width: 16, height: 6, borderRadius: 3, backgroundColor: '#1B3D2F' },
-  insightSwipeHint: { alignItems: 'center', paddingBottom: 6 },
-  insightSwipeHintTop: { fontSize: 11, fontWeight: '500', color: '#9CA3AF' },
-  insightSwipeHintSub: { fontSize: 12, fontWeight: '600', color: '#374151', marginTop: 2 },
+  insightDotsOverlay: {
+    position: 'absolute', bottom: 14, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6,
+  },
+  insightDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
+  insightDotActive: { width: 16, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
   insightReadMoreText: {
     fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)',
   },

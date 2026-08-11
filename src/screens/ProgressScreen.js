@@ -74,6 +74,8 @@ export default function ProgressScreen({ navigation, route }) {
   const [refreshing,  setRefreshing]       = useState(false);
   const [familyTab,       setFamilyTab]       = useState(route?.params?.tab === 'configure' ? 'configure' : 'childWins');
   const hasMountedRef = useRef(false);
+  const configureScrollRef = useRef(null);
+  const familyGoalsY = useRef(0);
 
   const refreshAll = useCallback(() => {
     getAllChildProfiles().then(v => { _childrenCache = v; setChildren(v); });
@@ -129,9 +131,14 @@ export default function ProgressScreen({ navigation, route }) {
   // Skip the very first focus since useEffect already handles initial load
   useFocusEffect(useCallback(() => {
     if (route?.params?.tab === 'configure') setFamilyTab('configure');
+    if (route?.params?.scrollTo === 'familyGoals') {
+      setTimeout(() => {
+        configureScrollRef.current?.scrollTo({ y: familyGoalsY.current, animated: true });
+      }, 300);
+    }
     if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
     refreshAll();
-  }, [refreshAll, route?.params?.tab]));
+  }, [refreshAll, route?.params?.tab, route?.params?.scrollTo]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -227,6 +234,7 @@ export default function ProgressScreen({ navigation, route }) {
         {/* ── Configure ── */}
         {familyTab === 'configure' && (
         <ScrollView
+          ref={configureScrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -463,7 +471,10 @@ export default function ProgressScreen({ navigation, route }) {
         })()}
 
         {/* ── Family Goals ── */}
-        <View style={[styles.sectionTitleRow, { marginTop: 24 }]}>
+        <View
+          onLayout={e => { familyGoalsY.current = e.nativeEvent.layout.y; }}
+          style={[styles.sectionTitleRow, { marginTop: 24 }]}
+        >
           <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
           <TouchableOpacity
             style={styles.addGoalBtn}

@@ -122,13 +122,14 @@ function AlertCard({ alert, isUnread, onPress }) {
   );
 }
 
-// ── Detail view ───────────────────────────────────────────────────────────────
+// ── Detail screen ─────────────────────────────────────────────────────────────
 
-function AlertDetail({ alert, onBack }) {
+export function AlertDetailScreen({ route, navigation }) {
+  const { alert } = route.params;
   const insets = useSafeAreaInsets();
   const cfg = SEVERITY[alert.severity] ?? SEVERITY.Watch;
   return (
-    <View style={StyleSheet.absoluteFill}>
+    <View style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <ScrollView
         style={{ flex: 1, backgroundColor: '#F9FAFB' }}
@@ -137,7 +138,7 @@ function AlertDetail({ alert, onBack }) {
       >
         {/* Header tint block */}
         <View style={[s.detailHeader, { backgroundColor: cfg.tintBg, paddingTop: insets.top + 12 }]}>
-          <TouchableOpacity style={s.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Ionicons name="arrow-back" size={22} color={cfg.accentText} />
             <Text style={[s.backText, { color: cfg.accentText }]}>Alerts</Text>
           </TouchableOpacity>
@@ -216,7 +217,7 @@ function AlertDetail({ alert, onBack }) {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
-export default function AlertsScreen() {
+export default function AlertsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { markAlertsRead, refreshAlertUnreadCount } = useAuth();
 
@@ -225,7 +226,6 @@ export default function AlertsScreen() {
   const [refreshing,    setRefreshing]    = useState(false);
   const [filter,        setFilter]        = useState('All');
   const [ageFilter,     setAgeFilter]     = useState(AGE_FILTERS[0]);
-  const [selectedAlert, setSelectedAlert] = useState(null);
   const [readIds,       setReadIds]       = useState(new Set());
   const [showOlder,     setShowOlder]     = useState(false);
 
@@ -277,10 +277,6 @@ export default function AlertsScreen() {
   const recent  = byAge.filter(a => new Date(a.published_at) >= THIRTY_DAYS_AGO);
   const older   = byAge.filter(a => new Date(a.published_at) <  THIRTY_DAYS_AGO);
   const filtered = showOlder ? byAge : recent;
-
-  if (selectedAlert) {
-    return <AlertDetail alert={selectedAlert} onBack={() => setSelectedAlert(null)} />;
-  }
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
@@ -345,7 +341,7 @@ export default function AlertsScreen() {
               key={alert.id}
               alert={alert}
               isUnread={!readIds.has(alert.id)}
-              onPress={() => { markAlertRead(alert.id); setSelectedAlert(alert); }}
+              onPress={() => { markAlertRead(alert.id); navigation.navigate('AlertDetail', { alert }); }}
             />
           ))}
 

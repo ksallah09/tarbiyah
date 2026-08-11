@@ -4,6 +4,7 @@ import {
   Animated, TouchableOpacity, AppState,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { setStatusBarStyle } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -18,7 +19,7 @@ SplashScreen.preventAutoHideAsync();
 
 import HomeScreen          from './src/screens/HomeScreen';
 import LibraryScreen       from './src/screens/LibraryScreen';
-import AlertsScreen        from './src/screens/AlertsScreen';
+import AlertsScreen, { AlertDetailScreen } from './src/screens/AlertsScreen';
 import ProgressScreen      from './src/screens/ProgressScreen';
 import LearnScreen         from './src/screens/LearnScreen';
 import GuideMeNowScreen    from './src/screens/GuideMeNowScreen';
@@ -57,6 +58,7 @@ import OnboardingAccount         from './src/screens/onboarding/OnboardingAccoun
 import OnboardingAllSet          from './src/screens/onboarding/OnboardingAllSet';
 
 import FeatureTourScreen from './src/screens/FeatureTourScreen';
+import { resetSetupSession } from './src/components/SetupModal';
 import { isOnboardingComplete, resetOnboarding } from './src/utils/onboarding';
 import { getSession, signOut } from './src/utils/auth';
 import { supabase } from './src/utils/supabase';
@@ -289,7 +291,14 @@ function CustomTabBar({ state, navigation }) {
 
 function Tabs() {
   return (
-    <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }} lazy={false}>
+    <Tab.Navigator
+      tabBar={props => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
+      screenListeners={({ route }) => ({
+        focus: () => setStatusBarStyle(route.name === 'Home' ? 'light' : 'dark'),
+      })}
+      lazy={false}
+    >
       <Tab.Screen name="Home"       component={HomeScreen} />
       <Tab.Screen name="Family"     component={ProgressScreen} />
       <Tab.Screen name="Alerts"     component={AlertsScreen} />
@@ -312,6 +321,11 @@ function MainApp() {
         name="InsightDetail"
         component={InsightDetailScreen}
         options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="AlertDetail"
+        component={AlertDetailScreen}
+        options={{ animation: 'slide_from_right', gestureEnabled: true }}
       />
       <Stack.Screen
         name="ModuleDetail"
@@ -429,6 +443,7 @@ export default function App() {
   const [isSubscribed,  setIsSubscribed]  = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(TRIAL_DAYS);
   const [showAppSplash, setShowAppSplash] = useState(false);
+  const [splashDismissed, setSplashDismissed] = useState(false);
   const [hasChildren,     setHasChildren]     = useState(false);
   const [hasFamilyGoals,  setHasFamilyGoals]  = useState(false);
   const [children,        setChildren]        = useState([]);
@@ -622,6 +637,7 @@ export default function App() {
           await new Promise(r => setTimeout(r, 600));
         } else {
           setLoading(false);
+          setSplashDismissed(true); // no splash for new users — mark ready immediately
         }
         await SplashScreen.hideAsync();
       })
@@ -660,6 +676,9 @@ export default function App() {
           'tarbiyah_partner_cache',
           'tarbiyah_profile_photo',
           'tarbiyah_child_profiles',
+          'tarbiyah_family_tour_seen',
+          'tarbiyah_alerts_tour_seen',
+          'tarbiyah_learn_tour_seen',
         ]).catch(() => {});
         logoutRevenueCat().catch(() => {});
         if (session?.user?.id) unregisterPushToken(session.user.id).catch(() => {});
@@ -734,6 +753,13 @@ export default function App() {
   }
 
   async function handleCompleteOnboarding() {
+    // Reset session gates so modal + overlays show on first visit
+    resetSetupSession();
+    await AsyncStorage.multiRemove([
+      'tarbiyah_family_tour_seen',
+      'tarbiyah_alerts_tour_seen',
+      'tarbiyah_learn_tour_seen',
+    ]).catch(() => {});
     setOnboarded(true);
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData?.session?.user?.id ?? null;
@@ -748,11 +774,11 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, onSubscribed: () => { setHasAccess(true); setIsSubscribed(true); }, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData, isSubscribed, trialDaysLeft, alertUnreadCount, markAlertsRead, refreshAlertUnreadCount }}>
+    <AuthContext.Provider value={{ handleSignOut, completeOnboarding: handleCompleteOnboarding, setHasAccess, onSubscribed: () => { setHasAccess(true); setIsSubscribed(true); }, hasChildren, hasFamilyGoals, refreshHasChildren, refreshHasFamilyGoals, children, worldSnaps, refreshChildrenAndSnaps, refreshWorldData, isSubscribed, trialDaysLeft, alertUnreadCount, markAlertsRead, refreshAlertUnreadCount, splashDismissed }}>
       <NavigationContainer
         ref={navigationRef}
         onReady={() => {
-          Notifications.getLastNotificationResponseAsync().then(response => {
+Notifications.getLastNotificationResponseAsync().then(response => {
             if (response) {
               handleNotifNavigation(response.notification.request.content.data ?? {});
               Notifications.clearLastNotificationResponseAsync().catch(() => {});
@@ -774,7 +800,7 @@ export default function App() {
         </RootStack.Navigator>
 
         {showAppSplash && (
-          <AppSplashOverlay onDismiss={() => setShowAppSplash(false)} />
+          <AppSplashOverlay onDismiss={() => { setShowAppSplash(false); setSplashDismissed(true); }} />
         )}
       </NavigationContainer>
     </AuthContext.Provider>

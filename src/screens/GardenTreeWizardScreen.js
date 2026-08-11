@@ -95,7 +95,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
             <Text style={s.stepSub}>Select one of your children to start growing their Accomplishment Tree.</Text>
             {children.length === 0 && (
               <View style={s.emptyCard}>
-                <Text style={s.emptyText}>No children added yet. Add a child from your dashboard first.</Text>
+                <Text style={s.emptyText}>No children added yet. Add a child from the Configure tab in Family first.</Text>
               </View>
             )}
             {children.map(child => {

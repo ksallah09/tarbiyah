@@ -27,6 +27,7 @@ import { ALL_FOCUS_AREAS, getFocusAreas, saveFocusAreas } from '../utils/focusAr
 import { getCurrentUser, getSession } from '../utils/auth';
 import { saveProfileToSupabase, syncProfileFromSupabase } from '../utils/profile';
 import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../App';
 
 const API_URL = 'https://tarbiyah-production.up.railway.app';
@@ -755,7 +756,6 @@ export default function ProfileScreen() {
   const [libActiveTopic, setLibActiveTopic] = useState('All');
   const [hiddenThumbs,   setHiddenThumbs]   = useState(new Set());
   const [notifications,           setNotifications]           = useState(true);
-  const [communityNotifications,  setCommunityNotifications]  = useState(true);
   const [focusAreas,       setFocusAreas]       = useState([]);
   const [profileName,      setProfileName]      = useState('');
   const [profilePhoto,     setProfilePhoto]     = useState(null);
@@ -808,9 +808,6 @@ export default function ProfileScreen() {
         if (localProfile.language)                    setLanguage(localProfile.language);
         if (localProfile.familyStructure)             setFamilyStructure(localProfile.familyStructure);
         if (localProfile.notifications !== undefined) setNotifications(localProfile.notifications);
-        AsyncStorage.getItem('tarbiyah_community_notifications').then(val => {
-          setCommunityNotifications(val === null ? true : val === 'true');
-        });
         if (localProfile.raisedIn)                    setRaisedIn(localProfile.raisedIn);
         if (localProfile.raisingIn)                   setRaisingIn(localProfile.raisingIn);
         if (localProfile.communities)                 setCommunities(localProfile.communities);
@@ -1082,7 +1079,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
-      <View style={styles.bgTop} />
+      <StatusBar style="dark" />
 
       {/* ── Fixed header with tab switcher ── */}
       <View style={[styles.profileHeader, { paddingTop: insets.top + 16 }]}>
@@ -1094,7 +1091,7 @@ export default function ProfileScreen() {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             activeOpacity={0.75}
           >
-            <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+            <Ionicons name="close" size={18} color="#6B7280" />
           </TouchableOpacity>
         </View>
         <View style={styles.profileSegmentOuter}>
@@ -1485,25 +1482,6 @@ export default function ProfileScreen() {
               }
             />
             <SettingRow
-              icon="people-outline"
-              iconBg="#EDF7F2"
-              iconColor="#2E7D62"
-              title="Community Notifications"
-              subtitle="Dot badge when new requests or posts arrive"
-              rightEl={
-                <Switch
-                  value={communityNotifications}
-                  onValueChange={val => {
-                    setCommunityNotifications(val);
-                    AsyncStorage.setItem('tarbiyah_community_notifications', String(val));
-                  }}
-                  trackColor={{ false: '#E8EAED', true: '#34C759' }}
-                  thumbColor={communityNotifications ? '#1B3D2F' : '#FFF'}
-                  ios_backgroundColor="#E8EAED"
-                />
-              }
-            />
-            <SettingRow
               icon="heart-outline"
               iconBg="#FDE8F0"
               iconColor="#C0226E"
@@ -1619,23 +1597,25 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F6F8' },
-  bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: '#1B3D2F' },
 
   // ── Fixed profile header ──
-  profileHeader: { backgroundColor: '#1B3D2F', paddingHorizontal: 20, paddingBottom: 12 },
-  profileHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  profileHeaderTitle: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.2 },
+  profileHeader: {
+    backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: '#F0F1F3',
+  },
+  profileHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  profileHeaderTitle: { fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.3 },
   closeBtn: {
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: '#F3F4F6',
     alignItems: 'center', justifyContent: 'center',
   },
-  profileSegmentOuter:     { paddingHorizontal: 20, paddingBottom: 16 },
-  profileSegmentWrap:      { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 3 },
+  profileSegmentOuter:     { paddingBottom: 4 },
+  profileSegmentWrap:      { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 12, padding: 3 },
   profileSegmentTab:       { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
-  profileSegmentTabActive: { backgroundColor: '#FFFFFF' },
-  profileSegmentText:      { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
-  profileSegmentTextActive:{ fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+  profileSegmentTabActive: { backgroundColor: '#1B3D2F' },
+  profileSegmentText:      { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
+  profileSegmentTextActive:{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1 },
@@ -1698,8 +1678,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '700', color: '#1B3D2F', marginBottom: 0 },
 
   sectionTitle: {
-    fontSize: 15, fontWeight: '700', color: '#1B3D2F',
-    letterSpacing: 0.3, marginBottom: 10,
+    fontSize: 11, fontWeight: '700', color: '#9CA3AF',
+    letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10, marginTop: 4,
   },
   sectionBlock: { marginBottom: 24 },
   communityCard: {
@@ -1718,18 +1698,18 @@ const styles = StyleSheet.create({
   // ── Profile card ──
   profileCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 24, marginTop: 8,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 24, marginTop: 0,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
   profileAvatarWrap: { position: 'relative' },
   profileAvatarCircle: {
-    width: 54, height: 54, borderRadius: 27,
+    width: 62, height: 62, borderRadius: 31,
     backgroundColor: '#1B3D2F', alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
-  profileAvatarPhoto: { width: 54, height: 54, borderRadius: 27 },
-  profileAvatarText: { fontSize: 19, fontWeight: '700', color: '#FFF' },
+  profileAvatarPhoto: { width: 62, height: 62, borderRadius: 31 },
+  profileAvatarText: { fontSize: 22, fontWeight: '700', color: '#FFF' },
   profileCameraBadge: {
     position: 'absolute', bottom: 0, right: 0,
     width: 20, height: 20, borderRadius: 10,
