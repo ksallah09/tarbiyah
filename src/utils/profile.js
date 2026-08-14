@@ -38,7 +38,12 @@ export async function syncProfileFromSupabase(userId) {
     .eq('user_id', userId)
     .single();
 
-  if (error || !data) return false;
+  if (error || !data) {
+    console.warn('[syncProfile] userId:', userId, 'error:', error?.code, error?.message);
+    // Return null for transient errors (503, network) vs false for genuine missing row (PGRST116)
+    if (error?.code !== 'PGRST116') return null;
+    return false;
+  }
 
   await Promise.all([
     AsyncStorage.setItem('tarbiyah_profile', JSON.stringify({

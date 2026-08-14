@@ -133,11 +133,18 @@ export default function OnboardingAccount({ navigation, route }) {
   }
 
   // After returning-user sign-in: sync from Supabase.
-  // If no profile row exists the account is new or was deleted —
-  // show an alert, then on dismiss sign out, clear local data, and restart onboarding.
+  // null  = transient error (503, network) — don't sign out, just retry later
+  // false = row genuinely missing — account doesn't exist
+  // true  = synced successfully
   async function finishReturningSignIn(userId) {
     const synced = await syncProfileFromSupabase(userId);
-    if (!synced) {
+    if (synced === null) {
+      // Server unavailable — let them into the app anyway; data will sync when it recovers
+      await markOnboardingComplete();
+      completeOnboarding();
+      return;
+    }
+    if (synced === false) {
       Alert.alert(
         'No Account Found',
         "We couldn't find a profile linked to this sign-in. Please create a new account to get started.",
@@ -165,8 +172,9 @@ export default function OnboardingAccount({ navigation, route }) {
   // if found, restore it and go to the app; if not, save onboarding data as normal.
   async function finishNewSignUp(userId) {
     const alreadyHasProfile = await syncProfileFromSupabase(userId);
-    if (alreadyHasProfile) {
-      syncAllUserData(userId);
+    // null = transient server error — treat as existing account to avoid overwriting data
+    if (alreadyHasProfile === true || alreadyHasProfile === null) {
+      if (alreadyHasProfile === true) syncAllUserData(userId);
       Alert.alert(
         'Welcome Back',
         'You already have an account. We\'ve signed you in.',
