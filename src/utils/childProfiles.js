@@ -137,15 +137,19 @@ export async function syncChildProfilesFromSupabase() {
     const { data } = await supabase.auth.getSession();
     if (!data?.session?.access_token) return;
     const userId = data.session.user.id;
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select('children_profiles')
       .eq('user_id', userId)
       .single();
+    if (error) {
+      console.warn('[childProfiles] syncFromSupabase error:', error.message);
+      return; // keep local cache intact — don't wipe on a failed fetch
+    }
     if (profile?.children_profiles?.length) {
       await setCached(profile.children_profiles);
     } else {
-      // New or empty account — clear any stale data from a previous session
+      // Confirmed empty account — clear any stale data from a previous session
       await setCached([]);
     }
   } catch {}
