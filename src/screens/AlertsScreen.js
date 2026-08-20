@@ -179,13 +179,19 @@ export function AlertDetailScreen({ route, navigation }) {
           )}
 
           {/* What to do */}
-          {!!alert.what_to_do && (
-            <>
-              <View style={[s.blockquote, { borderLeftColor: cfg.accentText }]}>
-                <Text style={s.blockquoteLabel}>What to do</Text>
-                <Text style={s.blockquoteText}>{alert.what_to_do}</Text>
-              </View>
-            </>
+          {(alert.action_steps?.length > 0 || !!alert.what_to_do) && (
+            <View style={[s.blockquote, { borderLeftColor: cfg.accentText }]}>
+              <Text style={s.blockquoteLabel}>What to do</Text>
+              {alert.action_steps?.length > 0
+                ? alert.action_steps.map((step, i) => (
+                    <View key={i} style={s.actionStepRow}>
+                      <Text style={[s.actionStepNum, { color: cfg.accentText }]}>{i + 1}.</Text>
+                      <Text style={s.actionStepText}>{step}</Text>
+                    </View>
+                  ))
+                : <Text style={s.blockquoteText}>{alert.what_to_do}</Text>
+              }
+            </View>
           )}
 
           {/* Sources */}
@@ -451,8 +457,11 @@ const s = StyleSheet.create({
   blockquote: {
     borderLeftWidth: 3, paddingLeft: 14, marginTop: 20, marginBottom: 4,
   },
-  blockquoteLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  blockquoteLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
   blockquoteText:  { fontSize: 15, color: '#374151', lineHeight: 24 },
+  actionStepRow:   { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  actionStepNum:   { fontSize: 15, fontWeight: '700', lineHeight: 24, minWidth: 20 },
+  actionStepText:  { flex: 1, fontSize: 15, color: '#374151', lineHeight: 24 },
 
   sourceChip: {
     paddingHorizontal: 10, paddingVertical: 5,

@@ -325,6 +325,7 @@ async function main() {
     severity:         normaliseSeverity(item.risk_level),
     description:      item.short_summary ?? null,
     what_to_do:       (item.action_steps ?? [])[0] ?? null,
+    action_steps:     item.action_steps ?? [],
     age_ranges:       item.age_ranges ?? [],
     source_citations: item.source_citations ?? [],
     status:           'published',
