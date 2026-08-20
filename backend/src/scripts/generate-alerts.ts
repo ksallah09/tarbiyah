@@ -162,7 +162,7 @@ Return ONLY valid JSON in this exact format:
       "short_summary": "1-2 sentences. What is happening and why it matters.",
       "what_it_is": "2 sentences max. Plain language explanation.",
       "how_to_connect": "1 sentence. How to open the conversation without alarm.",
-      "action_steps": ["Specific step 1", "Specific step 2"],
+      "action_steps": "1-3 sentences. Combine practical steps to take with communication and educational guidance — how to talk about it, what to teach, and what to do. Keep Islamic values and the parent-child relationship in mind.",
       "source_citations": ["Source name (Month Year)"]
     }
   ]
@@ -324,8 +324,7 @@ async function main() {
     category:         'Safety Watch',
     severity:         normaliseSeverity(item.risk_level),
     description:      item.short_summary ?? null,
-    what_to_do:       (item.action_steps ?? [])[0] ?? null,
-    action_steps:     item.action_steps ?? [],
+    what_to_do:       item.action_steps ?? null,
     age_ranges:       item.age_ranges ?? [],
     source_citations: item.source_citations ?? [],
     status:           'published',
