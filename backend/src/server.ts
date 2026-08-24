@@ -3723,13 +3723,16 @@ ${overview ? `Description: ${overview.slice(0, 600)}` : ''}${childContext}
 Return ONLY valid JSON — no markdown:
 {
   "verdict": "friendly | caution | avoid",
-  "flags": ["specific concern 1", "specific concern 2"],
+  "flags": [
+    { "title": "Short title (3-5 words)", "description": "One concrete explanation sentence about this specific title." }
+  ],
   "summary": "2-3 sentences. What is this about and why is the verdict what it is. Personalise to the child if age was provided.",
   "age_note": "1 sentence. Age suitability — be specific."
 }
 
 Rules:
-- flags array: 2-5 specific, concrete flags. If nothing notable, return 1 flag: "No significant concerns found."
+- flags: 2-5 objects. title is 3-5 words. description is 1-2 specific sentences about the actual content.
+- If nothing notable, return 1 flag: { "title": "No significant concerns", "description": "This title has no notable content issues for Muslim families." }
 - summary must name the specific content issues, not generic statements
 - If you don't know this title, say so in the summary but still give your best verdict based on its genre/description`;
 
