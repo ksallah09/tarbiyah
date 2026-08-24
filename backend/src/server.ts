@@ -3694,7 +3694,7 @@ app.post('/media/check', async (req: Request, res: Response) => {
 
     const cacheQuery = supabase
       .from('media_cache')
-      .select('verdict, flags, summary, age_note')
+      .select('verdict, content_areas, flags, summary, age_note')
       .eq('type', type);
 
     const { data: cached } = tmdb_id
