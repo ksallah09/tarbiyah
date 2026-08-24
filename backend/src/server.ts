@@ -3723,6 +3723,14 @@ ${overview ? `Description: ${overview.slice(0, 600)}` : ''}${childContext}
 Return ONLY valid JSON — no markdown:
 {
   "verdict": "friendly | caution | avoid",
+  "content_areas": {
+    "sex_nudity":   "none | mild | moderate | severe",
+    "violence":     "none | mild | moderate | severe",
+    "profanity":    "none | mild | moderate | severe",
+    "substances":   "none | mild | moderate | severe",
+    "frightening":  "none | mild | moderate | severe",
+    "faith_values": "none | mild | moderate | severe"
+  },
   "flags": [
     { "title": "Short title (3-5 words)", "description": "One concrete explanation sentence about this specific title." }
   ],
@@ -3731,8 +3739,9 @@ Return ONLY valid JSON — no markdown:
 }
 
 Rules:
+- content_areas: rate each area based on what the IMDb Parents Guide says. faith_values rates concern from an Islamic perspective — "none" means content aligns well with Islamic values, "severe" means significant conflicts (shirk, haram glorified, anti-Islamic themes).
 - flags: 2-5 objects. title is 3-5 words. description is 1-2 specific sentences about the actual content.
-- If nothing notable, return 1 flag: { "title": "No significant concerns", "description": "This title has no notable content issues for Muslim families." }
+- If nothing notable for flags, return 1 flag: { "title": "No significant concerns", "description": "This title has no notable content issues for Muslim families." }
 - summary must name the specific content issues, not generic statements
 - If you don't know this title, say so in the summary but still give your best verdict based on its genre/description`;
 
@@ -3799,13 +3808,14 @@ Rules:
 
     // ── Cache result (without personalised age note) ───────────────────────────
     supabase.from('media_cache').upsert({
-      title:    title.trim(),
+      title:         title.trim(),
       type,
-      tmdb_id:  tmdb_id ?? null,
-      verdict:  parsed.verdict,
-      flags:    parsed.flags ?? [],
-      summary:  parsed.summary,
-      age_note: parsed.age_note,
+      tmdb_id:       tmdb_id ?? null,
+      verdict:       parsed.verdict,
+      content_areas: parsed.content_areas ?? null,
+      flags:         parsed.flags ?? [],
+      summary:       parsed.summary,
+      age_note:      parsed.age_note,
     }, { onConflict: 'title,type' }).then(() => {}, () => {});
 
     return res.json({ ...parsed, cached: false });

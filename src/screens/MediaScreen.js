@@ -13,6 +13,7 @@ import { getAllChildProfiles } from '../utils/childProfiles';
 import { supabase } from '../utils/supabase';
 import MediaTourOverlay from '../components/MediaTourOverlay';
 import { searchMedia } from '../utils/mediaSearch';
+import { Image } from 'expo-image';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
 
@@ -35,6 +36,29 @@ const VERDICT_LABELS = {
   friendly: 'Muslim Friendly',
   caution:  'Watch with Caution',
   avoid:    'Not Recommended',
+};
+
+const CONTENT_AREA_LABELS = [
+  { key: 'sex_nudity',   label: 'Sex & Nudity' },
+  { key: 'violence',     label: 'Violence & Gore' },
+  { key: 'profanity',    label: 'Language' },
+  { key: 'substances',   label: 'Alcohol, Drugs & Smoking' },
+  { key: 'frightening',  label: 'Frightening Scenes' },
+  { key: 'faith_values', label: 'Faith & Values' },
+];
+
+const SEVERITY_COLOR = {
+  none:     '#22C55E',
+  mild:     '#F59E0B',
+  moderate: '#F97316',
+  severe:   '#EF4444',
+};
+
+const SEVERITY_LABEL = {
+  none:     'None',
+  mild:     'Mild',
+  moderate: 'Moderate',
+  severe:   'Severe',
 };
 
 // ── Mock data (replace with real API results) ─────────────────────────────────
@@ -116,7 +140,7 @@ function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
       <Animated.View style={[modal.sheet, { transform: [{ translateY: slideAnim }] }]}>
         <View style={modal.handle} />
         <Text style={modal.title}>Who's watching?</Text>
-        <Text style={modal.sub}>We'll tailor the check to their age and stage.</Text>
+        <Text style={modal.sub}>We'll tailor the check to their age and stage. Select all that apply.</Text>
 
         {/* Children */}
         {children.length > 0 && (
@@ -237,47 +261,129 @@ function HowItWorksModal({ visible, onDismiss }) {
 
 // ── Verdict Card ──────────────────────────────────────────────────────────────
 
+function parseFlag(f) {
+  if (typeof f === 'object' && f !== null && f.title) return f;
+  if (typeof f !== 'string') return { title: String(f), description: '' };
+  const idx = f.indexOf(': ');
+  if (idx !== -1 && idx < 60) return { title: f.slice(0, idx), description: f.slice(idx + 2) };
+  // Plain sentence with no colon — show as description with no separate title
+  return { title: '', description: f };
+}
+
+const VERDICT_ICONS = {
+  friendly: 'checkmark',
+  caution:  'warning',
+  avoid:    'close',
+};
+
 function VerdictCard({ result, watchersLabel, onClose, onApprove }) {
   const colors = VERDICT_COLORS[result.verdict];
+  const catIcon = CATEGORIES.find(c => c.key === result.type)?.icon ?? 'film-outline';
+  const verdictIcon = VERDICT_ICONS[result.verdict] ?? 'help';
+
   return (
     <View style={verdict.card}>
       {/* Header */}
       <View style={verdict.header}>
+        {result.poster ? (
+          <Image source={{ uri: result.poster }} style={verdict.poster} contentFit="cover" />
+        ) : (
+          <View style={[verdict.posterPlaceholder, { backgroundColor: colors.bg }]}>
+            <Ionicons name={catIcon} size={26} color={colors.dot} />
+          </View>
+        )}
         <View style={{ flex: 1 }}>
-          <Text style={verdict.title}>{result.title}</Text>
-          <Text style={verdict.meta}>{result.year} · {result.type}</Text>
-          {watchersLabel ? <Text style={verdict.forLabel}>For {watchersLabel}</Text> : null}
+          <Text style={verdict.title} numberOfLines={2}>{result.title}</Text>
+          <Text style={verdict.meta}>
+            {[result.year, result.type?.charAt(0).toUpperCase() + result.type?.slice(1)].filter(Boolean).join(' · ')}
+          </Text>
+          {watchersLabel ? (
+            <View style={verdict.forRow}>
+              <Ionicons name="person-outline" size={12} color="#9CA3AF" />
+              <Text style={verdict.forLabel}>{watchersLabel}</Text>
+            </View>
+          ) : null}
         </View>
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Ionicons name="close" size={22} color="#9CA3AF" />
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginLeft: 8 }}>
+          <Ionicons name="close" size={20} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
 
-      {/* Verdict badge */}
-      <View style={[verdict.badge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-        <View style={[verdict.dot, { backgroundColor: colors.dot }]} />
-        <Text style={[verdict.badgeText, { color: colors.text }]}>{VERDICT_LABELS[result.verdict]}</Text>
-        {result.ageNote && <Text style={[verdict.ageNote, { color: colors.text }]}> · {result.ageNote}</Text>}
+      {/* Verdict box */}
+      <View style={[verdict.verdictBox, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+        <View style={[verdict.verdictCircle, { backgroundColor: colors.dot }]}>
+          <Ionicons name={verdictIcon} size={20} color="#FFFFFF" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[verdict.verdictLabel, { color: colors.text }]}>{VERDICT_LABELS[result.verdict]}</Text>
+          {result.ageNote ? (
+            <Text style={[verdict.verdictNote, { color: colors.text }]}>{result.ageNote}</Text>
+          ) : null}
+        </View>
       </View>
 
-      {/* Flags */}
-      {result.flags?.length > 0 && (
-        <View style={verdict.flagsWrap}>
-          {result.flags.map((f, i) => (
-            <View key={i} style={verdict.flagChip}>
-              <Text style={verdict.flagText}>{f}</Text>
-            </View>
-          ))}
-        </View>
+      {/* Content areas */}
+      {result.content_areas && (
+        <>
+          <Text style={verdict.sectionLabel}>CONTENT RATING</Text>
+          <View style={verdict.contentCard}>
+            {CONTENT_AREA_LABELS.map(({ key, label }, i) => {
+              const severity = result.content_areas[key];
+              if (!severity) return null;
+              const color = SEVERITY_COLOR[severity] ?? '#9CA3AF';
+              return (
+                <React.Fragment key={key}>
+                  {i > 0 && <View style={verdict.flagDivider} />}
+                  <View style={verdict.contentRow}>
+                    <View style={[verdict.severityBar, { backgroundColor: color }]} />
+                    <Text style={verdict.contentLabel}>{label}</Text>
+                    <Text style={[verdict.severityText, { color }]}>{SEVERITY_LABEL[severity] ?? severity}</Text>
+                  </View>
+                </React.Fragment>
+              );
+            })}
+          </View>
+        </>
       )}
 
-      {/* Summary */}
-      <Text style={verdict.summary}>{result.summary}</Text>
+      {/* What to know */}
+      {result.flags?.length > 0 && (
+        <>
+          <Text style={verdict.sectionLabel}>WHAT TO KNOW</Text>
+          <View style={verdict.flagsCard}>
+            {result.flags.map((f, i) => {
+              const { title, description } = parseFlag(f);
+              return (
+                <React.Fragment key={i}>
+                  {i > 0 && <View style={verdict.flagDivider} />}
+                  <View style={verdict.flagRow}>
+                    <View style={verdict.flagCircle}>
+                      <Text style={verdict.flagI}>i</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      {title ? <Text style={verdict.flagTitle}>{title}</Text> : null}
+                      {description ? <Text style={verdict.flagDesc}>{description}</Text> : null}
+                    </View>
+                  </View>
+                </React.Fragment>
+              );
+            })}
+          </View>
+        </>
+      )}
+
+      {/* Overview */}
+      {result.summary ? (
+        <>
+          <Text style={verdict.sectionLabel}>OVERVIEW</Text>
+          <Text style={verdict.summary}>{result.summary}</Text>
+        </>
+      ) : null}
 
       {/* Actions */}
       <View style={verdict.btnRow}>
         <TouchableOpacity style={verdict.approveBtn} onPress={onApprove} activeOpacity={0.85}>
-          <Ionicons name="checkmark-circle-outline" size={17} color="#1B3D2F" />
+          <Ionicons name="checkmark-circle-outline" size={16} color="#1B3D2F" />
           <Text style={verdict.approveBtnText}>Add to Approved</Text>
         </TouchableOpacity>
         <TouchableOpacity style={verdict.newCheckBtn} onPress={onClose} activeOpacity={0.85}>
@@ -304,8 +410,24 @@ export default function MediaScreen({ navigation }) {
   const [searchLoading, setSearchLoading] = useState(false);
   const [trending, setTrending]         = useState(MOCK_TRENDING);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
-  const inputRef   = useRef(null);
+  const inputRef    = useRef(null);
   const searchTimer = useRef(null);
+  const headerAnim  = useRef(new Animated.Value(1)).current;
+  const lastScrollY = useRef(0);
+  const headerCollapsed = useRef(false);
+
+  function handleScroll(e) {
+    const y    = e.nativeEvent.contentOffset.y;
+    const diff = y - lastScrollY.current;
+    lastScrollY.current = y;
+    if (diff > 6 && y > 10 && !headerCollapsed.current) {
+      headerCollapsed.current = true;
+      Animated.spring(headerAnim, { toValue: 0, useNativeDriver: false, tension: 200, friction: 20 }).start();
+    } else if (diff < -6 && headerCollapsed.current) {
+      headerCollapsed.current = false;
+      Animated.spring(headerAnim, { toValue: 1, useNativeDriver: false, tension: 200, friction: 20 }).start();
+    }
+  }
 
   useFocusEffect(useCallback(() => {
     getAllChildProfiles().then(setChildren);
@@ -356,7 +478,7 @@ export default function MediaScreen({ navigation }) {
     setShowWho(true);
   }
 
-  function handleWhoConfirm({ children: selectedChildren, generic }) {
+  async function handleWhoConfirm({ children: selectedChildren, generic }) {
     setShowWho(false);
     const names = selectedChildren.map(c => c.name);
     if (generic?.age || generic?.gender) names.push([generic.gender, generic.age].filter(Boolean).join(' '));
@@ -384,13 +506,15 @@ export default function MediaScreen({ navigation }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Check failed');
       const result = {
-        title:   pendingResult.title,
-        year:    pendingResult.year,
-        type:    pendingResult.type,
-        verdict: data.verdict,
-        flags:   data.flags ?? [],
-        summary: data.summary,
-        ageNote: data.age_note,
+        title:         pendingResult.title,
+        year:          pendingResult.year,
+        type:          pendingResult.type,
+        poster:        pendingResult.poster ?? null,
+        verdict:       data.verdict,
+        content_areas: data.content_areas ?? null,
+        flags:         data.flags ?? [],
+        summary:       data.summary,
+        ageNote:       data.age_note,
       };
       setActiveVerdict(result);
       setResults([]);
@@ -414,6 +538,9 @@ export default function MediaScreen({ navigation }) {
     setActiveVerdict(null);
     setWatchersLabel('');
     setPendingResult(null);
+    lastScrollY.current = 0;
+    headerCollapsed.current = false;
+    Animated.spring(headerAnim, { toValue: 1, useNativeDriver: false, tension: 200, friction: 20 }).start();
   }
 
   const catLabel = CATEGORIES.find(c => c.key === category)?.label ?? 'title';
@@ -428,47 +555,53 @@ export default function MediaScreen({ navigation }) {
           <Text style={styles.headerTitle}>Media Check</Text>
           <Text style={styles.headerSubtitle}>Check if a movie, show, book, or game is compatible with Islamic values.</Text>
 
-          {/* Category pills */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-            {CATEGORIES.map(cat => {
-              const active = cat.key === category;
-              return (
-                <TouchableOpacity
-                  key={cat.key}
-                  style={[styles.catPill, active && styles.catPillActive]}
-                  onPress={() => { setCategory(cat.key); setResults([]); setQuery(''); }}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name={cat.icon} size={14} color={active ? '#FFFFFF' : '#6B7280'} />
-                  <Text style={[styles.catPillText, active && styles.catPillTextActive]}>{cat.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <Animated.View style={{
+            maxHeight: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 160] }),
+            opacity:   headerAnim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0, 1] }),
+            overflow:  'hidden',
+          }}>
+            {/* Category pills */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+              {CATEGORIES.map(cat => {
+                const active = cat.key === category;
+                return (
+                  <TouchableOpacity
+                    key={cat.key}
+                    style={[styles.catPill, active && styles.catPillActive]}
+                    onPress={() => { setCategory(cat.key); setResults([]); setQuery(''); }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name={cat.icon} size={14} color={active ? '#FFFFFF' : '#6B7280'} />
+                    <Text style={[styles.catPillText, active && styles.catPillTextActive]}>{cat.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-          {/* Search bar */}
-          <View style={styles.searchBar}>
-            <Ionicons name="search-outline" size={18} color="#9CA3AF" style={{ marginRight: 8 }} />
-            <TextInput
-              ref={inputRef}
-              style={styles.searchInput}
-              placeholder={`Search a ${catLabel.toLowerCase()}...`}
-              placeholderTextColor="#9CA3AF"
-              value={query}
-              onChangeText={handleSearch}
-              returnKeyType="search"
-              autoCorrect={false}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => { setQuery(''); setResults([]); setSearching(false); }}>
-                <Ionicons name="close-circle" size={18} color="#9CA3AF" />
-              </TouchableOpacity>
-            )}
-          </View>
-          <TouchableOpacity style={styles.howBtn} onPress={() => setShowHowItWorks(true)} activeOpacity={0.7}>
-            <Ionicons name="information-circle-outline" size={13} color="#9CA3AF" />
-            <Text style={styles.howBtnText}>How this works</Text>
-          </TouchableOpacity>
+            {/* Search bar */}
+            <View style={styles.searchBar}>
+              <Ionicons name="search-outline" size={18} color="#9CA3AF" style={{ marginRight: 8 }} />
+              <TextInput
+                ref={inputRef}
+                style={styles.searchInput}
+                placeholder={`Search a ${catLabel.toLowerCase()}...`}
+                placeholderTextColor="#9CA3AF"
+                value={query}
+                onChangeText={handleSearch}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+              {query.length > 0 && (
+                <TouchableOpacity onPress={() => { setQuery(''); setResults([]); setSearching(false); }}>
+                  <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity style={styles.howBtn} onPress={() => setShowHowItWorks(true)} activeOpacity={0.7}>
+              <Ionicons name="information-circle-outline" size={13} color="#9CA3AF" />
+              <Text style={styles.howBtnText}>How this works</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
 
         <View style={styles.separator} />
@@ -483,7 +616,7 @@ export default function MediaScreen({ navigation }) {
 
         {/* ── Verdict ── */}
         {!loading && activeVerdict && (
-          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false} onScroll={handleScroll} scrollEventThrottle={16}>
             <VerdictCard
               result={activeVerdict}
               watchersLabel={watchersLabel}
@@ -500,6 +633,8 @@ export default function MediaScreen({ navigation }) {
             keyExtractor={item => item.id}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 24 }}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
             ListHeaderComponent={searchLoading ? (
               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                 <ActivityIndicator color="#1B3D2F" />
@@ -707,22 +842,35 @@ const modal = StyleSheet.create({
 });
 
 const verdict = StyleSheet.create({
-  card:       { backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#F3F4F6', padding: 20, gap: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
-  header:     { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title:      { fontSize: 22, fontWeight: '800', color: '#111827', marginBottom: 2 },
-  meta:       { fontSize: 13, color: '#9CA3AF', textTransform: 'capitalize' },
-  forLabel:   { fontSize: 12, color: '#6B7280', marginTop: 4, fontWeight: '500' },
-  badge:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, alignSelf: 'flex-start' },
-  dot:        { width: 8, height: 8, borderRadius: 4 },
-  badgeText:  { fontSize: 14, fontWeight: '700' },
-  ageNote:    { fontSize: 13, fontWeight: '500' },
-  flagsWrap:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  flagChip:   { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: '#F3F4F6' },
-  flagText:   { fontSize: 12, fontWeight: '500', color: '#374151' },
-  summary:    { fontSize: 14, color: '#374151', lineHeight: 22 },
-  btnRow:     { flexDirection: 'row', gap: 10, marginTop: 4 },
-  approveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13, borderRadius: 12, borderWidth: 1.5, borderColor: '#1B3D2F' },
-  approveBtnText: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
-  newCheckBtn:{ paddingHorizontal: 18, paddingVertical: 13, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center' },
-  newCheckText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  card:              { backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#F0F0F0', padding: 20, gap: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 4 },
+  header:            { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  poster:            { width: 56, height: 84, borderRadius: 8 },
+  posterPlaceholder: { width: 56, height: 84, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  title:             { fontSize: 22, fontWeight: '800', color: '#111827', lineHeight: 28 },
+  meta:              { fontSize: 13, color: '#9CA3AF', marginTop: 3 },
+  forRow:            { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  forLabel:          { fontSize: 12, color: '#6B7280', fontWeight: '500' },
+  verdictBox:        { flexDirection: 'row', alignItems: 'flex-start', gap: 14, padding: 16, borderRadius: 16, borderWidth: 1 },
+  verdictCircle:     { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  verdictLabel:      { fontSize: 18, fontWeight: '800', marginBottom: 6 },
+  verdictNote:       { fontSize: 14, lineHeight: 21, opacity: 0.85 },
+  sectionLabel:      { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.8 },
+  contentCard:       { borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
+  contentRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13 },
+  severityBar:       { width: 4, height: 22, borderRadius: 2, marginRight: 12 },
+  contentLabel:      { flex: 1, fontSize: 14, fontWeight: '600', color: '#111827' },
+  severityText:      { fontSize: 13, fontWeight: '700' },
+  flagsCard:         { borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
+  flagRow:           { flexDirection: 'row', alignItems: 'flex-start', gap: 14, padding: 14 },
+  flagDivider:       { height: 1, backgroundColor: '#F3F4F6', marginHorizontal: 14 },
+  flagCircle:        { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  flagI:             { fontSize: 13, fontWeight: '700', fontStyle: 'italic', color: '#9CA3AF' },
+  flagTitle:         { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 3 },
+  flagDesc:          { fontSize: 13, color: '#6B7280', lineHeight: 19 },
+  summary:           { fontSize: 14, color: '#374151', lineHeight: 22 },
+  btnRow:            { flexDirection: 'row', gap: 10 },
+  approveBtn:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13, borderRadius: 12, borderWidth: 1.5, borderColor: '#1B3D2F' },
+  approveBtnText:    { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
+  newCheckBtn:       { paddingHorizontal: 18, paddingVertical: 13, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center' },
+  newCheckText:      { fontSize: 14, fontWeight: '600', color: '#374151' },
 });
