@@ -3816,7 +3816,7 @@ Rules:
       });
       const csmType = type === 'game' ? 'game' : type === 'book' ? 'book' : type === 'show' ? 'tv-reviews' : 'movie';
       const csmQuery = type === 'book'
-        ? `Search commonsensemedia.org/book-reviews for "${title.trim()}". Extract the age rating, per-category ratings (violence, sex/romance, language, substances/drugs, positive messages), and any specific content warnings. Also search thestorygraph.com for content warnings for this book (graphic/moderate/minor). Quote exactly what you find. Do NOT summarise.`
+        ? `Search these three sources for the book "${title.trim()}" and report ONLY what you find on each page, quoting verbatim: 1) commonsensemedia.org/book-reviews — age rating and per-category ratings (violence, sex/romance, language, substances, positive messages). 2) thestorygraph.com — content warnings with severity (graphic/moderate/minor). 3) doesthedogdie.com — content advisories, especially any entries for occult, religion mocked, blasphemy, witchcraft, sexual content, violence. Do NOT summarise or combine — report each source separately.`
         : `Search commonsensemedia.org/${csmType}-reviews for "${title.trim()}${year ? ` (${year})` : ''}". Extract the age rating and per-category content ratings (violence, sex/romance, language, substances). Quote exactly. Do NOT summarise. If not found, say so.`;
       const csmResult = await Promise.race([
         groundedModel3.generateContent(csmQuery),
