@@ -3736,6 +3736,25 @@ Rules:
 - summary must name the specific content issues, not generic statements
 - If you don't know this title, say so in the summary but still give your best verdict based on its genre/description`;
 
+    // ── Resolve IMDb ID from TMDB for exact Parents Guide URL ────────────────
+    let imdbId: string | null = null;
+    if (tmdb_id && (type === 'movie' || type === 'show')) {
+      try {
+        const tmdbType = type === 'show' ? 'tv' : 'movie';
+        const extRes = await fetch(
+          `https://api.themoviedb.org/3/${tmdbType}/${tmdb_id}/external_ids`,
+          { headers: { Authorization: `Bearer ${process.env.TMDB_READ_TOKEN}`, 'Content-Type': 'application/json' } }
+        );
+        if (extRes.ok) {
+          const extData = await extRes.json() as { imdb_id?: string };
+          imdbId = extData.imdb_id ?? null;
+          console.log(`[media/check] Resolved IMDb ID: ${imdbId}`);
+        }
+      } catch (e) {
+        console.warn('[media/check] IMDb ID lookup failed:', (e as Error).message);
+      }
+    }
+
     // ── Fetch IMDb Parents Guide via Gemini Search Grounding ──────────────────
     let parentalGuideContext = '';
     try {
@@ -3744,7 +3763,10 @@ Rules:
         tools: [{ googleSearch: {} } as any],
         generationConfig: { temperature: 0.1 },
       });
-      const searchQuery = `Search for the IMDb Parents Guide page for "${title.trim()}${year ? ` (${year})` : ''}" ${type}. Find imdb.com/title/*/parentalguide. Report ONLY what you find on that page — list the exact entries under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label (None/Mild/Moderate/Severe) for each category. Quote specific scene descriptions verbatim. Do NOT summarise or interpret — just extract what the page says.`;
+      const imdbUrl = imdbId ? `imdb.com/title/${imdbId}/parentalguide` : null;
+      const searchQuery = imdbUrl
+        ? `Fetch the IMDb Parents Guide at ${imdbUrl} — this is the exact page for "${title.trim()}" (${year}, ${type}). Report ONLY what you find on that page — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label (None/Mild/Moderate/Severe) per category. Quote specific scene descriptions verbatim. Do NOT summarise or interpret.`
+        : `Search IMDb Parents Guide for "${title.trim()}${year ? ` (${year})` : ''}" ${type} at imdb.com/title/*/parentalguide. Report ONLY what you find — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label per category. Quote verbatim. Do NOT summarise.`;
       const groundedResult = await Promise.race([
         groundedModel.generateContent(searchQuery),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Grounding timeout')), 20_000)),
