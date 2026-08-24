@@ -3806,9 +3806,32 @@ Rules:
       console.warn('[media/check] Plugged In grounding failed:', (piErr as Error).message);
     }
 
+    // ── Common Sense Media grounding (books + fallback for all types) ─────────
+    let csmContext = '';
+    try {
+      const groundedModel3 = genAI.getGenerativeModel({
+        model: MODEL_FAST,
+        tools: [{ googleSearch: {} } as any],
+        generationConfig: { temperature: 0.1 },
+      });
+      const csmType = type === 'game' ? 'game' : type === 'book' ? 'book' : type === 'show' ? 'tv-reviews' : 'movie';
+      const csmQuery = type === 'book'
+        ? `Search commonsensemedia.org/book-reviews for "${title.trim()}". Extract the age rating, per-category ratings (violence, sex/romance, language, substances/drugs, positive messages), and any specific content warnings. Also search thestorygraph.com for content warnings for this book (graphic/moderate/minor). Quote exactly what you find. Do NOT summarise.`
+        : `Search commonsensemedia.org/${csmType}-reviews for "${title.trim()}${year ? ` (${year})` : ''}". Extract the age rating and per-category content ratings (violence, sex/romance, language, substances). Quote exactly. Do NOT summarise. If not found, say so.`;
+      const csmResult = await Promise.race([
+        groundedModel3.generateContent(csmQuery),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('CSM timeout')), 20_000)),
+      ]);
+      csmContext = (csmResult as any).response.text();
+      console.log(`[media/check] Common Sense Media grounding success — ${csmContext.length} chars`);
+    } catch (csmErr) {
+      console.warn('[media/check] CSM grounding failed:', (csmErr as Error).message);
+    }
+
     const fullPrompt = [
       prompt,
       parentalGuideContext && `\nIMDb Parents Guide data:\n${parentalGuideContext}\n\nBase sex/nudity, violence, profanity, substances, and frightening ratings on this data. Do not invent content not found here.`,
+      csmContext && `\nCommon Sense Media review data:\n${csmContext}\n\nUse this to supplement or confirm the content area ratings, especially for books and games where IMDb data may be limited.`,
       pluggedInContext && `\nPlugged In spiritual content review:\n${pluggedInContext}\n\nBase the faith_values rating on this Plugged In data. "none" = no spiritual concerns, "mild" = minor issues, "moderate" = notable concerns, "severe" = significant conflicts with Islamic values (occult, shirk, anti-faith themes).`,
     ].filter(Boolean).join('');
 
