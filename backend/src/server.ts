@@ -3736,14 +3736,37 @@ Rules:
 - summary must name the specific content issues, not generic statements
 - If you don't know this title, say so in the summary but still give your best verdict based on its genre/description`;
 
+    // ── Fetch IMDb Parents Guide via Gemini Search Grounding ──────────────────
+    let parentalGuideContext = '';
+    try {
+      const groundedModel = genAI.getGenerativeModel({
+        model: MODEL_FAST,
+        tools: [{ googleSearch: {} } as any],
+        generationConfig: { temperature: 0.1 },
+      });
+      const searchQuery = `Search for the IMDb Parents Guide page for "${title.trim()}${year ? ` (${year})` : ''}" ${type}. Find imdb.com/title/*/parentalguide. Report ONLY what you find on that page — list the exact entries under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label (None/Mild/Moderate/Severe) for each category. Quote specific scene descriptions verbatim. Do NOT summarise or interpret — just extract what the page says.`;
+      const groundedResult = await Promise.race([
+        groundedModel.generateContent(searchQuery),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Grounding timeout')), 20_000)),
+      ]);
+      parentalGuideContext = (groundedResult as any).response.text();
+      console.log(`[media/check] IMDb grounding success — ${parentalGuideContext.length} chars`);
+    } catch (groundErr) {
+      console.warn('[media/check] IMDb grounding failed, proceeding without it:', (groundErr as Error).message);
+    }
+
+    const fullPrompt = parentalGuideContext
+      ? `${prompt}\n\nIMDb Parents Guide data found for this title:\n${parentalGuideContext}\n\nBase your flags and verdict primarily on this Parents Guide data. Do not invent content not mentioned above.`
+      : prompt;
+
     // ── Call Gemini ────────────────────────────────────────────────────────────
     let raw: string;
     try {
       const model = getJsonModel(MODEL_FAST, MEDIA_CHECK_SYSTEM);
-      raw = await generateWithRetry(model, prompt, MODEL_FAST);
+      raw = await generateWithRetry(model, fullPrompt, MODEL_FAST);
     } catch (geminiErr) {
       console.warn('[media/check] Gemini failed, trying OpenAI:', (geminiErr as Error).message);
-      raw = await generateJsonWithOpenAI(MEDIA_CHECK_SYSTEM, prompt);
+      raw = await generateJsonWithOpenAI(MEDIA_CHECK_SYSTEM, fullPrompt);
     }
 
     let cleaned = raw.trim();
