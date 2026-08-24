@@ -3772,10 +3772,11 @@ Rules:
         tools: [{ googleSearch: {} } as any],
         generationConfig: { temperature: 0.1 },
       });
-      const imdbUrl = imdbId ? `imdb.com/title/${imdbId}/parentalguide` : null;
+      const imdbUrl    = imdbId ? `imdb.com/title/${imdbId}/parentalguide` : null;
+      const imdbLabel  = type === 'game' ? 'video game' : type === 'show' ? 'TV series' : type;
       const searchQuery = imdbUrl
-        ? `Fetch the IMDb Parents Guide at ${imdbUrl} — this is the exact page for "${title.trim()}" (${year}, ${type}). Report ONLY what you find on that page — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label (None/Mild/Moderate/Severe) per category. Quote specific scene descriptions verbatim. Do NOT summarise or interpret.`
-        : `Search IMDb Parents Guide for "${title.trim()}${year ? ` (${year})` : ''}" ${type} at imdb.com/title/*/parentalguide. Report ONLY what you find — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label per category. Quote verbatim. Do NOT summarise.`;
+        ? `Fetch the IMDb Parents Guide at ${imdbUrl} — this is the exact page for "${title.trim()}" (${year}, ${imdbLabel}). Report ONLY what you find on that page — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label (None/Mild/Moderate/Severe) per category. Quote specific scene descriptions verbatim. Do NOT summarise or interpret.`
+        : `Search IMDb Parents Guide for the ${imdbLabel} "${title.trim()}${year ? ` (${year})` : ''}" at imdb.com/title/*/parentalguide. Report ONLY what you find — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label per category. Quote verbatim. Do NOT summarise.`;
       const groundedResult = await Promise.race([
         groundedModel.generateContent(searchQuery),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Grounding timeout')), 20_000)),
