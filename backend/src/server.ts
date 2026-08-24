@@ -3786,9 +3786,30 @@ Rules:
       console.warn('[media/check] IMDb grounding failed, proceeding without it:', (groundErr as Error).message);
     }
 
-    const fullPrompt = parentalGuideContext
-      ? `${prompt}\n\nIMDb Parents Guide data found for this title:\n${parentalGuideContext}\n\nBase your flags and verdict primarily on this Parents Guide data. Do not invent content not mentioned above.`
-      : prompt;
+    // ── Fetch Plugged In review for Faith & Values grounding ──────────────────
+    let pluggedInContext = '';
+    try {
+      const groundedModel2 = genAI.getGenerativeModel({
+        model: MODEL_FAST,
+        tools: [{ googleSearch: {} } as any],
+        generationConfig: { temperature: 0.1 },
+      });
+      const piQuery = `Search pluggedin.com for the review of "${title.trim()}${year ? ` (${year})` : ''}" ${type}. Find the page at pluggedin.com and extract ONLY the "Spiritual Content" section verbatim. Also extract any "Positive Elements" related to faith, morality, or values. Quote exactly what the page says. Do NOT summarise. If no Plugged In review exists, say so.`;
+      const piResult = await Promise.race([
+        groundedModel2.generateContent(piQuery),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Plugged In timeout')), 20_000)),
+      ]);
+      pluggedInContext = (piResult as any).response.text();
+      console.log(`[media/check] Plugged In grounding success — ${pluggedInContext.length} chars`);
+    } catch (piErr) {
+      console.warn('[media/check] Plugged In grounding failed:', (piErr as Error).message);
+    }
+
+    const fullPrompt = [
+      prompt,
+      parentalGuideContext && `\nIMDb Parents Guide data:\n${parentalGuideContext}\n\nBase sex/nudity, violence, profanity, substances, and frightening ratings on this data. Do not invent content not found here.`,
+      pluggedInContext && `\nPlugged In spiritual content review:\n${pluggedInContext}\n\nBase the faith_values rating on this Plugged In data. "none" = no spiritual concerns, "mild" = minor issues, "moderate" = notable concerns, "severe" = significant conflicts with Islamic values (occult, shirk, anti-faith themes).`,
+    ].filter(Boolean).join('');
 
     // ── Call Gemini ────────────────────────────────────────────────────────────
     let raw: string;
