@@ -26,6 +26,7 @@ import { updateFamilyGoalReminder } from '../utils/notifications';
 import { getLocalCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
 import FamilySummaryBoard from '../components/FamilySummaryBoard';
 import FamilyTourOverlay from '../components/FamilyTourOverlay';
+import DashboardsScreen from './DashboardsScreen';
 import { rs, hp } from '../utils/responsive';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
@@ -72,7 +73,11 @@ export default function ProgressScreen({ navigation, route }) {
   const [prtHabAct,     setPrtHabAct]     = useState({ habits: 0, activities: 0 });
   const [partnerSyncOn, setPartnerSyncOn] = useState(true);
   const [refreshing,  setRefreshing]       = useState(false);
-  const [familyTab,       setFamilyTab]       = useState(route?.params?.tab === 'configure' ? 'configure' : 'childWins');
+  const [familyTab,       setFamilyTab]       = useState(() => {
+    const t = route?.params?.tab;
+    if (t === 'configure' || t === 'dashboard') return t;
+    return 'childWins';
+  });
   const hasMountedRef = useRef(false);
   const configureScrollRef = useRef(null);
   const familyGoalsY = useRef(0);
@@ -131,6 +136,7 @@ export default function ProgressScreen({ navigation, route }) {
   // Skip the very first focus since useEffect already handles initial load
   useFocusEffect(useCallback(() => {
     if (route?.params?.tab === 'configure') setFamilyTab('configure');
+    if (route?.params?.tab === 'dashboard') setFamilyTab('dashboard');
     if (route?.params?.scrollTo === 'familyGoals') {
       setTimeout(() => {
         configureScrollRef.current?.scrollTo({ y: familyGoalsY.current, animated: true });
@@ -200,6 +206,7 @@ export default function ProgressScreen({ navigation, route }) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.segmentScroll} contentContainerStyle={styles.segmentRow}>
             {[
               ['childWins',  'Child Growth'],
+              ['dashboard',  'Dashboard'],
               ['parenting',  'Parenting'],
               ['configure',  'Configure'],
             ].map(([key, label]) => {
@@ -226,8 +233,13 @@ export default function ProgressScreen({ navigation, route }) {
         {/* ── Content area ── */}
         <View style={styles.contentSheet}>
 
+        {/* ── Dashboard tab ── */}
+        {familyTab === 'dashboard' && (
+          <DashboardsScreen navigation={navigation} route={route} embedded />
+        )}
+
         {/* ── Content tabs — single instance stays mounted so data loads once ── */}
-        {familyTab !== 'configure' && (
+        {familyTab !== 'configure' && familyTab !== 'dashboard' && (
           <FamilySummaryBoard navigation={navigation} section={familyTab} />
         )}
 

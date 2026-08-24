@@ -22,6 +22,7 @@ import LibraryScreen       from './src/screens/LibraryScreen';
 import AlertsScreen, { AlertDetailScreen } from './src/screens/AlertsScreen';
 import ProgressScreen      from './src/screens/ProgressScreen';
 import LearnScreen         from './src/screens/LearnScreen';
+import MediaScreen         from './src/screens/MediaScreen';
 import GuideMeNowScreen    from './src/screens/GuideMeNowScreen';
 import MyLibraryScreen     from './src/screens/MyLibraryScreen';
 import ModuleDetailScreen  from './src/screens/ModuleDetailScreen';
@@ -36,7 +37,6 @@ import GardenDetailScreen        from './src/screens/GardenDetailScreen';
 import FamilySyncScreen          from './src/screens/FamilySyncScreen';
 import AboutScreen               from './src/screens/AboutScreen';
 import ChildDashboardScreen      from './src/screens/ChildDashboardScreen';
-import DashboardsScreen          from './src/screens/DashboardsScreen';
 import AddChildWizardScreen      from './src/screens/AddChildWizardScreen';
 import GrowthAreaWizardScreen    from './src/screens/GrowthAreaWizardScreen';
 import GrowthAreaPlanScreen      from './src/screens/GrowthAreaPlanScreen';
@@ -233,11 +233,11 @@ const RootStack  = createNativeStackNavigator();
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
 const TAB_CONFIG = {
-  Home:       { filled: 'home',    outline: 'home-outline' },
-  Family:     { filled: 'people',  outline: 'people-outline' },
-  Dashboards: { filled: 'apps',    outline: 'apps-outline' },
-  Learn:      { filled: 'layers',  outline: 'layers-outline' },
-  Alerts:     { filled: 'shield',  outline: 'shield-outline' },
+  Home:   { filled: 'home',         outline: 'home-outline' },
+  Family: { filled: 'people',       outline: 'people-outline' },
+  Media:  { filled: 'film',         outline: 'film-outline' },
+  Alerts: { filled: 'shield',       outline: 'shield-outline' },
+  Learn:  { filled: 'layers',       outline: 'layers-outline' },
 };
 
 function CustomTabBar({ state, navigation }) {
@@ -299,11 +299,11 @@ function Tabs() {
       })}
       lazy={false}
     >
-      <Tab.Screen name="Home"       component={HomeScreen} />
-      <Tab.Screen name="Family"     component={ProgressScreen} />
-      <Tab.Screen name="Alerts"     component={AlertsScreen} />
-      <Tab.Screen name="Dashboards" component={DashboardsScreen} />
-      <Tab.Screen name="Learn"      component={LearnScreen} />
+      <Tab.Screen name="Home"   component={HomeScreen} />
+      <Tab.Screen name="Family" component={ProgressScreen} />
+      <Tab.Screen name="Alerts" component={AlertsScreen} />
+      <Tab.Screen name="Media"  component={MediaScreen} />
+      <Tab.Screen name="Learn"  component={LearnScreen} />
     </Tab.Navigator>
   );
 }
@@ -594,8 +594,8 @@ export default function App() {
       });
     } else if (screen === 'Dashboards') {
       navigationRef.current?.navigate('Tabs', {
-        screen: 'Dashboards',
-        params: childId ? { childId } : undefined,
+        screen: 'Family',
+        params: { tab: 'dashboard', childId },
       });
     } else if (screen === 'Learn') {
       navigationRef.current?.navigate('Tabs', { screen: 'Learn' });

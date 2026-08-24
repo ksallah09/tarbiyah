@@ -3645,6 +3645,128 @@ app.post('/admin/users/:id/block', requireAdmin, async (req: Request, res: Respo
   }
 });
 
+// ─── POST /media/check ────────────────────────────────────────────────────────
+// Evaluates a movie/show/book/game through an Islamic lens.
+// Checks media_cache first — only calls Gemini on a cache miss.
+
+const MEDIA_CHECK_SYSTEM = `You are a Muslim family content reviewer for Tarbiyah, an Islamic parenting app.
+Your job is to evaluate movies, shows, books, and games through an Islamic lens and give parents a clear, honest verdict.
+
+EVALUATION CRITERIA — check all of these:
+1. Sexual content / nudity / romantic themes
+2. Violence level (animated vs realistic, consequence vs gratuitous)
+3. Language (profanity, blasphemy)
+4. Occult / magic / witchcraft / satanic themes
+5. Religious portrayal (how Islam, other faiths, and God are treated)
+6. Family values alignment (respect, obedience, gender roles from Islamic perspective)
+7. Drug / alcohol use or glorification
+8. Themes of identity, LGBTQ+ representation
+9. Fear/horror elements inappropriate for children
+
+VERDICTS:
+- "friendly": appropriate for Muslim families with minor or no concerns
+- "caution": parents should watch first or watch with child and discuss specific issues
+- "avoid": contains significant content that conflicts with Islamic values
+
+TONE: Honest, specific, practical. Never vague. Name what the issue is so the parent can decide.
+CRITICAL: Never say "I cannot evaluate" — always give a verdict based on what is known about the title.`;
+
+app.post('/media/check', async (req: Request, res: Response) => {
+  try {
+    const { title, year, type, overview, tmdb_id, childAge, childGender } = req.body as {
+      title: string;
+      year?: string;
+      type: string;
+      overview?: string;
+      tmdb_id?: string;
+      childAge?: string | number;
+      childGender?: string;
+    };
+
+    if (!title?.trim() || !type) {
+      return res.status(400).json({ error: 'title and type are required.' });
+    }
+
+    // ── Cache check ────────────────────────────────────────────────────────────
+    const cacheKey = tmdb_id
+      ? { tmdb_id, type }
+      : { title: title.trim(), type };
+
+    const cacheQuery = supabase
+      .from('media_cache')
+      .select('verdict, flags, summary, age_note')
+      .eq('type', type);
+
+    const { data: cached } = tmdb_id
+      ? await cacheQuery.eq('tmdb_id', tmdb_id).maybeSingle()
+      : await cacheQuery.eq('title', title.trim()).maybeSingle();
+
+    if (cached) {
+      // Personalise age note from cache if child info provided
+      const ageNote = childAge
+        ? `Based on the content above, ${childGender ? `${childGender}s` : 'children'} around age ${childAge} ${cached.verdict === 'friendly' ? 'should be fine watching this.' : 'may need parental guidance for this.'}`
+        : cached.age_note;
+      return res.json({ ...cached, age_note: ageNote, cached: true });
+    }
+
+    // ── Build prompt ───────────────────────────────────────────────────────────
+    const childContext = childAge
+      ? `\nThe parent is checking this for a ${childAge}-year-old${childGender ? ` ${childGender.toLowerCase()}` : ''}. Personalise the age note to them.`
+      : '';
+
+    const prompt = `Evaluate this ${type} for a Muslim family:
+
+Title: ${title.trim()}${year ? ` (${year})` : ''}
+Type: ${type}
+${overview ? `Description: ${overview.slice(0, 600)}` : ''}${childContext}
+
+Return ONLY valid JSON — no markdown:
+{
+  "verdict": "friendly | caution | avoid",
+  "flags": ["specific concern 1", "specific concern 2"],
+  "summary": "2-3 sentences. What is this about and why is the verdict what it is. Personalise to the child if age was provided.",
+  "age_note": "1 sentence. Age suitability — be specific."
+}
+
+Rules:
+- flags array: 2-5 specific, concrete flags. If nothing notable, return 1 flag: "No significant concerns found."
+- summary must name the specific content issues, not generic statements
+- If you don't know this title, say so in the summary but still give your best verdict based on its genre/description`;
+
+    // ── Call Gemini ────────────────────────────────────────────────────────────
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_FAST, MEDIA_CHECK_SYSTEM);
+      raw = await generateWithRetry(model, prompt, MODEL_FAST);
+    } catch (geminiErr) {
+      console.warn('[media/check] Gemini failed, trying OpenAI:', (geminiErr as Error).message);
+      raw = await generateJsonWithOpenAI(MEDIA_CHECK_SYSTEM, prompt);
+    }
+
+    let cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+    }
+    const parsed = JSON.parse(cleaned);
+
+    // ── Cache result (without personalised age note) ───────────────────────────
+    supabase.from('media_cache').upsert({
+      title:    title.trim(),
+      type,
+      tmdb_id:  tmdb_id ?? null,
+      verdict:  parsed.verdict,
+      flags:    parsed.flags ?? [],
+      summary:  parsed.summary,
+      age_note: parsed.age_note,
+    }, { onConflict: 'title,type' }).then(() => {}, () => {});
+
+    return res.json({ ...parsed, cached: false });
+  } catch (err) {
+    console.error('POST /media/check error:', err);
+    return res.status(500).json({ error: 'Failed to evaluate this title. Please try again.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));
@@ -3662,6 +3784,7 @@ async function start() {
     console.log(`  POST /learn/audio/lessons — Generate per-lesson narration audio (parallel)`);
     console.log(`  GET  /modules        — Fetch user's saved modules (auth required)`);
     console.log(`  POST /modules        — Save/update a module (auth required)`);
+    console.log(`  POST /media/check    — Islamic media evaluation (Movie/Show/Book/Game)`);
     console.log(`  GET  /health         — Health check\n`);
   });
 

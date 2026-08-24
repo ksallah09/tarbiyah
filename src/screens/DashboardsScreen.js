@@ -156,7 +156,7 @@ function getSuggestedAreas(childAge, currentAreaTitles) {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-export default function DashboardsScreen({ navigation, route }) {
+export default function DashboardsScreen({ navigation, route, embedded = false }) {
   const insets = useSafeAreaInsets();
   const [children, setChildren] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -761,12 +761,15 @@ export default function DashboardsScreen({ navigation, route }) {
     );
   };
 
+  const Wrapper = embedded ? View : SafeAreaView;
+  const wrapperProps = embedded ? { style: styles.safe } : { style: styles.safe, edges: ['top'] };
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" />
+    <Wrapper {...wrapperProps}>
+      {!embedded && <StatusBar style="dark" />}
       {/* ── White header ── */}
       <View style={styles.tabBar}>
-        <Text style={styles.tabBarTitle}>Dashboards</Text>
+        {!embedded && <Text style={styles.tabBarTitle}>Dashboards</Text>}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -1678,7 +1681,7 @@ export default function DashboardsScreen({ navigation, route }) {
         body={encouragement?.body}
         onClose={() => setEncouragement(null)}
       />
-    </SafeAreaView>
+    </Wrapper>
   );
 }
 
