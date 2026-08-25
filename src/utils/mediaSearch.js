@@ -46,24 +46,24 @@ export async function searchShows(query) {
 
 export async function searchBooks(query) {
   const res = await fetch(
-    `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&langRestrict=en`
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10&fields=key,title,first_publish_year,author_name,cover_i,edition_count`
   );
-  if (!res.ok) throw new Error(`Google Books ${res.status}`);
-  const { items } = await res.json();
-  return (items ?? []).map(b => {
-    const info = b.volumeInfo ?? {};
-    return {
-      id:       b.id,
-      tmdb_id:  null,
-      title:    info.title,
-      year:     info.publishedDate ? info.publishedDate.slice(0, 4) : null,
-      type:     'book',
-      overview: info.description ?? null,
-      rating:   info.averageRating ?? null,
-      poster:   info.imageLinks?.thumbnail ?? null,
-      authors:  (info.authors ?? []).join(', '),
-    };
-  });
+  if (!res.ok) throw new Error(`Open Library ${res.status}`);
+  const { docs } = await res.json();
+  return (docs ?? [])
+    .filter(b => b.title && b.edition_count > 0)
+    .slice(0, 8)
+    .map(b => ({
+      id:      b.key,
+      tmdb_id: null,
+      title:   b.title,
+      year:    b.first_publish_year ? String(b.first_publish_year) : null,
+      type:    'book',
+      overview: null,
+      rating:  null,
+      poster:  b.cover_i ? `https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg` : null,
+      authors: (b.author_name ?? []).slice(0, 2).join(', '),
+    }));
 }
 
 const RAWG_KEY = process.env.EXPO_PUBLIC_RAWG_KEY ?? '';

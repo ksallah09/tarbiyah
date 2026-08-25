@@ -3764,69 +3764,34 @@ Rules:
       }
     }
 
-    // ── Fetch IMDb Parents Guide via Gemini Search Grounding ──────────────────
-    let parentalGuideContext = '';
-    try {
-      const groundedModel = genAI.getGenerativeModel({
-        model: MODEL_FAST,
-        tools: [{ googleSearch: {} } as any],
-        generationConfig: { temperature: 0.1 },
-      });
-      const imdbUrl    = imdbId ? `imdb.com/title/${imdbId}/parentalguide` : null;
-      const imdbLabel  = type === 'game' ? 'video game' : type === 'show' ? 'TV series' : type;
-      const searchQuery = imdbUrl
-        ? `Fetch the IMDb Parents Guide at ${imdbUrl} — this is the exact page for "${title.trim()}" (${year}, ${imdbLabel}). Report ONLY what you find on that page — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label (None/Mild/Moderate/Severe) per category. Quote specific scene descriptions verbatim. Do NOT summarise or interpret.`
-        : `Search IMDb Parents Guide for the ${imdbLabel} "${title.trim()}${year ? ` (${year})` : ''}" at imdb.com/title/*/parentalguide. Report ONLY what you find — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label per category. Quote verbatim. Do NOT summarise.`;
-      const groundedResult = await Promise.race([
-        groundedModel.generateContent(searchQuery),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Grounding timeout')), 20_000)),
-      ]);
-      parentalGuideContext = (groundedResult as any).response.text();
-      console.log(`[media/check] IMDb grounding success — ${parentalGuideContext.length} chars`);
-    } catch (groundErr) {
-      console.warn('[media/check] IMDb grounding failed, proceeding without it:', (groundErr as Error).message);
+    // ── Grounding searches (parallel) ─────────────────────────────────────────
+    const imdbLabel = type === 'game' ? 'video game' : type === 'show' ? 'TV series' : type;
+    const imdbUrl   = imdbId ? `imdb.com/title/${imdbId}/parentalguide` : null;
+
+    const imdbQuery = imdbUrl
+      ? `Fetch the IMDb Parents Guide at ${imdbUrl} — this is the exact page for "${title.trim()}" (${year}, ${imdbLabel}). Report ONLY what you find on that page — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label (None/Mild/Moderate/Severe) per category. Quote specific scene descriptions verbatim. Do NOT summarise or interpret.`
+      : `Search IMDb Parents Guide for the ${imdbLabel} "${title.trim()}${year ? ` (${year})` : ''}" at imdb.com/title/*/parentalguide. Report ONLY what you find — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label per category. Quote verbatim. Do NOT summarise.`;
+
+    const piQuery = `Search pluggedin.com for the review of "${title.trim()}${year ? ` (${year})` : ''}" ${type}. Find the page at pluggedin.com and extract ONLY the "Spiritual Content" section verbatim. Also extract any "Positive Elements" related to faith, morality, or values. Quote exactly what the page says. Do NOT summarise. If no Plugged In review exists, say so.`;
+
+    const csmType  = type === 'game' ? 'game' : type === 'book' ? 'book' : type === 'show' ? 'tv-reviews' : 'movie';
+    const csmQuery = type === 'book'
+      ? `Search these three sources for the book "${title.trim()}" and report ONLY what you find on each page, quoting verbatim: 1) commonsensemedia.org/book-reviews — age rating and per-category ratings (violence, sex/romance, language, substances, positive messages). 2) thestorygraph.com — content warnings with severity (graphic/moderate/minor). 3) doesthedogdie.com — content advisories, especially any entries for occult, religion mocked, blasphemy, witchcraft, sexual content, violence. Do NOT summarise or combine — report each source separately.`
+      : `Search commonsensemedia.org/${csmType}-reviews for "${title.trim()}${year ? ` (${year})` : ''}". Extract the age rating and per-category content ratings (violence, sex/romance, language, substances). Quote exactly. Do NOT summarise. If not found, say so.`;
+
+    function groundingCall(query: string, label: string): Promise<string> {
+      const m = genAI.getGenerativeModel({ model: MODEL_FAST, tools: [{ googleSearch: {} } as any], generationConfig: { temperature: 0.1 } });
+      return Promise.race([
+        m.generateContent(query).then((r: any) => { const t = r.response.text(); console.log(`[media/check] ${label} grounding — ${t.length} chars`); return t; }),
+        new Promise<string>((_, reject) => setTimeout(() => reject(new Error(`${label} timeout`)), 20_000)),
+      ]).catch((e: Error) => { console.warn(`[media/check] ${label} grounding failed:`, e.message); return ''; });
     }
 
-    // ── Fetch Plugged In review for Faith & Values grounding ──────────────────
-    let pluggedInContext = '';
-    try {
-      const groundedModel2 = genAI.getGenerativeModel({
-        model: MODEL_FAST,
-        tools: [{ googleSearch: {} } as any],
-        generationConfig: { temperature: 0.1 },
-      });
-      const piQuery = `Search pluggedin.com for the review of "${title.trim()}${year ? ` (${year})` : ''}" ${type}. Find the page at pluggedin.com and extract ONLY the "Spiritual Content" section verbatim. Also extract any "Positive Elements" related to faith, morality, or values. Quote exactly what the page says. Do NOT summarise. If no Plugged In review exists, say so.`;
-      const piResult = await Promise.race([
-        groundedModel2.generateContent(piQuery),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Plugged In timeout')), 20_000)),
-      ]);
-      pluggedInContext = (piResult as any).response.text();
-      console.log(`[media/check] Plugged In grounding success — ${pluggedInContext.length} chars`);
-    } catch (piErr) {
-      console.warn('[media/check] Plugged In grounding failed:', (piErr as Error).message);
-    }
-
-    // ── Common Sense Media grounding (books + fallback for all types) ─────────
-    let csmContext = '';
-    try {
-      const groundedModel3 = genAI.getGenerativeModel({
-        model: MODEL_FAST,
-        tools: [{ googleSearch: {} } as any],
-        generationConfig: { temperature: 0.1 },
-      });
-      const csmType = type === 'game' ? 'game' : type === 'book' ? 'book' : type === 'show' ? 'tv-reviews' : 'movie';
-      const csmQuery = type === 'book'
-        ? `Search these three sources for the book "${title.trim()}" and report ONLY what you find on each page, quoting verbatim: 1) commonsensemedia.org/book-reviews — age rating and per-category ratings (violence, sex/romance, language, substances, positive messages). 2) thestorygraph.com — content warnings with severity (graphic/moderate/minor). 3) doesthedogdie.com — content advisories, especially any entries for occult, religion mocked, blasphemy, witchcraft, sexual content, violence. Do NOT summarise or combine — report each source separately.`
-        : `Search commonsensemedia.org/${csmType}-reviews for "${title.trim()}${year ? ` (${year})` : ''}". Extract the age rating and per-category content ratings (violence, sex/romance, language, substances). Quote exactly. Do NOT summarise. If not found, say so.`;
-      const csmResult = await Promise.race([
-        groundedModel3.generateContent(csmQuery),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('CSM timeout')), 20_000)),
-      ]);
-      csmContext = (csmResult as any).response.text();
-      console.log(`[media/check] Common Sense Media grounding success — ${csmContext.length} chars`);
-    } catch (csmErr) {
-      console.warn('[media/check] CSM grounding failed:', (csmErr as Error).message);
-    }
+    const [parentalGuideContext, pluggedInContext, csmContext] = await Promise.all([
+      groundingCall(imdbQuery, 'IMDb'),
+      groundingCall(piQuery, 'Plugged In'),
+      groundingCall(csmQuery, 'CSM'),
+    ]);
 
     const fullPrompt = [
       prompt,
