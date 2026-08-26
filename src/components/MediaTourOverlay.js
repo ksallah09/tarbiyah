@@ -8,15 +8,15 @@ const TOUR_KEY = 'tarbiyah_media_tour_seen';
 const STEPS = [
   {
     title: 'Media Check',
-    body: 'Search any movie, show, book, or game and we\'ll tell you if it\'s compatible with Islamic values — personalised for your child.',
+    body: 'Search any movie, show, book, game, or YouTube channel and get a detailed content breakdown through an Islamic lens — personalised for your child.',
     cta: 'Next →',
     mockup: 'categories',
   },
   {
-    title: 'Instant Verdict',
-    body: 'Every check returns a clear verdict with specific flags — so you know exactly what to watch for before they watch, read, or play.',
+    title: 'Content Breakdown',
+    body: 'Every check surfaces specific flags across key areas — violence, language, faith values, and more — so you know exactly what\'s inside before they watch, read, or play.',
     cta: 'Next →',
-    mockup: 'verdict',
+    mockup: 'flags',
   },
   {
     title: 'Who\'s Watching?',
@@ -26,12 +26,12 @@ const STEPS = [
   },
 ];
 
-const CATEGORIES = ['Movie', 'Show', 'Book', 'Game'];
+const CATEGORIES = ['Movie', 'Show', 'Book', 'Game', 'Channel'];
 
-const VERDICTS = [
-  { label: 'Muslim Friendly', dot: '#22C55E', bg: '#F0FDF4', border: '#BBF7D0', text: '#166534' },
-  { label: 'Watch with Caution', dot: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', text: '#92400E' },
-  { label: 'Not Recommended', dot: '#EF4444', bg: '#FEF2F2', border: '#FECACA', text: '#991B1B' },
+const FLAGS = [
+  { label: 'Violence', severity: 'Mild', color: '#F59E0B' },
+  { label: 'Language', severity: 'None', color: '#22C55E' },
+  { label: 'Faith & Values', severity: 'Moderate', color: '#EF4444' },
 ];
 
 export default function MediaTourOverlay() {
@@ -89,12 +89,13 @@ export default function MediaTourOverlay() {
             </View>
           )}
 
-          {current.mockup === 'verdict' && (
-            <View style={s.verdictList}>
-              {VERDICTS.map(v => (
-                <View key={v.label} style={[s.verdictRow, { backgroundColor: v.bg, borderColor: v.border }]}>
-                  <View style={[s.verdictDot, { backgroundColor: v.dot }]} />
-                  <Text style={[s.verdictLabel, { color: v.text }]}>{v.label}</Text>
+          {current.mockup === 'flags' && (
+            <View style={s.flagList}>
+              {FLAGS.map(f => (
+                <View key={f.label} style={s.flagRow}>
+                  <View style={[s.flagBar, { backgroundColor: f.color }]} />
+                  <Text style={s.flagLabel}>{f.label}</Text>
+                  <Text style={[s.flagSeverity, { color: f.color }]}>{f.severity}</Text>
                 </View>
               ))}
             </View>
@@ -154,11 +155,12 @@ const s = StyleSheet.create({
   mockPillText:       { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   mockPillTextActive: { color: '#FFFFFF' },
 
-  // Verdict mockup
-  verdictList:  { gap: 8, marginBottom: 20 },
-  verdictRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
-  verdictDot:   { width: 8, height: 8, borderRadius: 4 },
-  verdictLabel: { fontSize: 13, fontWeight: '700' },
+  // Flags mockup
+  flagList:     { gap: 8, marginBottom: 20 },
+  flagRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F9FAFB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  flagBar:      { width: 4, height: 28, borderRadius: 2 },
+  flagLabel:    { flex: 1, fontSize: 13, fontWeight: '600', color: '#111827' },
+  flagSeverity: { fontSize: 12, fontWeight: '700' },
 
   // Who's watching mockup
   whoRow:           { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },

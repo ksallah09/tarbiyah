@@ -327,7 +327,7 @@ export default function OnboardingAccount({ navigation, route }) {
             {!isReturningUser && (
               <>
                 <Text style={styles.privacy}>
-                  Your data is private and never sold.
+                  🔒 Your data is private and never sold.
                 </Text>
                 <Text style={styles.termsNote}>
                   By creating an account you agree to our{' '}
@@ -470,7 +470,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  btnDisabled: { opacity: 0.3 },
+  btnDisabled:  { opacity: 0.3 },
+  privacyNote:  { fontSize: 11, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 16, marginTop: 20 },
   btnText: {
     fontSize: 16,
     fontWeight: '700',

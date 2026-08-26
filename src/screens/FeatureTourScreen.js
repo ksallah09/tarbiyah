@@ -9,27 +9,29 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../App';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const IS_SMALL = SCREEN_HEIGHT < 700;
-const GLOW_SIZE   = IS_SMALL ? 140 : 200;
-const GLOW_MID    = IS_SMALL ? 105 : 150;
-const GLOW_INNER  = IS_SMALL ?  70 : 100;
-const GLOW_ICON   = IS_SMALL ?  36 :  52;
-const GLOW_MB     = IS_SMALL ?  20 :  40;
-const SLIDE_EXTRA = IS_SMALL ?  60 : 120;
+const IS_SMALL  = SCREEN_HEIGHT < 700;
+const IS_MEDIUM = SCREEN_HEIGHT < 812;
+const GLOW_SIZE   = IS_SMALL ? 140 : IS_MEDIUM ? 160 : 200;
+const GLOW_MID    = IS_SMALL ? 105 : IS_MEDIUM ? 120 : 150;
+const GLOW_INNER  = IS_SMALL ?  70 : IS_MEDIUM ?  80 : 100;
+const GLOW_ICON   = IS_SMALL ?  36 : IS_MEDIUM ?  42 :  52;
+const GLOW_MB     = IS_SMALL ?  20 : IS_MEDIUM ?  28 :  40;
+const SLIDE_EXTRA = IS_SMALL ?  40 : IS_MEDIUM ?  60 : 100;
 const TAB_WIDTH = SCREEN_WIDTH / 5;
 const MOCK_TAB_HEIGHT = 60;
 
 const MOCK_TABS = [
-  { name: 'Home',       icon: 'home-outline',    filled: 'home'    },
-  { name: 'Family',     icon: 'people-outline',  filled: 'people'  },
-  { name: 'Alerts',     icon: 'shield-outline',  filled: 'shield'  },
-  { name: 'Dashboards', icon: 'apps-outline',    filled: 'apps'    },
-  { name: 'Learn',      icon: 'layers-outline',  filled: 'layers'  },
+  { name: 'Home',   icon: 'home-outline',   filled: 'home'   },
+  { name: 'Family', icon: 'people-outline', filled: 'people' },
+  { name: 'Alerts', icon: 'shield-outline', filled: 'shield' },
+  { name: 'Media',  icon: 'film-outline',   filled: 'film'   },
+  { name: 'Learn',  icon: 'layers-outline', filled: 'layers' },
 ];
 
 // Which tab index each slide highlights (null = none)
-// Tabs: 0=Home, 1=Family, 2=Alerts, 3=Dashboards, 4=Learn
-const SLIDE_TAB = [null, 0, 0, 1, 2, 3, 4];
+// Tabs: 0=Home, 1=Family, 2=Alerts, 3=Media, 4=Learn
+// Slides: welcome, insights, alerts, dashboard, media, learn
+const SLIDE_TAB = [null, 0, 2, 1, 3, 4];
 
 const SLIDES = [
   {
@@ -47,25 +49,11 @@ const SLIDES = [
     body: 'Every day brings a fresh spiritual insight and a research-backed parenting tip — automatically personalised to the context of your family.',
   },
   {
-    key: 'culture',
-    icon: 'globe-outline',
-    iconColor: '#D4A843',
-    title: 'This Week in Youth Culture',
-    body: "Stay fluent in your child's world. Live trend data from Google, YouTube, Reddit and more — decoded through an Islamic parenting lens every week.",
-  },
-  {
-    key: 'family',
-    icon: 'people-outline',
-    iconColor: '#4ADE80',
-    title: 'Family Goals & Connection',
-    body: 'Strengthen family connection. Set shared goals for your whole family and log progress. Small moments of growth, captured and remembered.',
-  },
-  {
     key: 'alerts',
     icon: 'shield-checkmark-outline',
     iconColor: '#D4A843',
     title: 'Safety Alerts',
-    body: "Stay a step ahead of what's affecting children and teens. We connect to Google Trends, Reddit, and social media providers weekly — surfacing the risks most relevant to your child's age.",
+    body: "Stay a step ahead of what's affecting children and teens. We scan Google Trends, Reddit, and social media weekly — surfacing risks and youth culture trends most relevant to your child's age, decoded through an Islamic lens.",
   },
   {
     key: 'dashboard',
@@ -73,6 +61,13 @@ const SLIDES = [
     iconColor: '#4ADE80',
     title: 'Child Dashboards',
     body: "Each child gets their own dashboard — a personalised weekly plan of habits and activities built around their specific growth area.",
+  },
+  {
+    key: 'media',
+    icon: 'film-outline',
+    iconColor: '#D4A843',
+    title: 'Media Check',
+    body: 'Check any movie, show, book, game, or YouTube channel through an Islamic lens. Get a full content breakdown and save approved titles for your family.',
   },
   {
     key: 'learn',
@@ -172,7 +167,7 @@ export default function FeatureTourScreen() {
         renderItem={({ item }) => {
           const glowRgb = item.iconColor === '#4ADE80' ? '74,222,128' : '212,168,67';
           return (
-            <View style={[styles.slide, { paddingBottom: mockTabBarHeight + SLIDE_EXTRA }]}>
+            <View style={[styles.slide, { paddingBottom: SLIDE_EXTRA }]}>
               <View style={[styles.glowStack, { width: GLOW_SIZE, height: GLOW_SIZE, marginBottom: GLOW_MB }]}>
                 <View style={[styles.glowOuter, { borderRadius: GLOW_SIZE / 2, backgroundColor: `rgba(${glowRgb},0.06)` }]} />
                 <View style={[styles.glowMid, { width: GLOW_MID, height: GLOW_MID, borderRadius: GLOW_MID / 2, backgroundColor: `rgba(${glowRgb},0.1)` }]} />

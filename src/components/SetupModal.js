@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Modal,
-  Animated,
+  Animated, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -84,87 +84,89 @@ const SetupModal = forwardRef(function SetupModal(
   return (
     <Modal transparent animationType="none" statusBarTranslucent>
       <Animated.View style={[s.overlay, { opacity: fadeAnim }]}>
-        <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+        <View style={s.sheet}>
+          <View style={s.handle} />
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={s.heading}>Set Up Your Tarbiyah Experience</Text>
+            <Text style={s.sub}>Complete these steps to bring the app to life for your family.</Text>
 
-          <>
-              <View style={s.handle} />
-              <Text style={s.heading}>Set Up Your Tarbiyah Experience</Text>
-              <Text style={s.sub}>Complete these steps to bring the app to life for your family.</Text>
-
-              {/* Progress bar */}
-              <View style={s.progressWrap}>
-                <View style={s.progressTrack}>
-                  <View style={[s.progressFill, { width: `${(completedCount / 3) * 100}%` }]} />
-                </View>
-                <Text style={s.progressLabel}>{completedCount} of 3 complete</Text>
+            {/* Progress bar */}
+            <View style={s.progressWrap}>
+              <View style={s.progressTrack}>
+                <View style={[s.progressFill, { width: `${(completedCount / 3) * 100}%` }]} />
               </View>
+              <Text style={s.progressLabel}>{completedCount} of 3 complete</Text>
+            </View>
 
-              <View style={s.stepList}>
-                {STEPS.map((step, i) => {
-                  const isDone = done[i];
-                  return (
-                    <TouchableOpacity
-                      key={i}
-                      style={[s.stepRow, isDone && s.stepRowDone]}
-                      onPress={() => !isDone && handleStepCta(i)}
-                      activeOpacity={isDone ? 1 : 0.75}
-                    >
-                      {/* Checkbox */}
-                      <View style={[s.checkbox, isDone && s.checkboxDone]}>
-                        {isDone
-                          ? <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-                          : <Text style={s.checkboxNum}>{i + 1}</Text>
-                        }
-                      </View>
+            <View style={s.stepList}>
+              {STEPS.map((step, i) => {
+                const isDone = done[i];
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={[s.stepRow, isDone && s.stepRowDone]}
+                    onPress={() => !isDone && handleStepCta(i)}
+                    activeOpacity={isDone ? 1 : 0.75}
+                  >
+                    <View style={[s.checkbox, isDone && s.checkboxDone]}>
+                      {isDone
+                        ? <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                        : <Text style={s.checkboxNum}>{i + 1}</Text>
+                      }
+                    </View>
 
-                      <View style={s.stepBody}>
-                        {!isDone && (
-                          <View style={s.stepTitleRow}>
-                            <View style={[s.stepTag, { backgroundColor: step.color + '18' }]}>
-                              <Text style={[s.stepTagText, { color: step.color }]}>Step {i + 1}</Text>
-                            </View>
+                    <View style={s.stepBody}>
+                      {!isDone && (
+                        <View style={s.stepTitleRow}>
+                          <View style={[s.stepTag, { backgroundColor: step.color + '18' }]}>
+                            <Text style={[s.stepTagText, { color: step.color }]}>Step {i + 1}</Text>
                           </View>
-                        )}
-                        <Text style={[s.stepTitle, isDone && s.stepTitleDone]}>{step.title}</Text>
-                        {!isDone && <Text style={s.stepDesc}>{step.desc}</Text>}
-                      </View>
-
-                      {isDone ? (
-                        <View style={s.doneTag}>
-                          <Text style={s.doneTagText}>Done</Text>
-                        </View>
-                      ) : (
-                        <View style={[s.stepBtn, { borderColor: step.color }]}>
-                          <Text style={[s.stepBtnText, { color: step.color }]}>Go →</Text>
                         </View>
                       )}
-                    </TouchableOpacity>
-                  );
-                })}
+                      <Text style={[s.stepTitle, isDone && s.stepTitleDone]}>{step.title}</Text>
+                      {!isDone && <Text style={s.stepDesc}>{step.desc}</Text>}
+                    </View>
+
+                    {isDone ? (
+                      <View style={s.doneTag}>
+                        <Text style={s.doneTagText}>Done</Text>
+                      </View>
+                    ) : (
+                      <View style={[s.stepBtn, { borderColor: step.color }]}>
+                        <Text style={[s.stepBtnText, { color: step.color }]}>Go →</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Optional partner row */}
+            <TouchableOpacity
+              style={s.partnerRow}
+              onPress={() => { dismiss(); navigation.navigate('Family', { tab: 'configure' }); }}
+              activeOpacity={0.75}
+            >
+              <View style={s.partnerOptionalBadge}>
+                <Text style={s.partnerOptionalText}>Optional</Text>
               </View>
+              <View style={s.partnerRowBody}>
+                <Text style={s.partnerRowTitle}>Parenting with a partner?</Text>
+                <Text style={s.partnerRowDesc}>Connect them to share goals and celebrate wins together.</Text>
+              </View>
+              <View style={s.partnerBtn}>
+                <Text style={s.partnerBtnText}>Go →</Text>
+              </View>
+            </TouchableOpacity>
 
-              {/* Optional partner row */}
-              <TouchableOpacity
-                style={s.partnerRow}
-                onPress={() => { dismiss(); navigation.navigate('Family', { tab: 'configure' }); }}
-                activeOpacity={0.75}
-              >
-                <View style={s.partnerOptionalBadge}>
-                  <Text style={s.partnerOptionalText}>Optional</Text>
-                </View>
-                <View style={s.partnerRowBody}>
-                  <Text style={s.partnerRowTitle}>Parenting with a partner?</Text>
-                  <Text style={s.partnerRowDesc}>Connect them to share goals and celebrate wins together.</Text>
-                </View>
-                <View style={s.partnerBtn}>
-                  <Text style={s.partnerBtnText}>Go →</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.laterBtn} onPress={dismiss} activeOpacity={0.7}>
-                <Text style={s.laterText}>I'll set up later</Text>
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity style={s.laterBtn} onPress={dismiss} activeOpacity={0.7}>
+              <Text style={s.laterText}>I'll set up later</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </Animated.View>
     </Modal>
@@ -183,11 +185,11 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: 24, paddingTop: 12,
-    maxHeight: '90%',
+    maxHeight: '92%',
   },
   handle: {
     width: 36, height: 4, borderRadius: 2,
-    backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 24,
+    backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 20,
   },
   heading: {
     fontSize: 22, fontWeight: '800', color: '#1A1A2E',
