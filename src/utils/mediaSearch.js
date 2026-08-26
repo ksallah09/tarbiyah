@@ -88,12 +88,54 @@ export async function searchGames(query) {
   }));
 }
 
+const YT_KEY = process.env.EXPO_PUBLIC_YOUTUBE_KEY ?? '';
+
+export async function searchChannels(query) {
+  const res = await fetch(
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=8&key=${YT_KEY}`
+  );
+  if (!res.ok) throw new Error(`YouTube channels ${res.status}`);
+  const { items } = await res.json();
+  return (items ?? []).map(item => ({
+    id:           item.id.channelId,
+    tmdb_id:      item.id.channelId,
+    title:        item.snippet.title,
+    year:         null,
+    type:         'channel',
+    overview:     item.snippet.description,
+    rating:       null,
+    poster:       item.snippet.thumbnails?.medium?.url ?? null,
+    channelTitle: item.snippet.title,
+  }));
+}
+
+export async function searchVideos(query) {
+  const res = await fetch(
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&maxResults=8&key=${YT_KEY}`
+  );
+  if (!res.ok) throw new Error(`YouTube videos ${res.status}`);
+  const { items } = await res.json();
+  return (items ?? []).map(item => ({
+    id:           item.id.videoId,
+    tmdb_id:      item.id.videoId,
+    title:        item.snippet.title,
+    year:         item.snippet.publishedAt?.slice(0, 4) ?? null,
+    type:         'video',
+    overview:     item.snippet.description,
+    rating:       null,
+    poster:       item.snippet.thumbnails?.medium?.url ?? null,
+    channelTitle: item.snippet.channelTitle,
+  }));
+}
+
 export async function searchMedia(query, type) {
   switch (type) {
-    case 'movie': return searchMovies(query);
-    case 'show':  return searchShows(query);
-    case 'book':  return searchBooks(query);
-    case 'game':  return searchGames(query);
-    default:      return [];
+    case 'movie':   return searchMovies(query);
+    case 'show':    return searchShows(query);
+    case 'book':    return searchBooks(query);
+    case 'game':    return searchGames(query);
+    case 'channel': return searchChannels(query);
+    case 'video':   return searchVideos(query);
+    default:        return [];
   }
 }

@@ -3745,6 +3745,114 @@ Rules:
 - summary must name the specific content issues, not generic statements
 - If you don't know this title, say so in the summary but still give your best verdict based on its genre/description`;
 
+    // ── YouTube channel / video pipeline (separate path) ─────────────────────
+    if (type === 'channel' || type === 'video') {
+      const ytKey = process.env.YOUTUBE_API_KEY ?? '';
+      let ytMeta = '';
+
+      try {
+        if (type === 'channel' && tmdb_id) {
+          const [chanRes, recentRes] = await Promise.all([
+            fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,topicDetails,statistics,status,brandingSettings&id=${tmdb_id}&key=${ytKey}`),
+            fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${tmdb_id}&order=date&type=video&maxResults=10&key=${ytKey}`),
+          ]);
+          const chanData  = chanRes.ok  ? await chanRes.json()   : {};
+          const recentData = recentRes.ok ? await recentRes.json() : {};
+          const chan = chanData.items?.[0];
+          if (chan) {
+            const stats = chan.statistics ?? {};
+            const topics = (chan.topicDetails?.topicCategories ?? []).map((u: string) => u.split('/').pop()).join(', ');
+            const keywords = chan.brandingSettings?.channel?.keywords ?? '';
+            const madeForKids = chan.status?.madeForKids ? 'Yes' : 'No';
+            ytMeta = `Channel: ${chan.snippet.title}\nDescription: ${(chan.snippet.description ?? '').slice(0, 400)}\nSubscribers: ${stats.subscriberCount ?? 'unknown'}\nMade for kids: ${madeForKids}\nTopics: ${topics}\nKeywords: ${keywords}\n\nRecent videos:\n`;
+            ytMeta += (recentData.items ?? []).map((v: any, i: number) => `${i + 1}. ${v.snippet.title} — ${(v.snippet.description ?? '').slice(0, 120)}`).join('\n');
+          }
+        } else if (type === 'video' && tmdb_id) {
+          const vidRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status,statistics&id=${tmdb_id}&key=${ytKey}`);
+          const vidData = vidRes.ok ? await vidRes.json() : {};
+          const vid = vidData.items?.[0];
+          if (vid) {
+            const ageRestricted = vid.contentDetails?.contentRating?.ytRating === 'ytAgeRestricted' ? 'Yes' : 'No';
+            const madeForKids   = vid.status?.madeForKids ? 'Yes' : 'No';
+            const tags = (vid.snippet.tags ?? []).slice(0, 20).join(', ');
+            ytMeta = `Video: ${vid.snippet.title}\nChannel: ${vid.snippet.channelTitle}\nDescription: ${(vid.snippet.description ?? '').slice(0, 500)}\nTags: ${tags}\nAge restricted: ${ageRestricted}\nMade for kids: ${madeForKids}\nDuration: ${vid.contentDetails?.duration ?? 'unknown'}`;
+          }
+        }
+        console.log(`[media/check] YouTube metadata — ${ytMeta.length} chars`);
+      } catch (e) {
+        console.warn('[media/check] YouTube metadata fetch failed:', (e as Error).message);
+      }
+
+      const ytLabel = type === 'channel' ? 'YouTube channel' : 'YouTube video';
+      const reputationQuery = type === 'channel'
+        ? `Search for the YouTube channel "${title.trim()}". Find: Common Sense Media channel review, parent forum discussions, any notable controversies, YouTube Kids approval status, and general reputation for family safety. Report what you find verbatim. Do NOT summarise.`
+        : `Search for the YouTube video "${title.trim()}" by ${overview ? overview.slice(0, 80) : 'unknown channel'}. Find any parent reviews, content warnings, or safety concerns about this specific video. Report verbatim.`;
+
+      const reputationContext = await groundingCall(reputationQuery, 'YouTube reputation').catch(() => '');
+
+      const ytPrompt = `Evaluate this ${ytLabel} for a Muslim family:
+
+Title: ${title.trim()}
+Type: ${type}
+${overview ? `Description: ${overview.slice(0, 300)}` : ''}${childContext}
+
+YouTube metadata:
+${ytMeta || 'Not available'}
+
+${reputationContext ? `Online reputation data:\n${reputationContext}` : ''}
+
+Return ONLY valid JSON — no markdown:
+{
+  "verdict": "friendly | caution | avoid",
+  "content_areas": {
+    "sex_nudity":   "none | mild | moderate | severe",
+    "violence":     "none | mild | moderate | severe",
+    "profanity":    "none | mild | moderate | severe",
+    "substances":   "none | mild | moderate | severe",
+    "frightening":  "none | mild | moderate | severe",
+    "faith_values": "none | mild | moderate | severe"
+  },
+  "flags": [
+    { "title": "Short title (3-5 words)", "description": "One concrete explanation sentence." }
+  ],
+  "summary": "2-3 sentences. What is this ${type} about and what are the key concerns for Muslim families.",
+  "age_note": "1 sentence. Age suitability — be specific."
+}
+
+Rules:
+- faith_values rates Islamic concern: "none" = aligns with Islamic values, "severe" = significant conflicts (haram glorified, anti-Islamic themes, occult, gender confusion).
+- flags: 2-5 objects covering the most important concerns. If no concerns, return 1 flag: { "title": "No significant concerns", "description": "This ${type} appears appropriate for Muslim families." }
+- For channels, base the assessment on the pattern across recent videos, not just individual ones.
+- summary must be specific to this ${type}'s actual content, not generic.`;
+
+      let raw: string;
+      try {
+        const model = getJsonModel(MODEL_FAST, MEDIA_CHECK_SYSTEM);
+        raw = await generateWithRetry(model, ytPrompt, MODEL_FAST);
+      } catch (geminiErr) {
+        console.warn('[media/check] Gemini failed, trying OpenAI:', (geminiErr as Error).message);
+        raw = await generateJsonWithOpenAI(MEDIA_CHECK_SYSTEM, ytPrompt);
+      }
+
+      let cleaned = raw.trim();
+      if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
+      const parsed = JSON.parse(cleaned);
+
+      supabase.from('media_cache').upsert({
+        title: title.trim(), type, tmdb_id: tmdb_id ?? null,
+        verdict: parsed.verdict, flags: parsed.flags, summary: parsed.summary,
+        age_note: parsed.age_note, content_areas: parsed.content_areas ?? null,
+      }, { onConflict: 'title,type' }).then(({ error }) => {
+        if (error) console.warn('[media/check] cache upsert error:', error.message);
+      });
+
+      const ageNote = childAge
+        ? `Based on the content above, ${childGender ? `${childGender}s` : 'children'} around age ${childAge} ${parsed.verdict === 'friendly' ? 'should be fine with this.' : 'may need parental guidance.'}`
+        : parsed.age_note;
+
+      return res.json({ ...parsed, age_note: ageNote });
+    }
+
     // ── Resolve IMDb ID from TMDB for exact Parents Guide URL ────────────────
     let imdbId: string | null = null;
     if (tmdb_id && (type === 'movie' || type === 'show')) {

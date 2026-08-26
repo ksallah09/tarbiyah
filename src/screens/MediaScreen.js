@@ -20,10 +20,12 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: 'movie', label: 'Movie',  icon: 'film-outline' },
-  { key: 'show',  label: 'Show',   icon: 'tv-outline' },
-  { key: 'book',  label: 'Book',   icon: 'book-outline' },
-  { key: 'game',  label: 'Game',   icon: 'game-controller-outline' },
+  { key: 'movie',   label: 'Movie',   icon: 'film-outline' },
+  { key: 'show',    label: 'Show',    icon: 'tv-outline' },
+  { key: 'book',    label: 'Book',    icon: 'book-outline' },
+  { key: 'game',    label: 'Game',    icon: 'game-controller-outline' },
+  { key: 'channel', label: 'Channel', icon: 'people-outline' },
+  { key: 'video',   label: 'Video',   icon: 'play-circle-outline' },
 ];
 
 const VERDICT_COLORS = {
@@ -740,7 +742,7 @@ export default function MediaScreen({ navigation }) {
               <TouchableOpacity style={styles.resultRow} onPress={() => handleResultTap(item)} activeOpacity={0.8}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.resultTitle}>{item.title}</Text>
-                  <Text style={styles.resultMeta}>{[item.authors ?? item.year, item.type].filter(Boolean).join(' · ')}</Text>
+                  <Text style={styles.resultMeta}>{[item.authors ?? item.channelTitle ?? item.year, item.type].filter(Boolean).join(' · ')}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#D1D5DB" style={{ marginLeft: 8 }} />
               </TouchableOpacity>
