@@ -3784,22 +3784,23 @@ Rules:
       }
 
       const ytLabel = type === 'channel' ? 'YouTube channel' : 'YouTube video';
+      const channelContext = ytMeta ? `\nChannel context: ${ytMeta.slice(0, 300)}` : '';
       const reputationQuery = type === 'channel'
-        ? `Search for the YouTube channel "${title.trim()}". Find: Common Sense Media channel review, parent forum discussions, any notable controversies, YouTube Kids approval status, and general reputation for family safety. Report what you find verbatim. Do NOT summarise.`
-        : `Search for the YouTube video "${title.trim()}" by ${overview ? overview.slice(0, 80) : 'unknown channel'}. Find any parent reviews, content warnings, or safety concerns about this specific video. Report verbatim.`;
+        ? `Search for reviews and parent discussions about the YouTube channel "${title.trim()}".${channelContext}\nFind: Common Sense Media channel review, parent forum discussions, notable controversies, YouTube Kids approval status, and general family safety reputation. Focus ONLY on this specific channel. Quote what you find verbatim. Do NOT summarise or infer content not explicitly found.`
+        : `Search for parent reviews and content warnings for the YouTube video "${title.trim()}" by channel "${overview ? overview.slice(0, 80) : title.trim()}". Find any safety concerns or age-appropriateness discussions. Quote verbatim. Do NOT infer content not explicitly found.`;
 
       const reputationContext = await groundingCall(reputationQuery, 'YouTube reputation').catch(() => '');
 
-      const ytPrompt = `Evaluate this ${ytLabel} for a Muslim family:
+      const ytPrompt = `Evaluate this ${ytLabel} for a Muslim family based ONLY on the data provided below. Do NOT invent or assume content not present in the metadata or reputation data.
 
 Title: ${title.trim()}
 Type: ${type}
 ${overview ? `Description: ${overview.slice(0, 300)}` : ''}${childContext}
 
 YouTube metadata:
-${ytMeta || 'Not available'}
+${ytMeta || 'Not available — base assessment only on reputation data and channel name.'}
 
-${reputationContext ? `Online reputation data:\n${reputationContext}` : ''}
+${reputationContext ? `Online reputation data:\n${reputationContext}` : 'No reputation data found.'}
 
 Return ONLY valid JSON — no markdown:
 {
@@ -3815,15 +3816,16 @@ Return ONLY valid JSON — no markdown:
   "flags": [
     { "title": "Short title (3-5 words)", "description": "One concrete explanation sentence." }
   ],
-  "summary": "2-3 sentences. What is this ${type} about and what are the key concerns for Muslim families.",
+  "summary": "2-3 sentences describing what this ${type} actually contains based on the data above. If information is limited, say so explicitly rather than guessing.",
   "age_note": "1 sentence. Age suitability — be specific."
 }
 
 Rules:
-- faith_values rates Islamic concern: "none" = aligns with Islamic values, "severe" = significant conflicts (haram glorified, anti-Islamic themes, occult, gender confusion).
-- flags: 2-5 objects covering the most important concerns. If no concerns, return 1 flag: { "title": "No significant concerns", "description": "This ${type} appears appropriate for Muslim families." }
-- For channels, base the assessment on the pattern across recent videos, not just individual ones.
-- summary must be specific to this ${type}'s actual content, not generic.`;
+- ONLY describe content that is explicitly evidenced by the metadata or reputation data above. Never fill gaps with assumptions about what the channel "probably" contains.
+- faith_values: "none" = aligns with Islamic values, "severe" = significant conflicts (haram glorified, anti-Islamic themes, occult, gender confusion).
+- flags: 2-5 objects. If data is insufficient to identify concerns, say so in the flag description rather than inventing concerns.
+- For channels, base assessment on the recent video titles and descriptions provided, and reputation data — not assumptions about genre.
+- If the channel/video is clearly Islamic educational content, reflect that accurately.`;
 
       let raw: string;
       try {
