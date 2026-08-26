@@ -46,7 +46,7 @@ const CONTENT_AREA_LABELS = [
   { key: 'profanity',    label: 'Language' },
   { key: 'substances',   label: 'Alcohol, Drugs & Smoking' },
   { key: 'frightening',  label: 'Frightening Scenes' },
-  { key: 'faith_values', label: 'Faith & Values' },
+  { key: 'faith_values', label: 'Faith & Values Concerns' },
 ];
 
 const SEVERITY_COLOR = {
@@ -455,7 +455,7 @@ export default function MediaScreen({ navigation }) {
       const { data, error } = await supabase.rpc('trending_media_checks', { since: sevenDaysAgo });
       if (error) { console.warn('trending RPC error:', error.message); return; }
       console.log('trending data:', JSON.stringify(data));
-      if (data?.length) setTrending(data);
+      if (data?.length) setTrending(data.slice(0, 7));
     } catch (e) {
       console.warn('trending fetch error:', e?.message);
     }
@@ -578,6 +578,7 @@ export default function MediaScreen({ navigation }) {
           type:       pendingResult.type,
           overview:   pendingResult.overview,
           tmdb_id:    pendingResult.tmdb_id,
+          poster:     pendingResult.poster ?? null,
           childAge:    _selectedChildren[0]?.age ?? _generic?.age ?? null,
           childGender: _selectedChildren[0]?.gender ?? _generic?.gender ?? null,
         }),
@@ -588,7 +589,7 @@ export default function MediaScreen({ navigation }) {
         title:         pendingResult.title,
         year:          pendingResult.year,
         type:          pendingResult.type,
-        poster:        pendingResult.poster ?? null,
+        poster:        pendingResult.poster ?? data.poster ?? null,
         verdict:       data.verdict,
         content_areas: data.content_areas ?? null,
         flags:         data.flags ?? [],

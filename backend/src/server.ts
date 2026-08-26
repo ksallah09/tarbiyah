@@ -3673,12 +3673,13 @@ CRITICAL: Never say "I cannot evaluate" — always give a verdict based on what 
 
 app.post('/media/check', async (req: Request, res: Response) => {
   try {
-    const { title, year, type, overview, tmdb_id, childAge, childGender } = req.body as {
+    const { title, year, type, overview, tmdb_id, poster, childAge, childGender } = req.body as {
       title: string;
       year?: string;
       type: string;
       overview?: string;
       tmdb_id?: string;
+      poster?: string;
       childAge?: string | number;
       childGender?: string;
     };
@@ -3694,7 +3695,7 @@ app.post('/media/check', async (req: Request, res: Response) => {
 
     const cacheQuery = supabase
       .from('media_cache')
-      .select('verdict, content_areas, flags, summary, age_note')
+      .select('verdict, content_areas, flags, summary, age_note, poster')
       .eq('type', type);
 
     const { data: cached } = tmdb_id
@@ -3840,6 +3841,7 @@ Rules:
 
       supabase.from('media_cache').upsert({
         title: title.trim(), type, tmdb_id: tmdb_id ?? null,
+        poster: poster ?? null,
         verdict: parsed.verdict, flags: parsed.flags, summary: parsed.summary,
         age_note: parsed.age_note, content_areas: parsed.content_areas ?? null,
       }, { onConflict: 'title,type' }).then(({ error }) => {
@@ -3927,6 +3929,7 @@ Rules:
       title:         title.trim(),
       type,
       tmdb_id:       tmdb_id ?? null,
+      poster:        poster ?? null,
       verdict:       parsed.verdict,
       content_areas: parsed.content_areas ?? null,
       flags:         parsed.flags ?? [],

@@ -9,7 +9,7 @@ const STEPS = [
   {
     tab: 0,
     title: 'Child Growth',
-    body: "See each child's wins, accomplishments, and development progress — your live view of how they're growing.",
+    body: "Each child gets their own dashboard — a personalised weekly plan of habits and activities. Track wins, accomplishments, and growth progress all in one place.",
     cta: 'Next →',
   },
   {
