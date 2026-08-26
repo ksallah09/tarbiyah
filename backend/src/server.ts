@@ -3703,10 +3703,7 @@ app.post('/media/check', async (req: Request, res: Response) => {
 
     if (cached) {
       // Personalise age note from cache if child info provided
-      const ageNote = childAge
-        ? `Based on the content above, ${childGender ? `${childGender}s` : 'children'} around age ${childAge} ${cached.verdict === 'friendly' ? 'should be fine watching this.' : 'may need parental guidance for this.'}`
-        : cached.age_note;
-      return res.json({ ...cached, age_note: ageNote, cached: true });
+      return res.json({ ...cached, cached: true });
     }
 
     // ── Build prompt ───────────────────────────────────────────────────────────
@@ -3734,15 +3731,15 @@ Return ONLY valid JSON — no markdown:
   "flags": [
     { "title": "Short title (3-5 words)", "description": "One concrete explanation sentence about this specific title." }
   ],
-  "summary": "2-3 sentences. What is this about and why is the verdict what it is. Personalise to the child if age was provided.",
-  "age_note": "1 sentence. Age suitability — be specific."
+  "summary": "2-3 sentences. What is this about and what content does it contain. Personalise to the child if age was provided.",
+  "age_note": "1 sentence. Describe the content level — do not say whether it is suitable or not."
 }
 
 Rules:
 - content_areas: rate each area based on what the IMDb Parents Guide says. faith_values rates concern from an Islamic perspective — "none" means content aligns well with Islamic values, "severe" means significant conflicts (shirk, haram glorified, anti-Islamic themes).
-- flags: 2-5 objects. title is 3-5 words. description is 1-2 specific sentences about the actual content.
+- flags: 2-5 objects. title is 3-5 words. description is 1-2 specific sentences describing what the content actually contains. NEVER state whether content is suitable, appropriate, or okay for any age — only describe what is present. The parent decides.
 - If nothing notable for flags, return 1 flag: { "title": "No significant concerns", "description": "This title has no notable content issues for Muslim families." }
-- summary must name the specific content issues, not generic statements
+- summary must name the specific content issues, not generic statements. Never make suitability judgements.
 - If you don't know this title, say so in the summary but still give your best verdict based on its genre/description`;
 
     // ── YouTube channel / video pipeline (separate path) ─────────────────────
@@ -3817,13 +3814,14 @@ Return ONLY valid JSON — no markdown:
     { "title": "Short title (3-5 words)", "description": "One concrete explanation sentence." }
   ],
   "summary": "2-3 sentences describing what this ${type} actually contains based on the data above. If information is limited, say so explicitly rather than guessing.",
-  "age_note": "1 sentence. Age suitability — be specific."
+  "age_note": "1 sentence. Describe the content level — do not say whether it is suitable or not."
 }
 
 Rules:
 - ONLY describe content that is explicitly evidenced by the metadata or reputation data above. Never fill gaps with assumptions about what the channel "probably" contains.
 - faith_values: "none" = aligns with Islamic values, "severe" = significant conflicts (haram glorified, anti-Islamic themes, occult, gender confusion).
-- flags: 2-5 objects. If data is insufficient to identify concerns, say so in the flag description rather than inventing concerns.
+- flags: 2-5 objects. Describe what the content contains — NEVER state whether it is suitable, appropriate, or okay for any age. The parent decides.
+- If data is insufficient to identify concerns, say so in the flag description rather than inventing concerns.
 - For channels, base assessment on the recent video titles and descriptions provided, and reputation data — not assumptions about genre.
 - If the channel/video is clearly Islamic educational content, reflect that accurately.`;
 
@@ -3848,9 +3846,7 @@ Rules:
         if (error) console.warn('[media/check] cache upsert error:', error.message);
       });
 
-      const ageNote = childAge
-        ? `Based on the content above, ${childGender ? `${childGender}s` : 'children'} around age ${childAge} ${parsed.verdict === 'friendly' ? 'should be fine with this.' : 'may need parental guidance.'}`
-        : parsed.age_note;
+      const ageNote = parsed.age_note;
 
       return res.json({ ...parsed, age_note: ageNote });
     }
