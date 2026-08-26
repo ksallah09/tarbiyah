@@ -3756,8 +3756,8 @@ Rules:
             fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,topicDetails,statistics,status,brandingSettings&id=${tmdb_id}&key=${ytKey}`),
             fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${tmdb_id}&order=date&type=video&maxResults=10&key=${ytKey}`),
           ]);
-          const chanData  = chanRes.ok  ? await chanRes.json()   : {};
-          const recentData = recentRes.ok ? await recentRes.json() : {};
+          const chanData  = chanRes.ok  ? await chanRes.json()   as any : {};
+          const recentData = recentRes.ok ? await recentRes.json() as any : {};
           const chan = chanData.items?.[0];
           if (chan) {
             const stats = chan.statistics ?? {};
@@ -3769,7 +3769,7 @@ Rules:
           }
         } else if (type === 'video' && tmdb_id) {
           const vidRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status,statistics&id=${tmdb_id}&key=${ytKey}`);
-          const vidData = vidRes.ok ? await vidRes.json() : {};
+          const vidData = vidRes.ok ? await vidRes.json() as any : {};
           const vid = vidData.items?.[0];
           if (vid) {
             const ageRestricted = vid.contentDetails?.contentRating?.ytRating === 'ytAgeRestricted' ? 'Yes' : 'No';
