@@ -456,8 +456,17 @@ export default function MediaScreen({ navigation }) {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase.rpc('trending_media_checks', { since: sevenDaysAgo });
       if (error) { console.warn('trending RPC error:', error.message); return; }
-      console.log('trending data:', JSON.stringify(data));
-      if (data?.length) setTrending(data.slice(0, 7));
+      if (!data?.length) return;
+      const top = data.slice(0, 7);
+      // Enrich with poster from media_cache
+      const titles = top.map(t => t.title);
+      const { data: cached } = await supabase
+        .from('media_cache')
+        .select('title, type, poster')
+        .in('title', titles);
+      const posterMap = {};
+      (cached ?? []).forEach(c => { posterMap[`${c.title}||${c.type}`] = c.poster; });
+      setTrending(top.map(t => ({ ...t, poster: posterMap[`${t.title}||${t.type}`] ?? null })));
     } catch (e) {
       console.warn('trending fetch error:', e?.message);
     }
