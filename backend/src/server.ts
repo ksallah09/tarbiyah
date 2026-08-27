@@ -3741,7 +3741,7 @@ Rules:
 - flags: 2-5 objects. title is 3-5 words. description is 1-2 specific sentences describing what the content actually contains. NEVER state whether content is suitable, appropriate, or okay for any age — only describe what is present. The parent decides.
 - If nothing notable for flags, return 1 flag: { "title": "No significant concerns", "description": "This title has no notable content issues for Muslim families." }
 - summary must name the specific content issues, not generic statements. Never make suitability judgements.
-- If you don't know this title, say so in the summary but still give your best verdict based on its genre/description`;
+- CRITICAL: Only describe content explicitly confirmed by the source data above. If sources are absent or thin, do NOT invent content from your training data — return only what can be evidenced.`;
 
     // ── YouTube channel / video pipeline (separate path) ─────────────────────
     if (type === 'channel' || type === 'video') {
@@ -3900,6 +3900,28 @@ Rules:
       groundingCall(piQuery, 'Plugged In'),
       groundingCall(csmQuery, 'CSM'),
     ]);
+
+    const combinedContextLength = (parentalGuideContext + pluggedInContext + csmContext).length;
+    console.log(`[media/check] Combined grounding context: ${combinedContextLength} chars`);
+
+    if (combinedContextLength < 200) {
+      const limitedResult = {
+        verdict: 'caution',
+        content_areas: { sex_nudity: 'unknown', violence: 'unknown', profanity: 'unknown', substances: 'unknown', frightening: 'unknown', faith_values: 'unknown' },
+        flags: [{ title: 'Limited source data', description: 'We couldn\'t find enough information from our sources to give a confident breakdown for this title. Check back later or search for it directly on Common Sense Media or IMDb.' }],
+        summary: `We weren't able to find sufficient source data for "${title.trim()}" at this time. The content breakdown above could not be verified. We recommend researching this title directly before allowing your child to watch, read, or play it.`,
+        age_note: 'Insufficient data to assess content level.',
+        cached: false,
+        limited_data: true,
+      };
+      supabase.from('media_cache').upsert({
+        title: title.trim(), type, tmdb_id: tmdb_id ?? null, poster: poster ?? null,
+        verdict: limitedResult.verdict, flags: limitedResult.flags,
+        summary: limitedResult.summary, age_note: limitedResult.age_note,
+        content_areas: null,
+      }, { onConflict: 'title,type' }).then(() => {}, () => {});
+      return res.json(limitedResult);
+    }
 
     const fullPrompt = [
       prompt,

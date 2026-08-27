@@ -527,7 +527,11 @@ export default function MediaScreen({ navigation }) {
         title, year, type,
         user_id: session?.user?.id ?? null,
       });
-      if (error) console.warn('logCheck error:', error.message);
+      if (error) {
+        console.warn('logCheck error:', error.message, error.code, error.details);
+        return;
+      }
+      fetchTrending();
     } catch (e) {
       console.warn('logCheck exception:', e?.message);
     }
