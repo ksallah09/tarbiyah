@@ -403,6 +403,8 @@ export default function MediaScreen({ navigation }) {
   const [activeVerdict, setActiveVerdict] = useState(null);
   const [watchersLabel, setWatchersLabel] = useState('');
   const [loading, setLoading]           = useState(false);
+  const [loadingStep, setLoadingStep]   = useState(0);
+  const loadingIntervalRef              = useRef(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [trending, setTrending]         = useState(MOCK_TRENDING);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -557,6 +559,31 @@ export default function MediaScreen({ navigation }) {
     setShowWho(true);
   }
 
+  const LOADING_STEPS = {
+    movie:   ['Looking up content details…', 'Scanning parent reviews…', 'Checking for faith & values concerns…', 'Building your family report…'],
+    show:    ['Looking up content details…', 'Scanning parent reviews…', 'Checking for faith & values concerns…', 'Building your family report…'],
+    book:    ['Looking up the book…', 'Scanning parent reviews…', 'Checking for faith & values concerns…', 'Building your family report…'],
+    game:    ['Looking up the game…', 'Scanning parent reviews…', 'Checking for faith & values concerns…', 'Building your family report…'],
+    channel: ['Fetching channel details…', 'Scanning parent discussions…', 'Checking for faith & values concerns…', 'Building your family report…'],
+    video:   ['Fetching video details…', 'Scanning parent discussions…', 'Checking for faith & values concerns…', 'Building your family report…'],
+  };
+
+  function startLoadingSteps(type) {
+    const steps = LOADING_STEPS[type] ?? LOADING_STEPS.movie;
+    setLoadingStep(0);
+    let i = 0;
+    loadingIntervalRef.current = setInterval(() => {
+      i += 1;
+      if (i < steps.length) setLoadingStep(i);
+      else clearInterval(loadingIntervalRef.current);
+    }, 2500);
+  }
+
+  function stopLoadingSteps() {
+    clearInterval(loadingIntervalRef.current);
+    setLoadingStep(0);
+  }
+
   async function handleWhoConfirm({ children: selectedChildren, generic }) {
     setShowWho(false);
     const names = selectedChildren.map(c => c.name);
@@ -568,6 +595,7 @@ export default function MediaScreen({ navigation }) {
     const _generic = generic;
 
     setLoading(true);
+    startLoadingSteps(pendingResult.type);
     try {
       const res = await fetch(`${API_URL}/media/check`, {
         method: 'POST',
@@ -604,6 +632,7 @@ export default function MediaScreen({ navigation }) {
     } catch (err) {
       Alert.alert('Check failed', 'Could not evaluate this title. Please try again.');
     } finally {
+      stopLoadingSteps();
       setLoading(false);
     }
   }
@@ -649,7 +678,7 @@ export default function MediaScreen({ navigation }) {
               overflow:  'hidden',
             }}>
               <Text style={styles.headerTitle}>Media Check</Text>
-              <Text style={styles.headerSubtitle}>Check if a movie, show, book, or game is compatible with Islamic values.</Text>
+              <Text style={styles.headerSubtitle}>Check the content of any movie, show, book, game, or YouTube channel.</Text>
             </Animated.View>
           )}
 
@@ -702,7 +731,14 @@ export default function MediaScreen({ navigation }) {
         {loading && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color="#1B3D2F" />
-            <Text style={styles.loadingText}>Checking through an Islamic lens…</Text>
+            <Text style={styles.loadingText}>
+              {(LOADING_STEPS[pendingResult?.type] ?? LOADING_STEPS.movie)[loadingStep]}
+            </Text>
+            <View style={styles.loadingDots}>
+              {(LOADING_STEPS[pendingResult?.type] ?? LOADING_STEPS.movie).map((_, i) => (
+                <View key={i} style={[styles.loadingDot, i === loadingStep && styles.loadingDotActive]} />
+              ))}
+            </View>
           </View>
         )}
 
@@ -901,7 +937,7 @@ const styles = StyleSheet.create({
   safe:          { flex: 1, backgroundColor: '#FFFFFF' },
   header:        { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, backgroundColor: '#FFFFFF' },
   headerTitle:   { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 4 },
-  headerSubtitle:{ fontSize: 13, color: '#6B7280', lineHeight: 19, marginBottom: 14 },
+  headerSubtitle:{ fontSize: 13, color: '#6B7280', lineHeight: 19, marginBottom: 14, maxWidth: '88%' },
 
   catRow:        { flexDirection: 'row', gap: 8, paddingRight: 4, marginBottom: 14 },
   catPill:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: '#F3F4F6' },
@@ -916,8 +952,11 @@ const styles = StyleSheet.create({
 
   separator:     { height: 1, backgroundColor: '#F3F4F6' },
 
-  loadingWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  loadingText:   { fontSize: 14, color: '#6B7280', fontWeight: '500' },
+  loadingWrap:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
+  loadingText:      { fontSize: 14, color: '#6B7280', fontWeight: '500', textAlign: 'center', paddingHorizontal: 40 },
+  loadingDots:      { flexDirection: 'row', gap: 6 },
+  loadingDot:       { width: 6, height: 6, borderRadius: 3, backgroundColor: '#E5E7EB' },
+  loadingDotActive: { backgroundColor: '#1B3D2F' },
 
   resultRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   resultTitle:   { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 2 },
