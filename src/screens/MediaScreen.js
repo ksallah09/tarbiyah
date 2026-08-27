@@ -972,8 +972,8 @@ const styles = StyleSheet.create({
 
   separator:     { height: 1, backgroundColor: '#F3F4F6' },
 
-  loadingWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 28 },
-  loadingStepList:        { gap: 14, alignSelf: 'stretch', paddingHorizontal: 40 },
+  loadingWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20, paddingBottom: 60 },
+  loadingStepList:        { gap: 16, alignSelf: 'stretch', paddingHorizontal: 32 },
   loadingStepRow:         { flexDirection: 'row', alignItems: 'center', gap: 12 },
   loadingStepIcon:        { width: 22, height: 22, borderRadius: 11, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   loadingStepIconDone:    { backgroundColor: '#1B3D2F' },
