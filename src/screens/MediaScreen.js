@@ -407,7 +407,7 @@ export default function MediaScreen({ navigation }) {
   const loadingIntervalRef              = useRef(null);
   const progressAnim                    = useRef(new Animated.Value(0)).current;
   const [searchLoading, setSearchLoading] = useState(false);
-  const [trending, setTrending]         = useState(MOCK_TRENDING);
+  const [trending, setTrending]         = useState([]);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [approveStatus, setApproveStatus]   = useState(null); // null | 'loading' | 'done' | 'error'
   const [approved, setApproved]             = useState([]);
@@ -457,7 +457,7 @@ export default function MediaScreen({ navigation }) {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase.rpc('trending_media_checks', { since: sevenDaysAgo });
       if (error) { console.warn('trending RPC error:', error.message); return; }
-      if (!data?.length) return;
+      if (!data?.length) { setTrending([]); return; }
       const top = data.slice(0, 7);
       // Enrich with poster from media_cache
       const titles = top.map(t => t.title);
