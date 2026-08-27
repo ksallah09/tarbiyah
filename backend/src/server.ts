@@ -3737,7 +3737,7 @@ Return ONLY valid JSON — no markdown:
 }
 
 Rules:
-- content_areas: rate each area based on what the IMDb Parents Guide says. faith_values rates concern from an Islamic perspective — "none" means content aligns well with Islamic values, "severe" means significant conflicts (shirk, haram glorified, anti-Islamic themes).
+- content_areas: rate each area based on what the IMDb Parents Guide says. faith_values rates concern from an Islamic perspective — "none" = aligns with Islamic values; "mild" = minor fantasy/magical elements in a clearly fictional context; "moderate" = recurring supernatural themes that could normalise occult thinking, or values that conflict with Islam without glorifying them; "severe" = content that actively promotes real occult practices (witchcraft, sihr, spirit summoning), shirk presented as a genuine belief system, or content that explicitly undermines tawheed. Fictional fantasy magic systems (elemental powers, fictional wizards, superheroes) must NOT be rated severe unless the content explicitly frames them as real spiritual practice.
 - flags: 2-5 objects. title is 3-5 words. description is 1-2 specific sentences describing what the content actually contains. NEVER state whether content is suitable, appropriate, or okay for any age — only describe what is present. The parent decides.
 - If nothing notable for flags, return 1 flag: { "title": "No significant concerns", "description": "This title has no notable content issues for Muslim families." }
 - summary must name the specific content issues, not generic statements. Never make suitability judgements.
@@ -3820,7 +3820,7 @@ Return ONLY valid JSON — no markdown:
 
 Rules:
 - ONLY describe content that is explicitly evidenced by the metadata or reputation data above. Never fill gaps with assumptions about what the channel "probably" contains.
-- faith_values: "none" = aligns with Islamic values, "severe" = significant conflicts (haram glorified, anti-Islamic themes, occult, gender confusion).
+- faith_values: "none" = aligns with Islamic values; "mild" = minor fantasy/magical elements in a clearly fictional context; "moderate" = recurring supernatural themes that could normalise occult thinking, or values conflicting with Islam without glorifying them; "severe" = content that actively promotes real occult practices (witchcraft, sihr, spirit summoning), shirk as a genuine belief system, or content that explicitly undermines tawheed. Fictional fantasy magic systems (elemental powers, fictional wizards, superheroes) must NOT be rated severe unless explicitly framed as real spiritual practice.
 - flags: 2-5 objects. Describe what the content contains — NEVER state whether it is suitable, appropriate, or okay for any age. The parent decides.
 - If data is insufficient to identify concerns, say so in the flag description rather than inventing concerns.
 - For channels, base assessment on the recent video titles and descriptions provided, and reputation data — not assumptions about genre.
@@ -3927,7 +3927,7 @@ Rules:
       prompt,
       parentalGuideContext && `\nIMDb Parents Guide data:\n${parentalGuideContext}\n\nBase sex/nudity, violence, profanity, substances, and frightening ratings on this data. Do not invent content not found here.`,
       csmContext && `\nCommon Sense Media review data:\n${csmContext}\n\nUse this to supplement or confirm the content area ratings, especially for books and games where IMDb data may be limited.`,
-      pluggedInContext && `\nPlugged In spiritual content review:\n${pluggedInContext}\n\nBase the faith_values rating on this Plugged In data. "none" = no spiritual concerns, "mild" = minor issues, "moderate" = notable concerns, "severe" = significant conflicts with Islamic values (occult, shirk, anti-faith themes).`,
+      pluggedInContext && `\nPlugged In spiritual content review:\n${pluggedInContext}\n\nBase the faith_values rating on this Plugged In data. "none" = no spiritual concerns; "mild" = minor fantasy/magical elements in a clearly fictional context; "moderate" = recurring supernatural themes or values conflicting with Islam without glorifying them; "severe" = actively promotes real occult practices, shirk as a genuine belief system, or explicitly undermines tawheed. Fictional fantasy magic (elemental powers, fictional wizards, superheroes) must NOT be rated severe unless explicitly framed as real spiritual practice.`,
     ].filter(Boolean).join('');
 
     // ── Call Gemini ────────────────────────────────────────────────────────────
