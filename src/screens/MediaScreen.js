@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, FlatList, Animated, Keyboard, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Alert,
+  Platform, ActivityIndicator, Alert, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -137,7 +137,7 @@ function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
   if (!visible) return null;
 
   return (
-    <View style={modal.overlay}>
+    <KeyboardAvoidingView style={modal.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableOpacity style={modal.backdrop} onPress={onDismiss} activeOpacity={1} />
       <Animated.View style={[modal.sheet, { transform: [{ translateY: slideAnim }] }]}>
         <View style={modal.handle} />
@@ -209,7 +209,7 @@ function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -406,6 +406,8 @@ export default function MediaScreen({ navigation }) {
   const [loadingStep, setLoadingStep]   = useState(0);
   const loadingIntervalRef              = useRef(null);
   const progressAnim                    = useRef(new Animated.Value(0)).current;
+  const pendingCheckRef                 = useRef(null);
+  const appStateRef                     = useRef(AppState.currentState);
   const [searchLoading, setSearchLoading] = useState(false);
   const [trending, setTrending]         = useState([]);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -451,6 +453,20 @@ export default function MediaScreen({ navigation }) {
     fetchTrending();
     fetchApproved();
   }, []));
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextState => {
+      const prev = appStateRef.current;
+      appStateRef.current = nextState;
+      if (prev.match(/inactive|background/) && nextState === 'active' && pendingCheckRef.current) {
+        // App came back to foreground with a check in flight — retry it
+        const args = pendingCheckRef.current;
+        pendingCheckRef.current = null;
+        runCheck(args);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   async function fetchTrending() {
     try {
@@ -609,40 +625,33 @@ export default function MediaScreen({ navigation }) {
     progressAnim.setValue(0);
   }
 
-  async function handleWhoConfirm({ children: selectedChildren, generic }) {
-    setShowWho(false);
-    const names = selectedChildren.map(c => c.name);
-    if (generic?.age || generic?.gender) names.push([generic.gender, generic.age].filter(Boolean).join(' '));
-    setWatchersLabel(names.join(', '));
-
-    // Make watcher info available to the async check below
-    const _selectedChildren = selectedChildren;
-    const _generic = generic;
-
+  async function runCheck({ item, childAge, childGender, watchersLabel: label }) {
     setLoading(true);
-    startLoadingSteps(pendingResult.type);
+    setWatchersLabel(label);
+    startLoadingSteps(item.type);
+    pendingCheckRef.current = null;
     try {
       const res = await fetch(`${API_URL}/media/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title:      pendingResult.title,
-          year:       pendingResult.year,
-          type:       pendingResult.type,
-          overview:   pendingResult.overview,
-          tmdb_id:    pendingResult.tmdb_id,
-          poster:     pendingResult.poster ?? null,
-          childAge:    _selectedChildren[0]?.age ?? _generic?.age ?? null,
-          childGender: _selectedChildren[0]?.gender ?? _generic?.gender ?? null,
+          title:      item.title,
+          year:       item.year,
+          type:       item.type,
+          overview:   item.overview,
+          tmdb_id:    item.tmdb_id,
+          poster:     item.poster ?? null,
+          childAge,
+          childGender,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Check failed');
       const result = {
-        title:         pendingResult.title,
-        year:          pendingResult.year,
-        type:          pendingResult.type,
-        poster:        pendingResult.poster ?? data.poster ?? null,
+        title:         item.title,
+        year:          item.year,
+        type:          item.type,
+        poster:        item.poster ?? data.poster ?? null,
         verdict:       data.verdict,
         content_areas: data.content_areas ?? null,
         flags:         data.flags ?? [],
@@ -655,11 +664,28 @@ export default function MediaScreen({ navigation }) {
       setSearching(false);
       logCheck(result.title, result.year, result.type);
     } catch (err) {
-      Alert.alert('Check failed', 'Could not evaluate this title. Please try again.');
+      if (appStateRef.current !== 'active') {
+        // App went to background — save args so AppState listener can retry
+        pendingCheckRef.current = { item, childAge, childGender, watchersLabel: label };
+      } else {
+        Alert.alert('Check failed', 'Could not evaluate this title. Please try again.');
+      }
     } finally {
-      stopLoadingSteps();
-      setLoading(false);
+      if (!pendingCheckRef.current) {
+        stopLoadingSteps();
+        setLoading(false);
+      }
     }
+  }
+
+  async function handleWhoConfirm({ children: selectedChildren, generic }) {
+    setShowWho(false);
+    const names = selectedChildren.map(c => c.name);
+    if (generic?.age || generic?.gender) names.push([generic.gender, generic.age].filter(Boolean).join(' '));
+    const label = names.join(', ');
+    const childAge    = selectedChildren[0]?.age ?? generic?.age ?? null;
+    const childGender = selectedChildren[0]?.gender ?? generic?.gender ?? null;
+    runCheck({ item: pendingResult, childAge, childGender, watchersLabel: label });
   }
 
   function handleTrendingTap(item) {
@@ -755,6 +781,14 @@ export default function MediaScreen({ navigation }) {
         {/* ── Loading spinner ── */}
         {loading && (
           <View style={styles.loadingWrap}>
+            {pendingResult && (
+              <View style={styles.loadingHeader}>
+                <Text style={styles.loadingTitle} numberOfLines={1}>{pendingResult.title}</Text>
+                <Text style={styles.loadingMeta}>
+                  {[pendingResult.year, pendingResult.type?.charAt(0).toUpperCase() + pendingResult.type?.slice(1)].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+            )}
             <View style={styles.loadingBarTrack}>
               <Animated.View style={[styles.loadingBarFill, { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
             </View>
@@ -991,6 +1025,9 @@ const styles = StyleSheet.create({
   separator:     { height: 1, backgroundColor: '#F3F4F6' },
 
   loadingWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 24, paddingBottom: 60, paddingHorizontal: 32 },
+  loadingHeader:          { alignSelf: 'stretch', marginBottom: 4 },
+  loadingTitle:           { fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 4 },
+  loadingMeta:            { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
   loadingBarTrack:        { height: 4, borderRadius: 2, backgroundColor: '#F3F4F6', alignSelf: 'stretch' },
   loadingBarFill:         { height: '100%', borderRadius: 2, backgroundColor: '#1B3D2F' },
   loadingStepList:        { gap: 16, alignSelf: 'stretch' },
