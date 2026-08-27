@@ -405,6 +405,7 @@ export default function MediaScreen({ navigation }) {
   const [loading, setLoading]           = useState(false);
   const [loadingStep, setLoadingStep]   = useState(0);
   const loadingIntervalRef              = useRef(null);
+  const progressAnim                    = useRef(new Animated.Value(0)).current;
   const [searchLoading, setSearchLoading] = useState(false);
   const [trending, setTrending]         = useState(MOCK_TRENDING);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -577,20 +578,35 @@ export default function MediaScreen({ navigation }) {
     video:   ['Fetching video details…', 'Scanning parent discussions…', 'Checking for faith & values concerns…', 'Building your family report…'],
   };
 
+  function animateProgress(step, total) {
+    Animated.timing(progressAnim, {
+      toValue: (step + 1) / total,
+      duration: 400,
+      useNativeDriver: false,
+    }).start();
+  }
+
   function startLoadingSteps(type) {
     const steps = LOADING_STEPS[type] ?? LOADING_STEPS.movie;
     setLoadingStep(0);
+    progressAnim.setValue(0);
+    animateProgress(0, steps.length);
     let i = 0;
     loadingIntervalRef.current = setInterval(() => {
       i += 1;
-      if (i < steps.length) setLoadingStep(i);
-      else clearInterval(loadingIntervalRef.current);
+      if (i < steps.length) {
+        setLoadingStep(i);
+        animateProgress(i, steps.length);
+      } else {
+        clearInterval(loadingIntervalRef.current);
+      }
     }, 2500);
   }
 
   function stopLoadingSteps() {
     clearInterval(loadingIntervalRef.current);
     setLoadingStep(0);
+    progressAnim.setValue(0);
   }
 
   async function handleWhoConfirm({ children: selectedChildren, generic }) {
@@ -739,7 +755,9 @@ export default function MediaScreen({ navigation }) {
         {/* ── Loading spinner ── */}
         {loading && (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color="#1B3D2F" />
+            <View style={styles.loadingBarTrack}>
+              <Animated.View style={[styles.loadingBarFill, { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+            </View>
             <View style={styles.loadingStepList}>
               {(LOADING_STEPS[pendingResult?.type] ?? LOADING_STEPS.movie).map((label, i) => {
                 const done    = i < loadingStep;
@@ -972,8 +990,10 @@ const styles = StyleSheet.create({
 
   separator:     { height: 1, backgroundColor: '#F3F4F6' },
 
-  loadingWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20, paddingBottom: 60 },
-  loadingStepList:        { gap: 16, alignSelf: 'stretch', paddingHorizontal: 32 },
+  loadingWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 24, paddingBottom: 60, paddingHorizontal: 32 },
+  loadingBarTrack:        { height: 4, borderRadius: 2, backgroundColor: '#F3F4F6', alignSelf: 'stretch' },
+  loadingBarFill:         { height: '100%', borderRadius: 2, backgroundColor: '#1B3D2F' },
+  loadingStepList:        { gap: 16, alignSelf: 'stretch' },
   loadingStepRow:         { flexDirection: 'row', alignItems: 'center', gap: 12 },
   loadingStepIcon:        { width: 22, height: 22, borderRadius: 11, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   loadingStepIconDone:    { backgroundColor: '#1B3D2F' },
