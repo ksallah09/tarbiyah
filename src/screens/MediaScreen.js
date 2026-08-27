@@ -740,13 +740,24 @@ export default function MediaScreen({ navigation }) {
         {loading && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color="#1B3D2F" />
-            <Text style={styles.loadingText}>
-              {(LOADING_STEPS[pendingResult?.type] ?? LOADING_STEPS.movie)[loadingStep]}
-            </Text>
-            <View style={styles.loadingDots}>
-              {(LOADING_STEPS[pendingResult?.type] ?? LOADING_STEPS.movie).map((_, i) => (
-                <View key={i} style={[styles.loadingDot, i === loadingStep && styles.loadingDotActive]} />
-              ))}
+            <View style={styles.loadingStepList}>
+              {(LOADING_STEPS[pendingResult?.type] ?? LOADING_STEPS.movie).map((label, i) => {
+                const done    = i < loadingStep;
+                const active  = i === loadingStep;
+                return (
+                  <View key={i} style={styles.loadingStepRow}>
+                    <View style={[styles.loadingStepIcon, done && styles.loadingStepIconDone, active && styles.loadingStepIconActive]}>
+                      {done
+                        ? <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                        : <View style={[styles.loadingStepDot, active && styles.loadingStepDotActive]} />
+                      }
+                    </View>
+                    <Text style={[styles.loadingStepText, done && styles.loadingStepTextDone, active && styles.loadingStepTextActive]}>
+                      {label}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
         )}
@@ -961,11 +972,17 @@ const styles = StyleSheet.create({
 
   separator:     { height: 1, backgroundColor: '#F3F4F6' },
 
-  loadingWrap:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
-  loadingText:      { fontSize: 14, color: '#6B7280', fontWeight: '500', textAlign: 'center', paddingHorizontal: 40 },
-  loadingDots:      { flexDirection: 'row', gap: 6 },
-  loadingDot:       { width: 6, height: 6, borderRadius: 3, backgroundColor: '#E5E7EB' },
-  loadingDotActive: { backgroundColor: '#1B3D2F' },
+  loadingWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 28 },
+  loadingStepList:        { gap: 14, alignSelf: 'stretch', paddingHorizontal: 40 },
+  loadingStepRow:         { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  loadingStepIcon:        { width: 22, height: 22, borderRadius: 11, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  loadingStepIconDone:    { backgroundColor: '#1B3D2F' },
+  loadingStepIconActive:  { backgroundColor: '#D4A843' },
+  loadingStepDot:         { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D1D5DB' },
+  loadingStepDotActive:   { backgroundColor: '#FFFFFF' },
+  loadingStepText:        { fontSize: 14, color: '#D1D5DB', fontWeight: '500' },
+  loadingStepTextDone:    { color: '#1B3D2F' },
+  loadingStepTextActive:  { color: '#111827', fontWeight: '600' },
 
   resultRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   resultTitle:   { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 2 },
