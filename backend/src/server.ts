@@ -3874,11 +3874,35 @@ Rules:
 
     // ── Grounding searches (parallel) ─────────────────────────────────────────
     const imdbLabel = type === 'game' ? 'video game' : type === 'show' ? 'TV series' : type;
-    const imdbUrl   = imdbId ? `imdb.com/title/${imdbId}/parentalguide` : null;
 
-    const imdbQuery = imdbUrl
-      ? `Fetch the IMDb Parents Guide at ${imdbUrl} — this is the exact page for "${title.trim()}" (${year}, ${imdbLabel}). Report ONLY what you find on that page — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label (None/Mild/Moderate/Severe) per category. Quote specific scene descriptions verbatim. Do NOT summarise or interpret.`
-      : `Search IMDb Parents Guide for the ${imdbLabel} "${title.trim()}${year ? ` (${year})` : ''}" at imdb.com/title/*/parentalguide. Report ONLY what you find — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label per category. Quote verbatim. Do NOT summarise.`;
+    // Fetch structured IMDb parental guide via RapidAPI (exact per-category data)
+    async function fetchImdbParentalGuide(tconst: string): Promise<string> {
+      const rapidKey = process.env.RAPIDAPI_KEY;
+      if (!rapidKey) return '';
+      try {
+        const res = await Promise.race([
+          fetch(`https://imdb8.p.rapidapi.com/title/get-parental-guide?tconst=${tconst}`, {
+            headers: { 'x-rapidapi-host': 'imdb8.p.rapidapi.com', 'x-rapidapi-key': rapidKey },
+          }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('RapidAPI timeout')), 10_000)),
+        ]);
+        if (!res.ok) { console.warn(`[media/check] RapidAPI IMDb ${res.status}`); return ''; }
+        const data = await res.json() as { ratingItems?: Array<{ name: string; rating?: string; text?: { plainText?: string }[]; }> };
+        const items = data.ratingItems ?? [];
+        if (!items.length) return '';
+        const lines = items.map(cat => {
+          const entries = (cat.text ?? []).map((t: any) => `  - ${t.plainText ?? ''}`).filter(Boolean).join('\n');
+          return `${cat.name} [${cat.rating ?? 'Not rated'}]:\n${entries || '  (no specific entries)'}`;
+        }).join('\n\n');
+        console.log(`[media/check] RapidAPI IMDb parental guide — ${lines.length} chars`);
+        return `IMDb Parents Guide (${tconst}):\n${lines}`;
+      } catch (e) {
+        console.warn('[media/check] RapidAPI IMDb failed:', (e as Error).message);
+        return '';
+      }
+    }
+
+    const imdbFallbackQuery = `Search IMDb Parents Guide for the ${imdbLabel} "${title.trim()}${year ? ` (${year})` : ''}" at imdb.com/title/*/parentalguide. Report ONLY what you find — list every entry under each category: Sex & Nudity, Violence & Gore, Profanity, Alcohol/Drugs/Smoking, Frightening & Intense Scenes. Include the severity label per category. Quote verbatim. Do NOT summarise.`;
 
     const piQuery = `Search pluggedin.com for the review of "${title.trim()}${year ? ` (${year})` : ''}" ${type}. Find the page at pluggedin.com and extract ONLY the "Spiritual Content" section verbatim. Also extract any "Positive Elements" related to faith, morality, or values. Quote exactly what the page says. Do NOT summarise. If no Plugged In review exists, say so.`;
 
@@ -3896,7 +3920,9 @@ Rules:
     }
 
     const [parentalGuideContext, pluggedInContext, csmContext] = await Promise.all([
-      groundingCall(imdbQuery, 'IMDb'),
+      imdbId
+        ? fetchImdbParentalGuide(imdbId)
+        : groundingCall(imdbFallbackQuery, 'IMDb'),
       groundingCall(piQuery, 'Plugged In'),
       groundingCall(csmQuery, 'CSM'),
     ]);

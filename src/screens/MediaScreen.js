@@ -99,7 +99,7 @@ const MOCK_VERDICT = {
 function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
   const slideAnim = useRef(new Animated.Value(300)).current;
   const [selected, setSelected] = useState(new Set());
-  const [genericAge, setGenericAge] = useState('');
+  const [genericAge, setGenericAge] = useState(10);
   const [genericGender, setGenericGender] = useState(null);
   const [showGeneric, setShowGeneric] = useState(false);
 
@@ -112,7 +112,7 @@ function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
     }).start();
     if (!visible) {
       setSelected(new Set());
-      setGenericAge('');
+      setGenericAge(10);
       setGenericGender(null);
       setShowGeneric(false);
     }
@@ -126,18 +126,16 @@ function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
 
   function handleConfirm() {
     const selectedChildren = children.filter(c => selected.has(c.id));
-    const generic = showGeneric && (genericAge || genericGender)
-      ? { age: genericAge, gender: genericGender }
-      : null;
+    const generic = showGeneric ? { age: genericAge, gender: genericGender } : null;
     onConfirm({ children: selectedChildren, generic });
   }
 
-  const canConfirm = selected.size > 0 || (showGeneric && (genericAge || genericGender));
+  const canConfirm = selected.size > 0 || showGeneric;
 
   if (!visible) return null;
 
   return (
-    <KeyboardAvoidingView style={modal.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <View style={modal.overlay}>
       <TouchableOpacity style={modal.backdrop} onPress={onDismiss} activeOpacity={1} />
       <Animated.View style={[modal.sheet, { transform: [{ translateY: slideAnim }] }]}>
         <View style={modal.handle} />
@@ -173,15 +171,27 @@ function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
 
         {showGeneric && (
           <View style={modal.genericRow}>
-            <TextInput
-              style={modal.ageInput}
-              placeholder="Age"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="number-pad"
-              value={genericAge}
-              onChangeText={setGenericAge}
-              maxLength={2}
-            />
+            {/* Age stepper */}
+            <View style={modal.ageStepper}>
+              <TouchableOpacity
+                style={modal.ageStepperBtn}
+                onPress={() => setGenericAge(a => Math.max(1, a - 1))}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="remove" size={18} color="#374151" />
+              </TouchableOpacity>
+              <Text style={modal.ageStepperVal}>{genericAge}</Text>
+              <TouchableOpacity
+                style={modal.ageStepperBtn}
+                onPress={() => setGenericAge(a => Math.min(17, a + 1))}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="add" size={18} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <Text style={modal.ageStepperLabel}>yrs</Text>
             {['Boy', 'Girl'].map(g => (
               <TouchableOpacity
                 key={g}
@@ -209,7 +219,7 @@ function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -416,39 +426,9 @@ export default function MediaScreen({ navigation }) {
   const [approvedFilter, setApprovedFilter] = useState('all');
   const inputRef    = useRef(null);
   const searchTimer = useRef(null);
-  const headerAnim      = useRef(new Animated.Value(1)).current;
-  const titleAnim       = useRef(new Animated.Value(1)).current;
-  const lastScrollY     = useRef(0);
-  const headerCollapsed = useRef(false);
-  const titleCollapsed  = useRef(false);
 
-  // Verdict/search pages: direction-based full header collapse
-  function handleScroll(e) {
-    const y    = e.nativeEvent.contentOffset.y;
-    const diff = y - lastScrollY.current;
-    lastScrollY.current = y;
-    if (diff > 6 && y > 10 && !headerCollapsed.current) {
-      headerCollapsed.current = true;
-      Animated.spring(headerAnim, { toValue: 0, useNativeDriver: false, tension: 200, friction: 20 }).start();
-    } else if (diff < -6 && headerCollapsed.current) {
-      headerCollapsed.current = false;
-      Animated.spring(headerAnim, { toValue: 1, useNativeDriver: false, tension: 200, friction: 20 }).start();
-    }
-  }
 
-  // Idle page: position-based title-only collapse, restores only at y=0
-  function handleIdleScroll(e) {
-    const y = e.nativeEvent.contentOffset.y;
-    if (y > 10 && !titleCollapsed.current) {
-      titleCollapsed.current = true;
-      Animated.spring(titleAnim, { toValue: 0, useNativeDriver: false, tension: 200, friction: 20 }).start();
-    } else if (y <= 2 && titleCollapsed.current) {
-      titleCollapsed.current = false;
-      Animated.spring(titleAnim, { toValue: 1, useNativeDriver: false, tension: 200, friction: 20 }).start();
-    }
-  }
-
-  useFocusEffect(useCallback(() => {
+useFocusEffect(useCallback(() => {
     getAllChildProfiles().then(setChildren);
     fetchTrending();
     fetchApproved();
@@ -703,13 +683,8 @@ export default function MediaScreen({ navigation }) {
     setWatchersLabel('');
     setPendingResult(null);
     setApproveStatus(null);
-    lastScrollY.current = 0;
-    headerCollapsed.current = false;
-    titleCollapsed.current = false;
     fetchTrending();
     fetchApproved();
-    Animated.spring(headerAnim, { toValue: 1, useNativeDriver: false, tension: 200, friction: 20 }).start();
-    Animated.spring(titleAnim, { toValue: 1, useNativeDriver: false, tension: 200, friction: 20 }).start();
   }
 
   const catLabel = CATEGORIES.find(c => c.key === category)?.label ?? 'title';
@@ -720,21 +695,13 @@ export default function MediaScreen({ navigation }) {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
         {/* ── Header ── */}
-        <Animated.View style={[styles.header, {
-          maxHeight: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 260] }),
-          opacity:   headerAnim.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0, 1] }),
-          overflow:  'hidden',
-        }]}>
+        <View style={styles.header}>
           {/* Title block — idle only; hidden entirely on search/verdict screens */}
           {!searching && !activeVerdict && !loading && (
-            <Animated.View style={{
-              maxHeight: titleAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 80] }),
-              opacity:   titleAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 1] }),
-              overflow:  'hidden',
-            }}>
+            <View>
               <Text style={styles.headerTitle}>Media Check</Text>
               <Text style={styles.headerSubtitle}>Check the content of any movie, show, book, game, or YouTube channel.</Text>
-            </Animated.View>
+            </View>
           )}
 
           {/* Category pills */}
@@ -778,7 +745,7 @@ export default function MediaScreen({ navigation }) {
             <Text style={styles.howBtnText}>How this works</Text>
             <Ionicons name="chevron-down-outline" size={13} color="#9CA3AF" />
           </TouchableOpacity>
-        </Animated.View>
+        </View>
 
         <View style={styles.separator} />
 
@@ -820,7 +787,7 @@ export default function MediaScreen({ navigation }) {
 
         {/* ── Verdict ── */}
         {!loading && activeVerdict && (
-          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false} onScroll={handleScroll} scrollEventThrottle={16}>
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             <VerdictCard
               result={activeVerdict}
               watchersLabel={watchersLabel}
@@ -838,8 +805,6 @@ export default function MediaScreen({ navigation }) {
             keyExtractor={item => item.id}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 24 }}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
             ListHeaderComponent={searchLoading ? (
               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                 <ActivityIndicator color="#1B3D2F" />
@@ -869,8 +834,6 @@ export default function MediaScreen({ navigation }) {
             contentContainerStyle={styles.idleContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            onScroll={handleIdleScroll}
-            scrollEventThrottle={16}
           >
             {/* Trending in the community */}
             <View style={styles.section}>
@@ -1107,8 +1070,11 @@ const modal = StyleSheet.create({
   childChipText:{ fontSize: 14, fontWeight: '600', color: '#374151' },
   otherBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
   otherBtnText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  genericRow:   { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  ageInput:     { width: 72, borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 15, color: '#111827', fontWeight: '600' },
+  genericRow:       { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  ageStepper:       { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 10, overflow: 'hidden' },
+  ageStepperBtn:    { paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#F9FAFB' },
+  ageStepperVal:    { minWidth: 28, textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#111827' },
+  ageStepperLabel:  { fontSize: 13, color: '#9CA3AF', fontWeight: '500', marginLeft: -4 },
   genderChip:   { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
   genderChipActive: { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
   genderChipText:   { fontSize: 14, fontWeight: '600', color: '#374151' },
