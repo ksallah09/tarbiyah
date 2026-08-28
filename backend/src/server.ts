@@ -3887,13 +3887,34 @@ Rules:
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('RapidAPI timeout')), 10_000)),
         ]);
         if (!res.ok) { console.warn(`[media/check] RapidAPI IMDb ${res.status}`); return ''; }
-        const data = await res.json() as { ratingItems?: Array<{ name: string; rating?: string; text?: { plainText?: string }[]; }> };
-        const items = data.ratingItems ?? [];
-        if (!items.length) return '';
-        const lines = items.map(cat => {
-          const entries = (cat.text ?? []).map((t: any) => `  - ${t.plainText ?? ''}`).filter(Boolean).join('\n');
-          return `${cat.name} [${cat.rating ?? 'Not rated'}]:\n${entries || '  (no specific entries)'}`;
-        }).join('\n\n');
+        const data = await res.json() as {
+          parentalguide?: Array<{
+            label: string;
+            items?: Array<{ text: string; isSpoiler?: boolean }>;
+            severityVotes?: { status?: string };
+          }>;
+        };
+        const categories = data.parentalguide ?? [];
+        if (!categories.length) return '';
+        const LABEL_MAP: Record<string, string> = {
+          nudity: 'Sex & Nudity',
+          violence: 'Violence & Gore',
+          profanity: 'Profanity/Language',
+          alcohol: 'Alcohol, Drugs & Smoking',
+          frightening: 'Frightening & Intense Scenes',
+        };
+        const lines = categories
+          .filter(cat => LABEL_MAP[cat.label])
+          .map(cat => {
+            const name = LABEL_MAP[cat.label];
+            const severity = cat.severityVotes?.status ?? 'unknown';
+            const entries = (cat.items ?? [])
+              .filter(item => !item.isSpoiler)
+              .map(item => `  - ${item.text}`)
+              .join('\n');
+            return `${name} [${severity}]:\n${entries || '  (no specific entries)'}`;
+          })
+          .join('\n\n');
         console.log(`[media/check] RapidAPI IMDb parental guide — ${lines.length} chars`);
         return `IMDb Parents Guide (${tconst}):\n${lines}`;
       } catch (e) {
