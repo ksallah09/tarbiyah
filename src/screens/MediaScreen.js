@@ -459,11 +459,14 @@ useFocusEffect(useCallback(() => {
       const titles = top.map(t => t.title);
       const { data: cached } = await supabase
         .from('media_cache')
-        .select('title, type, poster')
+        .select('title, type, poster, tmdb_id')
         .in('title', titles);
-      const posterMap = {};
-      (cached ?? []).forEach(c => { posterMap[`${c.title}||${c.type}`] = c.poster; });
-      setTrending(top.map(t => ({ ...t, poster: posterMap[`${t.title}||${t.type}`] ?? null })));
+      const cacheMap = {};
+      (cached ?? []).forEach(c => { cacheMap[`${c.title}||${c.type}`] = { poster: c.poster, tmdb_id: c.tmdb_id }; });
+      setTrending(top.map(t => {
+        const c = cacheMap[`${t.title}||${t.type}`] ?? {};
+        return { ...t, poster: c.poster ?? null, tmdb_id: c.tmdb_id ?? null };
+      }));
     } catch (e) {
       console.warn('trending fetch error:', e?.message);
     }
@@ -646,7 +649,7 @@ useFocusEffect(useCallback(() => {
       setResults([]);
       setQuery('');
       setSearching(false);
-      logCheck(result.title, result.year, result.type);
+      if (!data.limited_data) logCheck(result.title, result.year, result.type);
     } catch (err) {
       if (appStateRef.current !== 'active') {
         // App went to background — save args so AppState listener can retry

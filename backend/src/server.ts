@@ -3921,7 +3921,7 @@ Rules:
 
     const [parentalGuideContext, pluggedInContext, csmContext] = await Promise.all([
       imdbId
-        ? fetchImdbParentalGuide(imdbId)
+        ? fetchImdbParentalGuide(imdbId).then(r => r || groundingCall(imdbFallbackQuery, 'IMDb'))
         : groundingCall(imdbFallbackQuery, 'IMDb'),
       groundingCall(piQuery, 'Plugged In'),
       groundingCall(csmQuery, 'CSM'),
