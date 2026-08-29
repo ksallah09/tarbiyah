@@ -3703,36 +3703,15 @@ app.post('/media/check', async (req: Request, res: Response) => {
       : await cacheQuery.eq('title', title.trim()).maybeSingle();
 
     if (cached) {
-      if (childAge && cached.content_areas) {
-        try {
-          const areas = Object.entries(cached.content_areas as Record<string, string>)
-            .filter(([, v]) => v !== 'none' && v !== 'unknown')
-            .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
-            .join(', ');
-          const flagSummary = (cached.flags as Array<{ title: string; description: string }> ?? [])
-            .map(f => f.description).join(' ');
-          const personalisePrompt = `A parent is checking "${title.trim()}" (${type}) for their ${childAge}-year-old${childGender ? ` ${childGender.toLowerCase()}` : ''}.\nContent breakdown: ${areas || 'no notable concerns'}.\nContent notes: ${flagSummary || 'none'}\n\nReturn ONLY valid JSON:\n{"summary":"2-3 sentences describing what this is and what content it contains, personalised to this child's age.","age_note":"1 sentence describing the content level for a ${childAge}-year-old. Do not say whether it is suitable or not."}`;
-          const m = getJsonModel(MODEL_FAST, 'You are a content analyst for a Muslim parenting app. Return only valid JSON.');
-          const raw = await generateWithRetry(m, personalisePrompt, MODEL_FAST);
-          const personalised = JSON.parse(raw.replace(/```json\n?|\n?```/g, '').trim());
-          return res.json({ ...cached, ...personalised, cached: true });
-        } catch {
-          // fall through to returning cached as-is
-        }
-      }
       return res.json({ ...cached, cached: true });
     }
 
     // ── Build prompt ───────────────────────────────────────────────────────────
-    const childContext = childAge
-      ? `\nThe parent is checking this for a ${childAge}-year-old${childGender ? ` ${childGender.toLowerCase()}` : ''}. Personalise the age note to them.`
-      : '';
-
     const prompt = `Evaluate this ${type} for a Muslim family:
 
 Title: ${title.trim()}${year ? ` (${year})` : ''}
 Type: ${type}
-${overview ? `Description: ${overview.slice(0, 600)}` : ''}${childContext}
+${overview ? `Description: ${overview.slice(0, 600)}` : ''}
 
 Return ONLY valid JSON — no markdown:
 {
@@ -3748,8 +3727,8 @@ Return ONLY valid JSON — no markdown:
   "flags": [
     { "title": "Short title (3-5 words)", "description": "One concrete explanation sentence about this specific title." }
   ],
-  "summary": "2-3 sentences. What is this about and what content does it contain. Personalise to the child if age was provided.",
-  "age_note": "1 sentence. Describe the content level — do not say whether it is suitable or not."
+  "summary": "2-3 sentences. What is this about and what content does it contain. Do not mention age or suitability.",
+  "age_note": "1 sentence. Describe the content level objectively — do not say whether it is suitable or not, and do not reference any specific age."
 }
 
 Rules:
@@ -3809,7 +3788,7 @@ Rules:
 
 Title: ${title.trim()}
 Type: ${type}
-${overview ? `Description: ${overview.slice(0, 300)}` : ''}${childContext}
+${overview ? `Description: ${overview.slice(0, 300)}` : ''}
 
 YouTube metadata:
 ${ytMeta || 'Not available — base assessment only on reputation data and channel name.'}
