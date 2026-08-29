@@ -3879,7 +3879,7 @@ Rules:
           fetch(`https://imdb8.p.rapidapi.com/title/get-parental-guide?tconst=${tconst}`, {
             headers: { 'x-rapidapi-host': 'imdb8.p.rapidapi.com', 'x-rapidapi-key': rapidKey },
           }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('RapidAPI timeout')), 10_000)),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('RapidAPI timeout')), 5_000)),
         ]);
         if (!res.ok) { console.warn(`[media/check] RapidAPI IMDb ${res.status}`); return ''; }
         const data = await res.json() as {
