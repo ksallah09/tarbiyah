@@ -3947,7 +3947,7 @@ Rules:
     console.log(`[media/check] Combined grounding context: ${combinedContextLength} chars`);
 
     if (combinedContextLength < 200) {
-      const limitedResult = {
+      return res.json({
         verdict: 'caution',
         content_areas: { sex_nudity: 'unknown', violence: 'unknown', profanity: 'unknown', substances: 'unknown', frightening: 'unknown', faith_values: 'unknown' },
         flags: [{ title: 'Limited source data', description: 'We couldn\'t find enough information from our sources to give a confident breakdown for this title. Check back later or search for it directly on Common Sense Media or IMDb.' }],
@@ -3955,14 +3955,7 @@ Rules:
         age_note: 'Insufficient data to assess content level.',
         cached: false,
         limited_data: true,
-      };
-      supabase.from('media_cache').upsert({
-        title: title.trim(), type, tmdb_id: tmdb_id ?? null, poster: poster ?? null,
-        verdict: limitedResult.verdict, flags: limitedResult.flags,
-        summary: limitedResult.summary, age_note: limitedResult.age_note,
-        content_areas: null,
-      }, { onConflict: 'title,type' }).then(() => {}, () => {});
-      return res.json(limitedResult);
+      });
     }
 
     const fullPrompt = [
