@@ -295,15 +295,16 @@ async function sendPushNotifications(inserted: { title: string; severity: string
 async function main() {
   console.log(`[alerts] ── Starting generation run — ${TODAY} ──`);
 
-  // 1. Fetch recent alert titles for exclusion (cross-week dedup)
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // 1. Fetch recent alert titles for exclusion (cross-run dedup — 21-day window)
+  const twentyOneDaysAgo = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString();
   const { data: recent, error: recentErr } = await supabase
     .from('alerts')
-    .select('title')
-    .gte('published_at', sevenDaysAgo);
+    .select('title, published_at')
+    .gte('published_at', twentyOneDaysAgo);
   if (recentErr) console.warn('[alerts] Could not fetch recent titles:', recentErr.message);
-  const excludeTopics = (recent ?? []).map((r: any) => r.title);
-  console.log(`[alerts] Excluding ${excludeTopics.length} topics already covered this week.`);
+  const recentRows = recent ?? [];
+  const excludeTopics = recentRows.map((r: any) => r.title);
+  console.log(`[alerts] Excluding ${excludeTopics.length} topics from the last 21 days.`);
 
   // 2. Fetch live context in parallel
   const [groundingContext, redditSignals] = await Promise.all([
@@ -333,12 +334,38 @@ async function main() {
 
   // 5. Within-batch source dedup
   const deduped = deduplicateBySource(rows);
-  console.log(`[alerts] After dedup: ${deduped.length} of ${rows.length} alerts will be inserted.`);
+  console.log(`[alerts] After source dedup: ${deduped.length} of ${rows.length} alerts remain.`);
+
+  // 5b. Hard title dedup against recent DB rows — drop any alert whose normalised
+  //     title shares 4+ words with an alert already published in the last 21 days.
+  function normTitle(t: string): Set<string> {
+    const STOP = new Set(['the','a','an','and','or','in','on','at','to','of','for','is','are','with','has','have','been','new','social','media','online','children','teens','kids','parents','warning']);
+    return new Set(
+      t.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !STOP.has(w))
+    );
+  }
+  const recentTitleSets = recentRows.map((r: any) => normTitle(r.title));
+  const hardDeduped = deduped.filter(row => {
+    const newWords = normTitle(row.title);
+    const overlap = recentTitleSets.some(existingWords => {
+      let shared = 0;
+      for (const w of newWords) { if (existingWords.has(w)) shared++; }
+      return shared >= 3;
+    });
+    if (overlap) console.log(`[alerts] Hard-deduped (title overlap): "${row.title}"`);
+    return !overlap;
+  });
+  console.log(`[alerts] After hard title dedup: ${hardDeduped.length} of ${deduped.length} alerts will be inserted.`);
+
+  if (!hardDeduped.length) {
+    console.log('[alerts] All generated alerts are duplicates of recent content — nothing to insert.');
+    process.exit(0);
+  }
 
   // 6. Insert to DB
   const { data: inserted, error: insertErr } = await supabase
     .from('alerts')
-    .insert(deduped)
+    .insert(hardDeduped)
     .select('id, title, severity');
   if (insertErr) {
     console.error('[alerts] Insert failed:', insertErr);

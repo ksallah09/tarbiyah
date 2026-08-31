@@ -59,7 +59,13 @@ export default function PaywallScreen({ navigation }) {
     setPurchasing(true);
     try {
       const granted = await purchasePackage(monthlyPackage);
-      if (granted) { onSubscribed(); navigation.goBack(); }
+      if (granted) {
+        onSubscribed();
+        // goBack() only works when Paywall is a modal (user still has access).
+        // When trial has expired Paywall is the root screen — let the nav tree
+        // re-render from hasAccess becoming true instead.
+        if (navigation.canGoBack()) navigation.goBack();
+      }
     } catch (e) {
       if (!e.userCancelled) {
         Alert.alert('Purchase failed', e.message ?? 'Something went wrong. Please try again.');
@@ -74,7 +80,8 @@ export default function PaywallScreen({ navigation }) {
     try {
       const granted = await restorePurchases();
       if (granted) {
-        onSubscribed(); navigation.goBack();
+        onSubscribed();
+        if (navigation.canGoBack()) navigation.goBack();
       } else {
         Alert.alert('No purchase found', 'We couldn\'t find an active subscription linked to your account.');
       }

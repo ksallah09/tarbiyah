@@ -3736,7 +3736,8 @@ Rules:
 - flags: 2-5 objects. title is 3-5 words. description is 1-2 specific sentences describing what the content actually contains. NEVER state whether content is suitable, appropriate, or okay for any age — only describe what is present. The parent decides.
 - If nothing notable for flags, return 1 flag: { "title": "No significant concerns", "description": "This title has no notable content issues for Muslim families." }
 - summary must name the specific content issues, not generic statements. Never make suitability judgements.
-- CRITICAL: Only describe content explicitly confirmed by the source data above. If sources are absent or thin, do NOT invent content from your training data — return only what can be evidenced.`;
+- CRITICAL: Only describe content explicitly confirmed by the source data above. If sources are absent or thin, do NOT invent content from your training data — return only what can be evidenced.
+- CONSERVATIVE FLOOR: If the IMDb source lists ANY items under a category — even a single entry — rate that category at minimum "mild". Only use "none" if the source explicitly states no content exists OR zero items are listed for that category.`;
 
     // ── YouTube channel / video pipeline (separate path) ─────────────────────
     if (type === 'channel' || type === 'video') {
@@ -3848,9 +3849,11 @@ Rules:
       return res.json({ ...parsed, age_note: ageNote });
     }
 
-    // ── Resolve IMDb ID from TMDB for exact Parents Guide URL ────────────────
+    // ── Resolve IMDb tconst ───────────────────────────────────────────────────
     let imdbId: string | null = null;
+
     if (tmdb_id && (type === 'movie' || type === 'show')) {
+      // Movies/shows: resolve via TMDB external_ids (reliable when tmdb_id is known)
       try {
         const tmdbType = type === 'show' ? 'tv' : 'movie';
         const extRes = await fetch(
@@ -3860,15 +3863,50 @@ Rules:
         if (extRes.ok) {
           const extData = await extRes.json() as { imdb_id?: string };
           imdbId = extData.imdb_id ?? null;
-          console.log(`[media/check] Resolved IMDb ID: ${imdbId}`);
+          console.log(`[media/check] Resolved IMDb ID via TMDB: ${imdbId}`);
         }
       } catch (e) {
         console.warn('[media/check] IMDb ID lookup failed:', (e as Error).message);
+      }
+    } else if (type === 'game') {
+      // Games: search IMDb directly by title (no TMDB equivalent)
+      const rapidKey = process.env.RAPIDAPI_KEY;
+      if (rapidKey) {
+        try {
+          const q = encodeURIComponent(`${title.trim()}${year ? ` ${year}` : ''}`);
+          const searchRes = await Promise.race([
+            fetch(`https://imdb8.p.rapidapi.com/title/find?q=${q}`, {
+              headers: { 'x-rapidapi-host': 'imdb8.p.rapidapi.com', 'x-rapidapi-key': rapidKey },
+            }),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('RapidAPI search timeout')), 5_000)),
+          ]);
+          if (searchRes.ok) {
+            const searchData = await searchRes.json() as {
+              results?: Array<{ id?: string; titleType?: string; title?: string }>;
+            };
+            const results = searchData.results ?? [];
+            // Prefer videoGame type, fall back to first result with a tconst
+            const match = results.find(r => r.titleType === 'videoGame' && r.id)
+              ?? results.find(r => r.id);
+            if (match?.id) {
+              const tconst = match.id.replace(/^\/title\//, '').replace(/\/$/, '');
+              if (tconst.startsWith('tt')) {
+                imdbId = tconst;
+                console.log(`[media/check] Resolved IMDb ID via title search: ${imdbId} (${match.title})`);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[media/check] IMDb title search failed:', (e as Error).message);
+        }
       }
     }
 
     // ── Grounding searches (parallel) ─────────────────────────────────────────
     const imdbLabel = type === 'game' ? 'video game' : type === 'show' ? 'TV series' : type;
+
+    // Severity floors derived from RapidAPI data — applied to Gemini output after parsing
+    const imdbFloors: Record<string, string> = {};
 
     // Fetch structured IMDb parental guide via RapidAPI (exact per-category data)
     async function fetchImdbParentalGuide(tconst: string): Promise<string> {
@@ -3898,15 +3936,30 @@ Rules:
           alcohol: 'Alcohol, Drugs & Smoking',
           frightening: 'Frightening & Intense Scenes',
         };
+        // Maps RapidAPI label → content_areas key
+        const AREA_MAP: Record<string, string> = {
+          nudity: 'sex_nudity',
+          violence: 'violence',
+          profanity: 'profanity',
+          alcohol: 'substances',
+          frightening: 'frightening',
+        };
+        const SEVERITY_ORDER = ['none', 'mild', 'moderate', 'severe'];
         const lines = categories
           .filter(cat => LABEL_MAP[cat.label])
           .map(cat => {
             const name = LABEL_MAP[cat.label];
-            const severity = cat.severityVotes?.status ?? 'unknown';
-            const entries = (cat.items ?? [])
-              .filter(item => !item.isSpoiler)
-              .map(item => `  - ${item.text}`)
-              .join('\n');
+            const rawStatus = (cat.severityVotes?.status ?? '').toLowerCase();
+            const severity = SEVERITY_ORDER.includes(rawStatus) ? rawStatus : 'unknown';
+            const nonSpoilerItems = (cat.items ?? []).filter(item => !item.isSpoiler);
+            const entries = nonSpoilerItems.map(item => `  - ${item.text}`).join('\n');
+
+            // Build floor: if items exist but vote says none/unknown, floor to mild
+            if (AREA_MAP[cat.label]) {
+              const votedFloor = SEVERITY_ORDER.includes(rawStatus) ? rawStatus : 'none';
+              imdbFloors[AREA_MAP[cat.label]] = (nonSpoilerItems.length > 0 && votedFloor === 'none') ? 'mild' : votedFloor;
+            }
+
             return `${name} [${severity}]:\n${entries || '  (no specific entries)'}`;
           })
           .join('\n\n');
@@ -3980,6 +4033,21 @@ Rules:
       cleaned = cleaned.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '');
     }
     const parsed = JSON.parse(cleaned);
+
+    // ── Apply RapidAPI severity floors (post-processing) ──────────────────────
+    // If RapidAPI says a category has items but Gemini rated it lower, enforce the floor.
+    if (Object.keys(imdbFloors).length && parsed.content_areas) {
+      const SEVERITY_ORDER = ['none', 'mild', 'moderate', 'severe'];
+      for (const [area, floor] of Object.entries(imdbFloors)) {
+        const current = parsed.content_areas[area] as string | undefined;
+        const curIdx = SEVERITY_ORDER.indexOf(current ?? '');
+        const floorIdx = SEVERITY_ORDER.indexOf(floor);
+        if (floorIdx > curIdx) {
+          console.log(`[media/check] Floor applied: ${area} ${current} → ${floor}`);
+          parsed.content_areas[area] = floor;
+        }
+      }
+    }
 
     // ── Cache result (without personalised age note) ───────────────────────────
     supabase.from('media_cache').upsert({
