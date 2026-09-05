@@ -22,10 +22,11 @@ const FEATURES = [
 export default function PaywallScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { onSubscribed, trialDaysLeft, handleSignOut } = useAuth();
-  const [offering, setOffering]   = useState(null);
-  const [loading, setLoading]     = useState(true);
+  const [offering, setOffering]     = useState(null);
+  const [loading, setLoading]       = useState(true);
   const [purchasing, setPurchasing] = useState(false);
-  const [restoring, setRestoring] = useState(false);
+  const [restoring, setRestoring]   = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -58,14 +59,9 @@ export default function PaywallScreen({ navigation }) {
     if (!monthlyPackage) return;
     setPurchasing(true);
     try {
-      const granted = await purchasePackage(monthlyPackage);
-      if (granted) {
-        onSubscribed();
-        // goBack() only works when Paywall is a modal (user still has access).
-        // When trial has expired Paywall is the root screen — let the nav tree
-        // re-render from hasAccess becoming true instead.
-        if (navigation.canGoBack()) navigation.goBack();
-      }
+      await purchasePackage(monthlyPackage);
+      onSubscribed();
+      setSubscribed(true);
     } catch (e) {
       if (!e.userCancelled) {
         Alert.alert('Purchase failed', e.message ?? 'Something went wrong. Please try again.');
@@ -81,7 +77,7 @@ export default function PaywallScreen({ navigation }) {
       const granted = await restorePurchases();
       if (granted) {
         onSubscribed();
-        if (navigation.canGoBack()) navigation.goBack();
+        setSubscribed(true);
       } else {
         Alert.alert('No purchase found', 'We couldn\'t find an active subscription linked to your account.');
       }
@@ -136,7 +132,22 @@ export default function PaywallScreen({ navigation }) {
 
             {/* CTA */}
             <View style={styles.ctaWrap}>
-              {loading ? (
+              {subscribed ? (
+                <>
+                  <View style={styles.successWrap}>
+                    <Ionicons name="checkmark-circle" size={52} color="#4ADE80" />
+                    <Text style={styles.successTitle}>You're all set!</Text>
+                    <Text style={styles.successSub}>Your subscription is active. Welcome to Tarbiyah.</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.ctaBtn}
+                    onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] })}
+                    activeOpacity={0.88}
+                  >
+                    <Text style={styles.ctaBtnText}>Open Tarbiyah</Text>
+                  </TouchableOpacity>
+                </>
+              ) : loading ? (
                 <ActivityIndicator color="#D4A843" style={{ marginVertical: 24 }} />
               ) : (
                 <>
@@ -244,6 +255,9 @@ const styles = StyleSheet.create({
   featureText: { flex: 1, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 21, paddingTop: 6 },
 
   ctaWrap:    { marginBottom: 20 },
+  successWrap: { alignItems: 'center', paddingVertical: 32, gap: 12, marginBottom: 8 },
+  successTitle: { fontSize: 26, fontWeight: '800', color: '#FFFFFF' },
+  successSub:   { fontSize: 15, color: 'rgba(255,255,255,0.65)', textAlign: 'center', lineHeight: 22 },
   ctaBtn: {
     backgroundColor: '#D4A843', borderRadius: 18,
     paddingVertical: 18, alignItems: 'center', marginBottom: 16,

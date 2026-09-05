@@ -37,7 +37,7 @@ import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
 import { getLocalCounts, getChildWeeklyCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
 import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji } from '../utils/familyGoals';
-import { loadCompletions, isCompletedToday, countThisWeek, logCompletion as logGoalCompletion } from '../utils/goalCompletions';
+import { loadCompletions, isCompletedOnDate, countThisWeek, logCompletionForDate } from '../utils/goalCompletions';
 import ChallengeCard from '../components/ChallengeCard';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
@@ -104,6 +104,64 @@ function getMotivationText(done, total) {
   if (done >= total) return 'Alhamdulillah! All done';
   if (done >= total - 1) return 'Allahu Akbar! Almost there';
   return 'Ma Shaa Allah! Keep it up';
+}
+
+// ─── Goal day-box helpers ──────────────────────────────────────────────────────
+
+function localTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function weekMondayDate() {
+  const today = new Date();
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + (dow === 0 ? -6 : 1 - dow));
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function dateToStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Goals with no specific days configured use numbered boxes
+function isNumberedGoal(goal) {
+  return goal.frequencyType !== 'daily' && !goal.reminderDays?.length;
+}
+
+// For numbered goals: walk back from today to find the most recent unlogged day this week
+function findRetroDateForGoal(completions, goalId) {
+  const monday = weekMondayDate();
+  const d = new Date();
+  while (d >= monday) {
+    const ds = dateToStr(d);
+    if (!isCompletedOnDate(completions, goalId, ds)) return ds;
+    d.setDate(d.getDate() - 1);
+  }
+  return null;
+}
+
+// Returns ordered {dateStr, label, isFuture} for goals with specific days
+function getConfiguredDaysThisWeek(goal) {
+  const todayStr = localTodayStr();
+  const monday = weekMondayDate();
+
+  // iOS/Expo calendar weekday (1=Sun,2=Mon,…,7=Sat) → Mon-offset (0=Mon…6=Sun)
+  const iosToOffset = wd => (wd === 1 ? 6 : wd - 2);
+  const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  const offsets = goal.frequencyType === 'daily'
+    ? [0, 1, 2, 3, 4, 5, 6]
+    : [...(goal.reminderDays ?? [])].map(iosToOffset).sort((a, b) => a - b);
+
+  return offsets.map(offset => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + offset);
+    const ds = dateToStr(d);
+    return { dateStr: ds, label: DAY_LETTERS[offset], isFuture: ds > todayStr };
+  });
 }
 
 function WeekRow({ days, color, todayColor }) {
@@ -194,6 +252,7 @@ export default function HomeScreen({ navigation, route }) {
   const [cultureModalOpen, setCultureModalOpen] = useState(false);
   const [recentAlerts, setRecentAlerts] = useState([]);
   const [familyGoals,      setFamilyGoals]      = useState([]);
+  const [showAllGoals,     setShowAllGoals]     = useState(false);
   const [goalCompletions,  setGoalCompletions]  = useState([]);
   const [weekCompletions, setWeekCompletions] = useState({});
   const [encouragement, setEncouragement] = useState(null);
@@ -766,11 +825,11 @@ export default function HomeScreen({ navigation, route }) {
                         </Text>
                         <TouchableOpacity
                           style={styles.habitCtaBtn}
-                          onPress={() => navigation.navigate('Family')}
+                          onPress={() => navigation.navigate('AddChildWizard')}
                           activeOpacity={0.85}
                         >
-                          <Ionicons name="people-outline" size={14} color="#FFFFFF" />
-                          <Text style={styles.habitCtaBtnText}>Go to Family Tab</Text>
+                          <Ionicons name="person-add-outline" size={14} color="#FFFFFF" />
+                          <Text style={styles.habitCtaBtnText}>Add a Child & Growth Plan</Text>
                         </TouchableOpacity>
                       </View>
                     </>
@@ -979,14 +1038,14 @@ export default function HomeScreen({ navigation, route }) {
                         <Text style={styles.ynTrendsBtnEmoji}>🌍</Text>
                         <View style={{ flex: 1, gap: 6 }}>
                           <Text style={styles.ynTrendsBtnLabel}>This Week's Youth Trends</Text>
-                          <Text style={styles.ynTrendsBtnSub}>Once you add at least 1 child in the Family tab, come back here to see the trends shaping their world.</Text>
+                          <Text style={styles.ynTrendsBtnSub}>Add a child to see the trends shaping their world — personalised by age.</Text>
                           <TouchableOpacity
                             style={[styles.habitCtaBtn, { alignSelf: 'flex-start', marginTop: 4 }]}
-                            onPress={() => navigation.navigate('Family')}
+                            onPress={() => navigation.navigate('AddChildWizard')}
                             activeOpacity={0.85}
                           >
-                            <Ionicons name="people-outline" size={14} color="#FFFFFF" />
-                            <Text style={styles.habitCtaBtnText}>Go to Family Tab</Text>
+                            <Ionicons name="person-add-outline" size={14} color="#FFFFFF" />
+                            <Text style={styles.habitCtaBtnText}>Add a Child</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -997,14 +1056,24 @@ export default function HomeScreen({ navigation, route }) {
 
               {/* Family Goals */}
               {(() => {
-                const preview = familyGoals.slice(0, 4);
-                const overflow = familyGoals.length - preview.length;
+                const preview = showAllGoals ? familyGoals : familyGoals.slice(0, 3);
+                const overflow = familyGoals.length - 3;
                 return (
                   <>
                     <View style={styles.fbDivider} />
-                    <View style={styles.sectionTitleWrap}>
-                      <Text style={styles.sectionEyebrow}>THIS WEEK</Text>
-                      <Text style={styles.sectionTitle}>Family Goals</Text>
+                    <View style={styles.sectionTitleRow}>
+                      <View>
+                        <Text style={styles.sectionEyebrow}>THIS WEEK</Text>
+                        <Text style={styles.sectionTitle}>Family Goals</Text>
+                      </View>
+                      {familyGoals.length > 0 && (
+                        <TouchableOpacity
+                          onPress={() => navigation.navigate('Family', { tab: 'configure', scrollTo: 'familyGoals' })}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Text style={styles.sectionLink}>Edit goals</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
 
                     {familyGoals.length === 0 ? (
@@ -1030,12 +1099,12 @@ export default function HomeScreen({ navigation, route }) {
                     ) : (
                     <View style={styles.goalsCard}>
                       {preview.map((goal, idx) => {
-                        const target    = goal.frequency ?? 1;
-                        const count     = countThisWeek(goalCompletions, goal.id);
-                        const doneToday = isCompletedToday(goalCompletions, goal.id);
-                        const goalMet   = count >= target;
-                        const pct       = Math.min(Math.round((count / target) * 100), 100);
-                        const fillColor = goalMet ? '#2E7D62' : (count > 0 ? '#4A90D9' : '#D1D5DB');
+                        const target  = goal.frequency ?? 1;
+                        const count   = countThisWeek(goalCompletions, goal.id);
+                        const goalMet = count >= target;
+                        const numbered = isNumberedGoal(goal);
+                        const configuredDays = numbered ? null : getConfiguredDaysThisWeek(goal);
+                        const todayStr = localTodayStr();
                         return (
                           <View key={goal.id}>
                             {idx > 0 && <View style={styles.goalDivider} />}
@@ -1046,35 +1115,81 @@ export default function HomeScreen({ navigation, route }) {
                               <View style={styles.goalBody}>
                                 <View style={styles.goalTitleRow}>
                                   <Text style={styles.goalCardTitle} numberOfLines={1}>{goal.title}</Text>
-                                  {goalMet ? (
+                                  {goalMet && (
                                     <View style={styles.goalMetPill}>
                                       <Ionicons name="checkmark-circle" size={12} color="#2E7D62" />
                                       <Text style={styles.goalMetText}>Done</Text>
                                     </View>
-                                  ) : (
-                                    <TouchableOpacity
-                                      style={[styles.goalLogBtn, doneToday && styles.goalLogBtnDone]}
-                                      disabled={doneToday}
-                                      onPress={async () => {
-                                        const updated = await logGoalCompletion(goal.id);
-                                        setGoalCompletions([...updated]);
-                                      }}
-                                      activeOpacity={0.75}
-                                    >
-                                      <Ionicons name={doneToday ? 'checkmark' : 'add'} size={12} color={doneToday ? '#2E7D62' : '#fff'} />
-                                      <Text style={[styles.goalLogBtnText, doneToday && { color: '#2E7D62' }]}>{doneToday ? 'Logged' : 'Log it'}</Text>
-                                    </TouchableOpacity>
                                   )}
                                 </View>
-                                <View style={styles.goalBarRow}>
-                                  <View style={styles.goalBarTrack}>
-                                    <View style={[styles.goalBarFill, { width: `${pct}%`, backgroundColor: fillColor }]} />
+
+                                {numbered ? (
+                                  // No specific days — show numbered boxes 1…target
+                                  <View style={styles.goalDayRow}>
+                                    {Array.from({ length: target }, (_, i) => {
+                                      const done = i < count;
+                                      const isNext = i === count;
+                                      return (
+                                        <TouchableOpacity
+                                          key={i}
+                                          style={[
+                                            styles.goalDayBox,
+                                            done   && styles.goalDayBoxDone,
+                                            isNext && styles.goalDayBoxToday,
+                                          ]}
+                                          onPress={async () => {
+                                            const dateToLog = findRetroDateForGoal(goalCompletions, goal.id);
+                                            if (!dateToLog) return;
+                                            const updated = await logCompletionForDate(goal.id, dateToLog);
+                                            setGoalCompletions([...updated]);
+                                          }}
+                                          disabled={done}
+                                          activeOpacity={0.7}
+                                        >
+                                          {done
+                                            ? <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                                            : <Text style={[styles.goalDayLetter, isNext && styles.goalDayLetterToday]}>{i + 1}</Text>
+                                          }
+                                        </TouchableOpacity>
+                                      );
+                                    })}
                                   </View>
-                                  <Text style={styles.goalBarLabel}>{count}/{target}</Text>
-                                </View>
-                                <Text style={styles.goalStatusText}>
-                                  {goalMet ? '🎯 Goal met this week' : `${goal.frequencyLabel} · ${target - count} to go`}
-                                </Text>
+                                ) : (
+                                  // Specific days — show day-letter boxes
+                                  <View style={styles.goalDayRow}>
+                                    {configuredDays.map(({ dateStr, label, isFuture }) => {
+                                      const done = isCompletedOnDate(goalCompletions, goal.id, dateStr);
+                                      const isToday = dateStr === todayStr;
+                                      return (
+                                        <TouchableOpacity
+                                          key={dateStr}
+                                          style={[
+                                            styles.goalDayBox,
+                                            done              && styles.goalDayBoxDone,
+                                            isToday && !done  && styles.goalDayBoxToday,
+                                            isFuture          && styles.goalDayBoxFuture,
+                                          ]}
+                                          onPress={async () => {
+                                            const updated = await logCompletionForDate(goal.id, dateStr);
+                                            setGoalCompletions([...updated]);
+                                          }}
+                                          disabled={done || isFuture}
+                                          activeOpacity={0.7}
+                                        >
+                                          {done
+                                            ? <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                                            : <Text style={[
+                                                styles.goalDayLetter,
+                                                isToday  && styles.goalDayLetterToday,
+                                                isFuture && styles.goalDayLetterFuture,
+                                              ]}>{label}</Text>
+                                          }
+                                        </TouchableOpacity>
+                                      );
+                                    })}
+                                  </View>
+                                )}
+
                               </View>
                             </View>
                           </View>
@@ -1083,11 +1198,13 @@ export default function HomeScreen({ navigation, route }) {
                       {overflow > 0 && (
                         <TouchableOpacity
                           style={styles.goalsSeeAll}
-                          onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'goals' } })}
+                          onPress={() => setShowAllGoals(v => !v)}
                           activeOpacity={0.75}
                         >
-                          <Text style={styles.goalsSeeAllText}>See {overflow} more goal{overflow > 1 ? 's' : ''}</Text>
-                          <Ionicons name="chevron-forward" size={13} color="#2E7D62" />
+                          <Text style={styles.goalsSeeAllText}>
+                            {showAllGoals ? 'Show less' : `See ${overflow} more goal${overflow > 1 ? 's' : ''}`}
+                          </Text>
+                          <Ionicons name={showAllGoals ? 'chevron-up' : 'chevron-down'} size={13} color="#2E7D62" />
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1095,6 +1212,34 @@ export default function HomeScreen({ navigation, route }) {
                   </>
                 );
               })()}
+
+              {/* PLAY TOGETHER */}
+              <View style={styles.fbDivider} />
+              <View style={styles.sectionTitleWrap}>
+                <Text style={styles.sectionEyebrow}>FAMILY</Text>
+                <Text style={styles.sectionTitle}>Play Together</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.playTogetherCard}
+                onPress={() => navigation.navigate('GamesHub')}
+                activeOpacity={0.82}
+              >
+                <View style={styles.playTogetherTop}>
+                  <View style={styles.playTogetherIconWrap}>
+                    <Ionicons name="dice-outline" size={26} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.playTogetherTitle}>Family Games</Text>
+                    <Text style={styles.playTogetherSub}>Heads Up · Qur'an Completion</Text>
+                  </View>
+                  <View style={styles.playTogetherBtn}>
+                    <Text style={styles.playTogetherBtnText}>Play →</Text>
+                  </View>
+                </View>
+                <Text style={styles.playTogetherBody}>
+                  Families who play together build stronger bonds. The Prophet ﷺ played with his grandchildren — laughter and learning belong together.
+                </Text>
+              </TouchableOpacity>
 
               {/* MONTHLY LEADERBOARD — only when partner sync is on */}
               {partnerSyncOn && (() => {
@@ -1350,6 +1495,7 @@ export default function HomeScreen({ navigation, route }) {
         hasChildren={hasChildren}
         hasGrowthPlan={hasGrowthPlan}
         hasFamilyGoals={hasFamilyGoals}
+        children={children}
       />
 
       </SafeAreaView>
@@ -1424,6 +1570,16 @@ const styles = StyleSheet.create({
   goalLogBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1B3D2F', borderRadius: 100, paddingHorizontal: 11, paddingVertical: 6 },
   goalLogBtnDone:  { backgroundColor: '#EDF7F2' },
   goalLogBtnText:  { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+
+  // Day-box logging
+  goalDayRow:         { flexDirection: 'row', gap: 5, marginTop: 8, flexWrap: 'wrap' },
+  goalDayBox:         { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: '#E5E7EB' },
+  goalDayBoxDone:     { backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
+  goalDayBoxToday:    { backgroundColor: '#FFFFFF', borderColor: '#2E7D62' },
+  goalDayBoxFuture:   { backgroundColor: '#FAFAFA', borderColor: '#F0F0F0' },
+  goalDayLetter:      { fontSize: 11, fontWeight: '700', color: '#6B7280' },
+  goalDayLetterToday: { color: '#2E7D62' },
+  goalDayLetterFuture:{ color: '#D1D5DB' },
 
   // ── Celebration modal ──
   celebOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
@@ -1846,6 +2002,16 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     marginBottom: 14,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingTop: 20,
+    marginBottom: 14,
+  },
+  sectionLink: {
+    fontSize: 13, fontWeight: '600', color: '#2E7D62', paddingBottom: 2,
+  },
   sectionEyebrow: {
     fontSize: 10, fontWeight: '700',
     color: '#2E7D62', letterSpacing: 1, marginBottom: 2,
@@ -1860,6 +2026,17 @@ const styles = StyleSheet.create({
   sectionSeeAll: {
     fontSize: 11, fontWeight: '700', color: '#2E7D62', marginLeft: 'auto',
   },
+  playTogetherCard: {
+    backgroundColor: '#1B3D2F', borderRadius: 18, padding: 16,
+    marginBottom: 20, gap: 12,
+  },
+  playTogetherTop:     { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  playTogetherIconWrap:{ width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  playTogetherTitle:   { fontSize: 15, fontWeight: '800', color: '#FFFFFF', marginBottom: 2 },
+  playTogetherSub:     { fontSize: 12, color: 'rgba(255,255,255,0.55)' },
+  playTogetherBtn:     { backgroundColor: '#D4A843', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  playTogetherBtnText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+  playTogetherBody:    { fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 12 },
 
   // ── Insight cards ──
   devRefreshBtn: {

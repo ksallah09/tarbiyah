@@ -30,8 +30,8 @@ const MOCK_TABS = [
 
 // Which tab index each slide highlights (null = none)
 // Tabs: 0=Home, 1=Family, 2=Alerts, 3=Media, 4=Learn
-// Slides: welcome, insights, alerts, dashboard, media, learn
-const SLIDE_TAB = [null, 0, 2, 1, 3, 4];
+// Slides: welcome, insights, family, alerts, dashboard, media, learn
+const SLIDE_TAB = [null, 0, 1, 2, 1, 3, 4];
 
 const SLIDES = [
   {
@@ -49,11 +49,18 @@ const SLIDES = [
     body: 'Every day brings a fresh spiritual insight and a research-backed parenting tip — automatically personalised to the context of your family.',
   },
   {
+    key: 'family',
+    icon: 'people-outline',
+    iconColor: '#4ADE80',
+    title: 'Family Activities',
+    body: 'Play Islamic Heads Up or Next Ayah together, spark meaningful conversations with Conversation Cards, and follow each child\'s personalised Growth Activities — all in the Family tab.',
+  },
+  {
     key: 'alerts',
     icon: 'shield-checkmark-outline',
     iconColor: '#D4A843',
     title: 'Safety Alerts',
-    body: "Stay a step ahead of what's affecting children and teens. We scan Google Trends, Reddit, and social media weekly — surfacing risks and youth culture trends most relevant to your child's age, decoded through an Islamic lens.",
+    body: "Stay a step ahead of what's affecting children and teens. We scan trends and social media weekly — surfacing risks most relevant to your child's age, decoded through an Islamic lens.",
   },
   {
     key: 'dashboard',

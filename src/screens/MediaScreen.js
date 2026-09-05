@@ -675,9 +675,18 @@ useFocusEffect(useCallback(() => {
     runCheck({ item: pendingResult, childAge, childGender, watchersLabel: label });
   }
 
-  function handleTrendingTap(item) {
+  async function handleTrendingTap(item) {
     setCategory(item.type);
-    setPendingResult(item);
+    let enriched = item;
+    // If the cached item has no poster, do a live search to get one
+    if (!item.poster) {
+      try {
+        const results = await searchMedia(item.title, item.type);
+        const match = results.find(r => r.title.toLowerCase() === item.title.toLowerCase()) ?? results[0];
+        if (match?.poster) enriched = { ...item, poster: match.poster, tmdb_id: match.tmdb_id ?? item.tmdb_id, overview: match.overview ?? item.overview };
+      } catch {}
+    }
+    setPendingResult(enriched);
     setShowWho(true);
   }
 

@@ -41,7 +41,9 @@ export async function getOffering() {
 
 export async function purchasePackage(pkg) {
   const { customerInfo } = await Purchases.purchasePackage(pkg);
-  return !!customerInfo.entitlements.active[ENTITLEMENT_ID];
+  // If the entitlement ID matches, great. If not (misconfigured in RC dashboard),
+  // still treat a completed purchase as success — Apple throws on failure.
+  return !!customerInfo.entitlements.active[ENTITLEMENT_ID] || Object.keys(customerInfo.entitlements.active).length > 0;
 }
 
 export async function restorePurchases() {

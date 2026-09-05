@@ -1,0 +1,123 @@
+// Islamic Heads Up — curated question bank
+// Each card: { word, hint? }  — family gives verbal clues, no gestures
+
+export const CATEGORIES = [
+  {
+    id: 'prophets',
+    label: 'Prophets',
+    emoji: '🌙',
+    color: '#1B3D2F',
+    cards: [
+      'Adam', 'Nuh', 'Ibrahim', 'Ismail', 'Ishaq', 'Yaqub', 'Yusuf',
+      'Musa', 'Harun', 'Dawud', 'Sulayman', 'Ayyub', 'Yunus', 'Isa',
+      'Muhammad', 'Idris', 'Hud', 'Salih', 'Lut', 'Shuayb', 'Ilyas',
+      'Al-Yasa', 'Dhul-Kifl', 'Zakariyya', 'Yahya',
+    ],
+  },
+  {
+    id: 'companions',
+    label: 'Companions',
+    emoji: '⭐',
+    color: '#2E5B8E',
+    cards: [
+      'Abu Bakr', 'Umar ibn al-Khattab', 'Uthman ibn Affan', 'Ali ibn Abi Talib',
+      'Bilal ibn Rabah', 'Khadijah', 'Aisha', 'Fatimah', 'Hamzah', 'Khalid ibn al-Walid',
+      'Abu Hurayrah', 'Anas ibn Malik', 'Abdullah ibn Masud', 'Salman al-Farisi',
+      'Sumayyah', 'Ammar ibn Yasir', 'Zayd ibn Harithah', 'Muadh ibn Jabal',
+      'Abdur-Rahman ibn Awf', 'Sad ibn Abi Waqqas', 'Talha', 'Zubayr ibn al-Awwam',
+      'Umm Salamah', 'Hafsa', 'Ruqayyah',
+    ],
+  },
+  {
+    id: 'seerah',
+    label: 'Seerah',
+    emoji: '📜',
+    color: '#7C3D1B',
+    cards: [
+      'Hijrah', 'Battle of Badr', 'Battle of Uhud', 'Battle of Khandaq',
+      'Conquest of Makkah', 'Treaty of Hudaybiyah', 'Year of Grief',
+      'Cave of Hira', 'Cave of Thawr', 'Night Journey (Isra & Miraj)',
+      'First Revelation', 'Masjid al-Nabawi', 'Constitution of Madinah',
+      'Farewell Sermon', 'Battle of Tabuk', 'Pledge of Aqabah',
+      'Masjid al-Qiblatayn', 'Zamzam Well', 'Abyssinia (Habasha)',
+      'Year of the Elephant',
+    ],
+  },
+  {
+    id: 'quran',
+    label: "Qur'an",
+    emoji: '📖',
+    color: '#1B5E20',
+    cards: [
+      'Al-Fatiha', 'Al-Baqarah', 'Al-Imran', 'An-Nisa', 'Al-Maidah',
+      'Al-Kahf', 'Yasin', 'Ar-Rahman', 'Al-Mulk', 'Al-Ikhlas',
+      'Al-Falaq', 'An-Nas', 'Al-Asr', 'Al-Kawthar', 'Al-Fil',
+      'Al-Fajr', 'Al-Waqiah', 'Ayat al-Kursi', 'Juz Amma', 'Surah Yusuf',
+      'Surah Maryam', 'Al-Jinn', 'Al-Insan', 'Al-Qiyamah', 'Al-Naba',
+    ],
+  },
+  {
+    id: 'vocab',
+    label: 'Islamic Vocab',
+    emoji: '🔤',
+    color: '#5B3D8E',
+    cards: [
+      'Salah', 'Zakat', 'Sawm', 'Hajj', 'Shahada',
+      'Tawakkul', 'Sabr', 'Shukr', 'Tawbah', 'Ikhlas',
+      'Taqwa', 'Iman', 'Islam', 'Ihsan', 'Ummah',
+      'Baraka', 'Rizq', 'Dua', 'Dhikr', 'Khushu',
+      'Fitrah', 'Akhlaq', 'Amanah', 'Adl', 'Rahmah',
+      'Jannah', 'Jahannam', 'Barzakh', 'Qiblah', 'Wudu',
+    ],
+  },
+  {
+    id: 'who_am_i',
+    label: 'Who Am I?',
+    emoji: '🤔',
+    color: '#8E3D1B',
+    cards: [
+      'Saladin', 'Ibn Battuta', 'Al-Khawarizmi', 'Rumi', 'Ibn Rushd',
+      'Ibn Sina', 'Al-Ghazali', 'Tariq ibn Ziyad', 'Umar ibn Abd al-Aziz',
+      'Malcolm X', 'Muhammad Ali', 'Maryam Mirzakhani', 'Al-Biruni',
+      'Ibn Khaldun', 'Fatima al-Fihri', 'Nusayba bint Kab',
+      'Harun al-Rashid', 'Suleiman the Magnificent',
+    ],
+  },
+  {
+    id: 'character',
+    label: 'Good Character',
+    emoji: '💛',
+    color: '#7A6000',
+    cards: [
+      'Honesty', 'Kindness', 'Patience', 'Gratitude', 'Generosity',
+      'Humility', 'Courage', 'Justice', 'Forgiveness', 'Respect',
+      'Loyalty', 'Trustworthiness', 'Modesty', 'Compassion', 'Perseverance',
+      'Mercy', 'Sincerity', 'Wisdom', 'Self-control', 'Fairness',
+    ],
+  },
+  {
+    id: 'ramadan',
+    label: 'Ramadan',
+    emoji: '🌙',
+    color: '#003366',
+    cards: [
+      'Iftar', 'Suhoor', 'Tarawih', 'Laylat al-Qadr', 'Itikaf',
+      'Sadaqah', 'Eid al-Fitr', 'Zakat al-Fitr', 'Fasting', 'Niyyah',
+      'Crescent Moon', 'Dates', 'Zamzam', 'Quran Recitation', 'Dhikr',
+      'Tahajjud', 'Dua at Iftar', 'Haram to eat during the day', 'Charity', 'Reflection',
+    ],
+  },
+  {
+    id: 'kids',
+    label: 'Easy Kids',
+    emoji: '🌟',
+    color: '#2E7D62',
+    cards: [
+      'Masjid', 'Prayer mat', 'Hijab', 'Quran', 'Bismillah',
+      'Alhamdulillah', 'Inshallah', 'Kaaba', 'Makkah', 'Madinah',
+      'Angel', 'Prophet Muhammad', 'Five pillars', 'Wudu', 'Eid',
+      'Ramadan', 'Moon', 'Minaret', 'Jannah', 'Halal',
+      'Friday prayer', 'Adhan', 'Sadaqah', 'Smile (it is sunnah)', 'Stars',
+    ],
+  },
+];

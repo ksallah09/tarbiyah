@@ -9,6 +9,7 @@ import {
   AppState,
   RefreshControl,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,7 @@ import { getLocalCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletio
 import FamilySummaryBoard from '../components/FamilySummaryBoard';
 import FamilyTourOverlay from '../components/FamilyTourOverlay';
 import DashboardsScreen from './DashboardsScreen';
+import ActivitiesTab from './ActivitiesTab';
 import { rs, hp } from '../utils/responsive';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
 import EncouragementModal from '../components/EncouragementModal';
@@ -75,12 +77,18 @@ export default function ProgressScreen({ navigation, route }) {
   const [refreshing,  setRefreshing]       = useState(false);
   const [familyTab,       setFamilyTab]       = useState(() => {
     const t = route?.params?.tab;
-    if (t === 'configure' || t === 'dashboard') return t;
-    return 'childWins';
+    if (t === 'dashboard') return t;
+    return 'activities';
   });
+  const [configureModalVisible, setConfigureModalVisible] = useState(
+    route?.params?.tab === 'configure'
+  );
   const hasMountedRef = useRef(false);
   const configureScrollRef = useRef(null);
   const familyGoalsY = useRef(0);
+
+  const TABS = ['activities', 'childWins', 'dashboard', 'parenting'];
+
 
   const refreshAll = useCallback(() => {
     getAllChildProfiles().then(v => { _childrenCache = v; setChildren(v); });
@@ -135,7 +143,7 @@ export default function ProgressScreen({ navigation, route }) {
   // Re-sync on subsequent focuses to pick up reads/updates from other tabs
   // Skip the very first focus since useEffect already handles initial load
   useFocusEffect(useCallback(() => {
-    if (route?.params?.tab === 'configure') setFamilyTab('configure');
+    if (route?.params?.tab === 'configure') setConfigureModalVisible(true);
     if (route?.params?.tab === 'dashboard') setFamilyTab('dashboard');
     if (route?.params?.scrollTo === 'familyGoals') {
       setTimeout(() => {
@@ -187,6 +195,11 @@ export default function ProgressScreen({ navigation, route }) {
     setFamilyTab(key);
   }, []);
 
+  const closeAndNavigate = useCallback((screen, params) => {
+    setConfigureModalVisible(false);
+    setTimeout(() => navigation.navigate(screen, params), 300);
+  }, [navigation]);
+
   async function handleLogCompletion(goalId) {
     const updated = await logCompletion(goalId);
     _completionsCache = updated;
@@ -200,32 +213,39 @@ export default function ProgressScreen({ navigation, route }) {
 
         {/* ── White header ── */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Family</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.headerTitle}>Family</Text>
+            <TouchableOpacity style={styles.configureBtn} onPress={() => setConfigureModalVisible(true)} activeOpacity={0.8}>
+              <Text style={styles.configureBtnLabel}>Configure Family</Text>
+              <Text style={styles.configureBtnSub}>Children & goals</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* ── Segment control ── */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.segmentScroll} contentContainerStyle={styles.segmentRow}>
             {[
+              ['activities', 'Activities'],
               ['childWins',  'Child Growth'],
               ['dashboard',  'Dashboard'],
               ['parenting',  'Parenting'],
-              ['configure',  'Configure'],
-            ].map(([key, label]) => {
-              const showSetupDot = key === 'configure' && (!hasChildren || !hasFamilyGoals) && familyTab !== 'configure';
-              return (
-                <TouchableOpacity
-                  key={key}
-                  style={[styles.segmentTab, familyTab === key && styles.segmentTabActive]}
-                  onPress={() => switchTab(key)}
-                  activeOpacity={0.8}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <Text style={[styles.segmentText, familyTab === key && styles.segmentTextActive]}>{label}</Text>
-                    {showSetupDot && <View style={styles.segmentDot} />}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            ].map(([key, label]) => (
+              <TouchableOpacity
+                key={key}
+                style={[styles.segmentTab, familyTab === key && styles.segmentTabActive]}
+                onPress={() => switchTab(key)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.segmentText, familyTab === key && styles.segmentTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
+
+          {/* Position dots */}
+          <View style={styles.dotsRow}>
+            {TABS.map(t => (
+              <View key={t} style={[styles.dot, familyTab === t && styles.dotActive]} />
+            ))}
+          </View>
         </View>
 
         <View style={styles.separator} />
@@ -233,18 +253,45 @@ export default function ProgressScreen({ navigation, route }) {
         {/* ── Content area ── */}
         <View style={styles.contentSheet}>
 
+        {/* ── Activities tab ── */}
+        {familyTab === 'activities' && (
+          <ActivitiesTab navigation={navigation} familyGoals={familyGoals} children={children} />
+        )}
+
         {/* ── Dashboard tab ── */}
         {familyTab === 'dashboard' && (
           <DashboardsScreen navigation={navigation} route={route} embedded />
         )}
 
         {/* ── Content tabs — single instance stays mounted so data loads once ── */}
-        {familyTab !== 'configure' && familyTab !== 'dashboard' && (
+        {familyTab !== 'dashboard' && familyTab !== 'activities' && (
           <FamilySummaryBoard navigation={navigation} section={familyTab} />
         )}
 
-        {/* ── Configure ── */}
-        {familyTab === 'configure' && (
+        </View> {/* contentSheet */}
+
+      {/* ── Configure Family Modal ── */}
+      <Modal
+        visible={configureModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setConfigureModalVisible(false)}
+      >
+        <View style={styles.modalRoot}>
+          <View style={styles.modalHandle} />
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>Configure Family</Text>
+              <Text style={styles.modalSub}>Children & goals</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setConfigureModalVisible(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
         <ScrollView
           ref={configureScrollRef}
           style={styles.scroll}
@@ -273,7 +320,7 @@ export default function ProgressScreen({ navigation, route }) {
             <TouchableOpacity
               key={child.id}
               style={childStyles.card}
-              onPress={() => navigation.navigate('ChildDashboard', { child })}
+              onPress={() => closeAndNavigate('ChildDashboard', { child })}
               activeOpacity={0.82}
             >
               <View style={[childStyles.avatar, { backgroundColor: child.color }]}>
@@ -291,7 +338,7 @@ export default function ProgressScreen({ navigation, route }) {
           <TouchableOpacity
             style={[childStyles.card, childStyles.addCard]}
             activeOpacity={0.82}
-            onPress={() => navigation.navigate('AddChildWizard')}
+            onPress={() => closeAndNavigate('AddChildWizard')}
           >
             <View style={childStyles.addIcon}>
               <Ionicons name="add" size={22} color="#2E7D62" />
@@ -323,7 +370,7 @@ export default function ProgressScreen({ navigation, route }) {
               <Ionicons name="people" size={13} color="#4ADE80" />
               <Text style={styles.syncLinkedHeaderText}>PARTNER SYNC</Text>
               <View style={{ flex: 1 }} />
-              <TouchableOpacity style={styles.syncEditBtn} onPress={() => navigation.navigate('FamilySync')} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.syncEditBtn} onPress={() => closeAndNavigate('FamilySync')} activeOpacity={0.8}>
                 <Ionicons name="pencil-outline" size={12} color="#C9A84C" />
                 <Text style={styles.syncEditText}>Edit</Text>
               </TouchableOpacity>
@@ -347,7 +394,7 @@ export default function ProgressScreen({ navigation, route }) {
         ) : (
           <TouchableOpacity
             style={styles.spouseSyncBanner}
-            onPress={() => navigation.navigate('FamilySync')}
+            onPress={() => closeAndNavigate('FamilySync')}
             activeOpacity={0.85}
           >
             <View style={styles.spouseSyncIconWrap}>
@@ -408,7 +455,7 @@ export default function ProgressScreen({ navigation, route }) {
             <View style={styles.leaderboardDivider} />
             <TouchableOpacity
               style={styles.leaderboardUnlockBtn}
-              onPress={() => navigation.navigate('FamilySync')}
+              onPress={() => closeAndNavigate('FamilySync')}
               activeOpacity={0.85}
             >
               <Ionicons name="people-outline" size={14} color="#1B3D2F" />
@@ -490,7 +537,7 @@ export default function ProgressScreen({ navigation, route }) {
           <Text style={styles.sectionTitle}>FAMILY GOALS</Text>
           <TouchableOpacity
             style={styles.addGoalBtn}
-            onPress={() => navigation.navigate('FamilyGoalWizard')}
+            onPress={() => closeAndNavigate('FamilyGoalWizard')}
             activeOpacity={0.8}
           >
             <Ionicons name="add" size={14} color="#FFFFFF" />
@@ -502,7 +549,7 @@ export default function ProgressScreen({ navigation, route }) {
         {familyGoals.length === 0 ? (
           <TouchableOpacity
             style={styles.familyEmptyCard}
-            onPress={() => navigation.navigate('FamilyGoalWizard')}
+            onPress={() => closeAndNavigate('FamilyGoalWizard')}
             activeOpacity={0.8}
           >
             <View style={styles.familyEmptyIcon}>
@@ -575,7 +622,7 @@ export default function ProgressScreen({ navigation, route }) {
                 <View style={[styles.familyGoalActions, { marginTop: 2 }]}>
                   <TouchableOpacity
                     style={styles.familyGoalEditBtn}
-                    onPress={() => navigation.navigate('FamilyGoalWizard', { goal })}
+                    onPress={() => closeAndNavigate('FamilyGoalWizard', { goal })}
                   >
                     <Ionicons name="pencil-outline" size={14} color="#6B7C45" />
                   </TouchableOpacity>
@@ -600,9 +647,8 @@ export default function ProgressScreen({ navigation, route }) {
         </View>
         </View>
         </ScrollView>
-        )}
-
-        </View> {/* contentSheet */}
+        </View>
+      </Modal>
 
       <EncouragementModal
         visible={!!encouragement}
@@ -621,7 +667,22 @@ const styles = StyleSheet.create({
   separator: { height: 1, backgroundColor: '#F3F4F6' },
 
   header:      { paddingHorizontal: 20, paddingTop: 16, backgroundColor: '#FFFFFF' },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 14 },
+  headerRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: '#111827' },
+  gamesBtn:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1B3D2F', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  gamesBtnText:{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  configureLink:     { fontSize: 14, fontWeight: '600', color: '#2E7D62' },
+  configureBtn:      { backgroundColor: '#EDF7F2', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'flex-end' },
+  configureBtnLabel: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
+  configureBtnSub:   { fontSize: 11, fontWeight: '400', color: '#2E7D62', marginTop: 1 },
+
+  // Configure Modal
+  modalRoot:     { flex: 1, backgroundColor: '#FFFFFF' },
+  modalHandle:   { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginTop: 10, marginBottom: 6 },
+  modalHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  modalTitle:    { fontSize: 20, fontWeight: '800', color: '#111827' },
+  modalSub:      { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  modalCloseBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
 
   segmentScroll: { marginBottom: 2 },
   segmentRow:    { flexDirection: 'row', gap: 8, paddingBottom: 12 },
@@ -633,6 +694,10 @@ const styles = StyleSheet.create({
   segmentText:       { fontSize: 14, fontWeight: '600', color: '#6B7280' },
   segmentTextActive: { color: '#FFFFFF', fontWeight: '600' },
   segmentDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
+
+  dotsRow:   { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 10, paddingTop: 2 },
+  dot:       { width: 6, height: 6, borderRadius: 3, backgroundColor: '#E5E7EB' },
+  dotActive: { width: 18, height: 6, borderRadius: 3, backgroundColor: '#1B3D2F' },
 
   scroll:        { flex: 1, backgroundColor: '#FFFFFF' },
   scrollContent: { flexGrow: 1, backgroundColor: '#FFFFFF' },

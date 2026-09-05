@@ -38,7 +38,7 @@ const STEPS = [
 ];
 
 const SetupModal = forwardRef(function SetupModal(
-  { navigation, hasChildren, hasGrowthPlan, hasFamilyGoals },
+  { navigation, hasChildren, hasGrowthPlan, hasFamilyGoals, children = [] },
   ref,
 ) {
   const [visible, setVisible] = useState(false);
@@ -70,12 +70,16 @@ const SetupModal = forwardRef(function SetupModal(
 
   function handleStepCta(index) {
     dismiss();
-    if (index === 1) {
-      navigation.navigate('Dashboards');
-    } else if (index === 2) {
-      navigation.navigate('Family', { tab: 'configure', scrollTo: 'familyGoals' });
+    if (index === 0) {
+      navigation.navigate('AddChildWizard');
+    } else if (index === 1) {
+      if (!hasChildren || !children.length) {
+        navigation.navigate('AddChildWizard');
+      } else {
+        navigation.navigate('GrowthAreaWizard', { child: children[0], isFirstTime: true });
+      }
     } else {
-      navigation.navigate('Family', { tab: 'configure' });
+      navigation.navigate('Family', { tab: 'configure', scrollTo: 'familyGoals' });
     }
   }
 
@@ -148,7 +152,7 @@ const SetupModal = forwardRef(function SetupModal(
             {/* Optional partner row */}
             <TouchableOpacity
               style={s.partnerRow}
-              onPress={() => { dismiss(); navigation.navigate('Family', { tab: 'configure' }); }}
+              onPress={() => { dismiss(); navigation.navigate('FamilySync'); }}
               activeOpacity={0.75}
             >
               <View style={s.partnerOptionalBadge}>

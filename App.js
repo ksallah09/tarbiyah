@@ -67,7 +67,13 @@ import { syncChildProfilesFromSupabase, getAllChildProfiles } from './src/utils/
 import { getFamilySyncStatus } from './src/utils/familySync';
 import { loadFamilyGoals } from './src/utils/familyGoals';
 import { initializePurchases, checkEntitlement, loginRevenueCat, logoutRevenueCat } from './src/utils/purchases';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import PaywallScreen from './src/screens/PaywallScreen';
+import GamesHubScreen from './src/screens/GamesHubScreen';
+import GameSplashScreen from './src/screens/GameSplashScreen';
+import ConversationCardsScreen from './src/screens/ConversationCardsScreen';
+import { HeadsUpSetup, HeadsUpGameScreen, HeadsUpPlaying } from './src/screens/games/HeadsUpGameScreen';
+import { QuranCompletionGameScreen, QuranPlaying } from './src/screens/games/QuranCompletionGameScreen';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
 const WORLD_CACHE_TTL          = 7    * 24 * 60 * 60 * 1000;
@@ -402,6 +408,53 @@ function MainApp() {
         component={GrowthAreaPlanScreen}
         options={{ animation: 'slide_from_right' }}
       />
+      <Stack.Screen
+        name="ConversationCards"
+        component={ConversationCardsScreen}
+        options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="GamesHub"
+        component={GamesHubScreen}
+        options={{ animation: 'slide_from_bottom', cardStyle: { backgroundColor: '#F7F8FA' } }}
+      />
+      <Stack.Screen
+        name="HeadsUpSplash"
+        component={GameSplashScreen}
+        initialParams={{ gameId: 'headsup' }}
+        options={{ animation: 'slide_from_right', cardStyle: { backgroundColor: '#1B3D2F' } }}
+      />
+      <Stack.Screen
+        name="QuranSplash"
+        component={GameSplashScreen}
+        initialParams={{ gameId: 'quran' }}
+        options={{ animation: 'slide_from_right', cardStyle: { backgroundColor: '#1B2A20' } }}
+      />
+      <Stack.Screen
+        name="HeadsUpSetup"
+        component={HeadsUpSetup}
+        options={{ animation: 'slide_from_right', cardStyle: { backgroundColor: '#F7F8FA' } }}
+      />
+      <Stack.Screen
+        name="HeadsUpGame"
+        component={HeadsUpGameScreen}
+        options={{ animation: 'slide_from_right', cardStyle: { backgroundColor: '#F7F8FA' } }}
+      />
+      <Stack.Screen
+        name="HeadsUpPlaying"
+        component={HeadsUpPlaying}
+        options={{ animation: 'none', gestureEnabled: false, cardStyle: { backgroundColor: '#1B3D2F' } }}
+      />
+      <Stack.Screen
+        name="QuranCompletionGame"
+        component={QuranCompletionGameScreen}
+        options={{ animation: 'slide_from_right', cardStyle: { backgroundColor: '#F7F8FA' } }}
+      />
+      <Stack.Screen
+        name="QuranPlaying"
+        component={QuranPlaying}
+        options={{ animation: 'none', gestureEnabled: false, cardStyle: { backgroundColor: '#1B2A20' } }}
+      />
     </Stack.Navigator>
   );
 }
@@ -546,6 +599,22 @@ export default function App() {
   }
   const navigationRef                 = useRef(null);
   const notifResponseListener         = useRef(null);
+
+  // Reset to portrait on every app mount/reload so a stale landscape lock from
+  // a game screen (left over by Expo fast-refresh) doesn't persist.
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+  }, []);
+
+  // When hasAccess flips true after a purchase, React Navigation keeps Paywall
+  // as the active route because it's still registered in the new screen set.
+  // Explicitly reset to MainApp once the render has applied the new screen list.
+  useEffect(() => {
+    if (!hasAccess || !onboarded) return;
+    if (navigationRef.current?.getCurrentRoute()?.name === 'Paywall') {
+      navigationRef.current.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+    }
+  }, [hasAccess, onboarded]);
   useFonts({
     Amiri_400Regular,
     Amiri_700Bold,

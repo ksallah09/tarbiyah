@@ -49,6 +49,10 @@ export function isCompletedToday(completions, goalId) {
   return completions.some(c => c.goalId === goalId && c.completedAt === todayStr());
 }
 
+export function isCompletedOnDate(completions, goalId, dateStr) {
+  return completions.some(c => c.goalId === goalId && c.completedAt === dateStr);
+}
+
 // ─── Load (cache-first, background Supabase refresh) ─────────────────────────
 
 export async function loadCompletions() {
@@ -82,39 +86,36 @@ export async function loadCompletions() {
   return cached;
 }
 
-// ─── Log a completion for today ───────────────────────────────────────────────
+// ─── Log a completion (today or retroactively) ────────────────────────────────
 
-export async function logCompletion(goalId) {
+async function logCompletionEntry(goalId, dateStr) {
   const cached = await getCached();
-  const today = todayStr();
 
-  // One completion per goal per day
-  if (isCompletedToday(cached, goalId)) return cached;
+  if (isCompletedOnDate(cached, goalId, dateStr)) return cached;
+
+  const today = todayStr();
+  if (dateStr > today) return cached; // never log future dates
 
   const familyId = await getFamilyId();
-  const entry = {
-    id:          `gc_${Date.now()}`,
-    goalId,
-    familyId,
-    completedAt: today,
-  };
-
+  const entry = { id: `gc_${Date.now()}`, goalId, familyId, completedAt: dateStr };
   const updated = [...cached, entry];
   await setCached(updated);
 
-  // Fire-and-forget sync to Supabase
   const { data: session } = await supabase.auth.getSession();
   if (session?.session?.access_token) {
     supabase
       .from('goal_completions')
-      .insert({
-        id:           entry.id,
-        goal_id:      goalId,
-        family_id:    familyId,
-        completed_at: today,
-      })
+      .insert({ id: entry.id, goal_id: goalId, family_id: familyId, completed_at: dateStr })
       .then(({ error }) => { if (error) console.warn('Completion sync error:', error.message); });
   }
 
   return updated;
+}
+
+export async function logCompletion(goalId) {
+  return logCompletionEntry(goalId, todayStr());
+}
+
+export async function logCompletionForDate(goalId, dateStr) {
+  return logCompletionEntry(goalId, dateStr);
 }
