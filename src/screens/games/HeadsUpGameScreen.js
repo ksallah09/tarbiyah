@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Animated, Vibration, StatusBar as RNStatusBar, TextInput,
-  Modal, Dimensions, Image,
+  Modal, Dimensions, Image, Platform,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -423,7 +423,9 @@ function HeadsUpPlaying({ route, navigation }) {
       handleOutcomeRef.current(outcome);
     }
 
-    const sub = Accelerometer.addListener(({ y }) => {
+    const sub = Accelerometer.addListener(({ y: rawY }) => {
+      // Android reports the y-axis inverted relative to iOS
+      const y = Platform.OS === 'android' ? -rawY : rawY;
 
       if (tiltStateRef.current === 'NEUTRAL') {
         if (y >= TILT_TRIGGER) {

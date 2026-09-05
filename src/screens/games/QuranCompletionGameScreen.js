@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, Vibration, Animated, TextInput,
-  Modal, Image, Dimensions,
+  Modal, Image, Dimensions, Platform,
 } from 'react-native';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -541,7 +541,9 @@ function QuranPlaying({ route, navigation }) {
       handleOutcomeRef.current(outcome);
     }
 
-    const sub = Accelerometer.addListener(({ y }) => {
+    const sub = Accelerometer.addListener(({ y: rawY }) => {
+      // Android reports the y-axis inverted relative to iOS
+      const y = Platform.OS === 'android' ? -rawY : rawY;
 
       if (tiltStateRef.current === 'NEUTRAL') {
         if (y >= TILT_TRIGGER) {
