@@ -371,10 +371,10 @@ function HeadsUpPlaying({ route, navigation }) {
       try {
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
         const { sound: c } = await Audio.Sound.createAsync(
-          require('../../../assets/sounds/correct.mp3'), { shouldPlay: false }
+          require('../../../assets/correct.wav'), { shouldPlay: false }
         );
         const { sound: p } = await Audio.Sound.createAsync(
-          require('../../../assets/sounds/pass.mp3'), { shouldPlay: false }
+          require('../../../assets/pass.wav'), { shouldPlay: false }
         );
         correctSoundRef.current = c;
         passSoundRef.current    = p;

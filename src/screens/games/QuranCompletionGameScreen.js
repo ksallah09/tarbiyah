@@ -467,7 +467,9 @@ function QuranPlaying({ route, navigation }) {
   const [flash,     setFlash]     = useState(null); // 'correct' | 'pass' | null
   const [ready,     setReady]     = useState(false);
 
-  const soundRef      = useRef(null);
+  const soundRef         = useRef(null);
+  const correctSoundRef  = useRef(null);
+  const passSoundRef     = useRef(null);
   const mountedRef    = useRef(true);
   const tiltStateRef     = useRef('NEUTRAL');
   const consecutiveRef   = useRef({ pass: 0, correct: 0 });
@@ -483,11 +485,29 @@ function QuranPlaying({ route, navigation }) {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)
       .then(() => setReady(true))
       .catch(() => setReady(true));
+
+    // Preload outcome sounds
+    (async () => {
+      try {
+        const { sound: c } = await Audio.Sound.createAsync(
+          require('../../../assets/correct.wav'), { shouldPlay: false }
+        );
+        const { sound: p } = await Audio.Sound.createAsync(
+          require('../../../assets/pass.wav'), { shouldPlay: false }
+        );
+        correctSoundRef.current = c;
+        passSoundRef.current    = p;
+      } catch {}
+    })();
+
     return () => {
       mountedRef.current = false;
-      // Stop and release audio immediately on unmount
       soundRef.current?.stopAsync().catch(() => {});
       soundRef.current?.unloadAsync().catch(() => {});
+      correctSoundRef.current?.stopAsync().catch(() => {});
+      correctSoundRef.current?.unloadAsync().catch(() => {});
+      passSoundRef.current?.stopAsync().catch(() => {});
+      passSoundRef.current?.unloadAsync().catch(() => {});
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     };
   }, []);
@@ -598,6 +618,8 @@ function QuranPlaying({ route, navigation }) {
     if (!pair) return;
     soundRef.current?.stopAsync().catch(() => {});
     Vibration.vibrate(outcome === 'correct' ? [0, 80] : [0, 40, 40, 40]);
+    const fx = outcome === 'correct' ? correctSoundRef.current : passSoundRef.current;
+    if (fx) { fx.setPositionAsync(0).then(() => fx.playAsync()).catch(() => {}); }
     triggerFlash(outcome);
     setResults(prev => [...prev, { pair, outcome }]);
     const next = index + 1;
