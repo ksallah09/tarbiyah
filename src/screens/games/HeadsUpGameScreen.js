@@ -369,12 +369,16 @@ function HeadsUpPlaying({ route, navigation }) {
   useEffect(() => {
     async function loadSounds() {
       try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
+          shouldDuckAndroid: false,
+        });
         const { sound: c } = await Audio.Sound.createAsync(
-          require('../../../assets/correct.wav'), { shouldPlay: false }
+          require('../../../assets/correct.wav'), { shouldPlay: false, volume: 1.0 }
         );
         const { sound: p } = await Audio.Sound.createAsync(
-          require('../../../assets/pass.wav'), { shouldPlay: false }
+          require('../../../assets/pass.wav'), { shouldPlay: false, volume: 1.0 }
         );
         correctSoundRef.current = c;
         passSoundRef.current    = p;
@@ -857,7 +861,7 @@ const styles = StyleSheet.create({
   digitalTimer:  { fontSize: 52, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: 3 },
   wordWrap:      { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   categoryLabel: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.4)', letterSpacing: 1, marginBottom: 10, textTransform: 'uppercase' },
-  wordText:      { fontSize: 52, fontWeight: '900', color: '#FFFFFF', textAlign: 'center', lineHeight: 60 },
+  wordText:      { fontSize: 64, fontWeight: '900', color: '#FFFFFF', textAlign: 'center', width: '100%' },
   cardCounter:   { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.35)', minWidth: 36, textAlign: 'right' },
   btnRow:        { flexDirection: 'row', gap: 12, width: '100%' },
   gameBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
