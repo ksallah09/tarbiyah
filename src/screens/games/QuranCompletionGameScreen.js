@@ -623,8 +623,12 @@ function QuranPlaying({ route, navigation }) {
     triggerFlash(outcome);
     setResults(prev => [...prev, { pair, outcome }]);
     const next = index + 1;
-    if (next >= pairs.length) { setPhase('done'); return; }
-    setIndex(next);
+    // Delay advancing so the outcome sound finishes before recitation of next ayah starts
+    setTimeout(() => {
+      if (!mountedRef.current) return;
+      if (next >= pairs.length) { setPhase('done'); return; }
+      setIndex(next);
+    }, 900);
   }, [index, pairs, pair]);
   useEffect(() => { handleOutcomeRef.current = handleOutcome; }, [handleOutcome]);
 
