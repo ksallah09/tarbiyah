@@ -740,7 +740,7 @@ function QuranPlaying({ route, navigation }) {
                 </View>
               ))}
             </View>
-            <TouchableOpacity style={styles.playAgainBtn} onPress={() => navigation.navigate('QuranCompetitionGame')} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.playAgainBtn} onPress={() => navigation.navigate('QuranCompletionGame')} activeOpacity={0.85}>
               <Text style={styles.playAgainText}>Play Again</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('GamesHub')} style={styles.backToGamesBtn}>
@@ -781,7 +781,7 @@ function QuranPlaying({ route, navigation }) {
             {resultLists}
             <TouchableOpacity
               style={styles.nextTurnBtn}
-              onPress={() => navigation.navigate('QuranCompetitionGame', { autoStart: true, gameState: updatedGameState, gameConfig })}
+              onPress={() => navigation.navigate('QuranCompletionGame', { autoStart: true, gameState: updatedGameState, gameConfig })}
               activeOpacity={0.85}
             >
               <Text style={styles.nextTurnText}>
