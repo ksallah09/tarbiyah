@@ -920,7 +920,7 @@ export default function HomeScreen({ navigation, route }) {
                             </Text>
                             <TouchableOpacity
                               style={[styles.planCompleteBtn, { backgroundColor: childColor }]}
-                              onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: activeId } })}
+                              onPress={() => navigation.navigate('GrowthAreaWizard', { child: activeChild, isFirstTime: false })}
                               activeOpacity={0.8}
                             >
                               <Text style={styles.planCompleteBtnText}>Start a new plan →</Text>
