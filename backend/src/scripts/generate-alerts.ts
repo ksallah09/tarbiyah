@@ -149,24 +149,16 @@ ${groundingContext || 'No grounding context available — use your training know
 REDDIT SAFETY SIGNALS:
 ${redditSignals || 'No Reddit signals available.'}
 ${exclusionBlock}
-Generate 5-6 specific safety alerts for Muslim parents of children aged 5-18.
-Ground every alert in the data above. Be concise — the ENTIRE response must be under 1000 words total.
+Generate 4-5 specific safety alerts for Muslim parents of children aged 5-18.
+Ground every alert in the data above.
 
-Return ONLY valid JSON in this exact format:
-{
-  "items": [
-    {
-      "title": "≤10 words, specific not generic",
-      "risk_level": "high | important | watch",
-      "age_ranges": ["5–7", "8–10", "11–12", "13–15", "16–18"],
-      "short_summary": "1-2 sentences. What is happening and why it matters.",
-      "what_it_is": "2 sentences max. Plain language explanation.",
-      "how_to_connect": "1 sentence. How to open the conversation without alarm.",
-      "action_steps": "1-3 sentences. Combine practical steps to take with communication and educational guidance — how to talk about it, what to teach, and what to do. Keep Islamic values and the parent-child relationship in mind.",
-      "source_citations": ["Source name (Month Year)"]
-    }
-  ]
-}`;
+CRITICAL OUTPUT RULES:
+- Return ONLY a raw JSON object — no markdown fences, no ellipsis, no commentary
+- Every string field must be complete — never use "..." or truncate
+- Keep each field to its stated length limit so the full JSON fits in one response
+
+JSON schema (replace placeholder text with real content for each alert):
+{"items":[{"title":"string ≤10 words","risk_level":"high OR important OR watch","age_ranges":["5–7"],"short_summary":"1-2 sentences","what_it_is":"2 sentences","how_to_connect":"1 sentence","action_steps":"1-3 sentences","source_citations":["Source (Month Year)"]}]}`;
 
   const model = genAI.getGenerativeModel({
     model:             MODEL,
@@ -181,8 +173,14 @@ Return ONLY valid JSON in this exact format:
   let lastErr: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const result = await model.generateContent(prompt);
-      const text   = result.response.text();
+      const result     = await model.generateContent(prompt);
+      const candidate  = result.response.candidates?.[0];
+      const finishReason = (candidate as any)?.finishReason ?? 'UNKNOWN';
+      if (finishReason !== 'STOP') {
+        throw new Error(`Response not complete (finishReason: ${finishReason})`);
+      }
+      const raw    = result.response.text().trim();
+      const text   = raw.startsWith('```') ? raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim() : raw;
       const parsed = JSON.parse(text);
       const items  = parsed.items ?? [];
       console.log(`[alerts] Generated ${items.length} alerts (attempt ${attempt + 1}).`);
