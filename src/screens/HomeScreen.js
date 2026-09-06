@@ -954,7 +954,7 @@ export default function HomeScreen({ navigation, route }) {
                           })()}
 
                           <TouchableOpacity
-                            onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: activeId } })}
+                            onPress={() => navigation.navigate('ChildDashboard', { child: activeChild })}
                             activeOpacity={0.6}
                           >
                             <Text style={styles.focusLogLink}>Log it on their dashboard →</Text>
