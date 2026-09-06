@@ -67,7 +67,7 @@ function getChildHabits(children) {
   return results;
 }
 
-function ChildHabitCard({ child, navigation }) {
+function ChildHabitCard({ child, fullChild, navigation }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [slideWidth, setSlideWidth] = useState(0);
   const single = child.habits.length === 1;
@@ -133,7 +133,7 @@ function ChildHabitCard({ child, navigation }) {
 
       <Text
         style={styles.habitLogLink}
-        onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.childId } })}
+        onPress={() => fullChild && navigation.navigate('ChildDashboard', { child: fullChild })}
       >
         Log on their dashboard →
       </Text>
@@ -213,7 +213,12 @@ export default function ActivitiesTab({ navigation, familyGoals = [], children =
       </View>
       {growthHabits.length > 0
         ? growthHabits.map(child => (
-            <ChildHabitCard key={child.childId} child={child} navigation={navigation} />
+            <ChildHabitCard
+              key={child.childId}
+              child={child}
+              fullChild={children.find(c => c.id === child.childId)}
+              navigation={navigation}
+            />
           ))
         : (
           <View style={styles.growthPlaceholder}>
