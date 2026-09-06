@@ -130,6 +130,38 @@ async function fetchRedditSignals(): Promise<string> {
   return titles.slice(0, 25).join('\n');
 }
 
+// ── JSON recovery — salvage complete objects from a truncated response ────────
+
+function recoverPartialJSON(text: string): { items: any[] } {
+  const match = text.match(/"items"\s*:\s*\[/);
+  if (!match || match.index == null) throw new Error('No items array in response');
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  const items: any[] = [];
+  let objStart = -1;
+
+  for (let i = match.index + match[0].length; i < text.length; i++) {
+    const ch = text[i];
+    if (escape)          { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"')      { inString = !inString; continue; }
+    if (inString)        continue;
+    if (ch === '{')      { if (depth++ === 0) objStart = i; }
+    else if (ch === '}') {
+      if (--depth === 0 && objStart !== -1) {
+        try { items.push(JSON.parse(text.slice(objStart, i + 1))); } catch {}
+        objStart = -1;
+      }
+    }
+  }
+
+  if (items.length === 0) throw new Error('No complete alert objects recovered');
+  console.warn(`[alerts] Recovered ${items.length} complete objects from truncated response`);
+  return { items };
+}
+
 // ── Call 2: Structured generation ─────────────────────────────────────────────
 
 async function generateAlerts(
@@ -181,7 +213,12 @@ JSON schema (replace placeholder text with real content for each alert):
       }
       const raw    = result.response.text().trim();
       const text   = raw.startsWith('```') ? raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim() : raw;
-      const parsed = JSON.parse(text);
+      let parsed: any;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = recoverPartialJSON(text);
+      }
       const items  = parsed.items ?? [];
       console.log(`[alerts] Generated ${items.length} alerts (attempt ${attempt + 1}).`);
       return items;
