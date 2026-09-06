@@ -3,6 +3,7 @@ import {
   View, StyleSheet, Text,
   Animated, TouchableOpacity, AppState,
 } from 'react-native';
+import * as Updates from 'expo-updates';
 import { NavigationContainer } from '@react-navigation/native';
 import { setStatusBarStyle } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
@@ -599,6 +600,20 @@ export default function App() {
   }
   const navigationRef                 = useRef(null);
   const notifResponseListener         = useRef(null);
+
+  // Check for OTA updates on launch and apply immediately if available.
+  useEffect(() => {
+    if (__DEV__) return;
+    (async () => {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (_) {}
+    })();
+  }, []);
 
   // Reset to portrait on every app mount/reload so a stale landscape lock from
   // a game screen (left over by Expo fast-refresh) doesn't persist.
