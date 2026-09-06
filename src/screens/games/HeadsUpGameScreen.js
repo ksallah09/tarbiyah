@@ -785,7 +785,7 @@ function HeadsUpPlaying({ route, navigation }) {
 
       <View style={styles.btnRow}>
         <View style={[styles.gameBtn, styles.correctBtn]}>
-          <Ionicons name="arrow-back" size={20} color="rgba(255,255,255,0.7)" style={{ transform: [{ rotate: '45deg' }] }} />
+          <Ionicons name="arrow-back" size={20} color="rgba(255,255,255,0.7)" style={{ transform: [{ rotate: '-45deg' }] }} />
           <View>
             <Text style={styles.gameBtnText}>Got it!</Text>
             <Text style={styles.gameBtnSub}>tilt right</Text>
@@ -796,7 +796,7 @@ function HeadsUpPlaying({ route, navigation }) {
             <Text style={styles.gameBtnText}>Pass</Text>
             <Text style={styles.gameBtnSub}>tilt left</Text>
           </View>
-          <Ionicons name="arrow-forward" size={20} color="rgba(255,255,255,0.5)" style={{ transform: [{ rotate: '-45deg' }] }} />
+          <Ionicons name="arrow-forward" size={20} color="rgba(255,255,255,0.5)" style={{ transform: [{ rotate: '45deg' }] }} />
         </View>
       </View>
     </View>
