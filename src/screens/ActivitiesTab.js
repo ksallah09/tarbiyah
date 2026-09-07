@@ -67,7 +67,7 @@ function getChildHabits(children) {
   return results;
 }
 
-function ChildHabitCard({ child, fullChild, navigation }) {
+function ChildHabitCard({ child, fullChild, navigation, onOpenChildDashboard }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [slideWidth, setSlideWidth] = useState(0);
   const single = child.habits.length === 1;
@@ -133,7 +133,7 @@ function ChildHabitCard({ child, fullChild, navigation }) {
 
       <Text
         style={styles.habitLogLink}
-        onPress={() => fullChild && navigation.navigate('ChildDashboard', { child: fullChild })}
+        onPress={() => onOpenChildDashboard ? onOpenChildDashboard(child.childId) : fullChild && navigation.navigate('ChildDashboard', { child: fullChild })}
       >
         Log on their dashboard →
       </Text>
@@ -141,7 +141,7 @@ function ChildHabitCard({ child, fullChild, navigation }) {
   );
 }
 
-export default function ActivitiesTab({ navigation, familyGoals = [], children = [] }) {
+export default function ActivitiesTab({ navigation, familyGoals = [], children = [], onOpenChildDashboard }) {
   const insets = useSafeAreaInsets();
 
   const dayIdx = new Date().getDay(); // 0–6
@@ -218,6 +218,7 @@ export default function ActivitiesTab({ navigation, familyGoals = [], children =
               child={child}
               fullChild={children.find(c => c.id === child.childId)}
               navigation={navigation}
+              onOpenChildDashboard={onOpenChildDashboard}
             />
           ))
         : (

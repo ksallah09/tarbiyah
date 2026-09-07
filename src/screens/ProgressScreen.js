@@ -80,6 +80,7 @@ export default function ProgressScreen({ navigation, route }) {
     if (t === 'dashboard') return t;
     return 'activities';
   });
+  const [dashboardChildId, setDashboardChildId] = useState(route?.params?.childId ?? null);
   const [configureModalVisible, setConfigureModalVisible] = useState(
     route?.params?.tab === 'configure'
   );
@@ -145,6 +146,7 @@ export default function ProgressScreen({ navigation, route }) {
   useFocusEffect(useCallback(() => {
     if (route?.params?.tab === 'configure') setConfigureModalVisible(true);
     if (route?.params?.tab === 'dashboard') setFamilyTab('dashboard');
+    if (route?.params?.childId) setDashboardChildId(route.params.childId);
     if (route?.params?.scrollTo === 'familyGoals') {
       setTimeout(() => {
         configureScrollRef.current?.scrollTo({ y: familyGoalsY.current, animated: true });
@@ -255,12 +257,21 @@ export default function ProgressScreen({ navigation, route }) {
 
         {/* ── Activities tab ── */}
         {familyTab === 'activities' && (
-          <ActivitiesTab navigation={navigation} familyGoals={familyGoals} children={children} />
+          <ActivitiesTab
+            navigation={navigation}
+            familyGoals={familyGoals}
+            children={children}
+            onOpenChildDashboard={(childId) => { setDashboardChildId(childId); setFamilyTab('dashboard'); }}
+          />
         )}
 
         {/* ── Dashboard tab ── */}
         {familyTab === 'dashboard' && (
-          <DashboardsScreen navigation={navigation} route={route} embedded />
+          <DashboardsScreen
+            navigation={navigation}
+            route={{ ...route, params: { ...route?.params, childId: dashboardChildId ?? route?.params?.childId } }}
+            embedded
+          />
         )}
 
         {/* ── Content tabs — single instance stays mounted so data loads once ── */}
