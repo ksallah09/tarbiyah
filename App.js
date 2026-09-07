@@ -611,7 +611,9 @@ export default function App() {
           await Updates.fetchUpdateAsync();
           await Updates.reloadAsync();
         }
-      } catch (_) {}
+      } catch (e) {
+        console.warn('[Updates]', e?.message);
+      }
     })();
   }, []);
 
