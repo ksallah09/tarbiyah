@@ -470,6 +470,7 @@ function QuranPlaying({ route, navigation }) {
   const soundRef         = useRef(null);
   const correctSoundRef  = useRef(null);
   const passSoundRef     = useRef(null);
+  const gameOverSoundRef = useRef(null);
   const mountedRef    = useRef(true);
   const tiltStateRef     = useRef('NEUTRAL');
   const consecutiveRef   = useRef({ pass: 0, correct: 0 });
@@ -495,8 +496,12 @@ function QuranPlaying({ route, navigation }) {
         const { sound: p } = await Audio.Sound.createAsync(
           require('../../../assets/pass.wav'), { shouldPlay: false }
         );
-        correctSoundRef.current = c;
-        passSoundRef.current    = p;
+        const { sound: g } = await Audio.Sound.createAsync(
+          require('../../../assets/game_over.mp3'), { shouldPlay: false }
+        );
+        correctSoundRef.current  = c;
+        passSoundRef.current     = p;
+        gameOverSoundRef.current = g;
       } catch {}
     })();
 
@@ -508,12 +513,18 @@ function QuranPlaying({ route, navigation }) {
       correctSoundRef.current?.unloadAsync().catch(() => {});
       passSoundRef.current?.stopAsync().catch(() => {});
       passSoundRef.current?.unloadAsync().catch(() => {});
+      gameOverSoundRef.current?.stopAsync().catch(() => {});
+      gameOverSoundRef.current?.unloadAsync().catch(() => {});
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     };
   }, []);
 
   useEffect(() => {
-    if (phase === 'done') ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    if (phase === 'done') {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      const g = gameOverSoundRef.current;
+      if (g) g.setPositionAsync(0).then(() => g.playAsync()).catch(() => {});
+    }
   }, [phase]);
 
   // ── Countdown before playing ──────────────────────────────────────────────

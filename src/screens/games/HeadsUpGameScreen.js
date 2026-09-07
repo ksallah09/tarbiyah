@@ -348,8 +348,9 @@ function HeadsUpPlaying({ route, navigation }) {
   const handleOutcomeRef  = useRef(null);
   const flashAnim       = useRef(new Animated.Value(0)).current;
   const timerRef        = useRef(null);
-  const correctSoundRef = useRef(null);
-  const passSoundRef    = useRef(null);
+  const correctSoundRef  = useRef(null);
+  const passSoundRef     = useRef(null);
+  const gameOverSoundRef = useRef(null);
 
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)
@@ -363,6 +364,8 @@ function HeadsUpPlaying({ route, navigation }) {
   useEffect(() => {
     if (phase === 'done') {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      const g = gameOverSoundRef.current;
+      if (g) g.setPositionAsync(0).then(() => g.playAsync()).catch(() => {});
     }
   }, [phase]);
 
@@ -380,8 +383,12 @@ function HeadsUpPlaying({ route, navigation }) {
         const { sound: p } = await Audio.Sound.createAsync(
           require('../../../assets/pass.wav'), { shouldPlay: false, volume: 1.0 }
         );
-        correctSoundRef.current = c;
-        passSoundRef.current    = p;
+        const { sound: g } = await Audio.Sound.createAsync(
+          require('../../../assets/game_over.mp3'), { shouldPlay: false, volume: 1.0 }
+        );
+        correctSoundRef.current  = c;
+        passSoundRef.current     = p;
+        gameOverSoundRef.current = g;
       } catch (_) {}
     }
     loadSounds();
@@ -390,6 +397,8 @@ function HeadsUpPlaying({ route, navigation }) {
       correctSoundRef.current?.unloadAsync().catch(() => {});
       passSoundRef.current?.stopAsync().catch(() => {});
       passSoundRef.current?.unloadAsync().catch(() => {});
+      gameOverSoundRef.current?.stopAsync().catch(() => {});
+      gameOverSoundRef.current?.unloadAsync().catch(() => {});
     };
   }, []);
 
