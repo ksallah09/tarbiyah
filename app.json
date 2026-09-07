@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tarbiyah",
     "slug": "tarbiyah",
-    "version": "1.1.9",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.tarbiyah.parenting",
       "usesAppleSignIn": true,
-      "buildNumber": "43",
+      "buildNumber": "46",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
@@ -35,7 +35,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.tarbiyah.parenting",
-      "versionCode": 44,
+      "versionCode": 47,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECORD_AUDIO",
@@ -74,7 +74,9 @@
     },
     "runtimeVersion": "1.0.0",
     "updates": {
-      "url": "https://u.expo.dev/d235498c-ead8-4f52-9866-448606bea4f3"
+      "url": "https://u.expo.dev/d235498c-ead8-4f52-9866-448606bea4f3",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
