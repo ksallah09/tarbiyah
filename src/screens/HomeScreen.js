@@ -825,11 +825,13 @@ export default function HomeScreen({ navigation, route }) {
                         </Text>
                         <TouchableOpacity
                           style={styles.habitCtaBtn}
-                          onPress={() => navigation.navigate('AddChildWizard')}
+                          onPress={() => hasChildren
+                            ? navigation.navigate('GrowthAreaWizard', { child: children[0], isFirstTime: true })
+                            : navigation.navigate('AddChildWizard')}
                           activeOpacity={0.85}
                         >
-                          <Ionicons name="person-add-outline" size={14} color="#FFFFFF" />
-                          <Text style={styles.habitCtaBtnText}>Add a Child & Growth Plan</Text>
+                          <Ionicons name={hasChildren ? 'leaf-outline' : 'person-add-outline'} size={14} color="#FFFFFF" />
+                          <Text style={styles.habitCtaBtnText}>{hasChildren ? 'Start a Growth Plan' : 'Add a Child & Growth Plan'}</Text>
                         </TouchableOpacity>
                       </View>
                     </>

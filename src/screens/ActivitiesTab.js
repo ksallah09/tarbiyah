@@ -236,11 +236,13 @@ export default function ActivitiesTab({ navigation, familyGoals = [], children =
             </Text>
             <TouchableOpacity
               style={styles.growthPlaceholderBtn}
-              onPress={() => navigation.navigate('AddChildWizard')}
+              onPress={() => children.length > 0
+                ? navigation.navigate('GrowthAreaWizard', { child: children[0], isFirstTime: true })
+                : navigation.navigate('AddChildWizard')}
               activeOpacity={0.85}
             >
-              <Ionicons name="person-add-outline" size={15} color="#FFFFFF" />
-              <Text style={styles.growthPlaceholderBtnText}>Add a Child & Growth Plan</Text>
+              <Ionicons name={children.length > 0 ? 'leaf-outline' : 'person-add-outline'} size={15} color="#FFFFFF" />
+              <Text style={styles.growthPlaceholderBtnText}>{children.length > 0 ? 'Start a Growth Plan' : 'Add a Child & Growth Plan'}</Text>
             </TouchableOpacity>
           </View>
         )
