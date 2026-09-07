@@ -687,7 +687,10 @@ function QuranPlaying({ route, navigation }) {
           <Ionicons name="close" size={20} color="rgba(255,255,255,0.4)" />
         </TouchableOpacity>
         {currentPlayer && (
-          <Text style={styles.countdownPlayer}>{currentPlayer.name}'s Turn</Text>
+          <View style={{ alignItems: 'center', gap: 6 }}>
+            <Text style={styles.playerTurnName}>{currentPlayer.name}</Text>
+            <Text style={styles.playerTurnSub}>YOUR TURN</Text>
+          </View>
         )}
         <Text style={styles.instructionsHeading}>📱 Place your phone on your forehead, screen facing your family.</Text>
         <TouchableOpacity
@@ -715,7 +718,12 @@ function QuranPlaying({ route, navigation }) {
         >
           <Ionicons name="close" size={20} color="rgba(255,255,255,0.4)" />
         </TouchableOpacity>
-        {currentPlayer && <Text style={styles.countdownPlayer}>{currentPlayer.name}'s Turn</Text>}
+        {currentPlayer && (
+          <View style={{ alignItems: 'center', gap: 4 }}>
+            <Text style={styles.playerTurnName}>{currentPlayer.name}</Text>
+            <Text style={styles.playerTurnSub}>YOUR TURN</Text>
+          </View>
+        )}
         <Text style={styles.countdownLabel}>Get ready!</Text>
         <Text style={styles.countdownNum}>{countdown || 'GO!'}</Text>
         <Text style={styles.countdownSub}>Hold phone flat on your forehead</Text>
@@ -1030,6 +1038,8 @@ const styles = StyleSheet.create({
   flashIcon:    { fontSize: 72, color: '#FFFFFF', fontWeight: '900' },
   flashLabel:   { fontSize: 28, fontWeight: '900', color: '#FFFFFF', letterSpacing: 2, marginTop: 8 },
   countdownClose:  { position: 'absolute', top: 16, right: 16 },
+  playerTurnName:  { fontSize: 42, fontWeight: '900', color: '#FFFFFF', textAlign: 'center', letterSpacing: 0.5 },
+  playerTurnSub:   { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)', textAlign: 'center', letterSpacing: 2 },
   countdownPlayer: { fontSize: 18, fontWeight: '800', color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
   countdownLabel:  { fontSize: 18, fontWeight: '600', color: 'rgba(255,255,255,0.5)', marginBottom: 16 },
   countdownNum:   { fontSize: 96, fontWeight: '900', color: '#FFFFFF' },
