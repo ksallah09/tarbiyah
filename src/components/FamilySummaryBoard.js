@@ -281,7 +281,7 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
                   <TouchableOpacity
                     key={child.id}
                     style={[s.winsRow, !isLast && s.winsRowBorder]}
-                    onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child.id } })}
+                    onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'dashboard', childId: child.id } })}
                     activeOpacity={0.75}
                   >
                     <View style={[s.winsAvatar, { backgroundColor: child.color }]}>

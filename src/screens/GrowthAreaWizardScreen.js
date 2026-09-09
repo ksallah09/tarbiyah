@@ -337,7 +337,7 @@ export default function GrowthAreaWizardScreen({ navigation, route }) {
           What you're about to see is an overview of the full 4-week plan.
         </Text>
         <Text style={styles.bridgeBody}>
-          {displayName}'s Child Dashboard — found in the <Text style={{ color: '#4ADE80', fontWeight: '700' }}>Dashboards</Text> tab — will guide you through it week by week, surfacing the right habits and activities to keep you on track.
+          {displayName}'s dashboard — found in the <Text style={{ color: '#4ADE80', fontWeight: '700' }}>Family</Text> tab under Dashboard — will guide you through it week by week, surfacing the right habits and activities to keep you on track.
         </Text>
         <TouchableOpacity style={styles.bridgeBtn} onPress={handleBridgeContinue} activeOpacity={0.85}>
           <Text style={styles.bridgeBtnText}>Got it!</Text>

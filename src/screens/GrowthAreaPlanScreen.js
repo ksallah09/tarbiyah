@@ -108,7 +108,7 @@ export default function GrowthAreaPlanScreen({ navigation, route }) {
         <TouchableOpacity
           style={styles.ctaBtn}
           activeOpacity={0.88}
-          onPress={() => navigation.navigate('Tabs', { screen: 'Dashboards', params: { childId: child?.id } })}
+          onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'dashboard', childId: child?.id } })}
         >
           <View style={styles.ctaBtnInner}>
             <View>

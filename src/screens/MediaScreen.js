@@ -284,6 +284,7 @@ function parseFlag(f) {
 
 function VerdictCard({ result, watchersLabel, onClose, onApprove, approveStatus }) {
   const catIcon = CATEGORIES.find(c => c.key === result.type)?.icon ?? 'film-outline';
+  const isNoData = !!result.flags?.find(f => parseFlag(f).title === 'No content information found');
 
   return (
     <View style={verdict.card}>
@@ -317,23 +318,33 @@ function VerdictCard({ result, watchersLabel, onClose, onApprove, approveStatus 
       {result.content_areas && (
         <>
           <Text style={verdict.sectionLabel}>CONTENT RATING</Text>
-          <View style={verdict.contentCard}>
-            {CONTENT_AREA_LABELS.map(({ key, label }, i) => {
-              const severity = result.content_areas[key];
-              if (!severity) return null;
-              const color = SEVERITY_COLOR[severity] ?? '#9CA3AF';
-              return (
-                <React.Fragment key={key}>
-                  {i > 0 && <View style={verdict.flagDivider} />}
-                  <View style={verdict.contentRow}>
-                    <View style={[verdict.severityBar, { backgroundColor: color }]} />
-                    <Text style={verdict.contentLabel}>{label}</Text>
-                    <Text style={[verdict.severityText, { color }]}>{SEVERITY_LABEL[severity] ?? severity}</Text>
-                  </View>
-                </React.Fragment>
-              );
-            })}
-          </View>
+          {isNoData ? (
+            <View style={verdict.contentCard}>
+              <View style={verdict.contentRow}>
+                <View style={[verdict.severityBar, { backgroundColor: '#9CA3AF' }]} />
+                <Text style={[verdict.contentLabel, { color: '#6B7280' }]}>Content ratings unavailable</Text>
+                <Text style={[verdict.severityText, { color: '#9CA3AF' }]}>No data</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={verdict.contentCard}>
+              {CONTENT_AREA_LABELS.map(({ key, label }, i) => {
+                const severity = result.content_areas[key];
+                if (!severity) return null;
+                const color = SEVERITY_COLOR[severity] ?? '#9CA3AF';
+                return (
+                  <React.Fragment key={key}>
+                    {i > 0 && <View style={verdict.flagDivider} />}
+                    <View style={verdict.contentRow}>
+                      <View style={[verdict.severityBar, { backgroundColor: color }]} />
+                      <Text style={verdict.contentLabel}>{label}</Text>
+                      <Text style={[verdict.severityText, { color }]}>{SEVERITY_LABEL[severity] ?? severity}</Text>
+                    </View>
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          )}
         </>
       )}
 
@@ -343,7 +354,13 @@ function VerdictCard({ result, watchersLabel, onClose, onApprove, approveStatus 
           <Text style={verdict.sectionLabel}>WHAT TO KNOW</Text>
           <View style={verdict.flagsCard}>
             {result.flags.map((f, i) => {
-              const { title, description } = parseFlag(f);
+              let { title, description } = parseFlag(f);
+              if (title === 'No content information found') {
+                description = description
+                  .replace(/\s*This indicates an absence of reported content issues from these platforms\.?/i, '')
+                  .trim()
+                  + ' This does not confirm the content is appropriate — it may simply be under-reviewed online. Check a dedicated parental guide before sharing it with your children.';
+              }
               return (
                 <React.Fragment key={i}>
                   {i > 0 && <View style={verdict.flagDivider} />}
@@ -364,7 +381,7 @@ function VerdictCard({ result, watchersLabel, onClose, onApprove, approveStatus 
       )}
 
       {/* Overview */}
-      {result.summary ? (
+      {result.summary && !isNoData ? (
         <>
           <Text style={[verdict.sectionLabel, { marginTop: 12 }]}>PARENT SUMMARY</Text>
           <Text style={verdict.summary}>{result.summary}</Text>
