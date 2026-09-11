@@ -3728,7 +3728,8 @@ Return ONLY valid JSON — no markdown:
     { "title": "Short title (3-5 words)", "description": "One concrete explanation sentence about this specific title." }
   ],
   "summary": "2-3 sentences. What is this about and what content does it contain. Do not mention age or suitability.",
-  "age_note": "1 sentence. Describe the content level objectively — do not say whether it is suitable or not, and do not reference any specific age."
+  "age_note": "1 sentence. Describe the content level objectively — do not say whether it is suitable or not, and do not reference any specific age.",
+  "age_range": "Short age range string e.g. '7+', '10–14', '13+'. Base this on the content complexity and themes, not official ratings. Omit if genuinely unclear."
 }
 
 Rules:
@@ -3811,7 +3812,8 @@ Return ONLY valid JSON — no markdown:
     { "title": "Short title (3-5 words)", "description": "One concrete explanation sentence." }
   ],
   "summary": "2-3 sentences describing what this ${type} actually contains based on the data above. If information is limited, say so explicitly rather than guessing.",
-  "age_note": "1 sentence. Describe the content level — do not say whether it is suitable or not."
+  "age_note": "1 sentence. Describe the content level — do not say whether it is suitable or not.",
+  "age_range": "Short age range string e.g. '7+', '10–14', '13+'. Base this on the content complexity and themes, not official ratings. Omit if genuinely unclear."
 }
 
 Rules:
@@ -3839,14 +3841,13 @@ Rules:
         title: title.trim(), type, tmdb_id: tmdb_id ?? null,
         poster: poster ?? null,
         verdict: parsed.verdict, flags: parsed.flags, summary: parsed.summary,
-        age_note: parsed.age_note, content_areas: parsed.content_areas ?? null,
+        age_note: parsed.age_note, age_range: parsed.age_range ?? null,
+        content_areas: parsed.content_areas ?? null,
       }, { onConflict: 'title,type' }).then(({ error }) => {
         if (error) console.warn('[media/check] cache upsert error:', error.message);
       });
 
-      const ageNote = parsed.age_note;
-
-      return res.json({ ...parsed, age_note: ageNote });
+      return res.json({ ...parsed });
     }
 
     // ── Resolve IMDb tconst ───────────────────────────────────────────────────
@@ -4060,6 +4061,7 @@ Rules:
       flags:         parsed.flags ?? [],
       summary:       parsed.summary,
       age_note:      parsed.age_note,
+      age_range:     parsed.age_range ?? null,
     }, { onConflict: 'title,type' }).then(() => {}, () => {});
 
     return res.json({ ...parsed, cached: false });
@@ -4346,14 +4348,18 @@ async function fetchSlangWithGrounding(ageNum: number, ageGroup: string): Promis
       tools: [{ googleSearch: {} } as any],
       generationConfig: { temperature: 0.2 },
     });
-    const year   = new Date().getFullYear();
-    const prompt = `Search for the most current slang words and phrases actively used by children and teenagers aged ${ageNum} (${ageGroup}) in ${year}. Include words trending on TikTok, Discord, Roblox, YouTube comments, and in school environments right now. List 10-12 specific slang words or short phrases that are genuinely popular with this age group this week. One word or phrase per line, no definitions or explanations.`;
-    const result = await model.generateContent(prompt);
-    const text   = result.response.text();
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const prompt = `Today is ${today}. Use Google Search to find slang words and phrases that children and teenagers aged ${ageNum} (${ageGroup}) are ACTIVELY using this week. Search for terms like "new teen slang ${ageGroup} 2026", "words kids are using TikTok this week", "school slang kids saying right now", "Discord slang teens ${ageGroup} 2026", "Gen Alpha slang trending". Report ONLY slang you actually find referenced in search results published in the last 14 days — name the specific word or phrase, and where it was found (e.g. TikTok, Reddit, school). Do NOT use slang from your training knowledge alone. Do NOT list evergreen words that have been around for years unless they are confirmed still active in search results this week. If you cannot find specific recent slang, say "No recent slang found" rather than inventing or recycling old terms. List one word or phrase per line, no definitions or explanations.`;
+    const result = await Promise.race([
+      model.generateContent(prompt),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Slang grounding timeout')), 120_000)),
+    ]);
+    const text = (result as any).response.text();
+    console.log(`[fetchSlangWithGrounding] success — ${text.length} chars — preview: ${text.slice(0, 200).replace(/\n/g, ' ')}`);
     return text
       .split('\n')
-      .map((l: string) => l.trim().replace(/^[-•*\d.]+\s*/, '').replace(/^["']|["']$/g, ''))
-      .filter((l: string) => l.length > 1 && l.length < 40)
+      .map((l: string) => l.trim().replace(/^[-•*\d.]+\s*/, '').replace(/^["']|["']$/g, '').split(/\s*[\(—–-]\s*/)[0].trim())
+      .filter((l: string) => l.length > 1 && l.length < 40 && !l.toLowerCase().includes('no recent'))
       .slice(0, 12);
   } catch (e) {
     console.warn('[fetchSlangWithGrounding] failed:', (e as Error).message);
@@ -4432,7 +4438,7 @@ Return ONLY valid JSON, no markdown:
 
 Section rules:
 - onlineWorld: 2-3 items. At least one must name a specific creator, video, or trend from the YOUTUBE TRENDING or REAL-TIME CULTURE CONTEXT data by name.
-- slang: 4-6 words from the CURRENT SLANG data above. Do not invent words not in the data.
+- slang: 4-6 words drawn from the CURRENT SLANG data above, or from slang terms named in the REAL-TIME CULTURE CONTEXT. Do NOT invent words not present in either source. Do NOT use evergreen slang (e.g. "bussin", "no cap") unless the data confirms it is still actively circulating this week.
 - humor: Name specific meme formats or video styles circulating right now — not generic descriptions like "reaction videos" or "fail compilations" unless they are specifically in the data.
 - concerns: Ground in real patterns visible in the data. Be specific about platform or content type.
 - schoolCulture: 2-3 items. Must name specific dynamics, games, or topics kids are discussing in school RIGHT NOW based on the culture context.
