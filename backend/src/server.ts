@@ -3815,6 +3815,11 @@ Rules:
             const madeForKids = chan.status?.madeForKids ? 'Yes' : 'No';
             ytMeta = `Channel: ${chan.snippet.title}\nDescription: ${(chan.snippet.description ?? '').slice(0, 400)}\nSubscribers: ${stats.subscriberCount ?? 'unknown'}\nMade for kids: ${madeForKids}\nTopics: ${topics}\nKeywords: ${keywords}\n\nRecent videos:\n`;
             ytMeta += (recentData.items ?? []).map((v: any, i: number) => `${i + 1}. ${v.snippet.title} — ${(v.snippet.description ?? '').slice(0, 120)}`).join('\n');
+            // Grab channel thumbnail
+            const thumbs = chan.snippet?.thumbnails;
+            if (!resolvedPoster && thumbs) {
+              resolvedPoster = thumbs.high?.url ?? thumbs.medium?.url ?? thumbs.default?.url ?? null;
+            }
           }
           } // end if (channelId)
         } else if (type === 'video' && tmdb_id) {
