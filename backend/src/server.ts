@@ -3706,6 +3706,46 @@ app.post('/media/check', async (req: Request, res: Response) => {
       return res.json({ ...cached, cached: true });
     }
 
+    // ── Auto-resolve poster when not provided ────────────────────────────────
+    let resolvedPoster: string | null = poster ?? null;
+    if (!resolvedPoster) {
+      try {
+        if ((type === 'movie' || type === 'show') && process.env.TMDB_READ_TOKEN) {
+          const tmdbType = type === 'show' ? 'tv' : 'movie';
+          const yearParam = year ? (type === 'show' ? `&first_air_date_year=${year}` : `&year=${year}`) : '';
+          const r = await fetch(
+            `https://api.themoviedb.org/3/search/${tmdbType}?query=${encodeURIComponent(title.trim())}${yearParam}`,
+            { headers: { Authorization: `Bearer ${process.env.TMDB_READ_TOKEN}` } }
+          );
+          if (r.ok) {
+            const d = await r.json() as { results?: Array<{ poster_path?: string }> };
+            const p = d.results?.[0]?.poster_path;
+            if (p) resolvedPoster = `https://image.tmdb.org/t/p/w500${p}`;
+          }
+        } else if (type === 'book') {
+          const r = await fetch(
+            `https://openlibrary.org/search.json?title=${encodeURIComponent(title.trim())}&limit=5&fields=cover_i,title`
+          );
+          if (r.ok) {
+            const d = await r.json() as { docs?: Array<{ cover_i?: number }> };
+            for (const doc of d.docs ?? []) {
+              if (doc.cover_i) { resolvedPoster = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`; break; }
+            }
+          }
+        } else if (type === 'game' && process.env.RAWG_API_KEY) {
+          const r = await fetch(
+            `https://api.rawg.io/api/games?search=${encodeURIComponent(title.trim())}&page_size=1&key=${process.env.RAWG_API_KEY}`
+          );
+          if (r.ok) {
+            const d = await r.json() as { results?: Array<{ background_image?: string }> };
+            resolvedPoster = d.results?.[0]?.background_image ?? null;
+          }
+        }
+      } catch (e) {
+        console.warn('[media/check] poster lookup failed:', (e as Error).message);
+      }
+    }
+
     // ── Build prompt ───────────────────────────────────────────────────────────
     const prompt = `Evaluate this ${type} for a Muslim family:
 
@@ -3746,10 +3786,24 @@ Rules:
       let ytMeta = '';
 
       try {
-        if (type === 'channel' && tmdb_id) {
+        if (type === 'channel') {
+          // Resolve channel ID by name if not provided
+          let channelId = tmdb_id ?? null;
+          if (!channelId && ytKey) {
+            const searchRes = await fetch(
+              `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(title.trim())}&maxResults=1&key=${ytKey}`
+            );
+            if (searchRes.ok) {
+              const searchData = await searchRes.json() as any;
+              channelId = searchData.items?.[0]?.id?.channelId ?? null;
+              if (channelId) console.log(`[media/check] Resolved channel ID for "${title}": ${channelId}`);
+            }
+          }
+
+          if (channelId) {
           const [chanRes, recentRes] = await Promise.all([
-            fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,topicDetails,statistics,status,brandingSettings&id=${tmdb_id}&key=${ytKey}`),
-            fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${tmdb_id}&order=date&type=video&maxResults=10&key=${ytKey}`),
+            fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,topicDetails,statistics,status,brandingSettings&id=${channelId}&key=${ytKey}`),
+            fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=10&key=${ytKey}`),
           ]);
           const chanData  = chanRes.ok  ? await chanRes.json()   as any : {};
           const recentData = recentRes.ok ? await recentRes.json() as any : {};
@@ -3762,6 +3816,7 @@ Rules:
             ytMeta = `Channel: ${chan.snippet.title}\nDescription: ${(chan.snippet.description ?? '').slice(0, 400)}\nSubscribers: ${stats.subscriberCount ?? 'unknown'}\nMade for kids: ${madeForKids}\nTopics: ${topics}\nKeywords: ${keywords}\n\nRecent videos:\n`;
             ytMeta += (recentData.items ?? []).map((v: any, i: number) => `${i + 1}. ${v.snippet.title} — ${(v.snippet.description ?? '').slice(0, 120)}`).join('\n');
           }
+          } // end if (channelId)
         } else if (type === 'video' && tmdb_id) {
           const vidRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status,statistics&id=${tmdb_id}&key=${ytKey}`);
           const vidData = vidRes.ok ? await vidRes.json() as any : {};
@@ -3839,7 +3894,7 @@ Rules:
 
       supabase.from('media_cache').upsert({
         title: title.trim(), type, tmdb_id: tmdb_id ?? null,
-        poster: poster ?? null,
+        poster: resolvedPoster,
         verdict: parsed.verdict, flags: parsed.flags, summary: parsed.summary,
         age_note: parsed.age_note, age_range: parsed.age_range ?? null,
         content_areas: parsed.content_areas ?? null,
@@ -4055,7 +4110,7 @@ Rules:
       title:         title.trim(),
       type,
       tmdb_id:       tmdb_id ?? null,
-      poster:        poster ?? null,
+      poster:        resolvedPoster,
       verdict:       parsed.verdict,
       content_areas: parsed.content_areas ?? null,
       flags:         parsed.flags ?? [],
