@@ -304,8 +304,10 @@ function LibraryCard({ item, onPress }) {
   const concerns = CONTENT_AREA_LABELS
     .map(({ key }) => ({ key, label: CONTENT_AREA_SHORT[key], severity: item.content_areas?.[key] }))
     .filter(({ severity }) => severity && severity !== 'none');
-  const isLimited = !!(item.flags ?? []).find(f =>
-    (typeof f === 'string' ? f : f?.title ?? '').includes('No content information found')
+  const contentAreaCount = Object.keys(item.content_areas ?? {}).length;
+  const isLimited = contentAreaCount === 0 || !!(item.flags ?? []).find(f =>
+    (typeof f === 'string' ? f : f?.title ?? '').toLowerCase().includes('no content information') ||
+    (typeof f === 'string' ? f : f?.title ?? '').toLowerCase().includes('limited')
   );
 
   return (
@@ -569,15 +571,23 @@ export default function MediaScreen({ navigation }) {
   const [approveStatus, setApproveStatus]   = useState(null); // null | 'loading' | 'done' | 'error'
   const [approved, setApproved]             = useState([]);
   const [approvedFilter, setApprovedFilter] = useState('all');
-  const inputRef    = useRef(null);
-  const searchTimer = useRef(null);
-
+  const inputRef           = useRef(null);
+  const searchTimer        = useRef(null);
+  const libraryScrollRef   = useRef(null);
+  const libraryScrollY     = useRef(0);
+  const libraryLoadedRef   = useRef(false);
 
 useFocusEffect(useCallback(() => {
     getAllChildProfiles().then(setChildren);
     fetchTrending();
     fetchApproved();
-    fetchLibrary();
+    if (!libraryLoadedRef.current) fetchLibrary();
+    else {
+      // Restore scroll position when returning from a detail screen
+      setTimeout(() => {
+        libraryScrollRef.current?.scrollTo({ y: libraryScrollY.current, animated: false });
+      }, 50);
+    }
   }, []));
 
   async function fetchLibrary() {
@@ -589,7 +599,7 @@ useFocusEffect(useCallback(() => {
         .neq('type', 'channel')
         .order('check_count', { ascending: false })
         .limit(100);
-      if (!error && data) setLibraryItems(data);
+      if (!error && data) { setLibraryItems(data); libraryLoadedRef.current = true; }
     } catch { /* silent */ } finally {
       setLibraryLoading(false);
     }
@@ -927,7 +937,14 @@ useFocusEffect(useCallback(() => {
 
       {/* ── Library tab ── */}
       {mediaTab === 'library' && (
-        <ScrollView style={{ flex: 1, backgroundColor: '#F5F6F8' }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView
+          ref={libraryScrollRef}
+          style={{ flex: 1, backgroundColor: '#F5F6F8' }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          scrollEventThrottle={100}
+          onScroll={({ nativeEvent }) => { libraryScrollY.current = nativeEvent.contentOffset.y; }}
+        >
           {/* Header */}
           <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 6 }}>
             <Text style={{ fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: -0.3 }}>Community Checks</Text>

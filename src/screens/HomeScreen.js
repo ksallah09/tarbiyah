@@ -273,7 +273,7 @@ function MuhasabahCard({ navigation }) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.playTogetherTitle}>Nightly Muhasabah</Text>
-          <Text style={styles.playTogetherSub}>Reflect · Grow · Earn hasanat</Text>
+          <Text style={styles.playTogetherSub}>Reflect · Grow · Earn points</Text>
         </View>
         <View style={[styles.playTogetherBtn, { backgroundColor: '#FFD166' }]}>
           <Text style={[styles.playTogetherBtnText, { color: '#1A1040' }]}>Begin →</Text>
@@ -287,7 +287,7 @@ function MuhasabahCard({ navigation }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <Text style={{ fontSize: 12 }}>⭐</Text>
-                  <Text style={{ fontSize: 12, color: '#FFD166', fontWeight: '700' }}>{c.total} hasanat</Text>
+                  <Text style={{ fontSize: 12, color: '#FFD166', fontWeight: '700' }}>{c.total} points</Text>
                 </View>
                 {c.streak > 0 && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>

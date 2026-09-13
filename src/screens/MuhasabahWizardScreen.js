@@ -318,7 +318,7 @@ function RepairStep({ value, onChange }) {
           />
         </Card>
         <View style={styles.bonusBadge}>
-          <Text style={styles.bonusText}>+10 bonus hasanat for repairing 💝</Text>
+          <Text style={styles.bonusText}>+10 bonus points for repairing 💝</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -377,26 +377,26 @@ function ReminderStep({ reminder }) {
       <Text style={styles.stepEmoji}>🌙</Text>
       <Text style={styles.stepTitle}>Your Reminder</Text>
 
-      <Card style={styles.reminderCard}>
-        <Text style={styles.reminderQuoteIcon}>"</Text>
-        <Text style={styles.reminderText}>{reminder?.ayah_or_hadith}</Text>
-        <View style={styles.reminderSource}>
-          <Text style={styles.reminderSourceText}>📖 {reminder?.source}</Text>
-        </View>
-      </Card>
+      {/* Verse / hadith card — matches screenshot style */}
+      <View style={styles.reminderCard}>
+        <Text style={styles.reminderLabel}>🌙 Tonight's reminder</Text>
+        <Text style={styles.reminderText}>"{reminder?.ayah_or_hadith}"</Text>
+        <Text style={styles.reminderSourceText}>{reminder?.source}</Text>
+      </View>
 
-      {reminder?.dua && (
-        <Card style={styles.duaCard}>
-          <Text style={styles.duaLabel}>🤲 Dua</Text>
-          <Text style={styles.duaText}>{reminder.dua}</Text>
-        </Card>
+      {/* Encouragement card */}
+      {reminder?.encouragement && (
+        <View style={styles.encourageCard}>
+          <Text style={styles.encourageText}>💫 {reminder.encouragement}</Text>
+        </View>
       )}
 
-      {reminder?.encouragement && (
-        <Card style={styles.encourageCard}>
-          <Text style={styles.encourageEmoji}>💫</Text>
-          <Text style={styles.encourageText}>{reminder.encouragement}</Text>
-        </Card>
+      {/* Dua */}
+      {reminder?.dua && (
+        <View style={styles.duaCard}>
+          <Text style={styles.duaLabel}>🤲 Dua</Text>
+          <Text style={styles.duaText}>{reminder.dua}</Text>
+        </View>
       )}
     </ScrollView>
   );
@@ -693,19 +693,17 @@ const styles = StyleSheet.create({
   bonusBadge:       { alignSelf: 'center', backgroundColor: 'rgba(255,209,102,0.12)', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, marginTop: 16 },
   bonusText:        { fontSize: 13, color: GOLD, fontWeight: '600' },
 
-  reminderCard:     { marginTop: 16, borderColor: 'rgba(255,209,102,0.25)', borderWidth: 1 },
-  reminderQuoteIcon:{ fontSize: 40, color: GOLD, opacity: 0.4, lineHeight: 44, marginBottom: -8 },
-  reminderText:     { fontSize: 16, color: TEXT, lineHeight: 26, fontStyle: 'italic' },
-  reminderSource:   { marginTop: 12, borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 10 },
-  reminderSourceText: { fontSize: 13, color: GOLD, fontWeight: '600' },
+  reminderCard:       { marginTop: 16, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  reminderLabel:      { fontSize: 13, color: PURPLE, fontWeight: '700', marginBottom: 12 },
+  reminderText:       { fontSize: 15, color: TEXT, lineHeight: 26, fontStyle: 'italic', marginBottom: 12 },
+  reminderSourceText: { fontSize: 13, color: GOLD, fontWeight: '700' },
 
-  duaCard:          { marginTop: 12, borderColor: 'rgba(192,132,252,0.25)' },
-  duaLabel:         { fontSize: 13, color: PURPLE, fontWeight: '700', marginBottom: 8 },
-  duaText:          { fontSize: 14, color: TEXT, lineHeight: 22 },
+  duaCard:            { marginTop: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  duaLabel:           { fontSize: 13, color: PURPLE, fontWeight: '700', marginBottom: 8 },
+  duaText:            { fontSize: 15, color: TEXT, lineHeight: 24 },
 
-  encourageCard:    { marginTop: 12, borderColor: 'rgba(74,222,128,0.2)' },
-  encourageEmoji:   { fontSize: 28, marginBottom: 8 },
-  encourageText:    { fontSize: 15, color: TEXT, lineHeight: 24 },
+  encourageCard:      { marginTop: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  encourageText:      { fontSize: 15, color: TEXT, lineHeight: 26 },
 
   navRow:           { paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12 },
   tapHint:          { fontSize: 12, color: SUBTEXT, textAlign: 'center', marginTop: 10 },

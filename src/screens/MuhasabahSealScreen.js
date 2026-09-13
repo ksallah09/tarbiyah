@@ -78,7 +78,7 @@ function RewardBar({ total, target, goal }) {
         <Animated.View style={[styles.rewardFill, { width: barAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
       </View>
       <View style={styles.rewardFooter}>
-        <Text style={styles.rewardPts}>⭐ {total} hasanat</Text>
+        <Text style={styles.rewardPts}>⭐ {total} points</Text>
         <Text style={styles.rewardTarget}>{target} to unlock</Text>
       </View>
       {pct >= 1 && (
@@ -180,13 +180,13 @@ export default function MuhasabahSealScreen({ navigation, route }) {
         }]}>
           <Text style={styles.pointsLabel}>Tonight you earned</Text>
           <Text style={styles.pointsNum}>+{points}</Text>
-          <Text style={styles.pointsUnit}>hasanat ✨</Text>
+          <Text style={styles.pointsUnit}>points ✨</Text>
         </Animated.View>
 
         {/* Cumulative total */}
         {!loading && (
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>⭐ Total hasanat:</Text>
+            <Text style={styles.totalLabel}>⭐ Total points:</Text>
             <Text style={styles.totalNum}>{totalPoints}</Text>
           </View>
         )}
@@ -205,24 +205,8 @@ export default function MuhasabahSealScreen({ navigation, route }) {
           <RewardBar total={totalPoints} target={rewardTarget} goal={rewardGoal} />
         )}
 
-        {/* Reminder teaser */}
-        {reminder?.ayah_or_hadith && (
-          <View style={styles.reminderTeaser}>
-            <Text style={styles.reminderLabel}>🌙 Tonight's reminder</Text>
-            <Text style={styles.reminderText} numberOfLines={3}>"{reminder.ayah_or_hadith}"</Text>
-            <Text style={styles.reminderSource}>{reminder.source}</Text>
-          </View>
-        )}
-
-        {/* Encouragement */}
-        {reminder?.encouragement && (
-          <View style={styles.encourageRow}>
-            <Text style={styles.encourageText}>💫 {reminder.encouragement}</Text>
-          </View>
-        )}
-
         {/* Done */}
-        <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.navigate('Home')} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.navigate('Tabs', { screen: 'Home' })} activeOpacity={0.85}>
           <Text style={styles.doneBtnText}>Alhamdulillah! 🌙</Text>
         </TouchableOpacity>
         <Text style={styles.seeYou}>See you tomorrow for muhasabah 🤲</Text>
@@ -274,5 +258,5 @@ const styles = StyleSheet.create({
 
   doneBtn:        { backgroundColor: GOLD, borderRadius: 16, paddingVertical: 18, paddingHorizontal: 48, width: '100%', alignItems: 'center', marginBottom: 16 },
   doneBtnText:    { fontSize: 18, fontWeight: '900', color: '#0D1B3E' },
-  seeYou:         { fontSize: 13, color: SUBTEXT, fontStyle: 'italic' },
+  seeYou:         { fontSize: 16, color: SUBTEXT, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
 });
