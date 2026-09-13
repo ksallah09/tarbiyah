@@ -180,20 +180,6 @@ function IntroStep({ children, selectedChild, onSelect, streakDay, onBegin, navi
       <View style={styles.introActions}>
         <TouchableOpacity
           style={styles.introActionBtn}
-          onPress={() => {
-            if (selectedChild) navigation.navigate('MuhasabahRewards', { child: selectedChild });
-            else Alert.alert('Select a child first', 'Choose who you\'re setting rewards for.');
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="trophy-outline" size={15} color={GOLD} />
-          <Text style={styles.introActionText}>
-            {selectedChild ? `${selectedChild.name.split(' ')[0]}'s Rewards` : 'Configure Rewards'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.introActionBtn}
           onPress={() => { setSlide(0); setShowTutorial(true); }}
           activeOpacity={0.8}
         >
@@ -310,12 +296,12 @@ function SlidersStep({ categories, ratings, setRatings }) {
 
 // ── Step: Challenge ────────────────────────────────────────────────────────────
 
-function ChallengeStep({ value, onChange }) {
+function ChallengeStep({ value, onChange, question }) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.stepWrap} showsVerticalScrollIndicator={false}>
         <Text style={styles.stepEmoji}>😔</Text>
-        <Text style={styles.stepTitle}>What didn't I do well?</Text>
+        <Text style={styles.stepTitle}>{question || "What didn't I do well?"}</Text>
         <Text style={styles.stepSub}>Be honest — Allah loves those who hold themselves accountable</Text>
         <Card style={{ marginTop: 20 }}>
           <TextInput
@@ -373,12 +359,12 @@ function RepairYNStep({ value, onChange }) {
 
 // ── Step: Repair plan ──────────────────────────────────────────────────────────
 
-function RepairStep({ value, onChange }) {
+function RepairStep({ value, onChange, question }) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.stepWrap} showsVerticalScrollIndicator={false}>
         <Text style={styles.stepEmoji}>💝</Text>
-        <Text style={styles.stepTitle}>How can I repair it?</Text>
+        <Text style={styles.stepTitle}>{question || 'How can I repair it?'}</Text>
         <Text style={styles.stepSub}>Making things right is a sign of great character</Text>
         <Card style={{ marginTop: 20 }}>
           <TextInput
@@ -402,12 +388,12 @@ function RepairStep({ value, onChange }) {
 
 // ── Step: Tomorrow ─────────────────────────────────────────────────────────────
 
-function TomorrowStep({ value, onChange }) {
+function TomorrowStep({ value, onChange, question }) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.stepWrap} showsVerticalScrollIndicator={false}>
         <Text style={styles.stepEmoji}>🎯</Text>
-        <Text style={styles.stepTitle}>How will I do better tomorrow?</Text>
+        <Text style={styles.stepTitle}>{question || 'How will I do better tomorrow?'}</Text>
         <Text style={styles.stepSub}>Set one clear intention for tomorrow</Text>
         <Card style={{ marginTop: 20 }}>
           <TextInput
@@ -484,6 +470,7 @@ export default function MuhasabahWizardScreen({ navigation }) {
   const [childList, setChildList]     = useState([]);
   const [selectedChild, setSelected]  = useState(null);
   const [categories, setCategories]   = useState(DEFAULT_CATS);
+  const [questions, setQuestions]     = useState(null); // null = use defaults
   const [honestyAgreed, setHonesty]   = useState(false);
   const [ratings, setRatings]         = useState({});
   const [didntDoWell, setDidnt]       = useState('');
@@ -527,17 +514,19 @@ export default function MuhasabahWizardScreen({ navigation }) {
     setStreakDay(1);
   }
 
-  async function loadCategories(childId) {
+  async function loadConfig(childId) {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) return null;
     const { data } = await supabase
       .from('muhasabah_config')
-      .select('categories')
+      .select('categories, questions')
       .eq('user_id', session.user.id)
       .eq('child_id', childId)
       .maybeSingle();
     if (data?.categories?.length) setCategories(data.categories);
     else setCategories(DEFAULT_CATS);
+    if (data?.questions) setQuestions(data.questions);
+    return data;
   }
 
   function transitionTo(nextIdx) {
@@ -561,7 +550,11 @@ export default function MuhasabahWizardScreen({ navigation }) {
     const current = STEPS[stepIdx];
 
     if (current === 'intro') {
-      await loadCategories(selectedChild.id);
+      const config = await loadConfig(selectedChild.id);
+      if (!config) {
+        navigation.navigate('MuhasabahSetup', { child: selectedChild });
+        return;
+      }
       transitionTo(STEPS.indexOf('honesty'));
       return;
     }
@@ -676,10 +669,10 @@ export default function MuhasabahWizardScreen({ navigation }) {
         )}
         {step === 'honesty'    && <HonestyStep />}
         {step === 'sliders'    && <SlidersStep categories={categories} ratings={ratings} setRatings={setRatings} />}
-        {step === 'challenge'  && <ChallengeStep value={didntDoWell} onChange={setDidnt} />}
+        {step === 'challenge'  && <ChallengeStep value={didntDoWell} onChange={setDidnt} question={questions?.challenge} />}
         {step === 'repair_yn'  && <RepairYNStep value={hasRepair} onChange={setHasRepair} />}
-        {step === 'repair'     && <RepairStep value={repairPlan} onChange={setRepairPlan} />}
-        {step === 'tomorrow'   && <TomorrowStep value={doBetter} onChange={setDoBetter} />}
+        {step === 'repair'     && <RepairStep value={repairPlan} onChange={setRepairPlan} question={questions?.repair} />}
+        {step === 'tomorrow'   && <TomorrowStep value={doBetter} onChange={setDoBetter} question={questions?.doBetter} />}
         {step === 'generating' && <GeneratingStep />}
         {step === 'reminder'   && <ReminderStep reminder={reminder} />}
       </Animated.View>

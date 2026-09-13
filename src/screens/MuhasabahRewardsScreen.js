@@ -229,6 +229,22 @@ export default function MuhasabahRewardsScreen({ navigation, route }) {
             )}
           </View>
 
+          {/* Session settings */}
+          <TouchableOpacity
+            style={[styles.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+            onPress={() => navigation.navigate('MuhasabahSetup', { child, editMode: true })}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 20 }}>⚙️</Text>
+              <View>
+                <Text style={styles.cardTitle}>Session Settings</Text>
+                <Text style={{ fontSize: 12, color: SUBTEXT, marginTop: 2 }}>Edit reflection areas & questions</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={SUBTEXT} />
+          </TouchableOpacity>
+
           {/* How points work */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>⭐ How points work</Text>
