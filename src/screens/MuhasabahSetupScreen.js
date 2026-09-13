@@ -29,12 +29,11 @@ const ALL_CATS = [
   { key: 'patience', label: 'Patience',        emoji: '🌿' },
 ];
 
-const DEFAULT_QUESTIONS = {
-  challenge:  "What didn't I do well today?",
-  repair:     "How can I repair it?",
-  doBetter:   "How will I do better tomorrow?",
-  tomorrow:   "What's my mission for tomorrow?",
-};
+const BUILTIN_QUESTIONS = [
+  "What didn't go well today?",
+  "How can I repair it?",
+  "What's my positive goal for tomorrow?",
+];
 
 const STEPS = ['welcome', 'categories', 'questions', 'reward'];
 
@@ -51,8 +50,8 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
     new Set(['salah', 'quran', 'kindness', 'honesty', 'helping'])
   );
 
-  // Questions
-  const [questions, setQuestions] = useState({ ...DEFAULT_QUESTIONS });
+  // Custom questions (up to 2)
+  const [customQs, setCustomQs] = useState(['', '']);
 
   // Reward
   const [rewardGoal,   setRewardGoal]   = useState('');
@@ -90,11 +89,13 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
       const cats = ALL_CATS.filter(c => selected.has(c.key));
       const target = parseInt(rewardTarget, 10) || 100;
 
+      const customList = customQs.map(q => q.trim()).filter(Boolean);
+
       await supabase.from('muhasabah_config').upsert({
         user_id:               session.user.id,
         child_id:              child.id,
         categories:            cats,
-        questions,
+        questions:             { custom: customList },
         reward_goal:           rewardGoal.trim() || null,
         reward_points_target:  target,
       }, { onConflict: 'user_id,child_id' });
@@ -210,29 +211,36 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
             {step === 'questions' && (
               <View style={styles.stepWrap}>
                 <Text style={styles.emoji}>💬</Text>
-                <Text style={styles.title}>Open-ended questions</Text>
+                <Text style={styles.title}>Questions</Text>
                 <Text style={styles.sub}>
-                  These are asked at the end of each session. Edit the wording to suit {firstName}'s age and style.
+                  These questions are asked every session. You can add up to 2 of your own.
                 </Text>
-                {[
-                  { key: 'challenge', label: "What didn't go well?", placeholder: "What didn't I do well today?" },
-                  { key: 'repair',    label: 'How to repair it?',    placeholder: 'How can I repair it?' },
-                  { key: 'doBetter',  label: 'Do better tomorrow',   placeholder: 'How will I do better tomorrow?' },
-                  { key: 'tomorrow',  label: "Tomorrow's mission",   placeholder: "What's my mission for tomorrow?" },
-                ].map(q => (
-                  <View key={q.key} style={styles.questionWrap}>
-                    <Text style={styles.questionLabel}>{q.label}</Text>
+
+                {/* Built-in read-only */}
+                <View style={styles.builtinCard}>
+                  <Text style={styles.builtinHeading}>Built-in questions</Text>
+                  {BUILTIN_QUESTIONS.map((q, i) => (
+                    <View key={i} style={styles.builtinRow}>
+                      <View style={styles.builtinDot} />
+                      <Text style={styles.builtinText}>{q}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Custom questions */}
+                <Text style={[styles.questionLabel, { marginTop: 20, marginBottom: 10 }]}>
+                  Add your own (optional, max 2)
+                </Text>
+                {[0, 1].map(i => (
+                  <View key={i} style={styles.questionWrap}>
                     <TextInput
                       style={styles.questionInput}
-                      value={questions[q.key]}
-                      onChangeText={v => setQuestions(prev => ({ ...prev, [q.key]: v }))}
-                      placeholder={q.placeholder}
+                      value={customQs[i]}
+                      onChangeText={v => setCustomQs(prev => { const next = [...prev]; next[i] = v; return next; })}
+                      placeholder={`Custom question ${i + 1}…`}
                       placeholderTextColor={SUBTEXT}
                       maxLength={80}
                     />
-                    <TouchableOpacity onPress={() => setQuestions(prev => ({ ...prev, [q.key]: DEFAULT_QUESTIONS[q.key] }))}>
-                      <Text style={styles.resetText}>Reset to default</Text>
-                    </TouchableOpacity>
                   </View>
                 ))}
               </View>
@@ -334,10 +342,15 @@ const styles = StyleSheet.create({
 
   hint:          { fontSize: 12, color: SUBTEXT, textAlign: 'center', marginTop: 4 },
 
-  questionWrap:  { marginBottom: 18 },
+  builtinCard:    { backgroundColor: CARD, borderRadius: 14, borderWidth: 1, borderColor: BORDER, padding: 16, gap: 10 },
+  builtinHeading: { fontSize: 12, color: SUBTEXT, fontWeight: '700', marginBottom: 4 },
+  builtinRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  builtinDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: GOLD, marginTop: 7, flexShrink: 0 },
+  builtinText:    { fontSize: 14, color: TEXT, lineHeight: 22, flex: 1 },
+
+  questionWrap:  { marginBottom: 12 },
   questionLabel: { fontSize: 12, color: SUBTEXT, fontWeight: '700', marginBottom: 6 },
-  questionInput: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 12, color: TEXT, fontSize: 14, marginBottom: 4 },
-  resetText:     { fontSize: 11, color: PURPLE, fontWeight: '600' },
+  questionInput: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 12, color: TEXT, fontSize: 14 },
 
   rewardCard:    { backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: BORDER, padding: 18, marginBottom: 16 },
   inputLabel:    { fontSize: 12, color: SUBTEXT, fontWeight: '700', marginBottom: 8 },

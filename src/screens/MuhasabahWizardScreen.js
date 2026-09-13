@@ -35,7 +35,7 @@ const PURPLE  = '#C084FC';
 const TEXT    = '#F8FAFC';
 const SUBTEXT = '#94A3B8';
 
-const STEPS = ['intro', 'honesty', 'sliders', 'challenge', 'repair_yn', 'repair', 'tomorrow', 'generating', 'reminder'];
+const STEPS = ['intro', 'honesty', 'sliders', 'challenge', 'repair_yn', 'repair', 'tomorrow', 'custom_q0', 'custom_q1', 'generating', 'reminder'];
 const VISIBLE_STEPS = 6;
 
 function calcPoints(ratings, hasRepair, repairPlan, streakDay) {
@@ -393,7 +393,7 @@ function TomorrowStep({ value, onChange, question }) {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.stepWrap} showsVerticalScrollIndicator={false}>
         <Text style={styles.stepEmoji}>🎯</Text>
-        <Text style={styles.stepTitle}>{question || 'How will I do better tomorrow?'}</Text>
+        <Text style={styles.stepTitle}>{question || "What's my positive goal for tomorrow?"}</Text>
         <Text style={styles.stepSub}>Set one clear intention for tomorrow</Text>
         <Card style={{ marginTop: 20 }}>
           <TextInput
@@ -471,6 +471,7 @@ export default function MuhasabahWizardScreen({ navigation }) {
   const [selectedChild, setSelected]  = useState(null);
   const [categories, setCategories]   = useState(DEFAULT_CATS);
   const [questions, setQuestions]     = useState(null); // null = use defaults
+  const [customAnswers, setCustomAns] = useState(['', '']);
   const [honestyAgreed, setHonesty]   = useState(false);
   const [ratings, setRatings]         = useState({});
   const [didntDoWell, setDidnt]       = useState('');
@@ -539,10 +540,21 @@ export default function MuhasabahWizardScreen({ navigation }) {
 
   function goBack() {
     if (stepIdx === 0) { navigation.goBack(); return; }
+    const current = STEPS[stepIdx];
+    const customList = questions?.custom ?? [];
+    if (current === 'custom_q1') { transitionTo(STEPS.indexOf('custom_q0')); return; }
+    if (current === 'custom_q0') { transitionTo(STEPS.indexOf('tomorrow')); return; }
+    if (current === 'generating') {
+      if (customList.length > 1) { transitionTo(STEPS.indexOf('custom_q1')); return; }
+      if (customList.length > 0) { transitionTo(STEPS.indexOf('custom_q0')); return; }
+      transitionTo(STEPS.indexOf('tomorrow'));
+      return;
+    }
     let prev = stepIdx - 1;
     if (stepIdx === STEPS.indexOf('tomorrow') && hasRepair === false) {
       prev = STEPS.indexOf('repair_yn');
     }
+    // skip over custom_q slots when going back from generating (already handled above)
     transitionTo(prev);
   }
 
@@ -568,6 +580,20 @@ export default function MuhasabahWizardScreen({ navigation }) {
     }
     if (current === 'repair')    { transitionTo(STEPS.indexOf('tomorrow')); return; }
     if (current === 'tomorrow')  {
+      const customList = questions?.custom ?? [];
+      if (customList.length > 0) { transitionTo(STEPS.indexOf('custom_q0')); return; }
+      transitionTo(STEPS.indexOf('generating'));
+      await generateAndSave();
+      return;
+    }
+    if (current === 'custom_q0') {
+      const customList = questions?.custom ?? [];
+      if (customList.length > 1) { transitionTo(STEPS.indexOf('custom_q1')); return; }
+      transitionTo(STEPS.indexOf('generating'));
+      await generateAndSave();
+      return;
+    }
+    if (current === 'custom_q1') {
       transitionTo(STEPS.indexOf('generating'));
       await generateAndSave();
       return;
@@ -591,6 +617,7 @@ export default function MuhasabahWizardScreen({ navigation }) {
         body: JSON.stringify({
           childName: selectedChild.name,
           didntDoWell, repairPlan, doBetter, sliderSummary,
+          customAnswers: (questions?.custom ?? []).map((q, i) => ({ question: q, answer: customAnswers[i] || '' })).filter(a => a.answer),
         }),
       });
       if (resp.ok) generated = await resp.json();
@@ -673,6 +700,30 @@ export default function MuhasabahWizardScreen({ navigation }) {
         {step === 'repair_yn'  && <RepairYNStep value={hasRepair} onChange={setHasRepair} />}
         {step === 'repair'     && <RepairStep value={repairPlan} onChange={setRepairPlan} question={questions?.repair} />}
         {step === 'tomorrow'   && <TomorrowStep value={doBetter} onChange={setDoBetter} question={questions?.doBetter} />}
+        {(step === 'custom_q0' || step === 'custom_q1') && (() => {
+          const idx = step === 'custom_q0' ? 0 : 1;
+          const qText = (questions?.custom ?? [])[idx] ?? '';
+          return (
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+              <ScrollView contentContainerStyle={styles.stepWrap} showsVerticalScrollIndicator={false}>
+                <Text style={styles.stepEmoji}>💭</Text>
+                <Text style={styles.stepTitle}>{qText}</Text>
+                <Card style={{ marginTop: 20 }}>
+                  <TextInput
+                    style={[styles.textInput, styles.multiInput]}
+                    placeholder="Write your answer..."
+                    placeholderTextColor={SUBTEXT}
+                    value={customAnswers[idx]}
+                    onChangeText={v => setCustomAns(prev => { const n = [...prev]; n[idx] = v; return n; })}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </Card>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          );
+        })()}
         {step === 'generating' && <GeneratingStep />}
         {step === 'reminder'   && <ReminderStep reminder={reminder} />}
       </Animated.View>
@@ -684,7 +735,7 @@ export default function MuhasabahWizardScreen({ navigation }) {
             <BigBtn label="Alhamdulillah! 🌟" onPress={goNext} />
           ) : (
             <BigBtn
-              label={step === 'honesty' ? 'I agree 💚' : step === 'tomorrow' ? 'Final Step →' : 'Next →'}
+              label={step === 'honesty' ? 'I agree 💚' : (step === 'tomorrow' || step === 'custom_q0' || step === 'custom_q1') && !(questions?.custom?.length > (step === 'tomorrow' ? 0 : step === 'custom_q0' ? 1 : 0)) ? 'Final Step →' : 'Next →'}
               onPress={goNext}
               disabled={!canGoNext()}
             />

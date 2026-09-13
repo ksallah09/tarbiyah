@@ -4135,9 +4135,10 @@ Rules:
 
 app.post('/muhasabah/reminder', async (req: Request, res: Response) => {
   try {
-    const { childName, childAge, didntDoWell, repairPlan, doBetter, sliderSummary } = req.body as {
+    const { childName, childAge, didntDoWell, repairPlan, doBetter, sliderSummary, customAnswers } = req.body as {
       childName?: string; childAge?: number; didntDoWell?: string;
       repairPlan?: string; doBetter?: string; sliderSummary?: string;
+      customAnswers?: { question: string; answer: string }[];
     };
 
     const name = childName?.trim() || 'the child';
@@ -4148,8 +4149,9 @@ app.post('/muhasabah/reminder', async (req: Request, res: Response) => {
 
 - What they struggled with: "${didntDoWell || 'nothing specific mentioned'}"
 ${repairPlan ? `- How they plan to repair it: "${repairPlan}"` : ''}
-- How they want to improve tomorrow: "${doBetter || 'be better'}"
+- Their positive goal for tomorrow: "${doBetter || 'be better'}"
 ${sliderSummary ? `- Day summary: ${sliderSummary}` : ''}
+${customAnswers?.length ? customAnswers.map(a => `- ${a.question}: "${a.answer}"`).join('\n') : ''}
 
 Return ONLY valid JSON — no markdown:
 {
