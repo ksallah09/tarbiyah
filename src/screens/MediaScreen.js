@@ -19,12 +19,45 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+const TYPE_COLORS = {
+  movie:   { bg: '#EEF2FF', text: '#3B5B9E', label: 'Movie' },
+  show:    { bg: '#F0FDF4', text: '#15803D', label: 'Show' },
+  book:    { bg: '#FFF7ED', text: '#C2410C', label: 'Book' },
+  game:    { bg: '#F5F3FF', text: '#7C3AED', label: 'Game' },
+  channel: { bg: '#FFF1F2', text: '#BE123C', label: 'Channel' },
+};
+
+const LIBRARY_PLACEHOLDER = [
+  { id: '1', title: 'Moana', type: 'movie', ageMin: 5, emoji: '\u{1F30A}', tags: ['Adventure', 'Family'], note: 'Great themes around purpose and identity. No romance, strong female lead. Watched with our 6-year-old — loved it.', recommendedBy: 'Mum of a 6-year-old', count: 14, staffPick: true },
+  { id: '2', title: 'Hilda', type: 'show', ageMin: 6, emoji: '\u{1F9DD}', tags: ['Adventure', 'Friendship'], note: 'Gentle, imaginative. Encourages curiosity and kindness. Nothing concerning for younger kids.', recommendedBy: 'Dad of 7 and 9', count: 9, staffPick: true },
+  { id: '3', title: 'The Day the Crayons Quit', type: 'book', ageMin: 4, emoji: '\u{1F58D}', tags: ['Humour', 'Creativity'], note: 'Brilliant for starting conversations about perspective. Our 5-year-old asked to read it every night for a week.', recommendedBy: 'Mum of a 5-year-old', count: 7, staffPick: true },
+  { id: '4', title: 'Minecraft (Creative Mode)', type: 'game', ageMin: 7, emoji: '\u{1F9F1}', tags: ['Creative', 'Building'], note: 'Stick to Creative or Peaceful Survival. No violence, endless imagination. We build Islamic geometry patterns together.', recommendedBy: 'Dad of an 8-year-old', count: 22, staffPick: false },
+  { id: '5', title: 'SciShow Kids', type: 'channel', ageMin: 5, emoji: '\u{1F52C}', tags: ['Education', 'Science'], note: 'Clean, enthusiastic, no adverts within content. Our kids ask real questions after watching. Highly recommend.', recommendedBy: 'Mum of 6 and 9', count: 11, staffPick: false },
+  { id: '6', title: 'Over the Garden Wall', type: 'show', ageMin: 9, emoji: '\u{1F342}', tags: ['Mystery', 'Short series'], note: 'Only 10 episodes. Slightly spooky but no gore. Rich storytelling — great for older kids who love folklore.', recommendedBy: 'Dad of a 10-year-old', count: 6, staffPick: false },
+  { id: '7', title: 'The Phantom Tollbooth', type: 'book', ageMin: 8, emoji: '\u{1F4DA}', tags: ['Classic', 'Adventure'], note: 'One of the most imaginative books ever written. Teaches love of learning in the most magical way.', recommendedBy: 'Mum of an 11-year-old', count: 5, staffPick: false },
+];
+
+const lib = StyleSheet.create({
+  card:             { marginHorizontal: 20, marginBottom: 12, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#F3F4F6' },
+  cardTop:          { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  poster:           { width: 52, height: 72, borderRadius: 10, flexShrink: 0 },
+  posterPlaceholder:{ width: 52, height: 72, borderRadius: 10, backgroundColor: '#F5F6F8', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  cardTitle:        { fontSize: 15, fontWeight: '700', color: '#111827', flex: 1, lineHeight: 20 },
+  cardMeta:         { fontSize: 12, color: '#9CA3AF', marginTop: 3 },
+  verdictBadge:     { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
+  verdictDot:       { width: 6, height: 6, borderRadius: 3 },
+  verdictBadgeText: { fontSize: 11, fontWeight: '700' },
+  dotsRow:          { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  dot:              { width: 8, height: 8, borderRadius: 4 },
+  cardFooter:       { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  cardFooterText:   { fontSize: 11, color: '#9CA3AF' },
+});
+
 const CATEGORIES = [
   { key: 'movie',   label: 'Movie',   icon: 'film-outline' },
   { key: 'show',    label: 'Show',    icon: 'tv-outline' },
   { key: 'book',    label: 'Book',    icon: 'book-outline' },
   { key: 'game',    label: 'Game',    icon: 'game-controller-outline' },
-  { key: 'channel', label: 'Channel', icon: 'people-outline' },
   { key: 'video',   label: 'Video',   icon: 'play-circle-outline' },
 ];
 
@@ -96,7 +129,9 @@ const MOCK_VERDICT = {
 
 // ── Who's Watching Modal ───────────────────────────────────────────────────────
 
-function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
+const WHO_VERB = { movie: "watching", show: "watching", book: "reading", game: "playing", channel: "watching", video: "watching" };
+
+function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss, type }) {
   const slideAnim = useRef(new Animated.Value(300)).current;
   const [selected, setSelected] = useState(new Set());
   const [genericAge, setGenericAge] = useState(10);
@@ -139,7 +174,7 @@ function WhoIsWatchingModal({ visible, children, onConfirm, onDismiss }) {
       <TouchableOpacity style={modal.backdrop} onPress={onDismiss} activeOpacity={1} />
       <Animated.View style={[modal.sheet, { transform: [{ translateY: slideAnim }] }]}>
         <View style={modal.handle} />
-        <Text style={modal.title}>Who's watching?</Text>
+        <Text style={modal.title}>Who's {WHO_VERB[type] ?? 'watching'}?</Text>
         <Text style={modal.sub}>We'll tailor the check to their age and stage. Select all that apply.</Text>
 
         {/* Children */}
@@ -232,6 +267,98 @@ const HOW_IT_WORKS = [
   { icon: 'information-circle-outline', text: 'Results are a guide, not a fatwa. Use your own judgement — we flag what to look for so you can decide.' },
 ];
 
+const VERDICT_DOT = {
+  friendly: '#22C55E',
+  caution:  '#F59E0B',
+  avoid:    '#EF4444',
+};
+const VERDICT_LABEL_SHORT = {
+  friendly: 'Friendly',
+  caution:  'Caution',
+  avoid:    'Avoid',
+};
+const VERDICT_LABEL_BG = {
+  friendly: '#F0FDF4',
+  caution:  '#FFFBEB',
+  avoid:    '#FEF2F2',
+};
+const VERDICT_LABEL_TEXT = {
+  friendly: '#166534',
+  caution:  '#92400E',
+  avoid:    '#991B1B',
+};
+const CONCERN_COLOR = { mild: '#F59E0B', moderate: '#F97316', severe: '#EF4444' };
+const CAT_ICON = { movie: 'film-outline', show: 'tv-outline', book: 'book-outline', game: 'game-controller-outline', channel: 'people-outline', video: 'play-circle-outline' };
+
+const CONTENT_AREA_SHORT = {
+  sex_nudity:   'Sex & Nudity',
+  violence:     'Violence',
+  profanity:    'Language',
+  substances:   'Substances',
+  frightening:  'Frightening',
+  faith_values: 'Faith & Values',
+};
+
+function LibraryCard({ item, onPress }) {
+  const typeMeta = TYPE_COLORS[item.type] ?? TYPE_COLORS.movie;
+  const concerns = CONTENT_AREA_LABELS
+    .map(({ key }) => ({ key, label: CONTENT_AREA_SHORT[key], severity: item.content_areas?.[key] }))
+    .filter(({ severity }) => severity && severity !== 'none');
+  const isLimited = !!(item.flags ?? []).find(f =>
+    (typeof f === 'string' ? f : f?.title ?? '').includes('No content information found')
+  );
+
+  return (
+    <TouchableOpacity style={lib.card} activeOpacity={0.85} onPress={onPress}>
+      <View style={lib.cardTop}>
+        {item.poster ? (
+          <Image source={{ uri: item.poster }} style={lib.poster} contentFit="cover" />
+        ) : (
+          <View style={lib.posterPlaceholder}>
+            <Ionicons name={CAT_ICON[item.type] ?? 'film-outline'} size={22} color="#9CA3AF" />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={lib.cardTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={lib.cardMeta}>
+            {[item.year, typeMeta.label].filter(Boolean).join(' · ')}
+          </Text>
+          {item.age_range ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+              <Ionicons name="person-outline" size={10} color="#9CA3AF" />
+              <Text style={{ fontSize: 11, color: '#9CA3AF' }}>{item.age_range}</Text>
+            </View>
+          ) : null}
+
+          {concerns.length > 0 ? (
+            <View style={{ marginTop: 8, gap: 4 }}>
+              {concerns.map(({ key, label, severity }) => (
+                <View key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: SEVERITY_COLOR[severity] ?? '#9CA3AF' }} />
+                  <Text style={{ fontSize: 11, color: '#374151', flex: 1 }}>{label}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: SEVERITY_COLOR[severity] ?? '#9CA3AF', textTransform: 'capitalize' }}>{severity}</Text>
+                </View>
+              ))}
+            </View>
+          ) : isLimited ? (
+            <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 8, fontStyle: 'italic' }}>Limited information available</Text>
+          ) : (
+            <Text style={{ fontSize: 11, color: '#22C55E', marginTop: 8, fontWeight: '600' }}>No major concerns</Text>
+          )}
+        </View>
+        <Ionicons name="chevron-forward" size={16} color="#D1D5DB" style={{ marginTop: 4 }} />
+      </View>
+
+      {item.check_count > 1 && (
+        <View style={lib.cardFooter}>
+          <Ionicons name="people-outline" size={12} color="#9CA3AF" />
+          <Text style={lib.cardFooterText}>{item.check_count} families checked this</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 function HowItWorksModal({ visible, onDismiss }) {
   const slideAnim = useRef(new Animated.Value(400)).current;
 
@@ -314,23 +441,20 @@ function VerdictCard({ result, watchersLabel, onClose, onApprove, approveStatus 
         </TouchableOpacity>
       </View>
 
-      {/* Content areas */}
-      {result.content_areas && (
-        <>
-          <Text style={verdict.sectionLabel}>CONTENT RATING</Text>
-          {isNoData ? (
+      {/* Content areas — only shown when there are real concerns */}
+      {(() => {
+        if (!result.content_areas || isNoData) return null;
+        const concernRows = CONTENT_AREA_LABELS.filter(({ key }) => {
+          const s = result.content_areas[key];
+          return s && s !== 'none';
+        });
+        if (concernRows.length === 0) return null;
+        return (
+          <>
+            <Text style={verdict.sectionLabel}>CONTENT RATING</Text>
             <View style={verdict.contentCard}>
-              <View style={verdict.contentRow}>
-                <View style={[verdict.severityBar, { backgroundColor: '#9CA3AF' }]} />
-                <Text style={[verdict.contentLabel, { color: '#6B7280' }]}>Content ratings unavailable</Text>
-                <Text style={[verdict.severityText, { color: '#9CA3AF' }]}>No data</Text>
-              </View>
-            </View>
-          ) : (
-            <View style={verdict.contentCard}>
-              {CONTENT_AREA_LABELS.map(({ key, label }, i) => {
+              {concernRows.map(({ key, label }, i) => {
                 const severity = result.content_areas[key];
-                if (!severity) return null;
                 const color = SEVERITY_COLOR[severity] ?? '#9CA3AF';
                 return (
                   <React.Fragment key={key}>
@@ -344,9 +468,9 @@ function VerdictCard({ result, watchersLabel, onClose, onApprove, approveStatus 
                 );
               })}
             </View>
-          )}
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* What to know */}
       {result.flags?.length > 0 && (
@@ -359,7 +483,7 @@ function VerdictCard({ result, watchersLabel, onClose, onApprove, approveStatus 
                 description = description
                   .replace(/\s*This indicates an absence of reported content issues from these platforms\.?/i, '')
                   .trim()
-                  + ' This does not confirm the content is appropriate — it may simply be under-reviewed online. Check a dedicated parental guide before sharing it with your children.';
+                  + ' This does not confirm the content is appropriate — it may simply be under-reviewed online. Use your own judgement before sharing it with your children.';
               }
               return (
                 <React.Fragment key={i}>
@@ -420,6 +544,10 @@ function VerdictCard({ result, watchersLabel, onClose, onApprove, approveStatus 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function MediaScreen({ navigation }) {
+  const [mediaTab, setMediaTab]       = useState('check');
+  const [libraryItems, setLibraryItems] = useState([]);
+  const [libraryFilter, setLibraryFilter] = useState('all');
+  const [libraryLoading, setLibraryLoading] = useState(false);
   const [query, setQuery]             = useState('');
   const [category, setCategory]       = useState('movie');
   const [children, setChildren]       = useState([]);
@@ -449,7 +577,25 @@ useFocusEffect(useCallback(() => {
     getAllChildProfiles().then(setChildren);
     fetchTrending();
     fetchApproved();
+    fetchLibrary();
   }, []));
+
+  async function fetchLibrary() {
+    setLibraryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('media_library')
+        .select('id, title, year, type, poster, verdict, content_areas, flags, summary, age_range, check_count')
+        .neq('type', 'channel')
+        .order('check_count', { ascending: false })
+        .limit(100);
+      if (!error && data) setLibraryItems(data);
+    } catch { /* silent */ } finally {
+      setLibraryLoading(false);
+    }
+  }
+
+
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', nextState => {
@@ -471,7 +617,7 @@ useFocusEffect(useCallback(() => {
       const { data, error } = await supabase.rpc('trending_media_checks', { since: sevenDaysAgo });
       if (error) { console.warn('trending RPC error:', error.message); return; }
       if (!data?.length) { setTrending([]); return; }
-      const top = data.slice(0, 7);
+      const top = data.filter(t => (t.check_count ?? t.count ?? 0) >= 2).slice(0, 5);
       // Enrich with poster from media_cache
       const titles = top.map(t => t.title);
       const { data: cached } = await supabase
@@ -535,6 +681,39 @@ useFocusEffect(useCallback(() => {
     } catch (e) {
       console.warn('logCheck exception:', e?.message);
     }
+  }
+
+  async function upsertLibrary(result, { refresh = true } = {}) {
+    if (!result.content_areas) { console.log('[upsert] skip — no content_areas:', result.title); return; }
+    const hasConcerns = CONTENT_AREA_LABELS.some(({ key }) => {
+      const s = result.content_areas[key];
+      return s && s !== 'none';
+    });
+    const isNoData = !!result.flags?.find(f => {
+      const t = typeof f === 'string' ? '' : (f.title ?? '');
+      return t === 'No content information found';
+    });
+    if (!hasConcerns && isNoData) { console.log('[upsert] skip — no concerns + no data:', result.title); return; }
+    console.log('[upsert] upserting:', result.title, result.type);
+    try {
+      const { error: upsertErr } = await supabase.from('media_library').upsert({
+        title:         result.title,
+        year:          result.year ?? null,
+        type:          result.type,
+        poster:        result.poster ?? null,
+        verdict:       result.verdict ?? null,
+        content_areas: result.content_areas,
+        flags:         result.flags ?? [],
+        summary:       result.summary ?? null,
+        age_range:     result.age_range ?? null,
+        updated_at:    new Date().toISOString(),
+      }, {
+        onConflict: 'title,type',
+        ignoreDuplicates: false,
+      });
+      console.log('[upsert] result:', result.title, upsertErr?.message ?? 'ok');
+      if (refresh) fetchLibrary();
+    } catch (e) { console.log('[upsert] exception:', result.title, e?.message); }
   }
 
   async function handleApprove() {
@@ -661,12 +840,16 @@ useFocusEffect(useCallback(() => {
         flags:         data.flags ?? [],
         summary:       data.summary,
         ageNote:       data.age_note,
+        age_range:     data.age_range ?? null,
       };
       setActiveVerdict(result);
       setResults([]);
       setQuery('');
       setSearching(false);
-      if (!data.limited_data) logCheck(result.title, result.year, result.type);
+      if (!data.limited_data) {
+        logCheck(result.title, result.year, result.type);
+        upsertLibrary(result);
+      }
     } catch (err) {
       if (appStateRef.current !== 'active') {
         // App went to background — save args so AppState listener can retry
@@ -721,7 +904,85 @@ useFocusEffect(useCallback(() => {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar style="dark" />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+
+      {/* ── Tab toggle ── */}
+      <View style={{ flexDirection: 'row', marginHorizontal: 20, marginVertical: 10, backgroundColor: '#F3F4F6', borderRadius: 12, padding: 3, gap: 3 }}>
+        <TouchableOpacity
+          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10, backgroundColor: mediaTab === 'check' ? '#1B3D2F' : 'transparent' }}
+          onPress={() => setMediaTab('check')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="search-outline" size={14} color={mediaTab === 'check' ? '#FFFFFF' : '#6B7280'} />
+          <Text style={{ fontSize: 13, fontWeight: '600', color: mediaTab === 'check' ? '#FFFFFF' : '#6B7280' }}>Media Check</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10, backgroundColor: mediaTab === 'library' ? '#1B3D2F' : 'transparent' }}
+          onPress={() => setMediaTab('library')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="library-outline" size={14} color={mediaTab === 'library' ? '#FFFFFF' : '#6B7280'} />
+          <Text style={{ fontSize: 13, fontWeight: '600', color: mediaTab === 'library' ? '#FFFFFF' : '#6B7280' }}>Browse</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Library tab ── */}
+      {mediaTab === 'library' && (
+        <ScrollView style={{ flex: 1, backgroundColor: '#F5F6F8' }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          {/* Header */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 6 }}>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: -0.3 }}>Community Checks</Text>
+            <Text style={{ fontSize: 13, color: '#9CA3AF', marginTop: 4, lineHeight: 18, flexShrink: 1 }}>Content reviews from previous media checks in the community</Text>
+          </View>
+
+          {/* Category filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 14, gap: 8 }}>
+            {[{ key: 'all', label: 'All' }, ...CATEGORIES].map(cat => {
+              const active = libraryFilter === cat.key;
+              return (
+                <TouchableOpacity
+                  key={cat.key}
+                  style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: active ? '#1B3D2F' : '#FFFFFF', borderWidth: 1, borderColor: active ? '#1B3D2F' : '#E5E7EB' }}
+                  activeOpacity={0.8}
+                  onPress={() => setLibraryFilter(cat.key)}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: active ? '#FFFFFF' : '#6B7280' }}>{cat.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+
+          {/* Items */}
+          {(() => {
+            const filtered = libraryFilter === 'all'
+              ? libraryItems
+              : libraryItems.filter(i => i.type === libraryFilter);
+            if (libraryLoading) {
+              return (
+                <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                  <ActivityIndicator color="#1B3D2F" />
+                </View>
+              );
+            }
+            if (filtered.length === 0) {
+              return (
+                <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: '#374151' }}>No titles yet</Text>
+                </View>
+              );
+            }
+            return filtered.map(item => (
+              <LibraryCard
+                key={item.id}
+                item={item}
+                onPress={() => navigation.navigate('LibraryDetail', { item })}
+              />
+            ));
+          })()}
+        </ScrollView>
+      )}
+
+      {mediaTab === 'check' && <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
         {/* ── Header ── */}
         <View style={styles.header}>
@@ -729,7 +990,7 @@ useFocusEffect(useCallback(() => {
           {!searching && !activeVerdict && !loading && (
             <View>
               <Text style={styles.headerTitle}>Media Check</Text>
-              <Text style={styles.headerSubtitle}>Check the content of any movie, show, book, game, or YouTube channel.</Text>
+              <Text style={styles.headerSubtitle}>Check the content of any movie, show, book, game, or YouTube video.</Text>
             </View>
           )}
 
@@ -985,6 +1246,7 @@ useFocusEffect(useCallback(() => {
           children={children}
           onConfirm={handleWhoConfirm}
           onDismiss={() => setShowWho(false)}
+          type={category}
         />
 
         <HowItWorksModal
@@ -994,7 +1256,7 @@ useFocusEffect(useCallback(() => {
 
         <MediaTourOverlay />
 
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingView>}
     </SafeAreaView>
   );
 }
@@ -1145,4 +1407,30 @@ const verdict = StyleSheet.create({
   approveBtnTextDone:{ fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   newCheckBtn:       { paddingHorizontal: 18, paddingVertical: 13, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center' },
   newCheckText:      { fontSize: 14, fontWeight: '600', color: '#374151' },
+
+  // Tab toggle
+  tabToggleWrap:         { flexDirection: 'row', marginHorizontal: 20, marginVertical: 10, backgroundColor: '#F3F4F6', borderRadius: 12, padding: 3, gap: 3 },
+  tabToggleBtn:          { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10 },
+  tabToggleBtnActive:    { backgroundColor: '#1B3D2F' },
+  tabToggleText:         { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  tabToggleTextActive:   { color: '#FFFFFF' },
+
+  // Library
+  libHeader:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 },
+  libTitle:          { fontSize: 22, fontWeight: '800', color: '#111827', marginBottom: 2 },
+  libSub:            { fontSize: 12, color: '#6B7280', lineHeight: 17 },
+  libRecommendBtn:   { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#1B3D2F', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 },
+  libRecommendBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  libFilterRow:      { paddingHorizontal: 20, paddingBottom: 14, gap: 8 },
+  libFilterChip:     { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
+  libFilterChipActive:{ backgroundColor: '#1B3D2F', borderColor: '#1B3D2F' },
+  libFilterText:     { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  libFilterTextActive:{ color: '#FFFFFF' },
+  libStatsRow:       { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 20, backgroundColor: '#FFFFFF', borderRadius: 14, paddingVertical: 14 },
+  libStat:           { flex: 1, alignItems: 'center' },
+  libStatNum:        { fontSize: 20, fontWeight: '800', color: '#1B3D2F' },
+  libStatLabel:      { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  libStatDivider:    { width: 1, height: 32, backgroundColor: '#F3F4F6' },
+  libSection:        { paddingHorizontal: 20, paddingBottom: 10 },
+  libSectionLabel:   { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1.2 },
 });

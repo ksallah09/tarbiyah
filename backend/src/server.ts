@@ -4131,6 +4131,48 @@ Rules:
   }
 });
 
+// ─── POST /muhasabah/reminder ─────────────────────────────────────────────────
+
+app.post('/muhasabah/reminder', async (req: Request, res: Response) => {
+  try {
+    const { childName, childAge, didntDoWell, repairPlan, doBetter, sliderSummary } = req.body as {
+      childName?: string; childAge?: number; didntDoWell?: string;
+      repairPlan?: string; doBetter?: string; sliderSummary?: string;
+    };
+
+    const name = childName?.trim() || 'the child';
+
+    const systemPrompt = `You generate warm, age-appropriate Islamic reminders for children doing nightly muhasabah (self-reflection). Only cite authentic hadith (Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah) or Quran. Keep language simple, loving and encouraging.`;
+
+    const userPrompt = `Generate an Islamic reminder for ${name}${childAge ? `, age ${childAge}` : ''}, who reflected on their day:
+
+- What they struggled with: "${didntDoWell || 'nothing specific mentioned'}"
+${repairPlan ? `- How they plan to repair it: "${repairPlan}"` : ''}
+- How they want to improve tomorrow: "${doBetter || 'be better'}"
+${sliderSummary ? `- Day summary: ${sliderSummary}` : ''}
+
+Return ONLY valid JSON — no markdown:
+{
+  "ayah_or_hadith": "The exact text of a relevant Quranic verse or authentic hadith (1-2 sentences)",
+  "source": "Exact reference e.g. Quran 2:286 or Sahih Bukhari 6412",
+  "dua": "A short relevant dua in English transliteration followed by its meaning in brackets",
+  "encouragement": "2-3 warm sentences addressed directly to ${name}. Celebrate their honesty and effort. Reference their specific goal for tomorrow. End with a short blessing."
+}
+
+The ayah or hadith must directly relate to their challenge or tomorrow's goal. Do NOT make suitability judgements.`;
+
+    const model = getJsonModel(MODEL_FAST, systemPrompt);
+    const raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    const cleaned = raw.trim().startsWith('```') ? raw.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '') : raw.trim();
+    const parsed = JSON.parse(cleaned);
+
+    return res.json(parsed);
+  } catch (err) {
+    console.error('POST /muhasabah/reminder error:', err);
+    return res.status(500).json({ error: 'Could not generate reminder. Please try again.' });
+  }
+});
+
 // ─── GET /health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', sources: CHAT_SOURCE_IDS }));

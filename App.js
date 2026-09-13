@@ -75,6 +75,15 @@ import GameSplashScreen from './src/screens/GameSplashScreen';
 import ConversationCardsScreen from './src/screens/ConversationCardsScreen';
 import { HeadsUpSetup, HeadsUpGameScreen, HeadsUpPlaying } from './src/screens/games/HeadsUpGameScreen';
 import { QuranCompletionGameScreen, QuranPlaying } from './src/screens/games/QuranCompletionGameScreen';
+import CommunityScreen           from './src/screens/CommunityScreen';
+import CommunityCircleScreen     from './src/screens/CommunityCircleScreen';
+import CommunityPostScreen       from './src/screens/CommunityPostScreen';
+import CommunityCreatePostScreen from './src/screens/CommunityCreatePostScreen';
+import CommunityCirclesScreen    from './src/screens/CommunityCirclesScreen';
+import LibraryDetailScreen       from './src/screens/LibraryDetailScreen';
+import MuhasabahWizardScreen     from './src/screens/MuhasabahWizardScreen';
+import MuhasabahSealScreen       from './src/screens/MuhasabahSealScreen';
+import { setAuthUserId }         from './src/utils/authState';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
 const WORLD_CACHE_TTL          = 7    * 24 * 60 * 60 * 1000;
@@ -240,11 +249,12 @@ const RootStack  = createNativeStackNavigator();
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
 const TAB_CONFIG = {
-  Home:   { filled: 'home',         outline: 'home-outline' },
-  Family: { filled: 'people',       outline: 'people-outline' },
-  Media:  { filled: 'film',         outline: 'film-outline' },
-  Alerts: { filled: 'shield',       outline: 'shield-outline' },
-  Learn:  { filled: 'layers',       outline: 'layers-outline' },
+  Home:      { filled: 'home',            outline: 'home-outline' },
+  Family:    { filled: 'people',          outline: 'people-outline' },
+  Alerts:    { filled: 'shield',          outline: 'shield-outline' },
+  Media:     { filled: 'film',            outline: 'film-outline' },
+  Learn:     { filled: 'layers',          outline: 'layers-outline' },
+  Community: { filled: 'chatbubbles',     outline: 'chatbubbles-outline' },
 };
 
 function CustomTabBar({ state, navigation }) {
@@ -306,11 +316,13 @@ function Tabs() {
       })}
       lazy={false}
     >
-      <Tab.Screen name="Home"   component={HomeScreen} />
-      <Tab.Screen name="Family" component={ProgressScreen} />
-      <Tab.Screen name="Alerts" component={AlertsScreen} />
-      <Tab.Screen name="Media"  component={MediaScreen} />
-      <Tab.Screen name="Learn"  component={LearnScreen} />
+      <Tab.Screen name="Home"      component={HomeScreen} />
+      <Tab.Screen name="Family"    component={ProgressScreen} />
+      <Tab.Screen name="Alerts"    component={AlertsScreen} />
+      <Tab.Screen name="Media"     component={MediaScreen} />
+      <Tab.Screen name="Learn"     component={LearnScreen} />
+      {/* Community tab hidden — rolling out after user growth */}
+      {/* <Tab.Screen name="Community" component={CommunityScreen} /> */}
     </Tab.Navigator>
   );
 }
@@ -455,6 +467,41 @@ function MainApp() {
         name="QuranPlaying"
         component={QuranPlaying}
         options={{ animation: 'none', gestureEnabled: false, cardStyle: { backgroundColor: '#1B2A20' } }}
+      />
+      <Stack.Screen
+        name="CommunityCircle"
+        component={CommunityCircleScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="CommunityPost"
+        component={CommunityPostScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="CommunityCreatePost"
+        component={CommunityCreatePostScreen}
+        options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+      />
+      <Stack.Screen
+        name="CommunityCircles"
+        component={CommunityCirclesScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="LibraryDetail"
+        component={LibraryDetailScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="MuhasabahWizard"
+        component={MuhasabahWizardScreen}
+        options={{ headerShown: false, animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="MuhasabahSeal"
+        component={MuhasabahSealScreen}
+        options={{ headerShown: false, animation: 'fade' }}
       />
     </Stack.Navigator>
   );
@@ -755,6 +802,7 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setAuthUserId(session?.user?.id);
       if (event === 'SIGNED_OUT') {
         // Clear per-device caches so a new account gets fresh content
         AsyncStorage.multiRemove([

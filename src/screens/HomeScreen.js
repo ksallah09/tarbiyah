@@ -222,6 +222,74 @@ async function getProfileName() {
   return null;
 }
 
+// ── Muhasabah card with live stats ────────────────────────────────────────────
+
+function MuhasabahCard({ navigation }) {
+  const [stats, setStats] = React.useState(null);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const today     = new Date().toISOString().slice(0, 10);
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const { data } = await supabase
+          .from('muhasabah_sessions')
+          .select('points_earned, streak_day, session_date, child_name')
+          .eq('user_id', session.user.id)
+          .order('session_date', { ascending: false })
+          .limit(50);
+        if (!data?.length) return;
+        const total   = data.reduce((s, r) => s + (r.points_earned ?? 0), 0);
+        const latest  = data[0];
+        const streak  = (latest.session_date === today || latest.session_date === yesterday) ? latest.streak_day : 0;
+        const sessions = data.length;
+        setStats({ total, streak, sessions, lastChild: latest.child_name });
+      } catch {}
+    })();
+  }, []);
+
+  return (
+    <TouchableOpacity
+      style={[styles.playTogetherCard, { backgroundColor: '#1A1040' }]}
+      onPress={() => navigation.navigate('MuhasabahWizard')}
+      activeOpacity={0.82}
+    >
+      <View style={styles.playTogetherTop}>
+        <View style={[styles.playTogetherIconWrap, { backgroundColor: 'rgba(255,209,102,0.15)' }]}>
+          <Text style={{ fontSize: 24 }}>🌙</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.playTogetherTitle}>Nightly Muhasabah</Text>
+          <Text style={styles.playTogetherSub}>Reflect · Grow · Earn hasanat</Text>
+        </View>
+        <View style={[styles.playTogetherBtn, { backgroundColor: '#FFD166' }]}>
+          <Text style={[styles.playTogetherBtnText, { color: '#1A1040' }]}>Begin →</Text>
+        </View>
+      </View>
+      {stats && (
+        <View style={{ flexDirection: 'row', gap: 14, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 13 }}>⭐</Text>
+            <Text style={{ fontSize: 12, color: '#FFD166', fontWeight: '700' }}>{stats.total} hasanat</Text>
+          </View>
+          {stats.streak > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontSize: 13 }}>🔥</Text>
+              <Text style={{ fontSize: 12, color: '#FB923C', fontWeight: '700' }}>{stats.streak} day streak</Text>
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 13 }}>📅</Text>
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{stats.sessions} sessions</Text>
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 export default function HomeScreen({ navigation, route }) {
   const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft, alertUnreadCount, refreshAlertUnreadCount, splashDismissed } = useAuth();
   const insets = useSafeAreaInsets();
@@ -256,8 +324,8 @@ export default function HomeScreen({ navigation, route }) {
   const [goalCompletions,  setGoalCompletions]  = useState([]);
   const [weekCompletions, setWeekCompletions] = useState({});
   const [encouragement, setEncouragement] = useState(null);
-  const [focusChildId, setFocusChildId]           = useState(null);
-  const [focusDropdownOpen, setFocusDropdownOpen] = useState(false);
+  const [focusCarouselIdx,  setFocusCarouselIdx]  = useState(0);
+  const [focusSlideWidth,   setFocusSlideWidth]   = useState(0);
   const [spirMonth,       setSpiritualMonth]  = useState([]);
   const [sciMonth,        setScientificMonth] = useState([]);
   const [quranMonth,      setQuranMonth]      = useState([]);
@@ -265,6 +333,9 @@ export default function HomeScreen({ navigation, route }) {
   const [myHabAct,        setMyHabAct]        = useState({ habits: 0, activities: 0 });
   const [prtHabAct,       setPrtHabAct]       = useState({ habits: 0, activities: 0 });
   const [duaSharing, setDuaSharing] = useState(false);
+  const [homeSuggestions,        setHomeSuggestions]        = useState({});
+  const [homeSuggestionsLoading, setHomeSuggestionsLoading] = useState(new Set());
+  const [showHomeSuggestions,    setShowHomeSuggestions]    = useState(new Set());
   const [challengeFocus, setChallengeF] = useState(0);
   const duaShareCardRef = useRef(null);
   const insightScrollRef  = useRef(null);
@@ -294,7 +365,7 @@ export default function HomeScreen({ navigation, route }) {
     focusInitialisedRef.current = true;
     AsyncStorage.getItem('tarbiyah_focus_default_index').then(val => {
       const counter = parseInt(val ?? '0', 10) || 0;
-      setFocusChildId(eligible[counter % eligible.length].id);
+      setFocusCarouselIdx(counter % eligible.length);
       AsyncStorage.setItem('tarbiyah_focus_default_index', String(counter + 1));
     });
   }, [children, weekCompletions]);
@@ -411,6 +482,38 @@ export default function HomeScreen({ navigation, route }) {
       saveGoalsForDate(fallbackData.date, fallbackData.actionGoals ?? []);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchHomeSuggestions(child) {
+    const cid = child.id;
+    if (homeSuggestions[cid] || homeSuggestionsLoading.has(cid)) return;
+    setHomeSuggestionsLoading(prev => new Set([...prev, cid]));
+    try {
+      const completedAreas = (child.growthAreas ?? []).filter(area => {
+        const daysSince = Math.floor((Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000);
+        return area?.plan?.length && daysSince >= area.plan.length * 7;
+      });
+      const last = completedAreas[completedAreas.length - 1];
+      const res = await fetch(`${API_URL}/suggest-growth-areas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          child: { name: child.name, age: child.age, gender: child.gender, temperaments: child.temperaments ?? [], interests: child.interests ?? [], strengths: child.strengths ?? [] },
+          completedArea: last ? { title: last.title, issue: last.issue, description: last.description } : null,
+          incidents: (child.incidents ?? []).slice(-8).map(i => i.text).filter(Boolean),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const { suggestions } = await res.json();
+      setHomeSuggestions(prev => ({ ...prev, [cid]: suggestions }));
+    } catch {
+      const taken = (child.growthAreas ?? []).map(a => a.title?.toLowerCase());
+      const fallback = ['Emotional regulation', 'Salah consistency', 'Quran memorisation', 'Gratitude practice', 'Kindness & empathy', 'Patience & self-control']
+        .filter(s => !taken.some(t => t?.includes(s.toLowerCase().slice(0, 6)))).slice(0, 3);
+      setHomeSuggestions(prev => ({ ...prev, [cid]: fallback }));
+    } finally {
+      setHomeSuggestionsLoading(prev => { const next = new Set(prev); next.delete(cid); return next; });
     }
   }
 
@@ -837,14 +940,7 @@ export default function HomeScreen({ navigation, route }) {
                     </>
                   );
                 }
-                const activeId = (focusChildId && (focusMap[focusChildId] || planCompleteIds.has(focusChildId)))
-                  ? focusChildId
-                  : (eligible.find(c => focusMap[c.id])?.id ?? eligible[0].id);
-                const isPlanComplete = planCompleteIds.has(activeId);
-                const focus = focusMap[activeId];
-                const activeChild = children.find(c => c.id === activeId);
-                const childColor = isPlanComplete ? (activeChild?.color ?? '#2E7D62') : focus.childColor;
-                const childName  = isPlanComplete ? (activeChild?.name?.split(' ')[0] ?? '') : focus.childName;
+                const safeIdx = Math.min(focusCarouselIdx, eligible.length - 1);
                 return (
                   <>
                     <View style={styles.fbDivider} />
@@ -855,112 +951,195 @@ export default function HomeScreen({ navigation, route }) {
                           <Text style={styles.sectionEyebrow}>DAILY</Text>
                           <Text style={styles.sectionTitle}>Habit of the Day</Text>
                         </View>
-                        {eligible.length > 1 ? (
-                          <TouchableOpacity
-                            style={[styles.focusChildSelector, { backgroundColor: childColor + '18' }]}
-                            onPress={() => setFocusDropdownOpen(o => !o)}
-                            activeOpacity={0.7}
+                        {(() => {
+                          const hChild = eligible[safeIdx];
+                          if (!hChild) return null;
+                          const hColor = planCompleteIds.has(hChild.id) ? (hChild.color ?? '#2E7D62') : (focusMap[hChild.id]?.childColor ?? '#2E7D62');
+                          const hName  = hChild.name.split(' ')[0];
+                          return (
+                            <View style={styles.focusSlideChildRow}>
+                              <View style={[styles.focusSlideAvatar, { backgroundColor: hColor }]}>
+                                {hChild.photo
+                                  ? <Image source={{ uri: hChild.photo }} style={styles.focusSlideAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
+                                  : <Text style={styles.focusSlideAvatarInitial}>{hName[0]}</Text>
+                                }
+                              </View>
+                              <View>
+                                <Text style={[styles.focusSlideChildName, { color: hColor }]} numberOfLines={1} ellipsizeMode="tail">{hName}</Text>
+                                {eligible.length > 1 && (
+                                  <Text style={styles.focusSlideSwipeHint}>Swipe to switch</Text>
+                                )}
+                              </View>
+                            </View>
+                          );
+                        })()}
+                      </View>
+
+                      {/* ── Carousel ── */}
+                      <View
+                        onLayout={e => setFocusSlideWidth(e.nativeEvent.layout.width)}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        {focusSlideWidth > 0 && (
+                          <ScrollView
+                            horizontal
+                            pagingEnabled
+                            showsHorizontalScrollIndicator={false}
+                            scrollEnabled={eligible.length > 1}
+                            onMomentumScrollEnd={e =>
+                              setFocusCarouselIdx(Math.round(e.nativeEvent.contentOffset.x / focusSlideWidth))
+                            }
                           >
-                            <View style={[styles.focusSelectorAvatar, { backgroundColor: childColor }]}>
-                              {activeChild?.photo
-                                ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
-                                : <Text style={styles.focusSelectorAvatarInitial}>{childName[0]}</Text>
-                              }
-                            </View>
-                            <Text style={[styles.focusChildSelectorText, { color: childColor }]}>{childName}</Text>
-                            <Ionicons name={focusDropdownOpen ? 'chevron-up' : 'chevron-down'} size={11} color={childColor} />
-                          </TouchableOpacity>
-                        ) : (
-                          <View style={[styles.focusChildSelector, { backgroundColor: childColor + '18' }]}>
-                            <View style={[styles.focusSelectorAvatar, { backgroundColor: childColor }]}>
-                              {activeChild?.photo
-                                ? <Image source={{ uri: activeChild.photo }} style={styles.focusSelectorAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
-                                : <Text style={styles.focusSelectorAvatarInitial}>{childName[0]}</Text>
-                              }
-                            </View>
-                            <Text style={[styles.focusChildSelectorText, { color: childColor }]}>{childName}</Text>
-                          </View>
+                            {eligible.map(child => {
+                              const slideId = child.id;
+                              const slideIsPlanComplete = planCompleteIds.has(slideId);
+                              const slideFocus = focusMap[slideId];
+                              const slideColor = slideIsPlanComplete ? (child.color ?? '#2E7D62') : slideFocus.childColor;
+                              const slideName = child.name.split(' ')[0];
+                              return (
+                                <View key={slideId} style={{ width: focusSlideWidth }}>
+                                  {/* Body */}
+                                  {slideIsPlanComplete ? (
+                                    <View style={styles.focusCardBody}>
+                                      <View style={styles.planCompleteWrap}>
+                                        <Text style={styles.planCompleteEmoji}>🎉</Text>
+                                        <Text style={styles.planCompleteTitle}>Plan Complete</Text>
+                                        <Text style={styles.planCompleteBody}>
+                                          {slideName} has completed their growth plan. Keep the momentum going.
+                                        </Text>
+                                        {(() => {
+                                          const completedAreas = (child.growthAreas ?? []).filter(area => {
+                                            const daysSince = Math.floor((Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000);
+                                            return area?.plan?.length && daysSince >= area.plan.length * 7;
+                                          });
+                                          const lastCompleted = completedAreas[completedAreas.length - 1];
+                                          return (
+                                            <>
+                                              <TouchableOpacity
+                                                style={[styles.planCompleteBtn, { backgroundColor: slideColor }]}
+                                                onPress={() => lastCompleted
+                                                  ? navigation.navigate('GrowthAreaWizard', { child, isFirstTime: false, prefilledIssue: lastCompleted.issue ?? lastCompleted.title, replaceAreaId: lastCompleted.id })
+                                                  : navigation.navigate('GrowthAreaWizard', { child, isFirstTime: false })
+                                                }
+                                                activeOpacity={0.8}
+                                              >
+                                                <View style={{ alignItems: 'center' }}>
+                                                  <Text style={styles.planCompleteBtnText}>
+                                                    {lastCompleted ? 'Try a new approach' : 'Start a new plan'}
+                                                  </Text>
+                                                  {lastCompleted && (
+                                                    <Text style={styles.planCompleteBtnSub} numberOfLines={1} ellipsizeMode="tail">Build on {lastCompleted.title}</Text>
+                                                  )}
+                                                </View>
+                                              </TouchableOpacity>
+                                              <Text style={styles.planCompleteOrLabel}>or try something new</Text>
+                                              <TouchableOpacity
+                                                style={styles.seeSuggestionsBtn}
+                                                onPress={() => {
+                                                  setShowHomeSuggestions(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(slideId)) { next.delete(slideId); }
+                                                    else { next.add(slideId); fetchHomeSuggestions(child); }
+                                                    return next;
+                                                  });
+                                                }}
+                                                activeOpacity={0.75}
+                                              >
+                                                <Text style={[styles.seeSuggestionsBtnText, { color: slideColor }]}>
+                                                  {showHomeSuggestions.has(slideId) ? 'Hide suggestions' : 'See suggestions'}
+                                                </Text>
+                                                <Ionicons name={showHomeSuggestions.has(slideId) ? 'chevron-up' : 'chevron-down'} size={13} color={slideColor} />
+                                              </TouchableOpacity>
+                                              {showHomeSuggestions.has(slideId) && (
+                                                <View style={styles.suggestListWrap}>
+                                                  {homeSuggestionsLoading.has(slideId) ? (
+                                                    <View style={styles.suggestLoading}>
+                                                      <ActivityIndicator size="small" color={slideColor} />
+                                                      <Text style={styles.suggestLoadingText}>Personalising suggestions…</Text>
+                                                    </View>
+                                                  ) : (homeSuggestions[slideId] ?? []).length > 0 ? (
+                                                    <>
+                                                      {(homeSuggestions[slideId] ?? []).map(s => (
+                                                        <TouchableOpacity
+                                                          key={s}
+                                                          style={styles.suggestChip}
+                                                          onPress={() => navigation.navigate('GrowthAreaWizard', { child, isFirstTime: false, prefilledIssue: s })}
+                                                          activeOpacity={0.8}
+                                                        >
+                                                          <Ionicons name="leaf-outline" size={14} color="#2E7D62" />
+                                                          <Text style={styles.suggestChipText}>{s}</Text>
+                                                          <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+                                                        </TouchableOpacity>
+                                                      ))}
+                                                      <TouchableOpacity
+                                                        style={styles.suggestChip}
+                                                        onPress={() => navigation.navigate('GrowthAreaWizard', { child, isFirstTime: false })}
+                                                        activeOpacity={0.8}
+                                                      >
+                                                        <Ionicons name="add-circle-outline" size={14} color="#2E7D62" />
+                                                        <Text style={styles.suggestChipText}>New custom plan</Text>
+                                                        <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+                                                      </TouchableOpacity>
+                                                    </>
+                                                  ) : null}
+                                                </View>
+                                              )}
+                                            </>
+                                          );
+                                        })()}
+                                      </View>
+                                    </View>
+                                  ) : (
+                                    <View style={styles.focusCardBody}>
+                                      <View style={styles.focusInfoBox}>
+                                        <View style={styles.focusInfoRow}>
+                                          <View style={[styles.focusInfoIcon, { backgroundColor: slideColor + '22' }]}>
+                                            <Text style={{ fontSize: 20 }}>🌱</Text>
+                                          </View>
+                                          <View style={{ flex: 1 }}>
+                                            <Text style={[styles.focusInfoEyebrow, { color: slideColor }]}>TODAY'S HABIT</Text>
+                                            <Text style={styles.focusInfoText}>{slideFocus.text}</Text>
+                                          </View>
+                                        </View>
+                                        {slideFocus.wisdom && (
+                                          <>
+                                            <View style={styles.focusInfoDivider} />
+                                            <View style={styles.focusInfoRow}>
+                                              <View style={[styles.focusInfoIcon, { backgroundColor: 'rgba(0,0,0,0.06)' }]}>
+                                                <Text style={{ fontSize: 20 }}>📖</Text>
+                                              </View>
+                                              <View style={{ flex: 1 }}>
+                                                <Text style={styles.focusInfoEyebrow}>THE WISDOM</Text>
+                                                <Text style={styles.focusInfoText}>{slideFocus.wisdom}</Text>
+                                              </View>
+                                            </View>
+                                          </>
+                                        )}
+                                      </View>
+                                      <TouchableOpacity
+                                        onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'dashboard', childId: slideId } })}
+                                        activeOpacity={0.6}
+                                      >
+                                        <Text style={styles.focusLogLink}>Log it on their dashboard →</Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  )}
+                                </View>
+                              );
+                            })}
+                          </ScrollView>
                         )}
                       </View>
 
-                      {/* ── Dropdown ── */}
-                      {focusDropdownOpen && eligible.length > 1 && (
-                        <View style={styles.focusDropdown}>
-                          {eligible.map(c => {
-                            const isActive = c.id === activeId;
-                            return (
-                              <TouchableOpacity
-                                key={c.id}
-                                style={styles.focusDropdownItem}
-                                onPress={() => { setFocusChildId(c.id); setFocusDropdownOpen(false); }}
-                                activeOpacity={0.7}
-                              >
-                                <View style={[styles.focusDropdownAvatar, { backgroundColor: c.color ?? '#2E7D62' }]}>
-                                  {c.photo
-                                    ? <Image source={{ uri: c.photo }} style={styles.focusDropdownAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
-                                    : <Text style={styles.focusDropdownAvatarInitial}>{c.name[0]}</Text>
-                                  }
-                                </View>
-                                <Text style={[styles.focusDropdownItemText, isActive && styles.focusDropdownItemActive]}>
-                                  {c.name.split(' ')[0]}
-                                </Text>
-                                {isActive && <Ionicons name="checkmark" size={13} color="#2E7D62" style={{ marginLeft: 'auto' }} />}
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      )}
-
-                      {/* ── Body ── */}
-                      {isPlanComplete ? (
-                        <View style={styles.focusCardBody}>
-                          <View style={styles.planCompleteWrap}>
-                            <Text style={styles.planCompleteEmoji}>🎉</Text>
-                            <Text style={styles.planCompleteTitle}>Plan Complete</Text>
-                            <Text style={styles.planCompleteBody}>
-                              {childName} has finished all their current growth plans. Start a new one to keep the momentum going.
-                            </Text>
-                            <TouchableOpacity
-                              style={[styles.planCompleteBtn, { backgroundColor: childColor }]}
-                              onPress={() => navigation.navigate('GrowthAreaWizard', { child: activeChild, isFirstTime: false })}
-                              activeOpacity={0.8}
-                            >
-                              <Text style={styles.planCompleteBtnText}>Start a new plan →</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      ) : (
-                        <View style={styles.focusCardBody}>
-                          <View style={styles.focusHabitRow}>
-                            <View style={[styles.focusHabitIconCircle, { backgroundColor: childColor + '18' }]}>
-                              <Text style={{ fontSize: 22 }}>🌱</Text>
-                            </View>
-                            <Text style={styles.focusHabitText}>{focus.text}</Text>
-                          </View>
-
-                          {focus.wisdom && (() => {
-                            const dot   = focus.wisdom.indexOf('. ');
-                            const title = dot > 0 ? focus.wisdom.slice(0, dot + 1) : focus.wisdom;
-                            const body  = dot > 0 ? focus.wisdom.slice(dot + 2) : '';
-                            return (
-                              <View style={styles.focusWisdom}>
-                                <View style={styles.focusWisdomRow}>
-                                  <Ionicons name="chatbubble-ellipses-outline" size={18} color="#2E7D62" style={{ marginTop: 1, flexShrink: 0 }} />
-                                  <View style={{ flex: 1 }}>
-                                    <Text style={styles.focusWisdomTitle}>{title}</Text>
-                                    {!!body && <Text style={styles.focusWisdomBody}>{body}</Text>}
-                                  </View>
-                                </View>
-                              </View>
-                            );
-                          })()}
-
-                          <TouchableOpacity
-                            onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'dashboard', childId: activeId } })}
-                            activeOpacity={0.6}
-                          >
-                            <Text style={styles.focusLogLink}>Log it on their dashboard →</Text>
-                          </TouchableOpacity>
+                      {/* ── Dots ── */}
+                      {eligible.length > 1 && (
+                        <View style={styles.focusCarouselDots}>
+                          {eligible.map((c, i) => (
+                            <View
+                              key={c.id}
+                              style={[styles.focusCarouselDot, i === safeIdx && { backgroundColor: eligible[safeIdx]?.color ?? '#2E7D62', width: 16 }]}
+                            />
+                          ))}
                         </View>
                       )}
                     </View>
@@ -980,6 +1159,25 @@ export default function HomeScreen({ navigation, route }) {
                   return (snap?.safetyWatch ?? []).map(a => ({ ...a, childName: c.name, childColor: c.color }));
                 }).sort((a, b) => (rank[a.severity] ?? 1) - (rank[b.severity] ?? 1)).slice(0, 3);
 
+                const trendPreviews = (() => {
+                  const snap = children.map(c => worldSnaps[c.id]).find(Boolean);
+                  if (!snap) return [];
+                  const pools = [
+                    { section: snap.onlineWorld,    label: 'Online',  color: '#3B82F6', getTitle: d => d.platform },
+                    { section: snap.humor?.items,   label: 'Humour',  color: '#F59E0B', getTitle: d => d.type     },
+                    { section: snap.schoolCulture,  label: 'School',  color: '#0D9488', getTitle: d => d.trend    },
+                    { section: snap.fashionCulture, label: 'Fashion', color: '#EC4899', getTitle: d => d.trend    },
+                    { section: snap.habits,         label: 'Habits',  color: '#8B5CF6', getTitle: d => d.habit    },
+                  ];
+                  const result = [];
+                  for (const { section, label, color, getTitle } of pools) {
+                    const title = section?.[0] ? getTitle(section[0]) : null;
+                    if (title) result.push({ title, label, color });
+                    if (result.length >= 5) break;
+                  }
+                  return result;
+                })();
+
                 return (
                   <>
                     <View style={styles.fbDivider} />
@@ -989,7 +1187,7 @@ export default function HomeScreen({ navigation, route }) {
                     </View>
 
                     {/* Part 1 — Safety Alerts */}
-                    <View>
+                    <TouchableOpacity onPress={() => navigation.navigate('Alerts')} activeOpacity={0.7}>
                       <View style={styles.ynSubRow}>
                         <Text style={styles.ynSubLabel}>SAFETY ALERTS</Text>
                       </View>
@@ -1004,7 +1202,7 @@ export default function HomeScreen({ navigation, route }) {
                           </View>
                         ))
                       )}
-                    </View>
+                    </TouchableOpacity>
 
                     <TouchableOpacity
                       style={styles.ynAlertsBtn}
@@ -1022,6 +1220,25 @@ export default function HomeScreen({ navigation, route }) {
                     <View style={styles.ynPartDivider} />
 
                     {/* Part 2 — Youth Trends */}
+                    <View style={styles.ynSubRow}>
+                      <Text style={styles.ynSubLabel}>YOUTH TRENDS</Text>
+                    </View>
+                    <TouchableOpacity onPress={hasChildren ? () => setCultureModalOpen(true) : undefined} activeOpacity={hasChildren ? 0.7 : 1}>
+                      {trendPreviews.length === 0 ? (
+                        <Text style={styles.ynEmpty}>No trend data yet</Text>
+                      ) : (
+                        <>
+                          {trendPreviews.map((item, i) => (
+                            <View key={i} style={styles.ynItemRow}>
+                              <View style={[styles.ynDot, { backgroundColor: item.color }]} />
+                              <Text style={styles.ynItemTitle} numberOfLines={1}>{item.title}</Text>
+                              <Text style={styles.ynItemMeta}>{item.label}</Text>
+                            </View>
+                          ))}
+                          <Text style={styles.ynMoreLine}>& more</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
                     {hasChildren ? (
                       <TouchableOpacity
                         style={styles.ynTrendsBtn}
@@ -1030,8 +1247,8 @@ export default function HomeScreen({ navigation, route }) {
                       >
                         <Text style={styles.ynTrendsBtnEmoji}>🌍</Text>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.ynTrendsBtnLabel}>See This Week's Youth Trends</Text>
-                          <Text style={styles.ynTrendsBtnSub}>Connection begins with understanding</Text>
+                          <Text style={styles.ynTrendsBtnLabel}>See More Youth Trends</Text>
+                          <Text style={styles.ynTrendsBtnSub}>Social media, language & culture — personalised by age so you can connect with confidence.</Text>
                         </View>
                         <Ionicons name="arrow-forward" size={16} color="#1B3D2F" />
                       </TouchableOpacity>
@@ -1039,8 +1256,8 @@ export default function HomeScreen({ navigation, route }) {
                       <View style={styles.ynTrendsBtn}>
                         <Text style={styles.ynTrendsBtnEmoji}>🌍</Text>
                         <View style={{ flex: 1, gap: 6 }}>
-                          <Text style={styles.ynTrendsBtnLabel}>This Week's Youth Trends</Text>
-                          <Text style={styles.ynTrendsBtnSub}>Add a child to see the trends shaping their world — personalised by age.</Text>
+                          <Text style={styles.ynTrendsBtnLabel}>See More Youth Trends</Text>
+                          <Text style={styles.ynTrendsBtnSub}>Add a child to unlock age-personalised insights on social media, language, and culture.</Text>
                           <TouchableOpacity
                             style={[styles.habitCtaBtn, { alignSelf: 'flex-start', marginTop: 4 }]}
                             onPress={() => navigation.navigate('AddChildWizard')}
@@ -1219,29 +1436,61 @@ export default function HomeScreen({ navigation, route }) {
               <View style={styles.fbDivider} />
               <View style={styles.sectionTitleWrap}>
                 <Text style={styles.sectionEyebrow}>FAMILY</Text>
-                <Text style={styles.sectionTitle}>Play Together</Text>
+                <Text style={styles.sectionTitle}>Activities</Text>
               </View>
-              <TouchableOpacity
-                style={styles.playTogetherCard}
-                onPress={() => navigation.navigate('GamesHub')}
-                activeOpacity={0.82}
-              >
-                <View style={styles.playTogetherTop}>
-                  <View style={styles.playTogetherIconWrap}>
-                    <Ionicons name="dice-outline" size={26} color="#FFFFFF" />
+              <View style={{ gap: 10 }}>
+                {/* Muhasabah — first */}
+                <MuhasabahCard navigation={navigation} />
+
+                {/* Family Games */}
+                <TouchableOpacity
+                  style={styles.playTogetherCard}
+                  onPress={() => navigation.navigate('GamesHub')}
+                  activeOpacity={0.82}
+                >
+                  <View style={styles.playTogetherTop}>
+                    <View style={styles.playTogetherIconWrap}>
+                      <Ionicons name="dice-outline" size={26} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.playTogetherTitle}>Family Games</Text>
+                      <Text style={styles.playTogetherSub}>Heads Up · Qur'an Completion</Text>
+                    </View>
+                    <View style={styles.playTogetherBtn}>
+                      <Text style={styles.playTogetherBtnText}>Play →</Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.playTogetherTitle}>Family Games</Text>
-                    <Text style={styles.playTogetherSub}>Heads Up · Qur'an Completion</Text>
+                </TouchableOpacity>
+
+                {/* Conversation Cards */}
+                <TouchableOpacity
+                  style={[styles.playTogetherCard, { backgroundColor: '#2D4F3C' }]}
+                  onPress={() => navigation.navigate('ConversationCards')}
+                  activeOpacity={0.82}
+                >
+                  <View style={styles.playTogetherTop}>
+                    <View style={styles.playTogetherIconWrap}>
+                      <Ionicons name="chatbubbles-outline" size={26} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.playTogetherTitle}>Conversation Cards</Text>
+                      <Text style={styles.playTogetherSub}>Talk · Connect · Reflect</Text>
+                    </View>
+                    <View style={styles.playTogetherBtn}>
+                      <Text style={styles.playTogetherBtnText}>Open →</Text>
+                    </View>
                   </View>
-                  <View style={styles.playTogetherBtn}>
-                    <Text style={styles.playTogetherBtnText}>Play →</Text>
-                  </View>
-                </View>
-                <Text style={styles.playTogetherBody}>
-                  Families who play together build stronger bonds. The Prophet ﷺ played with his grandchildren — laughter and learning belong together.
-                </Text>
-              </TouchableOpacity>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, paddingBottom: 18 }}
+                  onPress={() => navigation.navigate('Family', { tab: 'activities' })}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#2D6A4F' }}>More Activities</Text>
+                  <Ionicons name="chevron-forward" size={13} color="#2D6A4F" />
+                </TouchableOpacity>
+              </View>
 
               {/* MONTHLY LEADERBOARD — only when partner sync is on */}
               {partnerSyncOn && (() => {
@@ -1835,20 +2084,25 @@ const styles = StyleSheet.create({
   ynItemMeta:  { fontSize: 11, fontWeight: '600', color: '#9CA3AF' },
   ynPartDivider: { height: 1, backgroundColor: '#F3F4F6', marginHorizontal: -hp },
   ynEmpty:     { fontSize: 12, color: '#9CA3AF', paddingBottom: 4 },
+  ynMoreLine:  { fontSize: 12, color: '#9CA3AF', fontStyle: 'italic', paddingVertical: 6, paddingLeft: 18 },
   ynAlertsBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 14, marginHorizontal: -hp, paddingHorizontal: hp,
+    paddingVertical: 14, paddingHorizontal: 16,
     backgroundColor: '#FFFBEB',
-    borderBottomWidth: 1, borderBottomColor: '#FDE68A',
+    borderRadius: 14,
+    borderWidth: 1, borderColor: '#FDE68A',
+    marginTop: 10, marginBottom: 10,
   },
   ynAlertsBtnEmoji: { fontSize: 18 },
   ynAlertsBtnLabel: { fontSize: 14, fontWeight: '700', color: '#92400E' },
   ynAlertsBtnSub:   { fontSize: 12, color: '#78716C', marginTop: 2 },
   ynTrendsBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 14, marginHorizontal: -hp, paddingHorizontal: hp,
+    paddingVertical: 14, paddingHorizontal: 16,
     backgroundColor: '#F0F7F4',
-    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+    borderRadius: 14,
+    borderWidth: 1, borderColor: '#BBF7D0',
+    marginBottom: 10,
   },
   ynTrendsBtnEmoji: { fontSize: 18 },
   ynTrendsBtnLabel: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
@@ -1919,51 +2173,49 @@ const styles = StyleSheet.create({
   planCompleteEmoji: { fontSize: 32, marginBottom: 8 },
   planCompleteTitle: { fontSize: 17, fontWeight: '800', color: '#1A1A2E', marginBottom: 6 },
   planCompleteBody:  { fontSize: 13, color: '#6B7280', lineHeight: 20, textAlign: 'center', marginBottom: 18 },
-  planCompleteBtn:   { borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 },
+  planCompleteBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 },
   planCompleteBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  planCompleteBtnSub:  { fontSize: 11, fontWeight: '500', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  planCompleteOrLabel: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 14, marginBottom: 4 },
+  seeSuggestionsBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, paddingVertical: 4 },
+  seeSuggestionsBtnText: { fontSize: 13, fontWeight: '600' },
+  suggestListWrap:  { alignSelf: 'stretch', marginTop: 12, gap: 8 },
+  suggestLoading:   { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', paddingVertical: 8 },
+  suggestLoadingText: { fontSize: 12, color: '#9CA3AF' },
+  suggestChip:      { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F0F9F5', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  suggestChipText:  { flex: 1, fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
   focusCardHeader: {
     flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
     paddingHorizontal: hp, paddingTop: 20, paddingBottom: 14,
     backgroundColor: '#FFFFFF',
   },
   focusCardBody: { paddingHorizontal: hp, paddingTop: 20, paddingBottom: 20 },
-  focusHabitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 16 },
-  focusHabitIconCircle: {
-    width: 48, height: 48, borderRadius: 24,
+  focusInfoBox: {
+    marginBottom: 14,
+  },
+  focusInfoRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+  },
+  focusInfoIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#D6EEE5',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
+  focusInfoEyebrow: {
+    fontSize: 10, fontWeight: '700', color: '#2E7D62',
+    letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6,
+  },
+  focusInfoText:    { fontSize: 14, color: '#1B3D2F', lineHeight: 21 },
+  focusInfoDivider: { height: 1, backgroundColor: 'rgba(0,0,0,0.07)', marginVertical: 14 },
   focusEyebrow: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginLeft: 'auto' },
-  focusChildSelector: {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    borderRadius: 100,
-    paddingHorizontal: 10, paddingVertical: 5,
-  },
-  focusChildSelectorText: { fontSize: 13, fontWeight: '700', color: '#111827' },
-  focusSelectorAvatar: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  focusSelectorAvatarImg:     { width: 24, height: 24, borderRadius: 12 },
-  focusSelectorAvatarInitial: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  focusSwitchHint: { fontSize: 10, color: '#9CA3AF', marginTop: 5, paddingLeft: 4 },
-  focusDropdown: {
-    backgroundColor: '#F8FAF9', borderBottomLeftRadius: 16, borderBottomRightRadius: 16,
-    borderTopWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden',
-  },
-  focusDropdownItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 11, paddingHorizontal: 16,
-  },
-  focusDropdownAvatar: {
-    width: 28, height: 28, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  focusDropdownAvatarImg:     { width: 28, height: 28, borderRadius: 14 },
-  focusDropdownAvatarInitial: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
-  focusDropdownItemText:   { fontSize: 13, fontWeight: '500', color: '#6B7280' },
-  focusDropdownItemActive: { color: '#1A1A2E', fontWeight: '700' },
-  focusHabitText: { flex: 1, fontSize: 14, fontWeight: '500', color: '#1B3D2F', lineHeight: 21 },
+  focusSlideChildRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  focusSlideAvatar:      { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
+  focusSlideAvatarImg:   { width: 34, height: 34, borderRadius: 17 },
+  focusSlideAvatarInitial: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  focusSlideChildName:   { fontSize: 14, fontWeight: '700', maxWidth: 90 },
+  focusSlideSwipeHint:   { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
+  focusCarouselDots:     { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, paddingTop: 4, paddingBottom: 16 },
+  focusCarouselDot:      { width: 6, height: 6, borderRadius: 3, backgroundColor: '#E5E7EB' },
   focusMosqueHeader: {
     height: 90, paddingHorizontal: hp, paddingVertical: 16,
     justifyContent: 'center', overflow: 'hidden',
@@ -1991,13 +2243,6 @@ const styles = StyleSheet.create({
   focusMosqueSelectorInitial:   { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   focusMosqueSelectorText:      { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 
-  focusWisdom: {
-    backgroundColor: '#EDF7F2', borderRadius: 14, padding: 16, marginBottom: 16,
-  },
-  focusWisdomRow:  { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  focusWisdomTitle: { fontSize: 14, fontWeight: '700', color: '#1B3D2F', lineHeight: 20, marginBottom: 4 },
-  focusWisdomBody:  { fontSize: 13, color: '#374151', lineHeight: 20 },
-  focusWisdomText:  {},
   focusLogLink: { fontSize: 12, fontWeight: '600', color: '#2E7D62', textAlign: 'right' },
   sectionTitleWrap: {
     marginTop: 0,
@@ -2038,7 +2283,7 @@ const styles = StyleSheet.create({
   playTogetherSub:     { fontSize: 12, color: 'rgba(255,255,255,0.55)' },
   playTogetherBtn:     { backgroundColor: '#D4A843', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   playTogetherBtnText: { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
-  playTogetherBody:    { fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 12 },
+  playTogetherBody:    { fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 12, flexShrink: 1 },
 
   // ── Insight cards ──
   devRefreshBtn: {
