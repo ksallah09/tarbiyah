@@ -83,6 +83,7 @@ import CommunityCirclesScreen    from './src/screens/CommunityCirclesScreen';
 import LibraryDetailScreen       from './src/screens/LibraryDetailScreen';
 import MuhasabahWizardScreen     from './src/screens/MuhasabahWizardScreen';
 import MuhasabahSealScreen       from './src/screens/MuhasabahSealScreen';
+import MuhasabahRewardsScreen    from './src/screens/MuhasabahRewardsScreen';
 import { setAuthUserId }         from './src/utils/authState';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
@@ -502,6 +503,11 @@ function MainApp() {
         name="MuhasabahSeal"
         component={MuhasabahSealScreen}
         options={{ headerShown: false, animation: 'fade' }}
+      />
+      <Stack.Screen
+        name="MuhasabahRewards"
+        component={MuhasabahRewardsScreen}
+        options={{ headerShown: false, animation: 'slide_from_right' }}
       />
     </Stack.Navigator>
   );

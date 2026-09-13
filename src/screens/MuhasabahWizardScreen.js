@@ -120,7 +120,18 @@ function ChildAvatar({ child, size = 64, selected, onPress }) {
 
 // ── Step: Intro / Child selector ───────────────────────────────────────────────
 
-function IntroStep({ children, selectedChild, onSelect, streakDay, onBegin }) {
+function IntroStep({ children, selectedChild, onSelect, streakDay, onBegin, navigation }) {
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  const TUTORIAL_SLIDES = [
+    { emoji: '🌙', title: 'What is Muhasabah?', body: 'Muhasabah means self-accountability — a nightly check-in where your child reflects honestly on their day. It builds self-awareness, responsibility, and a connection to Allah.' },
+    { emoji: '😊', title: 'The Sliders', body: 'Your child rates areas of their day using emoji sliders — from 😔 to 🌟. The goal is honest reflection, not perfect scores. A low rating answered truthfully is worth more than a high one that isn\'t.' },
+    { emoji: '🔧', title: 'Repair & Improve', body: 'If something didn\'t go well, they\'re asked how they can repair it and what they\'ll do better tomorrow. This builds accountability and a growth mindset rooted in Islamic values.' },
+    { emoji: '⭐', title: 'Points & Rewards', body: 'Each session earns points based on honesty, effort, and streaks. As a parent you can set a reward goal — when your child reaches the target, they unlock it. A gentle, halal motivation.' },
+    { emoji: '🤲', title: 'The Reminder', body: 'At the end, a personalised Islamic reminder is generated — a relevant ayah or hadith connected to what your child reflected on, with a short dua and warm encouragement.' },
+  ];
+  const [slide, setSlide] = useState(0);
+
   return (
     <ScrollView contentContainerStyle={styles.stepWrap} showsVerticalScrollIndicator={false}>
       <Text style={styles.moonEmoji}>🌙</Text>
@@ -164,6 +175,70 @@ function IntroStep({ children, selectedChild, onSelect, streakDay, onBegin }) {
         disabled={!selectedChild}
         style={{ marginTop: 24 }}
       />
+
+      {/* Parent utility buttons */}
+      <View style={styles.introActions}>
+        <TouchableOpacity
+          style={styles.introActionBtn}
+          onPress={() => {
+            if (selectedChild) navigation.navigate('MuhasabahRewards', { child: selectedChild });
+            else Alert.alert('Select a child first', 'Choose who you\'re setting rewards for.');
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="trophy-outline" size={15} color={GOLD} />
+          <Text style={styles.introActionText}>
+            {selectedChild ? `${selectedChild.name.split(' ')[0]}'s Rewards` : 'Configure Rewards'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.introActionBtn}
+          onPress={() => { setSlide(0); setShowTutorial(true); }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="information-circle-outline" size={15} color={GOLD} />
+          <Text style={styles.introActionText}>How it works</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Tutorial modal */}
+      {showTutorial && (
+        <View style={styles.tutorialOverlay}>
+          <View style={styles.tutorialCard}>
+            <Text style={styles.tutorialEmoji}>{TUTORIAL_SLIDES[slide].emoji}</Text>
+            <Text style={styles.tutorialTitle}>{TUTORIAL_SLIDES[slide].title}</Text>
+            <Text style={styles.tutorialBody}>{TUTORIAL_SLIDES[slide].body}</Text>
+
+            {/* Dots */}
+            <View style={styles.tutorialDots}>
+              {TUTORIAL_SLIDES.map((_, i) => (
+                <View key={i} style={[styles.tutorialDot, i === slide && styles.tutorialDotActive]} />
+              ))}
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+              {slide > 0 && (
+                <TouchableOpacity style={styles.tutorialBack} onPress={() => setSlide(s => s - 1)}>
+                  <Text style={styles.tutorialBackText}>← Back</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.tutorialNext, { flex: 1 }]}
+                onPress={() => slide < TUTORIAL_SLIDES.length - 1 ? setSlide(s => s + 1) : setShowTutorial(false)}
+              >
+                <Text style={styles.tutorialNextText}>
+                  {slide < TUTORIAL_SLIDES.length - 1 ? 'Next →' : 'Got it ✓'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity onPress={() => setShowTutorial(false)} style={{ marginTop: 14, alignItems: 'center' }}>
+              <Text style={{ fontSize: 12, color: SUBTEXT }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -596,6 +671,7 @@ export default function MuhasabahWizardScreen({ navigation }) {
             onSelect={c => { setSelected(c); loadStreakFor(c.id); }}
             streakDay={streakDay}
             onBegin={goNext}
+            navigation={navigation}
           />
         )}
         {step === 'honesty'    && <HonestyStep />}
@@ -704,6 +780,23 @@ const styles = StyleSheet.create({
 
   encourageCard:      { marginTop: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   encourageText:      { fontSize: 15, color: TEXT, lineHeight: 26 },
+
+  introActions:       { flexDirection: 'row', gap: 10, marginTop: 16 },
+  introActionBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,209,102,0.08)', borderRadius: 14, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,209,102,0.2)' },
+  introActionText:    { fontSize: 12, color: GOLD, fontWeight: '700' },
+
+  tutorialOverlay:    { position: 'absolute', top: 0, left: -24, right: -24, bottom: 0, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 100 },
+  tutorialCard:       { backgroundColor: '#0D1B3E', borderRadius: 24, padding: 28, borderWidth: 1, borderColor: 'rgba(255,209,102,0.25)', width: '100%' },
+  tutorialEmoji:      { fontSize: 48, textAlign: 'center', marginBottom: 12 },
+  tutorialTitle:      { fontSize: 20, fontWeight: '900', color: TEXT, textAlign: 'center', marginBottom: 12 },
+  tutorialBody:       { fontSize: 15, color: SUBTEXT, lineHeight: 24, textAlign: 'center' },
+  tutorialDots:       { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 20 },
+  tutorialDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.2)' },
+  tutorialDotActive:  { backgroundColor: GOLD, width: 16 },
+  tutorialBack:       { borderRadius: 12, paddingVertical: 12, paddingHorizontal: 20, borderWidth: 1, borderColor: BORDER, alignItems: 'center' },
+  tutorialBackText:   { color: SUBTEXT, fontWeight: '700', fontSize: 14 },
+  tutorialNext:       { borderRadius: 12, paddingVertical: 12, backgroundColor: GOLD, alignItems: 'center' },
+  tutorialNextText:   { color: '#0D1B3E', fontWeight: '800', fontSize: 14 },
 
   navRow:           { paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12 },
   tapHint:          { fontSize: 12, color: SUBTEXT, textAlign: 'center', marginTop: 10 },
