@@ -4143,7 +4143,17 @@ app.post('/muhasabah/reminder', async (req: Request, res: Response) => {
 
     const name = childName?.trim() || 'the child';
 
-    const systemPrompt = `You generate warm, age-appropriate Islamic reminders for children doing nightly muhasabah (self-reflection). Only cite authentic hadith (Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah) or Quran. Keep language simple, loving and encouraging.`;
+    const ageNote = childAge
+      ? childAge <= 7
+        ? 'Very simple words, short sentences, warm and playful tone. Avoid abstract concepts.'
+        : childAge <= 10
+        ? 'Simple clear language, gentle and encouraging. Light use of Islamic terms with brief explanations.'
+        : childAge <= 13
+        ? 'Thoughtful and respectful tone. Can use Islamic terms directly. Treat them as capable of reflection.'
+        : 'Speak to them as a young adult. Mature, sincere tone. No childish phrasing. Draw on deeper Islamic wisdom.'
+      : 'Warm and age-appropriate.';
+
+    const systemPrompt = `You generate personalised Islamic reminders for children doing nightly muhasabah (self-reflection). Only cite authentic hadith (Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah) or Quran. Tone guide: ${ageNote}`;
 
     const userPrompt = `Generate an Islamic reminder for ${name}${childAge ? `, age ${childAge}` : ''}, who reflected on their day:
 
