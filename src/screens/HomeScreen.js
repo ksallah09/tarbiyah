@@ -236,7 +236,7 @@ function MuhasabahCard({ navigation }) {
         const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
         const { data } = await supabase
           .from('muhasabah_sessions')
-          .select('points_earned, streak_day, session_date, child_name, child_id, child_color, child_photo')
+          .select('points_earned, streak_day, session_date, child_name, child_id')
           .eq('user_id', session.user.id)
           .order('session_date', { ascending: false })
           .limit(200);
@@ -246,15 +246,15 @@ function MuhasabahCard({ navigation }) {
         const byChild = {};
         for (const row of data) {
           const key = row.child_id || row.child_name;
-          if (!byChild[key]) byChild[key] = { id: row.child_id, name: row.child_name, color: row.child_color, photo: row.child_photo, rows: [] };
+          if (!byChild[key]) byChild[key] = { id: row.child_id, name: row.child_name, rows: [] };
           byChild[key].rows.push(row);
         }
-        const result = Object.values(byChild).map(({ id, name, color, photo, rows }) => {
+        const result = Object.values(byChild).map(({ id, name, rows }) => {
           const total   = rows.reduce((s, r) => s + (r.points_earned ?? 0), 0);
           const latest  = rows[0];
           const streak  = (latest.session_date === today || latest.session_date === yesterday) ? latest.streak_day : 0;
           const sessions = rows.length;
-          return { id, name, color, photo, total, streak, sessions };
+          return { id, name, total, streak, sessions };
         });
         setChildStats(result);
       } catch {}
@@ -286,7 +286,7 @@ function MuhasabahCard({ navigation }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: '700' }} numberOfLines={1}>{c.name}</Text>
                 <TouchableOpacity
-                  onPress={() => navigation.navigate('MuhasabahRewards', { child: { id: c.id, name: c.name, color: c.color, photo: c.photo } })}
+                  onPress={() => navigation.getParent()?.navigate('MuhasabahRewards', { child: { id: c.id, name: c.name } })}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
                   <Text style={{ fontSize: 11, color: '#FFD166', fontWeight: '700' }}>View {c.name.split(' ')[0]}'s Rewards →</Text>
