@@ -4157,7 +4157,8 @@ Return ONLY valid JSON — no markdown:
 {
   "ayah_or_hadith": "The exact text of a relevant Quranic verse or authentic hadith (1-2 sentences)",
   "source": "Exact reference e.g. Quran 2:286 or Sahih Bukhari 6412",
-  "dua": "A short relevant dua in English transliteration followed by its meaning in brackets",
+  "dua_arabic": "The dua in Arabic script only",
+  "dua": "The same dua in English transliteration followed by its meaning in brackets",
   "encouragement": "2-3 warm sentences addressed directly to ${name}. First, briefly explain in simple words how the ayah or hadith above connects to what they reflected on tonight — make that link feel personal and meaningful. Then celebrate their honesty and effort. End with a short blessing."
 }
 
