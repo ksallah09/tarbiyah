@@ -225,7 +225,7 @@ async function getProfileName() {
 // ── Muhasabah card with live stats ────────────────────────────────────────────
 
 function MuhasabahCard({ navigation }) {
-  const [stats, setStats] = React.useState(null);
+  const [childStats, setChildStats] = React.useState([]);
 
   React.useEffect(() => {
     (async () => {
@@ -236,16 +236,27 @@ function MuhasabahCard({ navigation }) {
         const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
         const { data } = await supabase
           .from('muhasabah_sessions')
-          .select('points_earned, streak_day, session_date, child_name')
+          .select('points_earned, streak_day, session_date, child_name, child_id')
           .eq('user_id', session.user.id)
           .order('session_date', { ascending: false })
-          .limit(50);
+          .limit(200);
         if (!data?.length) return;
-        const total   = data.reduce((s, r) => s + (r.points_earned ?? 0), 0);
-        const latest  = data[0];
-        const streak  = (latest.session_date === today || latest.session_date === yesterday) ? latest.streak_day : 0;
-        const sessions = data.length;
-        setStats({ total, streak, sessions, lastChild: latest.child_name });
+
+        // Group by child
+        const byChild = {};
+        for (const row of data) {
+          const key = row.child_id || row.child_name;
+          if (!byChild[key]) byChild[key] = { name: row.child_name, rows: [] };
+          byChild[key].rows.push(row);
+        }
+        const result = Object.values(byChild).map(({ name, rows }) => {
+          const total   = rows.reduce((s, r) => s + (r.points_earned ?? 0), 0);
+          const latest  = rows[0];
+          const streak  = (latest.session_date === today || latest.session_date === yesterday) ? latest.streak_day : 0;
+          const sessions = rows.length;
+          return { name, total, streak, sessions };
+        });
+        setChildStats(result);
       } catch {}
     })();
   }, []);
@@ -268,22 +279,29 @@ function MuhasabahCard({ navigation }) {
           <Text style={[styles.playTogetherBtnText, { color: '#1A1040' }]}>Begin →</Text>
         </View>
       </View>
-      {stats && (
-        <View style={{ flexDirection: 'row', gap: 14, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 13 }}>⭐</Text>
-            <Text style={{ fontSize: 12, color: '#FFD166', fontWeight: '700' }}>{stats.total} hasanat</Text>
-          </View>
-          {stats.streak > 0 && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ fontSize: 13 }}>🔥</Text>
-              <Text style={{ fontSize: 12, color: '#FB923C', fontWeight: '700' }}>{stats.streak} day streak</Text>
+      {childStats.length > 0 && (
+        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', gap: 8 }}>
+          {childStats.map((c, i) => (
+            <View key={i} style={{ gap: 4 }}>
+              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: '700' }} numberOfLines={1}>{c.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 12 }}>⭐</Text>
+                  <Text style={{ fontSize: 12, color: '#FFD166', fontWeight: '700' }}>{c.total} hasanat</Text>
+                </View>
+                {c.streak > 0 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={{ fontSize: 12 }}>🔥</Text>
+                    <Text style={{ fontSize: 12, color: '#FB923C', fontWeight: '600' }}>{c.streak} day streak</Text>
+                  </View>
+                )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 12 }}>📅</Text>
+                  <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{c.sessions} {c.sessions === 1 ? 'session' : 'sessions'}</Text>
+                </View>
+              </View>
             </View>
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 13 }}>📅</Text>
-            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{stats.sessions} sessions</Text>
-          </View>
+          ))}
         </View>
       )}
     </TouchableOpacity>

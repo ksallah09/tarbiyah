@@ -359,7 +359,7 @@ function GeneratingStep() {
       <Text style={{ fontSize: 56, marginBottom: 24 }}>🌙</Text>
       <Text style={[styles.stepTitle, { textAlign: 'center' }]}>Getting your reminder...</Text>
       <Text style={[styles.stepSub, { textAlign: 'center', marginBottom: 32 }]}>
-        Finding the perfect ayah or hadith for you
+        Preparing a personalised Islamic reminder based on your reflection tonight
       </Text>
       <ActivityIndicator size="large" color={GOLD} />
       <Text style={[styles.stepSub, { textAlign: 'center', marginTop: 32, fontStyle: 'italic' }]}>
