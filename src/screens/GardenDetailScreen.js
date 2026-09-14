@@ -25,7 +25,7 @@ const STAGE_KEYS = [
 ];
 
 export default function GardenDetailScreen({ route, navigation }) {
-  const { tree } = route.params;
+  const { tree, autoOpenLog = false } = route.params;
 
   const [myProfileName,    setMyProfileName]    = useState('');
   const [partnerLinked,    setPartnerLinked]     = useState(false);
@@ -91,6 +91,8 @@ export default function GardenDetailScreen({ route, navigation }) {
           myProfileName={myProfileName}
           partnerLinked={partnerLinked}
           linkedChildId={tree.linked_tree_id ?? null}
+          autoOpenLog={autoOpenLog}
+          onFeedPress={() => navigation.navigate('FamilyFeed')}
         />
       </ScrollView>
 

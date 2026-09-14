@@ -63,11 +63,33 @@ function ChildAvatar({ child, size = 56 }) {
 }
 
 function RewardBar({ total, target, goal }) {
-  const pct = Math.min(total / target, 1);
-  const barAnim = useRef(new Animated.Value(0)).current;
+  const pct      = Math.min(total / target, 1);
+  const unlocked = pct >= 1;
+  const barAnim    = useRef(new Animated.Value(0)).current;
+  const unlockAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Animated.timing(barAnim, { toValue: pct, duration: 1000, delay: 600, useNativeDriver: false }).start();
+    if (unlocked) {
+      Animated.spring(unlockAnim, { toValue: 1, tension: 45, friction: 5, delay: 500, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(barAnim, { toValue: pct, duration: 1000, delay: 600, useNativeDriver: false }).start();
+    }
   }, [pct]);
+
+  if (unlocked) {
+    return (
+      <Animated.View style={[styles.unlockCard, {
+        opacity: unlockAnim,
+        transform: [{ scale: unlockAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }],
+      }]}>
+        <Text style={styles.unlockEmoji}>🎁</Text>
+        <Text style={styles.unlockTitle}>Reward Unlocked!</Text>
+        <Text style={styles.unlockGoal}>"{goal}"</Text>
+        <Text style={styles.unlockSub}>You've earned it — go tell a parent! 🌟</Text>
+      </Animated.View>
+    );
+  }
+
   return (
     <View style={styles.rewardCard}>
       <View style={styles.rewardHeader}>
@@ -81,20 +103,17 @@ function RewardBar({ total, target, goal }) {
         <Text style={styles.rewardPts}>⭐ {total} points</Text>
         <Text style={styles.rewardTarget}>{target} to unlock</Text>
       </View>
-      {pct >= 1 && (
-        <Text style={styles.rewardUnlocked}>🎉 Reward unlocked! Tell a parent!</Text>
-      )}
     </View>
   );
 }
 
 export default function MuhasabahSealScreen({ navigation, route }) {
-  const { child, points = 0, streakDay = 1, reminder } = route.params ?? {};
+  const { child, points = 0, streakDay = 1, reminder, trialMode = false } = route.params ?? {};
 
   const [totalPoints,  setTotalPoints]  = useState(0);
   const [rewardGoal,   setRewardGoal]   = useState(null);
   const [rewardTarget, setRewardTarget] = useState(100);
-  const [loading,      setLoading]      = useState(true);
+  const [loading,      setLoading]      = useState(!trialMode);
 
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const glowAnim  = useRef(new Animated.Value(0)).current;
@@ -112,7 +131,7 @@ export default function MuhasabahSealScreen({ navigation, route }) {
       ),
     ]).start();
     Animated.timing(ptAnim, { toValue: 1, duration: 800, delay: 400, useNativeDriver: true }).start();
-    loadStats();
+    if (!trialMode) loadStats();
   }, []);
 
   async function loadStats() {
@@ -163,7 +182,7 @@ export default function MuhasabahSealScreen({ navigation, route }) {
           🌟
         </Animated.Text>
 
-        <Text style={styles.congrats}>{congrats}</Text>
+        <Text style={styles.congrats}>{trialMode ? 'Practice complete! 🧪' : congrats}</Text>
 
         {/* Child avatar + name */}
         {child && (
@@ -173,26 +192,33 @@ export default function MuhasabahSealScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Tonight's points */}
+        {/* Trial notice */}
+        {trialMode && (
+          <View style={styles.trialNotice}>
+            <Text style={styles.trialNoticeText}>This was a practice run — nothing was saved.</Text>
+          </View>
+        )}
+
+        {/* Points */}
         <Animated.View style={[styles.pointsCard, {
           opacity: ptAnim,
           transform: [{ translateY: ptAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
         }]}>
-          <Text style={styles.pointsLabel}>Tonight you earned</Text>
+          <Text style={styles.pointsLabel}>{trialMode ? 'You would have earned' : 'Tonight you earned'}</Text>
           <Text style={styles.pointsNum}>+{points}</Text>
           <Text style={styles.pointsUnit}>points ✨</Text>
         </Animated.View>
 
-        {/* Cumulative total */}
-        {!loading && (
+        {/* Cumulative total (real sessions only) */}
+        {!trialMode && !loading && (
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>⭐ Total points:</Text>
             <Text style={styles.totalNum}>{totalPoints}</Text>
           </View>
         )}
 
-        {/* Streak */}
-        {streakDay > 0 && (
+        {/* Streak (real sessions only) */}
+        {!trialMode && streakDay > 0 && (
           <View style={styles.streakRow}>
             <Text style={styles.streakFlame}>🔥</Text>
             <Text style={styles.streakText}>{streakDay} {streakDay === 1 ? 'day' : 'days'} in a row!</Text>
@@ -200,16 +226,23 @@ export default function MuhasabahSealScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Reward progress */}
-        {rewardGoal && (
+        {/* Reward progress (real sessions only) */}
+        {!trialMode && rewardGoal && (
           <RewardBar total={totalPoints} target={rewardTarget} goal={rewardGoal} />
         )}
 
         {/* Done */}
-        <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.navigate('Tabs', { screen: 'Home' })} activeOpacity={0.85}>
-          <Text style={styles.doneBtnText}>Alhamdulillah! 🌙</Text>
+        <TouchableOpacity
+          style={styles.doneBtn}
+          onPress={() => trialMode
+            ? navigation.navigate('MuhasabahWizard')
+            : navigation.navigate('Tabs', { screen: 'Home' })
+          }
+          activeOpacity={0.85}
+        >
+          <Text style={styles.doneBtnText}>{trialMode ? 'Practice Complete 🌙' : 'Alhamdulillah! 🌙'}</Text>
         </TouchableOpacity>
-        <Text style={styles.seeYou}>See you tomorrow for muhasabah 🤲</Text>
+        <Text style={styles.seeYou}>{trialMode ? 'Start a real session anytime from the home screen.' : 'See you tomorrow for muhasabah 🤲'}</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -246,7 +279,12 @@ const styles = StyleSheet.create({
   rewardFooter:   { flexDirection: 'row', justifyContent: 'space-between' },
   rewardPts:      { fontSize: 12, color: TEXT, fontWeight: '600' },
   rewardTarget:   { fontSize: 12, color: SUBTEXT },
-  rewardUnlocked: { fontSize: 14, color: GREEN, fontWeight: '800', textAlign: 'center', marginTop: 10 },
+
+  unlockCard:  { backgroundColor: 'rgba(255,209,102,0.12)', borderWidth: 2, borderColor: GOLD, borderRadius: 24, paddingVertical: 28, paddingHorizontal: 24, width: '100%', alignItems: 'center', marginBottom: 14, gap: 8 },
+  unlockEmoji: { fontSize: 56 },
+  unlockTitle: { fontSize: 24, fontWeight: '900', color: GOLD },
+  unlockGoal:  { fontSize: 16, color: TEXT, fontWeight: '700', fontStyle: 'italic', textAlign: 'center', lineHeight: 24 },
+  unlockSub:   { fontSize: 13, color: GREEN, fontWeight: '600', textAlign: 'center', marginTop: 4 },
 
   reminderTeaser: { backgroundColor: CARD, borderWidth: 1, borderColor: BORDER, borderRadius: 16, padding: 16, width: '100%', marginBottom: 12 },
   reminderLabel:  { fontSize: 12, color: PURPLE, fontWeight: '700', marginBottom: 8 },
@@ -259,4 +297,7 @@ const styles = StyleSheet.create({
   doneBtn:        { backgroundColor: GOLD, borderRadius: 16, paddingVertical: 18, paddingHorizontal: 48, width: '100%', alignItems: 'center', marginBottom: 16 },
   doneBtnText:    { fontSize: 18, fontWeight: '900', color: '#0D1B3E' },
   seeYou:         { fontSize: 16, color: SUBTEXT, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
+
+  trialNotice:    { backgroundColor: 'rgba(192,132,252,0.1)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(192,132,252,0.25)', paddingVertical: 10, paddingHorizontal: 18, marginBottom: 14 },
+  trialNoticeText: { fontSize: 13, color: PURPLE, fontWeight: '600', textAlign: 'center' },
 });

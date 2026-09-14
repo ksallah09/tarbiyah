@@ -85,6 +85,7 @@ import MuhasabahWizardScreen     from './src/screens/MuhasabahWizardScreen';
 import MuhasabahSealScreen       from './src/screens/MuhasabahSealScreen';
 import MuhasabahRewardsScreen    from './src/screens/MuhasabahRewardsScreen';
 import MuhasabahSetupScreen      from './src/screens/MuhasabahSetupScreen';
+import FamilyFeedScreen          from './src/screens/FamilyFeedScreen';
 import { setAuthUserId }         from './src/utils/authState';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
@@ -513,6 +514,11 @@ function MainApp() {
       <Stack.Screen
         name="MuhasabahSetup"
         component={MuhasabahSetupScreen}
+        options={{ headerShown: false, animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="FamilyFeed"
+        component={FamilyFeedScreen}
         options={{ headerShown: false, animation: 'slide_from_right' }}
       />
     </Stack.Navigator>

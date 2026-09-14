@@ -36,7 +36,7 @@ import { refreshDailyNotification, scheduleChildHabitNotifications } from '../ut
 import { supabase } from '../utils/supabase';
 import { rs, hp } from '../utils/responsive';
 import { getLocalCounts, getChildWeeklyCounts, getMonthlyHabitActivityTotals, getPartnerMonthCompletions } from '../utils/childCompletions';
-import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji } from '../utils/familyGoals';
+import { loadFamilyGoalsCached, loadFamilyGoals, getGoalEmoji, getFamilyId } from '../utils/familyGoals';
 import { loadCompletions, isCompletedOnDate, countThisWeek, logCompletionForDate } from '../utils/goalCompletions';
 import ChallengeCard from '../components/ChallengeCard';
 import { GOALS_MESSAGES, pickRandom } from '../utils/encouragement';
@@ -222,99 +222,6 @@ async function getProfileName() {
   return null;
 }
 
-// ── Muhasabah card with live stats ────────────────────────────────────────────
-
-function MuhasabahCard({ navigation }) {
-  const [childStats, setChildStats] = React.useState([]);
-
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const today     = new Date().toISOString().slice(0, 10);
-        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-        const { data } = await supabase
-          .from('muhasabah_sessions')
-          .select('points_earned, streak_day, session_date, child_name, child_id')
-          .eq('user_id', session.user.id)
-          .order('session_date', { ascending: false })
-          .limit(200);
-        if (!data?.length) return;
-
-        // Group by child
-        const byChild = {};
-        for (const row of data) {
-          const key = row.child_id || row.child_name;
-          if (!byChild[key]) byChild[key] = { id: row.child_id, name: row.child_name, rows: [] };
-          byChild[key].rows.push(row);
-        }
-        const result = Object.values(byChild).map(({ id, name, rows }) => {
-          const total   = rows.reduce((s, r) => s + (r.points_earned ?? 0), 0);
-          const latest  = rows[0];
-          const streak  = (latest.session_date === today || latest.session_date === yesterday) ? latest.streak_day : 0;
-          const sessions = rows.length;
-          return { id, name, total, streak, sessions };
-        });
-        setChildStats(result);
-      } catch {}
-    })();
-  }, []);
-
-  return (
-    <TouchableOpacity
-      style={[styles.playTogetherCard, { backgroundColor: '#1A1040' }]}
-      onPress={() => navigation.navigate('MuhasabahWizard')}
-      activeOpacity={0.82}
-    >
-      <View style={styles.playTogetherTop}>
-        <View style={[styles.playTogetherIconWrap, { backgroundColor: 'rgba(255,209,102,0.15)' }]}>
-          <Text style={{ fontSize: 24 }}>🌙</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.playTogetherTitle}>Nightly Muhasabah</Text>
-          <Text style={styles.playTogetherSub}>Reflect · Grow · Earn points</Text>
-        </View>
-        <View style={[styles.playTogetherBtn, { backgroundColor: '#FFD166' }]}>
-          <Text style={[styles.playTogetherBtnText, { color: '#1A1040' }]}>Begin →</Text>
-        </View>
-      </View>
-      {childStats.length > 0 && (
-        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', gap: 8 }}>
-          {childStats.map((c, i) => (
-            <View key={i} style={{ gap: 4 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: '700' }} numberOfLines={1}>{c.name}</Text>
-                <TouchableOpacity
-                  onPress={() => navigation.getParent()?.navigate('MuhasabahRewards', { child: { id: c.id, name: c.name } })}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Text style={{ fontSize: 11, color: '#FFD166', fontWeight: '700' }}>View {c.name.split(' ')[0]}'s Rewards →</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={{ fontSize: 12 }}>⭐</Text>
-                  <Text style={{ fontSize: 12, color: '#FFD166', fontWeight: '700' }}>{c.total} points</Text>
-                </View>
-                {c.streak > 0 && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 12 }}>🔥</Text>
-                    <Text style={{ fontSize: 12, color: '#FB923C', fontWeight: '600' }}>{c.streak} day streak</Text>
-                  </View>
-                )}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={{ fontSize: 12 }}>📅</Text>
-                  <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{c.sessions} {c.sessions === 1 ? 'session' : 'sessions'}</Text>
-                </View>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-}
 
 export default function HomeScreen({ navigation, route }) {
   const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft, alertUnreadCount, refreshAlertUnreadCount, splashDismissed } = useAuth();
@@ -363,6 +270,7 @@ export default function HomeScreen({ navigation, route }) {
   const [homeSuggestionsLoading, setHomeSuggestionsLoading] = useState(new Set());
   const [showHomeSuggestions,    setShowHomeSuggestions]    = useState(new Set());
   const [challengeFocus, setChallengeF] = useState(0);
+  const [feedBadge,     setFeedBadge]  = useState(0);
   const duaShareCardRef = useRef(null);
   const insightScrollRef  = useRef(null);
   const insightIntervalRef = useRef(null);
@@ -645,6 +553,37 @@ export default function HomeScreen({ navigation, route }) {
         getFamilySyncStatus().then(applyPartnerStatus);
       });
 
+      // Feed unread badge: count items newer than last time user opened Family Feed
+      AsyncStorage.getItem('tarbiyah_feed_last_viewed').then(async lastViewedIso => {
+        try {
+          const familyId = await getFamilyId();
+          if (!familyId) return;
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          const since = lastViewedIso ?? '1970-01-01T00:00:00.000Z';
+          const sinceDate = since.slice(0, 10); // YYYY-MM-DD for date-only columns
+          const [actCount, momCount, sessCount] = await Promise.all([
+            supabase
+              .from('child_garden_actions')
+              .select('id', { count: 'exact', head: true })
+              .eq('family_id', familyId)
+              .gt('date', sinceDate),
+            supabase
+              .from('family_moments')
+              .select('id', { count: 'exact', head: true })
+              .eq('family_id', familyId)
+              .gt('date', sinceDate),
+            supabase
+              .from('muhasabah_sessions')
+              .select('id', { count: 'exact', head: true })
+              .neq('user_id', session.user.id)
+              .gt('session_date', sinceDate),
+          ]);
+          const total = (actCount.count ?? 0) + (momCount.count ?? 0) + (sessCount.count ?? 0);
+          setFeedBadge(total);
+        } catch {}
+      });
+
       return () => {
         if (partnerChannelRef.current) {
           supabase.removeChannel(partnerChannelRef.current);
@@ -744,19 +683,17 @@ export default function HomeScreen({ navigation, route }) {
                 )}
               </View>
 
-              {/* Header right: shield + profile */}
+              {/* Header right: feed + shield + profile */}
               <View style={styles.heroRightRow}>
                 <TouchableOpacity
                   style={styles.heroShieldBtn}
-                  onPress={() => navigation.navigate('Alerts')}
+                  onPress={() => navigation.getParent()?.navigate('FamilyFeed')}
                   activeOpacity={0.75}
                 >
-                  <Ionicons name="shield-outline" size={26} color="rgba(255,255,255,0.85)" />
-                  {alertUnreadCount > 0 && (
+                  <Ionicons name="people-outline" size={28} color="rgba(255,255,255,0.85)" />
+                  {feedBadge > 0 && (
                     <View style={styles.heroShieldBadge}>
-                      <Text style={styles.heroShieldBadgeText}>
-                        {alertUnreadCount > 9 ? '9+' : alertUnreadCount}
-                      </Text>
+                      <Text style={styles.heroShieldBadgeText}>{feedBadge > 9 ? '9+' : feedBadge}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -1465,9 +1402,6 @@ export default function HomeScreen({ navigation, route }) {
                 <Text style={styles.sectionTitle}>Activities</Text>
               </View>
               <View style={{ gap: 10 }}>
-                {/* Muhasabah — first */}
-                <MuhasabahCard navigation={navigation} />
-
                 {/* Family Games */}
                 <TouchableOpacity
                   style={styles.playTogetherCard}
@@ -1888,7 +1822,7 @@ const styles = StyleSheet.create({
   heroRightRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   heroShieldBtn: { position: 'relative', padding: 4 },
   heroShieldBadge: {
-    position: 'absolute', top: 0, right: 0,
+    position: 'absolute', top: -4, right: -4,
     minWidth: 16, height: 16, borderRadius: 8,
     backgroundColor: '#EF4444',
     alignItems: 'center', justifyContent: 'center',

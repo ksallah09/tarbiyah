@@ -87,7 +87,7 @@ function Card({ children, style }) {
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-function BigBtn({ label, onPress, color = GOLD, textColor = '#0D1B3E', disabled }) {
+function BigBtn({ label, onPress, color = GOLD, textColor = '#0D1B3E', disabled, icon, iconColor = '#22C55E' }) {
   return (
     <TouchableOpacity
       style={[styles.bigBtn, { backgroundColor: color }, disabled && { opacity: 0.4 }]}
@@ -95,7 +95,10 @@ function BigBtn({ label, onPress, color = GOLD, textColor = '#0D1B3E', disabled 
       disabled={disabled}
       activeOpacity={0.82}
     >
-      <Text style={[styles.bigBtnText, { color: textColor }]}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={[styles.bigBtnText, { color: textColor }]}>{label}</Text>
+        {icon && <Ionicons name={icon} size={18} color={iconColor} />}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -120,14 +123,14 @@ function ChildAvatar({ child, size = 64, selected, onPress }) {
 
 // ── Step: Intro / Child selector ───────────────────────────────────────────────
 
-function IntroStep({ children, selectedChild, onSelect, streakDay, onBegin, navigation }) {
+function IntroStep({ children, selectedChild, onSelect, streakDay, onBegin, childConfig, onEditConfig, navigation }) {
   const [showTutorial, setShowTutorial] = useState(false);
 
   const TUTORIAL_SLIDES = [
     { emoji: '🌙', title: 'What is Muhasabah?', body: 'Muhasabah means self-accountability — a nightly check-in where your child reflects honestly on their day. It builds self-awareness, responsibility, and a connection to Allah.' },
     { emoji: '😊', title: 'The Sliders', body: 'Your child rates areas of their day using emoji sliders — from 😔 to 🌟. The goal is honest reflection, not perfect scores. A low rating answered truthfully is worth more than a high one that isn\'t.' },
     { emoji: '🔧', title: 'Repair & Improve', body: 'If something didn\'t go well, they\'re asked how they can repair it and what they\'ll do better tomorrow. This builds accountability and a growth mindset rooted in Islamic values.' },
-    { emoji: '⭐', title: 'Points & Rewards', body: 'Each session earns points based on honesty, effort, and streaks. As a parent you can set a reward goal — when your child reaches the target, they unlock it. A gentle, halal motivation.' },
+    { emoji: '⭐', title: 'Points & Progress', body: 'Each session earns points based on honesty, effort, and streaks. As a parent you can set a progress goal — when your child reaches the target, they unlock it. A gentle, halal motivation.' },
     { emoji: '🤲', title: 'The Reminder', body: 'At the end, a personalised Islamic reminder is generated — a relevant ayah or hadith connected to what your child reflected on, with a short dua and warm encouragement.' },
   ];
   const [slide, setSlide] = useState(0);
@@ -136,11 +139,11 @@ function IntroStep({ children, selectedChild, onSelect, streakDay, onBegin, navi
     <ScrollView contentContainerStyle={styles.stepWrap} showsVerticalScrollIndicator={false}>
       <Text style={styles.moonEmoji}>🌙</Text>
       <Text style={styles.introTitle}>Muhasabah Time!</Text>
-      <Text style={styles.introQuote}>"Reflect on yourselves before you are held accountable"</Text>
-      <Text style={styles.introQuoteSrc}>— Umar ibn al-Khattab رضي الله عنه</Text>
+      <Text style={styles.introSubtitle}>A nightly self-reflection</Text>
+      <Text style={styles.introQuote}>"Small reflections each night lead to big growth over time."</Text>
 
       <Text style={[styles.inputLabel, { marginTop: 28, marginBottom: 14 }]}>
-        👦 Who's reflecting tonight?
+        Who's reflecting tonight?
       </Text>
 
       {children.length === 0 ? (
@@ -170,7 +173,8 @@ function IntroStep({ children, selectedChild, onSelect, streakDay, onBegin, navi
       )}
 
       <BigBtn
-        label="Let's Begin ✨"
+        label="Let's Begin"
+        icon="sparkles"
         onPress={onBegin}
         disabled={!selectedChild}
         style={{ marginTop: 24 }}
@@ -186,6 +190,17 @@ function IntroStep({ children, selectedChild, onSelect, streakDay, onBegin, navi
           <Ionicons name="information-circle-outline" size={15} color={GOLD} />
           <Text style={styles.introActionText}>How it works</Text>
         </TouchableOpacity>
+
+        {childConfig && selectedChild && (
+          <TouchableOpacity
+            style={styles.introEditBtn}
+            onPress={onEditConfig}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="settings-outline" size={15} color={GOLD} />
+            <Text style={styles.introActionText}>Edit {selectedChild.name?.split(' ')[0]}'s Muhasabah config</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Tutorial modal */}
@@ -456,6 +471,12 @@ function ReminderStep({ reminder }) {
       {reminder?.dua && (
         <View style={styles.duaCard}>
           <Text style={styles.duaLabel}>🤲 Dua</Text>
+          {reminder.dua_arabic && (
+            <>
+              <Text style={styles.duaArabic}>{reminder.dua_arabic}</Text>
+              <View style={styles.duaDivider} />
+            </>
+          )}
           <Text style={styles.duaText}>{reminder.dua}</Text>
         </View>
       )}
@@ -465,10 +486,11 @@ function ReminderStep({ reminder }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function MuhasabahWizardScreen({ navigation }) {
+export default function MuhasabahWizardScreen({ navigation, route }) {
   const [stepIdx, setStepIdx]         = useState(0);
   const [childList, setChildList]     = useState([]);
   const [selectedChild, setSelected]  = useState(null);
+  const [childConfig, setChildConfig] = useState(null);
   const [categories, setCategories]   = useState(DEFAULT_CATS);
   const [questions, setQuestions]     = useState(null); // null = use defaults
   const [customAnswers, setCustomAns] = useState(['', '']);
@@ -481,7 +503,22 @@ export default function MuhasabahWizardScreen({ navigation }) {
   const [reminder, setReminder]       = useState(null);
   const [streakDay, setStreakDay]     = useState(1);
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim         = useRef(new Animated.Value(1)).current;
+  const selectedChildRef = useRef(null);
+  const trialModeRef     = useRef(false);
+
+  // Handle navigation.navigate() back from setup's trial step with autoStart + trialMode params
+  const { autoStart, trialMode: trialModeParam, child: trialChild } = route.params ?? {};
+  React.useEffect(() => {
+    if (!autoStart || !trialChild) return;
+    trialModeRef.current = trialModeParam ?? false;
+    navigation.setParams({ autoStart: false });
+    setSelected(trialChild);
+    selectedChildRef.current = trialChild;
+    loadConfig(trialChild.id).then(cfg => {
+      if (cfg) transitionTo(STEPS.indexOf('honesty'));
+    });
+  }, [autoStart]);
 
   useFocusEffect(useCallback(() => {
     loadChildren();
@@ -492,7 +529,9 @@ export default function MuhasabahWizardScreen({ navigation }) {
     setChildList(kids);
     if (kids.length === 1) {
       setSelected(kids[0]);
+      selectedChildRef.current = kids[0];
       loadStreakFor(kids[0].id);
+      loadConfig(kids[0].id);
     }
   }
 
@@ -517,13 +556,14 @@ export default function MuhasabahWizardScreen({ navigation }) {
 
   async function loadConfig(childId) {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return null;
+    if (!session) { setChildConfig(null); return null; }
     const { data } = await supabase
       .from('muhasabah_config')
       .select('categories, questions')
       .eq('user_id', session.user.id)
       .eq('child_id', childId)
       .maybeSingle();
+    setChildConfig(data);
     if (data?.categories?.length) setCategories(data.categories);
     else setCategories(DEFAULT_CATS);
     if (data?.questions) setQuestions(data.questions);
@@ -562,8 +602,8 @@ export default function MuhasabahWizardScreen({ navigation }) {
     const current = STEPS[stepIdx];
 
     if (current === 'intro') {
-      const config = await loadConfig(selectedChild.id);
-      if (!config) {
+      const cfg = await loadConfig(selectedChild.id);
+      if (!cfg) {
         navigation.navigate('MuhasabahSetup', { child: selectedChild });
         return;
       }
@@ -600,7 +640,7 @@ export default function MuhasabahWizardScreen({ navigation }) {
     }
     if (current === 'reminder') {
       const points = calcPoints(ratings, hasRepair, repairPlan, streakDay);
-      navigation.replace('MuhasabahSeal', { child: selectedChild, points, streakDay, reminder });
+      navigation.replace('MuhasabahSeal', { child: selectedChild, points, streakDay, reminder, trialMode: trialModeRef.current });
     }
   }
 
@@ -616,6 +656,7 @@ export default function MuhasabahWizardScreen({ navigation }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           childName: selectedChild.name,
+          childAge:  selectedChild.age ?? null,
           didntDoWell, repairPlan, doBetter, sliderSummary,
           customAnswers: (questions?.custom ?? []).map((q, i) => ({ question: q, answer: customAnswers[i] || '' })).filter(a => a.answer),
         }),
@@ -627,26 +668,29 @@ export default function MuhasabahWizardScreen({ navigation }) {
 
     const points = calcPoints(ratings, hasRepair, repairPlan, streakDay);
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await supabase.from('muhasabah_sessions').insert({
-          user_id:       session.user.id,
-          child_id:      selectedChild.id,
-          child_name:    selectedChild.name,
-          session_date:  new Date().toISOString().slice(0, 10),
-          slider_ratings: ratings,
-          didnt_do_well: didntDoWell || null,
-          needs_repair:  hasRepair ?? false,
-          repair_plan:   repairPlan || null,
-          do_better:     doBetter || null,
-          reminder:      generated,
-          points_earned: points,
-          streak_day:    streakDay,
-        });
+    if (!trialModeRef.current) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await supabase.from('muhasabah_sessions').insert({
+            user_id:        session.user.id,
+            child_id:       selectedChild.id,
+            child_name:     selectedChild.name,
+            session_date:   new Date().toISOString().slice(0, 10),
+            slider_ratings: ratings,
+            didnt_do_well:  didntDoWell || null,
+            needs_repair:   hasRepair ?? false,
+            repair_plan:    repairPlan || null,
+            do_better:      doBetter || null,
+            custom_answers: (questions?.custom ?? []).map((q, i) => ({ question: q, answer: customAnswers[i] || '' })).filter(a => a.answer),
+            reminder:       generated,
+            points_earned:  points,
+            streak_day:     streakDay,
+          });
+        }
+      } catch (e) {
+        console.warn('[muhasabah] session save failed:', e);
       }
-    } catch (e) {
-      console.warn('[muhasabah] session save failed:', e);
     }
 
     setReminder(generated);
@@ -688,9 +732,17 @@ export default function MuhasabahWizardScreen({ navigation }) {
           <IntroStep
             children={childList}
             selectedChild={selectedChild}
-            onSelect={c => { setSelected(c); loadStreakFor(c.id); }}
+            onSelect={c => {
+              setSelected(c);
+              selectedChildRef.current = c;
+              setChildConfig(null);
+              loadStreakFor(c.id);
+              loadConfig(c.id);
+            }}
             streakDay={streakDay}
             onBegin={goNext}
+            childConfig={childConfig}
+            onEditConfig={() => navigation.navigate('MuhasabahSetup', { child: selectedChild, editMode: true })}
             navigation={navigation}
           />
         )}
@@ -732,7 +784,7 @@ export default function MuhasabahWizardScreen({ navigation }) {
       {showNav && step !== 'intro' && (
         <View style={styles.navRow}>
           {isLast ? (
-            <BigBtn label="Alhamdulillah! 🌟" onPress={goNext} />
+            <BigBtn label="Alhamdulillah!" icon="star" onPress={goNext} />
           ) : (
             <BigBtn
               label={step === 'honesty' ? 'I agree 💚' : (step === 'tomorrow' || step === 'custom_q0' || step === 'custom_q1') && !(questions?.custom?.length > (step === 'tomorrow' ? 0 : step === 'custom_q0' ? 1 : 0)) ? 'Final Step →' : 'Next →'}
@@ -770,7 +822,8 @@ const styles = StyleSheet.create({
   card:             { backgroundColor: CARD, borderWidth: 1, borderColor: BORDER, borderRadius: 16, padding: 16, marginTop: 8 },
 
   moonEmoji:        { fontSize: 72, textAlign: 'center', marginBottom: 8 },
-  introTitle:       { fontSize: 28, fontWeight: '900', color: TEXT, textAlign: 'center', marginBottom: 10 },
+  introTitle:       { fontSize: 28, fontWeight: '900', color: TEXT, textAlign: 'center', marginBottom: 6 },
+  introSubtitle:    { fontSize: 14, color: SUBTEXT, textAlign: 'center', marginBottom: 10 },
   introQuote:       { fontSize: 14, color: SUBTEXT, textAlign: 'center', fontStyle: 'italic', lineHeight: 22, paddingHorizontal: 16 },
   introQuoteSrc:    { fontSize: 12, color: PURPLE, textAlign: 'center', marginTop: 6 },
 
@@ -781,7 +834,7 @@ const styles = StyleSheet.create({
   avatarCheck:      { position: 'absolute', top: -4, right: 4, backgroundColor: GOLD, borderRadius: 10, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   avatarName:       { fontSize: 12, color: TEXT, fontWeight: '600', maxWidth: 72, textAlign: 'center' },
 
-  streakBadge:      { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', backgroundColor: 'rgba(255,100,30,0.15)', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, marginTop: 16 },
+  streakBadge:      { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', backgroundColor: 'rgba(255,100,30,0.15)', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, marginTop: 16, marginBottom: 12 },
   streakFlame:      { fontSize: 22 },
   streakText:       { fontSize: 15, fontWeight: '700', color: '#FB923C' },
 
@@ -819,14 +872,17 @@ const styles = StyleSheet.create({
   reminderSourceText: { fontSize: 13, color: GOLD, fontWeight: '700' },
 
   duaCard:            { marginTop: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  duaLabel:           { fontSize: 13, color: PURPLE, fontWeight: '700', marginBottom: 8 },
-  duaText:            { fontSize: 15, color: TEXT, lineHeight: 24 },
+  duaLabel:           { fontSize: 13, color: PURPLE, fontWeight: '700', marginBottom: 10 },
+  duaArabic:          { fontSize: 22, color: TEXT, textAlign: 'right', lineHeight: 38, marginBottom: 10, fontWeight: '500' },
+  duaDivider:         { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 10 },
+  duaText:            { fontSize: 14, color: SUBTEXT, lineHeight: 22, fontStyle: 'italic' },
 
   encourageCard:      { marginTop: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   encourageText:      { fontSize: 15, color: TEXT, lineHeight: 26 },
 
-  introActions:       { flexDirection: 'row', gap: 10, marginTop: 16 },
-  introActionBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,209,102,0.08)', borderRadius: 14, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,209,102,0.2)' },
+  introActions:       { flexDirection: 'column', gap: 10, marginTop: 16 },
+  introActionBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,209,102,0.08)', borderRadius: 14, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,209,102,0.2)' },
+  introEditBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,209,102,0.05)', borderRadius: 14, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,209,102,0.15)' },
   introActionText:    { fontSize: 12, color: GOLD, fontWeight: '700' },
 
   tutorialOverlay:    { position: 'absolute', top: 0, left: -24, right: -24, bottom: 0, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 100 },

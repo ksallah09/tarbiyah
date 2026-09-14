@@ -78,7 +78,7 @@ export default function ProgressScreen({ navigation, route }) {
   const [familyTab,       setFamilyTab]       = useState(() => {
     const t = route?.params?.tab;
     if (t === 'dashboard') return t;
-    return 'activities';
+    return 'childWins';
   });
   const [dashboardChildId, setDashboardChildId] = useState(route?.params?.childId ?? null);
   const [configureModalVisible, setConfigureModalVisible] = useState(
@@ -146,6 +146,7 @@ export default function ProgressScreen({ navigation, route }) {
   useFocusEffect(useCallback(() => {
     if (route?.params?.tab === 'configure') setConfigureModalVisible(true);
     if (route?.params?.tab === 'dashboard') setFamilyTab('dashboard');
+    if (route?.params?.tab === 'activities') setFamilyTab('activities');
     if (route?.params?.childId) setDashboardChildId(route.params.childId);
     if (route?.params?.scrollTo === 'familyGoals') {
       setTimeout(() => {
@@ -226,9 +227,9 @@ export default function ProgressScreen({ navigation, route }) {
           {/* ── Segment control ── */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.segmentScroll} contentContainerStyle={styles.segmentRow}>
             {[
-              ['activities', 'Activities'],
               ['childWins',  'Child Growth'],
-              ['dashboard',  'Dashboard'],
+              ['activities', 'Activities'],
+              ['dashboard',  'Dashboards'],
               ['parenting',  'Parenting'],
             ].map(([key, label]) => (
               <TouchableOpacity

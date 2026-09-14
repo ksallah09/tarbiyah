@@ -297,7 +297,7 @@ function computeProgress(total, thresholds) {
 
 const DEFAULT_SETTINGS = { thresholds: DEFAULT_THRESHOLDS, rewards: {} };
 
-export default function MannerGarden({ child, myProfileName, partnerLinked, linkedChildId, style }) {
+export default function MannerGarden({ child, myProfileName, partnerLinked, linkedChildId, style, autoOpenLog = false, onFeedPress }) {
   const [actions,        setActions]        = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [treeLoaded,     setTreeLoaded]     = useState(false);
@@ -346,6 +346,14 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
   ).current;
 
   useEffect(() => { progressInitRef.current = false; loadActions(); loadTree(); }, [child?.id, linkedChildId]);
+
+  const autoOpenFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenLog && treeLoaded && !autoOpenFiredRef.current) {
+      autoOpenFiredRef.current = true;
+      setShowModal(true);
+    }
+  }, [autoOpenLog, treeLoaded]);
 
   // Keep progressAnim in sync — drives the persistent tree rise/scale
   useEffect(() => {
@@ -734,6 +742,13 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         <Ionicons name="eye-outline" size={15} color="#2E7D62" />
         <Text style={gs.showChildBtnText}>Show {displayName} {childPronoun} garden</Text>
       </TouchableOpacity>
+
+      {!!onFeedPress && (
+        <TouchableOpacity style={gs.feedBtn} onPress={onFeedPress} activeOpacity={0.8}>
+          <Ionicons name="albums-outline" size={15} color="#1B3D2F" />
+          <Text style={gs.feedBtnText}>View Family Feed</Text>
+        </TouchableOpacity>
+      )}
 
       {/* ── Log deed modal ── */}
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
@@ -1161,6 +1176,8 @@ const gs = StyleSheet.create({
   logBtnText:        { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   showChildBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 },
   showChildBtnText:  { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
+  feedBtn:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8, paddingVertical: 10, borderRadius: 12, backgroundColor: '#EDF7F2' },
+  feedBtnText:       { fontSize: 13, fontWeight: '700', color: '#1B3D2F' },
 
   modalContainer:    { flex: 1, backgroundColor: '#FFFFFF' },
   modalHeader:       { padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0', position: 'relative' },
