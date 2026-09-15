@@ -4131,6 +4131,50 @@ Rules:
   }
 });
 
+// ─── POST /conversation-cards/generate ───────────────────────────────────────
+
+app.post('/conversation-cards/generate', async (req: Request, res: Response) => {
+  try {
+    const { deck, deckLabel, childAge } = req.body as {
+      deck?: string; deckLabel?: string; childAge?: number;
+    };
+
+    const deckName = deckLabel?.trim() || deck?.trim() || 'general';
+
+    const ageNote = childAge
+      ? childAge <= 7
+        ? 'Very simple words, short sentences, warm and playful.'
+        : childAge <= 10
+        ? 'Simple clear language, gentle and encouraging.'
+        : childAge <= 13
+        ? 'Thoughtful and respectful. Can use Islamic terms directly.'
+        : 'Mature, sincere tone. Treat them as a young adult.'
+      : 'Warm and appropriate for Muslim families with children.';
+
+    const systemPrompt = `You generate conversation starter questions for Muslim families. Questions should spark genuine reflection and discussion. Tone: ${ageNote}`;
+
+    const userPrompt = `Generate 8 fresh conversation card questions for the "${deckName}" deck.
+These are family conversation starters — open-ended questions a parent asks a child (or the whole family discusses together).
+The questions must be meaningfully different from typical cards in this category — dig deeper, be specific, or take an unexpected angle.
+Tone guide: ${ageNote}
+
+Return ONLY a valid JSON array of 8 strings — no markdown, no keys, just the questions:
+["Question 1?", "Question 2?", ...]`;
+
+    const model = getJsonModel(MODEL_FAST, systemPrompt);
+    const raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    const cleaned = raw.trim().startsWith('```') ? raw.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '') : raw.trim();
+    const questions: string[] = JSON.parse(cleaned);
+
+    if (!Array.isArray(questions) || questions.length === 0) throw new Error('Invalid response shape');
+
+    return res.json({ questions });
+  } catch (err) {
+    console.error('POST /conversation-cards/generate error:', err);
+    return res.status(500).json({ error: 'Could not generate cards. Please try again.' });
+  }
+});
+
 // ─── POST /muhasabah/reminder ─────────────────────────────────────────────────
 
 app.post('/muhasabah/reminder', async (req: Request, res: Response) => {
