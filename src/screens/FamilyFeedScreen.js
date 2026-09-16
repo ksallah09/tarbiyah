@@ -736,7 +736,7 @@ export default function FamilyFeedScreen({ navigation }) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Permission needed', 'Please allow photo/video access in Settings.'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions?.Videos ?? 'videos',
+      mediaTypes: ['video'],
       videoQuality: 0.4,
       videoMaxDuration: 120,
     });
