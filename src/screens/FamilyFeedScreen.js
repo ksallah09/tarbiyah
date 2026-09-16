@@ -739,7 +739,7 @@ export default function FamilyFeedScreen({ navigation }) {
       if (status !== 'granted') { Alert.alert('Permission needed', 'Please allow photo/video access in Settings.'); return; }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['videos'],
-        videoQuality: 0.4,
+        videoQuality: ImagePicker.VideoQuality?.Low ?? 2,
         videoMaxDuration: 120,
       });
       console.log('video picker result:', JSON.stringify(result));
