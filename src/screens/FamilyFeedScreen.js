@@ -616,12 +616,10 @@ export default function FamilyFeedScreen({ navigation }) {
     await supabase.from(table).update({ loved_by: newLoves }).eq('id', item.id);
 
     if (!currentLoved) {
-      const label = item._type === 'accomplishment' ? 'accomplishment' : 'reflection';
-      notifyPartner(
-        `❤️ ${myName.split(' ')[0]} loved a moment`,
-        `${item.child_name?.split(' ')[0]}'s ${label} got some love`,
-        { screen: 'FamilyFeed' }
-      );
+      const label   = item._type === 'accomplishment' ? 'accomplishment' : 'reflection';
+      const subject = item.child_name?.split(' ')[0];
+      const body    = subject ? `${subject}'s ${label} got some love` : `Your ${label} got some love`;
+      notifyPartner(`❤️ ${myName.split(' ')[0]} loved a moment`, body, { screen: 'FamilyFeed' });
     }
   }
 
@@ -655,6 +653,13 @@ export default function FamilyFeedScreen({ navigation }) {
       : [...(item.loved_by ?? []), myName];
     setFeed(prev => prev.map(f => f.id === item.id && f._type === 'shukr' ? { ...f, loved_by: newLoves } : f));
     await supabase.from('shukr_posts').update({ loved_by: newLoves }).eq('id', item.id);
+    if (!current) {
+      notifyPartner(
+        `❤️ ${myName.split(' ')[0]} loved your Shukr moment`,
+        item.text?.length > 60 ? item.text.slice(0, 57) + '…' : (item.text || 'A gratitude moment'),
+        { screen: 'FamilyFeed' }
+      );
+    }
   }
 
   async function handleDelete(item) {
