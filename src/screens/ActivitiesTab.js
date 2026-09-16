@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator,
 } from 'react-native';
+
+const API_URL = 'https://tarbiyah-production.up.railway.app';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -67,6 +69,116 @@ function getChildHabits(children) {
   return results;
 }
 
+function getCompletedChildren(children) {
+  return children.filter(child => {
+    const areas = child.growthAreas ?? [];
+    if (!areas.some(a => a?.plan?.length)) return false;
+    return !areas.some(area => {
+      if (!area?.plan?.length) return false;
+      const daysSince = Math.floor((Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000);
+      return daysSince < area.plan.length * 7;
+    });
+  });
+}
+
+function ChildCompletePlanCard({ fullChild, navigation }) {
+  const [suggestions, setSuggestions] = useState(null);
+  const [loading, setLoading]         = useState(false);
+
+  const childName  = fullChild.name.split(' ')[0];
+  const childColor = fullChild.color ?? '#2E7D62';
+  const childPhoto = fullChild.photo ?? null;
+
+  const lastCompleted = useMemo(() => {
+    const completed = (fullChild.growthAreas ?? []).filter(area => {
+      const daysSince = Math.floor((Date.now() - new Date(area.createdAt ?? Date.now()).getTime()) / 86400000);
+      return area?.plan?.length && daysSince >= area.plan.length * 7;
+    });
+    return completed[completed.length - 1] ?? null;
+  }, [fullChild]);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${API_URL}/suggest-growth-areas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        child: { name: fullChild.name, age: fullChild.age, gender: fullChild.gender, temperaments: fullChild.temperaments ?? [], interests: fullChild.interests ?? [], strengths: fullChild.strengths ?? [] },
+        completedArea: lastCompleted ? { title: lastCompleted.title, issue: lastCompleted.issue, description: lastCompleted.description } : null,
+        incidents: (fullChild.incidents ?? []).slice(-8).map(i => i.text).filter(Boolean),
+      }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(({ suggestions: s }) => setSuggestions(s))
+      .catch(() => {
+        const taken = (fullChild.growthAreas ?? []).map(a => a.title?.toLowerCase());
+        setSuggestions(
+          ['Emotional regulation', 'Salah consistency', 'Quran memorisation', 'Gratitude practice', 'Kindness & empathy', 'Patience & self-control']
+            .filter(s => !taken.some(t => t?.includes(s.toLowerCase().slice(0, 6)))).slice(0, 3)
+        );
+      })
+      .finally(() => setLoading(false));
+  }, [fullChild.id]);
+
+  return (
+    <View style={styles.habitCard}>
+      <View style={styles.habitCardHeader}>
+        <View style={[styles.habitChildPill, { backgroundColor: childColor + '18' }]}>
+          <View style={[styles.habitAvatar, { backgroundColor: childColor }]}>
+            {childPhoto
+              ? <Image source={{ uri: childPhoto }} style={styles.habitAvatarImg} contentFit="cover" cachePolicy="memory-disk" />
+              : <Text style={styles.habitAvatarInitial}>{childName[0]}</Text>
+            }
+          </View>
+          <Text style={[styles.habitChildName, { color: childColor }]}>{childName}</Text>
+        </View>
+        <View style={styles.completeBadge}>
+          <Text style={styles.completeBadgeText}>Plan complete</Text>
+        </View>
+      </View>
+
+      <Text style={styles.completeTitle}>{childName} finished their growth plan</Text>
+
+      {lastCompleted && (
+        <TouchableOpacity
+          style={styles.renewBtn}
+          onPress={() => navigation.navigate('GrowthAreaWizard', { child: fullChild, isFirstTime: false, prefilledIssue: lastCompleted.issue ?? lastCompleted.title, replaceAreaId: lastCompleted.id })}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="refresh-outline" size={16} color="#2E7D62" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.renewBtnText}>Renew with a new approach</Text>
+            <Text style={styles.renewBtnSub} numberOfLines={1} ellipsizeMode="tail">{lastCompleted.title}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#2E7D62" />
+        </TouchableOpacity>
+      )}
+
+      {lastCompleted && <Text style={styles.suggestSeparatorLabel}>OR TRY SOMETHING NEW</Text>}
+
+      <View style={styles.suggestListWrap}>
+        {loading ? (
+          <View style={styles.suggestLoading}>
+            <ActivityIndicator size="small" color={childColor} />
+            <Text style={styles.suggestLoadingText}>Personalising suggestions…</Text>
+          </View>
+        ) : (suggestions ?? []).map(s => (
+          <TouchableOpacity
+            key={s}
+            style={styles.suggestChip}
+            onPress={() => navigation.navigate('GrowthAreaWizard', { child: fullChild, isFirstTime: false, prefilledIssue: s })}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="leaf-outline" size={14} color="#2E7D62" />
+            <Text style={styles.suggestChipText}>{s}</Text>
+            <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function ChildHabitCard({ child, fullChild, navigation, onOpenChildDashboard }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [slideWidth, setSlideWidth] = useState(0);
@@ -105,18 +217,31 @@ function ChildHabitCard({ child, fullChild, navigation, onOpenChildDashboard }) 
           >
             {child.habits.map((habit, i) => (
               <View key={i} style={{ width: slideWidth }}>
-                <View style={styles.habitRow}>
-                  <View style={[styles.habitIconCircle, { backgroundColor: child.childColor + '18' }]}>
-                    <Text style={{ fontSize: 20 }}>🎯</Text>
+                <View style={styles.habitInfoBox}>
+                  <View style={styles.habitInfoRow}>
+                    <View style={[styles.habitInfoIcon, { backgroundColor: child.childColor + '25' }]}>
+                      <Text style={{ fontSize: 20 }}>🎯</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.habitInfoEyebrow, { color: child.childColor }]}>GROWTH ACTIVITY</Text>
+                      <Text style={styles.habitInfoText}>{habit.text}</Text>
+                    </View>
                   </View>
-                  <Text style={styles.habitText}>{habit.text}</Text>
+                  {habit.wisdom ? (
+                    <>
+                      <View style={styles.habitInfoDivider} />
+                      <View style={styles.habitInfoRow}>
+                        <View style={[styles.habitInfoIcon, { backgroundColor: 'rgba(0,0,0,0.06)' }]}>
+                          <Text style={{ fontSize: 20 }}>📖</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.habitInfoEyebrow}>THE WISDOM</Text>
+                          <Text style={styles.habitInfoText}>{habit.wisdom}</Text>
+                        </View>
+                      </View>
+                    </>
+                  ) : null}
                 </View>
-                {habit.wisdom ? (
-                  <View style={styles.habitWisdom}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={14} color="#2E7D62" style={{ flexShrink: 0, marginTop: 1 }} />
-                    <Text style={styles.habitWisdomText}>{habit.wisdom}</Text>
-                  </View>
-                ) : null}
               </View>
             ))}
           </ScrollView>
@@ -145,7 +270,8 @@ export default function ActivitiesTab({ navigation, familyGoals = [], children =
   const insets = useSafeAreaInsets();
 
   const dayIdx = new Date().getDay(); // 0–6
-  const growthHabits = useMemo(() => getChildHabits(children), [children]);
+  const growthHabits       = useMemo(() => getChildHabits(children), [children]);
+  const completedChildren  = useMemo(() => getCompletedChildren(children), [children]);
 
   const todayPrompt = DISCUSSION_PROMPTS[dayIdx % DISCUSSION_PROMPTS.length];
   const todayStory  = SEERAH_STORIES[dayIdx % SEERAH_STORIES.length];
@@ -221,7 +347,7 @@ export default function ActivitiesTab({ navigation, familyGoals = [], children =
               onOpenChildDashboard={onOpenChildDashboard}
             />
           ))
-        : (
+        : completedChildren.length === 0 && (
           <View style={styles.growthPlaceholder}>
             <Text style={styles.growthPlaceholderEmoji}>🎯</Text>
             <Text style={styles.growthPlaceholderTitle}>
@@ -247,6 +373,13 @@ export default function ActivitiesTab({ navigation, familyGoals = [], children =
           </View>
         )
       }
+      {completedChildren.map(child => (
+        <ChildCompletePlanCard
+          key={child.id}
+          fullChild={child}
+          navigation={navigation}
+        />
+      ))}
 
       {/* ── Family Goals ─────────────────────────────────────────────── */}
       {familyGoals.length > 0 && (
@@ -348,15 +481,31 @@ const styles = StyleSheet.create({
   habitChildName:     { fontSize: 12, fontWeight: '700' },
   habitPageCount:     { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
   habitCarousel:      { overflow: 'hidden' },
-  habitRow:           { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
-  habitIconCircle:    { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  habitText:          { flex: 1, fontSize: 14, fontWeight: '500', color: '#1B3D2F', lineHeight: 21 },
-  habitWisdom:        { flexDirection: 'row', gap: 8, backgroundColor: '#F0FAF5', borderRadius: 10, padding: 10, marginBottom: 12 },
-  habitWisdomText:    { flex: 1, fontSize: 13, color: '#374151', lineHeight: 20 },
+  habitInfoBox:       { marginBottom: 4 },
+  habitInfoRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  habitInfoIcon:      { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  habitInfoEyebrow:   { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 },
+  habitInfoText:      { fontSize: 14, color: '#1B3D2F', lineHeight: 21 },
+  habitInfoDivider:   { height: 1, backgroundColor: 'rgba(0,0,0,0.07)', marginVertical: 14 },
   habitDots:          { flexDirection: 'row', gap: 5, justifyContent: 'center', marginTop: 10, marginBottom: 12 },
   habitDot:           { width: 6, height: 6, borderRadius: 3 },
   habitDotActive:     { width: 16, borderRadius: 3 },
   habitLogLink:       { fontSize: 12, fontWeight: '600', color: '#2E7D62', textAlign: 'right' },
+
+  // Complete-plan card
+  completeBadge:      { backgroundColor: '#EDF7F2', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  completeBadgeText:  { fontSize: 10, fontWeight: '700', color: '#2E7D62', letterSpacing: 0.5, textTransform: 'uppercase' },
+  completeTitle:      { fontSize: 14, fontWeight: '700', color: '#1B3D2F', marginBottom: 4, marginTop: 12 },
+  completeSub:        { fontSize: 13, color: '#6B7280', lineHeight: 19, marginBottom: 14 },
+  renewBtn:            { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EDF7F2', borderRadius: 12, padding: 12, marginBottom: 10 },
+  renewBtnText:        { fontSize: 13, fontWeight: '700', color: '#2E7D62' },
+  renewBtnSub:         { fontSize: 11, color: '#6B7280', marginTop: 1 },
+  suggestSeparatorLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', textAlign: 'center', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 },
+  suggestListWrap:     { gap: 8 },
+  suggestLoading:      { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', paddingVertical: 8 },
+  suggestLoadingText:  { fontSize: 12, color: '#9CA3AF' },
+  suggestChip:         { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F0F9F5', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  suggestChipText:     { flex: 1, fontSize: 13, fontWeight: '600', color: '#1A1A2E' },
 
   // Growth placeholder
   growthPlaceholder: {

@@ -463,7 +463,8 @@ export default function FamilyFeedScreen({ navigation }) {
   const [shukrVideo,    setShukrVideo]    = useState(null);
   const [shukrSaving,   setShukrSaving]   = useState(false);
   const [commentCounts, setCommentCounts] = useState({});
-  const channelRef = useRef(null);
+  const channelRef    = useRef(null);
+  const shukrInputRef = useRef(null);
 
   useFocusEffect(useCallback(() => {
     AsyncStorage.setItem('tarbiyah_feed_last_viewed', new Date().toISOString()).catch(() => {});
@@ -608,8 +609,7 @@ export default function FamilyFeedScreen({ navigation }) {
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'muhasabah_sessions' }, () => loadAll())
           .subscribe();
       }
-    } catch (e) {
-      console.warn('[FamilyFeed] loadAll:', e?.message);
+    } catch {
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -748,6 +748,7 @@ export default function FamilyFeedScreen({ navigation }) {
     const result = await launchFn({ mediaTypes: ImagePicker.MediaTypeOptions?.Images ?? 'images', quality: 0.8, allowsEditing: true, aspect: [4, 3] });
     if (!result.canceled && result.assets?.[0]?.uri) {
       setShukrPhoto(result.assets[0].uri);
+      setTimeout(() => shukrInputRef.current?.focus(), 400);
     }
   }
 
@@ -764,6 +765,7 @@ export default function FamilyFeedScreen({ navigation }) {
       if (!result.canceled && result.assets?.[0]?.uri) {
         setShukrVideo(result.assets[0].uri);
         setShukrPhoto(null);
+        setTimeout(() => shukrInputRef.current?.focus(), 400);
       }
     } catch (e) {
       Alert.alert('Error', 'Could not open video picker.');
@@ -776,7 +778,6 @@ export default function FamilyFeedScreen({ navigation }) {
     setShukrSaving(true);
     try {
       const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
-      console.log('[saveShukr] familyId:', familyId, 'userId:', session?.user?.id);
       let photo_url = null;
       let video_url = null;
       if (shukrPhoto) {
@@ -811,7 +812,6 @@ export default function FamilyFeedScreen({ navigation }) {
       resetShukr();
       loadAll(true);
     } catch (e) {
-      console.error('saveShukr error:', e?.message, e?.code, JSON.stringify(e?.details));
       Alert.alert('Error', 'Could not save. Please try again.');
     } finally {
       setShukrSaving(false);
@@ -829,7 +829,6 @@ export default function FamilyFeedScreen({ navigation }) {
     setAccomSaving(true);
     try {
       const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
-      console.log('[saveAccomplishment] familyId:', familyId, 'userId:', session?.user?.id);
       const toTree = !!selectedTree;
       // When saving to a tree, use the tree's child_id/name so it shows up in that garden view
       const childId   = toTree ? (selectedTree.child_id   ?? accomChild.id)   : accomChild.id;
@@ -858,7 +857,6 @@ export default function FamilyFeedScreen({ navigation }) {
       resetAccom();
       loadAll(true);
     } catch (e) {
-      console.error('saveAccomplishment error:', e?.message, e?.code, JSON.stringify(e?.details));
       Alert.alert('Error', 'Could not save. Please try again.');
     } finally {
       setAccomSaving(false);
@@ -960,7 +958,15 @@ export default function FamilyFeedScreen({ navigation }) {
             const color = item.child_color ?? childMap[item.child_id] ?? '#2E7D62';
             const poster = item.user_id === myUserId ? 'You' : (partnerName || 'Partner');
             return (
-              <View key={`${item._type}-${item.id}-${i}`} style={[s.card, item._type === 'shukr' && { backgroundColor: '#FFFBF0' }]}>
+              <TouchableOpacity
+                key={`${item._type}-${item.id}-${i}`}
+                style={[s.card, item._type === 'shukr' && { backgroundColor: '#FFFBF0' }]}
+                activeOpacity={0.97}
+                onPress={() => {
+                  const authorName = item.user_id === myUserId ? myName : partnerName;
+                  navigation.navigate('FeedPost', { item, authorName, authorColor: item.child_color ?? childMap[item.child_id] ?? '#2E7D62' });
+                }}
+              >
                 {/* Card header */}
                 <View style={s.cardHeader}>
                   {item._type === 'shukr' && !item.child_name
@@ -1006,21 +1012,14 @@ export default function FamilyFeedScreen({ navigation }) {
                   <ShukrCard item={item} myName={myName} onLove={handleLoveShukr} onPhotoPress={setFullscreenPhoto} />
                 )}
 
-                {/* Comment button */}
-                <TouchableOpacity
-                  style={s.commentBtn}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    const authorName = item.user_id === myUserId ? myName : partnerName;
-                    navigation.navigate('FeedPost', { item, authorName, authorColor: item.child_color ?? childMap[item.child_id] ?? '#2E7D62' });
-                  }}
-                >
+                {/* Comment count strip — whole card is tappable */}
+                <View style={s.commentBtn}>
                   <Ionicons name="chatbubble-outline" size={14} color={SUB} />
                   <Text style={s.commentBtnText}>
                     {(commentCounts[item.id] ?? 0) > 0 ? `${commentCounts[item.id]} comment${commentCounts[item.id] !== 1 ? 's' : ''}` : 'Comment'}
                   </Text>
-                </TouchableOpacity>
-              </View>
+                </View>
+              </TouchableOpacity>
             );
           })}
 
@@ -1163,6 +1162,7 @@ export default function FamilyFeedScreen({ navigation }) {
                 )}
 
                 <TextInput
+                  ref={shukrInputRef}
                   style={s.shukrInput}
                   placeholder="I am grateful for…"
                   placeholderTextColor="#D1FAE5"

@@ -17,6 +17,13 @@ const TEXT  = '#111827';
 const SUB   = '#6B7280';
 const GREEN = '#1B3D2F';
 
+const AVATAR_COLORS = ['#1B3D2F','#1A3A6B','#7C3AED','#B45309','#0E7490','#9D174D','#065F46','#92400E'];
+function avatarColor(userId) {
+  let h = 0;
+  for (let i = 0; i < (userId ?? '').length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
 const TYPE_META = {
   accomplishment:         { label: 'Accomplishment', color: '#1B3D2F', bg: '#EDF7F2', dot: '#22C55E' },
   general_accomplishment: { label: 'Accomplishment', color: '#1B3D2F', bg: '#EDF7F2', dot: '#22C55E' },
@@ -204,8 +211,8 @@ export default function FeedPostScreen({ route, navigation }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.id) {
         setMyUserId(session.user.id);
-        const { data: p } = await supabase.from('profiles').select('display_name').eq('id', session.user.id).single();
-        if (p?.display_name) setMyName(p.display_name);
+        const { data: p } = await supabase.from('profiles').select('name').eq('user_id', session.user.id).single();
+        if (p?.name) setMyName(p.name);
       }
     })();
     loadComments();
@@ -265,7 +272,11 @@ export default function FeedPostScreen({ route, navigation }) {
   const displayDate = item._ts ?? item._date ?? item.created_at;
 
   return (
-    <View style={[s.root, { paddingBottom: insets.bottom }]}>
+    <KeyboardAvoidingView
+      style={s.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
       {/* Header */}
       <View style={[s.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -278,7 +289,7 @@ export default function FeedPostScreen({ route, navigation }) {
         <View style={{ width: 24 }} />
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
+      <View style={{ flex: 1 }}>
         <FlatList
           ref={flatRef}
           data={comments}
@@ -320,7 +331,7 @@ export default function FeedPostScreen({ route, navigation }) {
               onLongPress={() => deleteComment(c)}
               activeOpacity={0.85}
             >
-              <View style={[s.commentAvatar, { backgroundColor: '#2E7D62' }]}>
+              <View style={[s.commentAvatar, { backgroundColor: avatarColor(c.user_id) }]}>
                 <Text style={s.commentAvatarText}>{(c.author_name ?? '?')[0].toUpperCase()}</Text>
               </View>
               <View style={s.commentBubble}>
@@ -356,8 +367,8 @@ export default function FeedPostScreen({ route, navigation }) {
             }
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

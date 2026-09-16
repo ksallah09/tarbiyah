@@ -171,7 +171,6 @@ export async function generateInviteCode() {
   const { error: ownerMemberError } = await supabase
     .from('family_members')
     .upsert({ family_id: familyId, user_id: userId, display_name: displayName, role: 'owner' }, { onConflict: 'family_id,user_id' });
-  if (ownerMemberError) console.warn('family_members owner upsert error:', ownerMemberError.message);
 
   // Cancel any prior unused codes from this family
   await supabase
@@ -280,7 +279,6 @@ export async function joinFamilyWithCode(code) {
   const { error: memberError } = await supabase
     .from('family_members')
     .upsert({ family_id: invite.family_id, user_id: userId, display_name: displayName, role: 'partner' }, { onConflict: 'family_id,user_id' });
-  if (memberError) console.warn('family_members upsert error:', memberError.message);
 
   // Auto-create trees for joiner's children that don't already exist in the shared family
   if (joinerChildIds.length > 0) {

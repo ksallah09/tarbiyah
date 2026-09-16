@@ -136,8 +136,8 @@ export default function YouthCultureModal({ visible, onClose, children = [], ini
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.childName, { color: child.color }]}>{child.name}'s World</Text>
-                    <Text style={styles.childAge}>Age {child.age}</Text>
+                    <Text style={[styles.childName, { color: child.color }]}>Trends for {child.name}'s Age</Text>
+                    <Text style={styles.childAge}>Age {child.age} · Youth Culture</Text>
                   </View>
                   {children.length > 1 && (
                     <Text style={styles.childPageCount}>{index + 1} / {children.length}</Text>
@@ -168,7 +168,7 @@ export default function YouthCultureModal({ visible, onClose, children = [], ini
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.nextHintLabel}>Up next</Text>
-                      <Text style={[styles.nextHintName, { color: next.color }]}>{next.name}'s World</Text>
+                      <Text style={[styles.nextHintName, { color: next.color }]}>Trends for {next.name}'s Age</Text>
                     </View>
                     <View style={[styles.nextHintArrow, { backgroundColor: next.color + '18' }]}>
                       <Ionicons name="arrow-forward" size={14} color={next.color} />

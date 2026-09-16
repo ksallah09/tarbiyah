@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   ScrollView, TextInput, Animated, KeyboardAvoidingView, Platform, Alert,
@@ -35,13 +35,13 @@ const BUILTIN_QUESTIONS = [
   "What's my positive goal for tomorrow?",
 ];
 
-const STEPS = ['welcome', 'categories', 'questions', 'reward'];
+const STEPS = ['welcome', 'categories', 'questions', 'reward', 'trial'];
 
 export default function MuhasabahSetupScreen({ navigation, route }) {
-  const { child } = route.params ?? {};
+  const { child, editMode = false } = route.params ?? {};
   const firstName = child?.name?.split(' ')[0] ?? 'your child';
 
-  const [stepIdx, setStepIdx] = useState(0);
+  const [stepIdx, setStepIdx] = useState(editMode ? STEPS.indexOf('categories') : 0);
   const [saving,  setSaving]  = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -57,6 +57,35 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
   const [rewardGoal,   setRewardGoal]   = useState('');
   const [rewardTarget, setRewardTarget] = useState('100');
 
+  // Load saved config on mount (edit mode and first-time both benefit)
+  useEffect(() => {
+    async function loadSaved() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || !child?.id) return;
+        const { data } = await supabase
+          .from('muhasabah_config')
+          .select('categories, questions, reward_goal, reward_points_target')
+          .eq('user_id', session.user.id)
+          .eq('child_id', child.id)
+          .maybeSingle();
+        if (!data) return;
+        if (data.categories?.length) {
+          setSelected(new Set(data.categories.map(c => c.key)));
+        }
+        if (data.questions?.custom?.length) {
+          const q = data.questions.custom;
+          setCustomQs([q[0] ?? '', q[1] ?? '']);
+        }
+        if (data.reward_goal)          setRewardGoal(data.reward_goal);
+        if (data.reward_points_target) setRewardTarget(String(data.reward_points_target));
+      } catch (e) {
+        console.warn('[setup] loadSaved:', e);
+      }
+    }
+    loadSaved();
+  }, []);
+
   const step = STEPS[stepIdx];
 
   function transition(next) {
@@ -71,12 +100,15 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
     if (step === 'categories') {
       if (selected.size < 3) { Alert.alert('Pick at least 3', 'Choose at least 3 areas to reflect on.'); return; }
     }
-    if (stepIdx < STEPS.length - 1) { transition(stepIdx + 1); return; }
-    saveAndFinish();
+    if (step === 'reward') { saveAndFinish(); return; }
+    if (step === 'trial') { return; } // trial step has its own buttons
+    transition(stepIdx + 1);
   }
 
   function goBack() {
-    if (stepIdx === 0) { navigation.goBack(); return; }
+    const firstStep = editMode ? STEPS.indexOf('categories') : 0;
+    if (stepIdx <= firstStep) { navigation.goBack(); return; }
+    if (step === 'trial') { navigation.goBack(); return; }
     transition(stepIdx - 1);
   }
 
@@ -91,16 +123,27 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
 
       const customList = customQs.map(q => q.trim()).filter(Boolean);
 
-      await supabase.from('muhasabah_config').upsert({
+      const { error } = await supabase.from('muhasabah_config').upsert({
         user_id:               session.user.id,
         child_id:              child.id,
+        child_name:            child.name,
         categories:            cats,
         questions:             { custom: customList },
         reward_goal:           rewardGoal.trim() || null,
         reward_points_target:  target,
       }, { onConflict: 'user_id,child_id' });
 
-      navigation.goBack();
+      if (error) {
+        console.warn('[setup] upsert error:', error);
+        Alert.alert('Error', 'Could not save settings. Please try again.');
+        return;
+      }
+
+      if (editMode) {
+        navigation.goBack();
+      } else {
+        transition(STEPS.indexOf('trial'));
+      }
     } catch (e) {
       console.warn('[setup] save failed:', e);
       Alert.alert('Error', 'Could not save settings. Please try again.');
@@ -142,8 +185,14 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
       </View>
 
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            automaticallyAdjustKeyboardInsets={true}
+          >
 
             {/* ── Step: Welcome ── */}
             {step === 'welcome' && (
@@ -173,7 +222,7 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
 
                 <View style={styles.noteRow}>
                   <Ionicons name="information-circle-outline" size={16} color={PURPLE} />
-                  <Text style={styles.noteText}>You can change any of these later from {firstName}'s Rewards screen.</Text>
+                  <Text style={styles.noteText}>You can change any of these later from {firstName}'s Progress screen.</Text>
                 </View>
               </View>
             )}
@@ -240,6 +289,8 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
                       placeholder={`Custom question ${i + 1}…`}
                       placeholderTextColor={SUBTEXT}
                       maxLength={80}
+                      returnKeyType="done"
+                      blurOnSubmit={true}
                     />
                   </View>
                 ))}
@@ -285,23 +336,66 @@ export default function MuhasabahSetupScreen({ navigation, route }) {
               </View>
             )}
 
+            {/* ── Step: Trial prompt ── */}
+            {step === 'trial' && (
+              <View style={styles.stepWrap}>
+                <Text style={[styles.emoji, { marginTop: 8 }]}>🧪</Text>
+                <Text style={styles.title}>Want a trial run?</Text>
+                <Text style={styles.sub}>
+                  Try a practice session so you know exactly what to expect before {firstName}'s first real one. Same flow — nothing saved to their points or history.
+                </Text>
+
+                <View style={styles.trialCard}>
+                  {[
+                    ['✅', 'Full session experience'],
+                    ['✅', 'See the generated reminder'],
+                    ['✅', 'Points shown at the end'],
+                    ['❌', 'Nothing saved to history'],
+                  ].map(([icon, label]) => (
+                    <View key={label} style={styles.trialRow}>
+                      <Text style={styles.trialIcon}>{icon}</Text>
+                      <Text style={styles.trialRowText}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.trialYesBtn}
+                  onPress={() => navigation.navigate('MuhasabahWizard', { trialMode: true, child, autoStart: true })}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.trialYesBtnText}>Yes, try a practice session ✨</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.trialNoBtn}
+                  onPress={() => navigation.goBack()}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.trialNoBtnText}>Skip for now →</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
           </ScrollView>
+
+          {/* Bottom button — inside KAV so it shifts up with the keyboard */}
+          {step !== 'trial' && (
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.nextBtn, saving && { opacity: 0.6 }]}
+                onPress={goNext}
+                disabled={saving}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.nextBtnText}>
+                  {step === 'reward' ? (saving ? 'Saving…' : 'Save & Continue →') : 'Next →'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </KeyboardAvoidingView>
       </Animated.View>
-
-      {/* Bottom button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.nextBtn, saving && { opacity: 0.6 }]}
-          onPress={goNext}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.nextBtnText}>
-            {step === 'reward' ? (saving ? 'Saving…' : 'Save & Begin ✨') : 'Next →'}
-          </Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -361,4 +455,14 @@ const styles = StyleSheet.create({
   footer:        { paddingHorizontal: 22, paddingBottom: 28, paddingTop: 12 },
   nextBtn:       { backgroundColor: GOLD, borderRadius: 16, paddingVertical: 18, alignItems: 'center' },
   nextBtnText:   { fontSize: 17, fontWeight: '900', color: '#0D1B3E' },
+
+  trialCard:     { backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: BORDER, padding: 18, marginBottom: 28, gap: 12 },
+  trialRow:      { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  trialIcon:     { fontSize: 16 },
+  trialRowText:  { fontSize: 14, color: TEXT, fontWeight: '500' },
+
+  trialYesBtn:   { backgroundColor: GOLD, borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginBottom: 12 },
+  trialYesBtnText: { fontSize: 17, fontWeight: '900', color: '#0D1B3E' },
+  trialNoBtn:    { alignItems: 'center', paddingVertical: 14 },
+  trialNoBtnText: { fontSize: 15, color: SUBTEXT, fontWeight: '600' },
 });

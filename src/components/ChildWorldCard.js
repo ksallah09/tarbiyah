@@ -730,7 +730,7 @@ export function ChildWorldCard({ child, flush = false }) {
               <View style={cw.liveBadge}><Text style={cw.liveBadgeText}>LIVE</Text></View>
             )}
           </View>
-          <Text style={cw.title}>This Week in {displayName}'s World</Text>
+          <Text style={cw.title}>Youth Trends for {displayName}'s Age</Text>
           <View style={cw.metaRow}>
             <View style={cw.ageBadge}><Text style={cw.ageBadgeText}>{snap.ageLabel ?? `Ages ${snap.ageGroup ?? ageGroup}`}</Text></View>
             <Text style={cw.weekText}>Last updated {snap.generatedAt ? new Date(snap.generatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>

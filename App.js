@@ -522,6 +522,7 @@ function MainApp() {
         component={FamilyFeedScreen}
         options={{ headerShown: false, animation: 'slide_from_right' }}
       />
+      <Stack.Screen name="FeedPost" component={FeedPostScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -547,7 +548,6 @@ function OnboardingStack() {
       <Stack.Screen name="OnboardingAccount"    component={OnboardingAccount} />
       <Stack.Screen name="OnboardingAllSet"     component={OnboardingAllSet} />
       <Stack.Screen name="FeatureTour"          component={FeatureTourScreen} options={{ animation: 'fade' }} />
-      <Stack.Screen name="FeedPost"             component={FeedPostScreen}    options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

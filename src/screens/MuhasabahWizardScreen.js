@@ -1,12 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput, StyleSheet,
+  Alert, View, Text, TouchableOpacity, TextInput, StyleSheet,
   Animated, KeyboardAvoidingView, Platform, ActivityIndicator,
   ScrollView, SafeAreaView, Dimensions, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../utils/supabase';
 import { getAllChildProfiles } from '../utils/childProfiles';
+import { notifyPartner } from '../utils/partnerNotify';
+import { getCachedSyncStatus } from '../utils/familySync';
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -343,7 +345,7 @@ function RepairYNStep({ value, onChange }) {
     <View style={styles.stepWrap}>
       <Text style={styles.stepEmoji}>🤝</Text>
       <Text style={styles.stepTitle}>Something to repair?</Text>
-      <Text style={styles.stepSub}>Did something happen that needs to be made right?</Text>
+      <Text style={styles.stepSub}>Did something happen that still needs to be made right?</Text>
 
       <TouchableOpacity
         style={[styles.ynBtn, value === true  && styles.ynBtnYes]}
@@ -353,7 +355,7 @@ function RepairYNStep({ value, onChange }) {
         <Text style={styles.ynBtnEmoji}>✅</Text>
         <View>
           <Text style={styles.ynBtnLabel}>Yes, there was</Text>
-          <Text style={styles.ynBtnSub}>I want to make it right</Text>
+          <Text style={styles.ynBtnSub}>Something may still need to be made right</Text>
         </View>
       </TouchableOpacity>
 
@@ -365,7 +367,7 @@ function RepairYNStep({ value, onChange }) {
         <Text style={styles.ynBtnEmoji}>🙏</Text>
         <View>
           <Text style={styles.ynBtnLabel}>No, alhamdulillah</Text>
-          <Text style={styles.ynBtnSub}>Nothing to repair today</Text>
+          <Text style={styles.ynBtnSub}>Nothing to repair at this point</Text>
         </View>
       </TouchableOpacity>
     </View>
@@ -620,6 +622,10 @@ export default function MuhasabahWizardScreen({ navigation, route }) {
     }
     if (current === 'repair')    { transitionTo(STEPS.indexOf('tomorrow')); return; }
     if (current === 'tomorrow')  {
+      if (!doBetter?.trim()) {
+        Alert.alert('Set your intention', 'Please write your positive goal for tomorrow before continuing.');
+        return;
+      }
       const customList = questions?.custom ?? [];
       if (customList.length > 0) { transitionTo(STEPS.indexOf('custom_q0')); return; }
       transitionTo(STEPS.indexOf('generating'));
@@ -687,6 +693,14 @@ export default function MuhasabahWizardScreen({ navigation, route }) {
             points_earned:  points,
             streak_day:     streakDay,
           });
+          const syncStatus = await getCachedSyncStatus().catch(() => null);
+          if (syncStatus?.linked) {
+            notifyPartner(
+              `🌙 Muhasabah complete — +${points} pts`,
+              `${selectedChild.name.split(' ')[0]} finished their nightly reflection`,
+              { screen: 'FamilyFeed' }
+            );
+          }
         }
       } catch (e) {
         console.warn('[muhasabah] session save failed:', e);

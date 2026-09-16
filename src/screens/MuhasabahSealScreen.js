@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { CommonActions } from '@react-navigation/native';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Animated, SafeAreaView, ScrollView, Image,
@@ -236,13 +237,16 @@ export default function MuhasabahSealScreen({ navigation, route }) {
           style={styles.doneBtn}
           onPress={() => trialMode
             ? navigation.navigate('MuhasabahWizard')
-            : navigation.navigate('Tabs', { screen: 'Home' })
+            : navigation.dispatch(CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Tabs', params: { screen: 'Family', params: { tab: 'childWins' } } }],
+              }))
           }
           activeOpacity={0.85}
         >
           <Text style={styles.doneBtnText}>{trialMode ? 'Practice Complete 🌙' : 'Alhamdulillah! 🌙'}</Text>
         </TouchableOpacity>
-        <Text style={styles.seeYou}>{trialMode ? 'Start a real session anytime from the home screen.' : 'See you tomorrow for muhasabah 🤲'}</Text>
+        <Text style={styles.seeYou}>{trialMode ? 'Start a real session anytime from the Child Growth tab.' : 'See you tomorrow for muhasabah 🤲'}</Text>
       </ScrollView>
     </SafeAreaView>
   );

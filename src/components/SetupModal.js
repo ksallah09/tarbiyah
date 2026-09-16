@@ -79,7 +79,7 @@ const SetupModal = forwardRef(function SetupModal(
         navigation.navigate('GrowthAreaWizard', { child: children[0], isFirstTime: true });
       }
     } else {
-      navigation.navigate('Family', { tab: 'configure', scrollTo: 'familyGoals' });
+      navigation.navigate('FamilyGoalWizard');
     }
   }
 

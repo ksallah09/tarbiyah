@@ -24,14 +24,28 @@ export async function getAccessToken() {
   return session?.access_token ?? null;
 }
 
-// Ensures a family_members row exists for the user — called after any sign-up/sign-in
+// Ensures a family_members row exists for the user — called after any sign-up/sign-in.
+// Only creates a row when the user has none; never touches existing rows so
+// linked users keep their shared family_id.
 async function ensureFamilyMember(userId) {
   if (!userId) return;
+  const { data: existing } = await supabase
+    .from('family_members')
+    .select('family_id')
+    .eq('user_id', userId)
+    .limit(1);
+  if (existing?.[0]?.family_id) {
+    // Row exists — cache it and mark verified so getFamilyId uses it immediately
+    await AsyncStorage.setItem('tarbiyah_family_id', existing[0].family_id);
+    await AsyncStorage.setItem('tarbiyah_family_verified', '1');
+    return;
+  }
+  // Brand-new user — create their solo family
   const familyId = `family_${userId}`;
   await supabase.from('family_members')
-    .upsert({ family_id: familyId, user_id: userId, role: 'owner', display_name: 'Parent' },
-             { onConflict: 'family_id,user_id', ignoreDuplicates: true });
+    .insert({ family_id: familyId, user_id: userId, role: 'owner', display_name: 'Parent' });
   await AsyncStorage.setItem('tarbiyah_family_id', familyId);
+  await AsyncStorage.setItem('tarbiyah_family_verified', '1');
 }
 
 /** Sign up with email + password. Returns { user, error }. */

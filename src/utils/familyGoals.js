@@ -203,7 +203,7 @@ export async function saveFamilyGoal(goal) {
     supabase
       .from('family_goals')
       .upsert(row, { onConflict: 'id' })
-      .then(({ error }) => { if (error) console.warn('Family goal sync error:', error.message); });
+      .then();
   }
 }
 
@@ -334,8 +334,7 @@ async function scheduleGoalNotifications(goal) {
     if (scheduledIds.length > 0) {
       await AsyncStorage.setItem(NOTIF_ID_KEY_PREFIX + goal.id, JSON.stringify(scheduledIds));
     }
-  } catch (err) {
-    console.warn('Failed to schedule goal notification:', err.message);
+  } catch {
   }
 }
 
