@@ -42,7 +42,16 @@ export async function getFamilyId() {
         .select('family_id')
         .eq('user_id', userId)
         .limit(1);
-      id = memberships?.[0]?.family_id ?? `family_${userId}`;
+      if (memberships?.[0]?.family_id) {
+        id = memberships[0].family_id;
+      } else {
+        // No family_members row — create one so RLS-based selects work
+        id = `family_${userId}`;
+        await supabase.from('family_members').upsert(
+          { family_id: id, user_id: userId, role: 'owner', display_name: 'Parent' },
+          { onConflict: 'family_id,user_id' }
+        );
+      }
     } else {
       id = `family_local_${Date.now()}`;
     }
