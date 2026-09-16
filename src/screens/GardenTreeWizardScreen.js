@@ -49,7 +49,7 @@ export default function GardenTreeWizardScreen({ navigation }) {
       const familyId = await getFamilyId();
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
-      await supabase.from('family_trees').upsert({
+      const { error } = await supabase.from('family_trees').upsert({
         family_id:  familyId,
         child_id:   selectedChild.id,
         child_name: selectedChild.name,
@@ -58,8 +58,14 @@ export default function GardenTreeWizardScreen({ navigation }) {
         rewards,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'child_id' });
+      if (error) {
+        console.warn('[tree] upsert error:', error.message);
+        Alert.alert('Error', 'Could not create tree. Please try again.');
+        return;
+      }
       navigation.goBack();
-    } catch {
+    } catch (e) {
+      console.warn('[tree] error:', e?.message ?? e);
       Alert.alert('Error', 'Could not create tree. Please try again.');
     } finally {
       setSaving(false);

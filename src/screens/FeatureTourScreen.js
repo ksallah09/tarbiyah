@@ -30,8 +30,8 @@ const MOCK_TABS = [
 
 // Which tab index each slide highlights (null = none)
 // Tabs: 0=Home, 1=Family, 2=Alerts, 3=Media, 4=Learn
-// Slides: welcome, insights, family, alerts, dashboard, media, learn
-const SLIDE_TAB = [null, 0, 1, 2, 1, 3, 4];
+// Slides: welcome, insights, family, feed, muhasabah, alerts, dashboard, media, learn
+const SLIDE_TAB = [null, 0, 1, 1, 1, 2, 1, 3, 4];
 
 const SLIDES = [
   {
@@ -54,6 +54,20 @@ const SLIDES = [
     iconColor: '#4ADE80',
     title: 'Family Activities',
     body: 'Play Islamic Heads Up or Next Ayah together, spark meaningful conversations with Conversation Cards, and follow each child\'s personalised Growth Activities — all in the Family tab.',
+  },
+  {
+    key: 'feed',
+    icon: 'albums-outline',
+    iconColor: '#4ADE80',
+    title: 'Family Feed',
+    body: "Every accomplishment, shukr moment, and reflection posts to your Family Feed — a living record of your children's growth that both parents can see, celebrate, and look back on together.",
+  },
+  {
+    key: 'muhasabah',
+    icon: 'moon-outline',
+    iconColor: '#C084FC',
+    title: 'Nightly Muhasabah',
+    body: "Sit with your child each night for a short reflection — what went well, what to improve, and a positive intention for tomorrow. They earn points and you receive a personalised Islamic reminder.",
   },
   {
     key: 'alerts',

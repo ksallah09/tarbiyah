@@ -13,7 +13,8 @@ import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { CATEGORIES } from '../../data/headsup_categories';
-import { fetchCategories } from '../../utils/headsupCategories';
+import { fetchCategories, refreshUserPacks } from '../../utils/headsupCategories';
+import PackBrowserModal from '../../components/PackBrowserModal';
 
 const TIMER_SECONDS = 60;
 const TILT_TRIGGER     = 0.75;  // sustained tilt threshold
@@ -264,7 +265,8 @@ function CategoryPicker({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { gameState } = route.params ?? {};
   const currentPlayer = gameState?.players[gameState.currentPlayerIdx];
-  const [categories, setCategories] = useState(CATEGORIES);
+  const [categories,    setCategories]    = useState(CATEGORIES);
+  const [showPackModal, setShowPackModal] = useState(false);
 
   useEffect(() => {
     fetchCategories(setCategories).then(setCategories).catch(() => {});
@@ -324,7 +326,22 @@ function CategoryPicker({ navigation, route }) {
             </TouchableOpacity>
           ))}
         </View>
+
+        <TouchableOpacity
+          style={styles.browsePacksBtn}
+          onPress={() => setShowPackModal(true)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="add-circle-outline" size={18} color="#1B3D2F" />
+          <Text style={styles.browsePacksBtnText}>Browse Content Packs</Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      <PackBrowserModal
+        visible={showPackModal}
+        onClose={() => setShowPackModal(false)}
+        onPacksChanged={() => refreshUserPacks(setCategories)}
+      />
     </View>
   );
 }
@@ -840,6 +857,9 @@ const styles = StyleSheet.create({
   catEmoji: { fontSize: 28, marginBottom: 4 },
   catLabel: { fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
   catCount: { fontSize: 12, color: '#9CA3AF' },
+
+  browsePacksBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8, marginBottom: 4, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#D1FAE5', backgroundColor: '#F0FBF4' },
+  browsePacksBtnText: { fontSize: 14, fontWeight: '700', color: '#1B3D2F' },
 
   // Score chip in header
   scoreChip:     { backgroundColor: '#E8F5EF', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },

@@ -12,13 +12,11 @@ export async function mergeDuplicateChildren(keepChild, removeChild) {
   const keepId   = keepChild.child_id;
   const removeId = removeChild.child_id;
 
-  // Link the duplicate under the canonical entry
   await supabase
     .from('family_children')
     .update({ linked_child_id: removeId })
     .eq('child_id', keepId);
 
-  // Remove the duplicate's standalone entry
   await supabase
     .from('family_children')
     .delete()
@@ -39,28 +37,41 @@ export async function mergeGardenData(matches, sharedFamilyId) {
   for (const { localChild, canonicalChild } of matches) {
     if (!localChild) continue;
 
-    // Always fix family_id so this child's deeds appear in the shared garden
-    await supabase
+    const r1 = await supabase
       .from('child_garden_actions')
       .update({ family_id: sharedFamilyId })
       .eq('child_id', localChild.id);
+    if (r1.error) console.warn('[merge] garden_actions:', r1.error.message);
 
-    await supabase
+    const r2 = await supabase
       .from('child_garden_settings')
       .update({ family_id: sharedFamilyId })
       .eq('child_id', localChild.id);
+    if (r2.error) console.warn('[merge] garden_settings:', r2.error.message);
 
-    // If matched to a canonical child, link them in family_children (display-only)
     if (canonicalChild && canonicalChild.id !== localChild.id) {
-      await supabase
+      const r3 = await supabase
         .from('family_children')
-        .update({ linked_child_id: localChild.id })
-        .eq('child_id', canonicalChild.id);
+        .upsert({
+          family_id:       sharedFamilyId,
+          child_id:        canonicalChild.id,
+          child_name:      canonicalChild.name,
+          linked_child_id: localChild.id,
+        }, { onConflict: 'child_id' });
+      if (r3.error) console.warn('[merge] family_children upsert:', r3.error.message);
 
-      await supabase
+      const r4 = await supabase
         .from('family_children')
         .delete()
         .eq('child_id', localChild.id);
+      if (r4.error) console.warn('[merge] family_children delete:', r4.error.message);
+
+      const r5 = await supabase
+        .from('family_trees')
+        .update({ linked_tree_id: canonicalChild.id })
+        .eq('child_id', localChild.id)
+        .is('linked_tree_id', null);
+      if (r5.error) console.warn('[merge] family_trees:', r5.error.message);
     }
   }
 }

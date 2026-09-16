@@ -3152,24 +3152,26 @@ app.post('/family/notify-partner', requireAuth, async (req: AuthRequest, res: Re
     const { title, body, data } = req.body;
     if (!title || !body) return res.status(400).json({ error: 'title and body required.' });
 
-    // Find partner via family_members
-    const { data: myMembership } = await supabase
+    // Find partner — scan all family memberships and pick the one that has
+    // another member (guards against stale solo rows accumulating)
+    const { data: myMemberships } = await supabase
       .from('family_members')
       .select('family_id')
-      .eq('user_id', req.userId)
-      .limit(1)
-      .single();
+      .eq('user_id', req.userId);
 
     let partnerUserId: string | null = null;
 
-    if (myMembership?.family_id) {
+    for (const m of myMemberships ?? []) {
       const { data: others } = await supabase
         .from('family_members')
         .select('user_id')
-        .eq('family_id', myMembership.family_id)
+        .eq('family_id', m.family_id)
         .neq('user_id', req.userId!)
         .limit(1);
-      partnerUserId = others?.[0]?.user_id ?? null;
+      if (others?.[0]?.user_id) {
+        partnerUserId = others[0].user_id;
+        break;
+      }
     }
 
     // Fall back to family_invites

@@ -9,6 +9,8 @@ let captureRef = null;
 try { captureRef = require('react-native-view-shot').captureRef; } catch {}
 let Sharing = null;
 try { Sharing = require('expo-sharing'); } catch {}
+let ImagePicker = null;
+try { ImagePicker = require('expo-image-picker'); } catch {}
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,10 +19,11 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../utils/supabase';
 import { getFamilyId } from '../utils/familyGoals';
-import { getCachedSyncStatus } from '../utils/familySync';
+import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { notifyPartner } from '../utils/partnerNotify';
 import { MANNERS } from '../components/MannerGarden';
 import { getAllChildProfiles, updateChildProfile } from '../utils/childProfiles';
+import { uploadPhoto } from '../utils/uploadPhoto';
 
 const BG      = '#F4F6F9';
 const WHITE   = '#FFFFFF';
@@ -29,10 +32,29 @@ const SUB     = '#6B7280';
 const BORDER  = '#E5E7EB';
 
 const TYPE_META = {
-  accomplishment: { label: 'Accomplishment', color: '#1B3D2F', bg: '#EDF7F2', dot: '#22C55E' },
-  reflection:     { label: 'Reflection',     color: '#0D1B3E', bg: '#EEF2FF', dot: '#818CF8' },
+  accomplishment:         { label: 'Accomplishment', color: '#1B3D2F', bg: '#EDF7F2', dot: '#22C55E' },
+  general_accomplishment: { label: 'Accomplishment', color: '#1B3D2F', bg: '#EDF7F2', dot: '#22C55E' },
+  reflection:     { label: 'Reflection',      color: '#0D1B3E', bg: '#EEF2FF', dot: '#818CF8' },
   incident:       { label: 'Difficult Moment', color: '#92400E', bg: '#FEF3C7', dot: '#F59E0B' },
+  shukr:          { label: 'Shukr',           color: '#92400E', bg: '#FFFBEB', dot: '#F59E0B' },
 };
+
+const SHUKR_AYAHS = [
+  { ref: 'Ibrahim 14:7',      text: '"If you are grateful, I will surely increase you in favor."' },
+  { ref: 'Al-Baqarah 2:152',  text: '"So remember Me; I will remember you. And be grateful to Me and do not deny Me."' },
+  { ref: 'An-Naml 27:40',     text: '"This is from the favor of my Lord to test me whether I will be grateful or ungrateful."' },
+  { ref: 'Luqman 31:12',      text: '"Whoever is grateful, his gratitude is only for the benefit of himself."' },
+  { ref: 'Ibrahim 14:34',     text: '"And if you should count the favors of Allah, you could not enumerate them."' },
+];
+
+const SHUKR_THEMES = [
+  { key: 'rizq',      label: 'Rizq',      emoji: '🌾', color: '#D97706' },
+  { key: 'health',    label: 'Health',    emoji: '💚', color: '#059669' },
+  { key: 'family',    label: 'Family',    emoji: '🏡', color: '#7C3AED' },
+  { key: 'growth',    label: 'Growth',    emoji: '🌱', color: '#2E7D62' },
+  { key: 'character', label: 'Character', emoji: '⭐', color: '#B45309' },
+  { key: 'ibadah',    label: 'Ibadah',    emoji: '🤲', color: '#1D4ED8' },
+];
 
 const EMOJI_SCALE  = ['😔', '😐', '🙂', '😊', '🌟'];
 const EMOJI_LABELS = ['Needs work', 'A little', 'Pretty good', 'Really good', 'Amazing!'];
@@ -44,18 +66,19 @@ const CAT_MAP = {
   helping:  { label: 'Helping',  emoji: '🤝' },
 };
 
-function formatDate(dateStr) {
+function formatDate(dateStr, tsStr) {
   if (!dateStr) return '';
-  // If already a full ISO timestamp don't append time, otherwise treat as date-only
-  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+  // Use full timestamp if available, otherwise date-only
+  const d = new Date(tsStr ?? (dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00'));
   if (isNaN(d.getTime())) return '';
-  const today = new Date(); today.setHours(0,0,0,0);
-  const itemDay = new Date(d); itemDay.setHours(0,0,0,0);
-  const diff = Math.floor((today - itemDay) / 86400000);
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Yesterday';
-  if (diff < 7)  return `${diff} days ago`;
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const itemDay = new Date(d); itemDay.setHours(0, 0, 0, 0);
+  const diff = Math.round((today - itemDay) / 86400000);
+  const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  if (diff <= 0) return `Today at ${timeStr}`;
+  if (diff === 1) return `Yesterday at ${timeStr}`;
+  if (diff < 7)  return `${d.toLocaleDateString('en-GB', { weekday: 'short' })} at ${timeStr}`;
+  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} at ${timeStr}`;
 }
 
 function Avatar({ name, color, photo, size = 38 }) {
@@ -80,9 +103,62 @@ function TypeBadge({ type }) {
   );
 }
 
-function AccomplishmentCard({ item, myName, onLove }) {
-  const manner   = MANNERS?.find?.(m => m.key === item.manner) ?? { emoji: '⭐', label: item.manner };
-  const loved    = (item.loved_by ?? []).includes(myName);
+function ShukrCard({ item, myName, onLove }) {
+  const loved  = (item.loved_by ?? []).includes(myName);
+  const theme  = SHUKR_THEMES.find(t => t.key === item.theme);
+
+  function handleShare() {
+    const parts = [];
+    if (item.text) parts.push(item.text);
+    if (item.ayah_text) parts.push(`"${item.ayah_text}" — ${item.ayah_ref}`);
+    Share.share({ message: parts.join('\n\n') || 'A moment of gratitude 🌙' });
+  }
+
+  return (
+    <View style={s.shukrCardInner}>
+      <View style={s.shukrTopRow}>
+        <Text style={s.shukrMoon}>🌙</Text>
+        <Text style={s.shukrLabel}>Shukr Moment</Text>
+        {theme && (
+          <View style={[s.shukrThemePill, { backgroundColor: theme.color + '18' }]}>
+            <Text style={[s.shukrThemePillText, { color: theme.color }]}>{theme.emoji} {theme.label}</Text>
+          </View>
+        )}
+      </View>
+
+      {!!item.text && <Text style={s.shukrText}>{item.text}</Text>}
+
+      {item.photo_url && (
+        <Image source={{ uri: item.photo_url }} style={s.shukrCardPhoto} contentFit="cover" />
+      )}
+
+      {item.ayah_text && (
+        <View style={s.shukrAyahWrap}>
+          <Text style={s.shukrAyahText}>{item.ayah_text}</Text>
+          <Text style={s.shukrAyahRef}>— {item.ayah_ref}</Text>
+        </View>
+      )}
+
+      <View style={s.reactionRow}>
+        <TouchableOpacity style={[s.reactionBtn, loved && s.reactionBtnActive]} onPress={() => onLove(item)} activeOpacity={0.75}>
+          <Ionicons name={loved ? 'heart' : 'heart-outline'} size={16} color={loved ? '#EF4444' : SUB} />
+          <Text style={[s.reactionText, loved && { color: '#EF4444' }]}>Love{(item.loved_by ?? []).length > 0 ? ` · ${item.loved_by.length}` : ''}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.reactionBtn} onPress={handleShare} activeOpacity={0.75}>
+          <Ionicons name="share-outline" size={16} color={SUB} />
+          <Text style={s.reactionText}>Share</Text>
+        </TouchableOpacity>
+        {(item.loved_by ?? []).length > 0 && (
+          <Text style={s.reactionNames} numberOfLines={1}>{item.loved_by.join(' & ')} loved this</Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function AccomplishmentCard({ item, myName, onLove, isTree, onViewTree }) {
+  const manner    = MANNERS?.find?.(m => m.key === item.manner) ?? { emoji: '⭐', label: item.manner };
+  const loved     = (item.loved_by ?? []).includes(myName);
   const loveCount = (item.loved_by ?? []).length;
 
   return (
@@ -90,6 +166,11 @@ function AccomplishmentCard({ item, myName, onLove }) {
       <View style={s.deedRow}>
         <Text style={s.deedEmoji}>{manner.emoji}</Text>
         <Text style={s.deedLabel}>{manner.label}</Text>
+        {isTree && (
+          <TouchableOpacity style={s.treeBadge} onPress={onViewTree} activeOpacity={0.75}>
+            <Text style={s.treeBadgeText}>🌳 View Tree</Text>
+          </TouchableOpacity>
+        )}
       </View>
       {!!item.note && (
         <Text style={s.quoteText}>"{item.note}"</Text>
@@ -219,7 +300,7 @@ function ReflectionCard({ item, myName, onLove, childColor }) {
             </View>
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={s.shareCardName}>{item.child_name}</Text>
-              <Text style={s.shareCardDate}>Nightly Muhasabah · {formatDate(item._date)}</Text>
+              <Text style={s.shareCardDate}>Nightly Muhasabah · {formatDate(item._date, item._ts)}</Text>
             </View>
             <Text style={{ fontSize: 22 }}>🌙</Text>
           </View>
@@ -329,12 +410,28 @@ export default function FamilyFeedScreen({ navigation }) {
   const [partnerName,   setPartnerName]   = useState('');
   // compose
   const [composeOpen,   setComposeOpen]   = useState(false);
-  const [winPickerOpen, setWinPickerOpen] = useState(false);
+  // accomplishment compose
+  const [accomOpen,     setAccomOpen]     = useState(false);
+  const [accomStep,     setAccomStep]     = useState('child'); // 'child' | 'manner' | 'tree' | 'tree_select'
+  const [accomChild,    setAccomChild]    = useState(null);
+  const [accomManner,   setAccomManner]   = useState(null);
+  const [accomNote,     setAccomNote]     = useState('');
+  const [accomTree,     setAccomTree]     = useState(null);
+  const [accomSaving,   setAccomSaving]   = useState(false);
   const [logModalStep,  setLogModalStep]  = useState(null);
   const [logChild,      setLogChild]      = useState(null);
   const [logText,       setLogText]       = useState('');
   const [logConsequence,setLogConsequence]= useState('');
   const [logSaving,     setLogSaving]     = useState(false);
+  // shukr compose
+  const [shukrOpen,     setShukrOpen]     = useState(false);
+  const [shukrStep,     setShukrStep]     = useState('text');
+  const [shukrText,     setShukrText]     = useState('');
+  const [shukrChildren, setShukrChildren] = useState([]);
+  const [shukrTheme,    setShukrTheme]    = useState(null);
+  const [shukrAyah,     setShukrAyah]     = useState(null);
+  const [shukrPhoto,    setShukrPhoto]    = useState(null);
+  const [shukrSaving,   setShukrSaving]   = useState(false);
   const channelRef = useRef(null);
 
   useFocusEffect(useCallback(() => {
@@ -359,30 +456,47 @@ export default function FamilyFeedScreen({ navigation }) {
       const name = profileRaw ? (JSON.parse(profileRaw).name ?? '') : '';
       setMyName(name);
 
-      const familyId  = await getFamilyId();
-      const partnerId = syncStatus?.partner?.userId ?? null;
-      const userIds   = [session.user.id, partnerId].filter(Boolean);
-
+      // Apply cached status immediately for fast paint, then verify with live status
       setPartnerLinked(!!syncStatus?.linked);
       setMyUserId(session.user.id);
       setPartnerName(syncStatus?.partner?.name?.split(' ')[0] ?? 'Partner');
 
+      // Fetch live sync status in background — corrects stale cache after unlink/link
+      getFamilySyncStatus().then(live => {
+        setPartnerLinked(!!live?.linked);
+        if (live?.partner?.name) setPartnerName(live.partner.name.split(' ')[0]);
+      }).catch(() => {});
+
+      const familyId  = await getFamilyId();
+      const partnerId = syncStatus?.partner?.userId ?? null;
+
+      // Get all family member user IDs from DB (more reliable than cache for muhasabah query)
+      const { data: familyMembers } = await supabase
+        .from('family_members')
+        .select('user_id')
+        .eq('family_id', familyId);
+      const familyUserIds = (familyMembers ?? []).map(m => m.user_id).filter(Boolean);
+      // Fallback to cached partner if family_members query fails or returns only self
+      const userIds = familyUserIds.length > 0
+        ? familyUserIds
+        : [session.user.id, partnerId].filter(Boolean);
+
       const [actRes, sessRes, momRes, childProfiles, treesRes] = await Promise.all([
         supabase
           .from('child_garden_actions')
-          .select('id, child_id, child_name, manner, note, date, loved_by, user_id')
+          .select('id, child_id, child_name, manner, note, date, loved_by, user_id, created_at')
           .eq('family_id', familyId)
           .order('date', { ascending: false })
           .limit(60),
         supabase
           .from('muhasabah_sessions')
-          .select('id, child_id, child_name, session_date, points_earned, streak_day, slider_ratings, didnt_do_well, repair_plan, do_better, custom_answers, loved_by, user_id')
+          .select('id, child_id, child_name, session_date, points_earned, streak_day, slider_ratings, didnt_do_well, repair_plan, do_better, custom_answers, loved_by, user_id, created_at')
           .in('user_id', userIds)
           .order('session_date', { ascending: false })
           .limit(60),
         supabase
           .from('family_moments')
-          .select('id, child_id, child_name, child_color, date, text, consequence, acknowledges, user_id')
+          .select('id, child_id, child_name, child_color, date, text, consequence, acknowledges, user_id, created_at')
           .eq('family_id', familyId)
           .eq('type', 'incident')
           .order('date', { ascending: false })
@@ -390,6 +504,26 @@ export default function FamilyFeedScreen({ navigation }) {
         getAllChildProfiles(),
         supabase.from('family_trees').select('*').eq('family_id', familyId),
       ]);
+
+      // shukr_posts queried separately — table may not exist yet if migration hasn't run
+      const shukrRes = await supabase
+        .from('shukr_posts')
+        .select('id, child_id, child_name, text, theme, ayah_ref, ayah_text, photo_url, loved_by, user_id, created_at')
+        .eq('family_id', familyId)
+        .order('created_at', { ascending: false })
+        .limit(40)
+        .then(r => r)
+        .catch(() => ({ data: [] }));
+
+      // family_accomplishments queried separately — table may not exist yet
+      const genAccomRes = await supabase
+        .from('family_accomplishments')
+        .select('id, child_id, child_name, manner, note, date, loved_by, user_id, created_at')
+        .eq('family_id', familyId)
+        .order('created_at', { ascending: false })
+        .limit(60)
+        .then(r => r)
+        .catch(() => ({ data: [] }));
 
       setChildren(childProfiles ?? []);
       setFamilyTrees((treesRes.data ?? []).filter(t => !t.linked_tree_id));
@@ -402,10 +536,12 @@ export default function FamilyFeedScreen({ navigation }) {
       setChildMap(map);
 
       const merged = [
-        ...(actRes.data ?? []).map(a => ({ ...a, _type: 'accomplishment', _date: a.date })),
-        ...(sessRes.data ?? []).map(s => ({ ...s, _type: 'reflection',     _date: s.session_date })),
-        ...(momRes.data  ?? []).map(m => ({ ...m, _type: 'incident',       _date: m.date })),
-      ].sort((a, b) => (b._date ?? '').localeCompare(a._date ?? ''));
+        ...(actRes.data        ?? []).map(a => ({ ...a, _type: 'accomplishment',         _date: a.date,         _ts: a.created_at ?? a.date })),
+        ...(genAccomRes.data   ?? []).map(a => ({ ...a, _type: 'general_accomplishment', _date: a.date,         _ts: a.created_at ?? a.date })),
+        ...(sessRes.data       ?? []).map(s => ({ ...s, _type: 'reflection',             _date: s.session_date, _ts: s.created_at ?? s.session_date })),
+        ...(momRes.data        ?? []).map(m => ({ ...m, _type: 'incident',               _date: m.date,         _ts: m.created_at ?? m.date })),
+        ...(shukrRes.data      ?? []).map(p => ({ ...p, _type: 'shukr',                  _date: p.created_at,   _ts: p.created_at })),
+      ].sort((a, b) => (b._ts ?? '').localeCompare(a._ts ?? ''));
 
       setFeed(merged);
 
@@ -413,8 +549,10 @@ export default function FamilyFeedScreen({ navigation }) {
       if (!channelRef.current && familyId) {
         channelRef.current = supabase
           .channel(`family-feed-${familyId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'child_garden_actions', filter: `family_id=eq.${familyId}` }, () => loadAll())
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'family_moments',       filter: `family_id=eq.${familyId}` }, () => loadAll())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'child_garden_actions',    filter: `family_id=eq.${familyId}` }, () => loadAll())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'family_accomplishments', filter: `family_id=eq.${familyId}` }, () => loadAll())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'family_moments',          filter: `family_id=eq.${familyId}` }, () => loadAll())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'shukr_posts',             filter: `family_id=eq.${familyId}` }, () => loadAll())
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'muhasabah_sessions' }, () => loadAll())
           .subscribe();
       }
@@ -428,7 +566,7 @@ export default function FamilyFeedScreen({ navigation }) {
 
   async function handleLove(item) {
     if (!myName) return;
-    const table     = item._type === 'accomplishment' ? 'child_garden_actions' : 'muhasabah_sessions';
+    const table     = item._type === 'accomplishment' ? 'child_garden_actions' : item._type === 'general_accomplishment' ? 'family_accomplishments' : 'muhasabah_sessions';
     const currentLoved = (item.loved_by ?? []).includes(myName);
     const newLoves  = currentLoved
       ? (item.loved_by ?? []).filter(n => n !== myName)
@@ -472,6 +610,16 @@ export default function FamilyFeedScreen({ navigation }) {
     }
   }
 
+  async function handleLoveShukr(item) {
+    if (!myName) return;
+    const current  = (item.loved_by ?? []).includes(myName);
+    const newLoves = current
+      ? (item.loved_by ?? []).filter(n => n !== myName)
+      : [...(item.loved_by ?? []), myName];
+    setFeed(prev => prev.map(f => f.id === item.id && f._type === 'shukr' ? { ...f, loved_by: newLoves } : f));
+    await supabase.from('shukr_posts').update({ loved_by: newLoves }).eq('id', item.id);
+  }
+
   async function saveLoggedMoment() {
     const text = logText.trim();
     if (!text || !logChild) return;
@@ -492,7 +640,7 @@ export default function FamilyFeedScreen({ navigation }) {
       });
       if (partnerLinked) {
         notifyPartner(
-          `${myName.split(' ')[0] || 'Your partner'} logged a difficult moment for ${logChild.name}`,
+          `${myName.split(' ')[0] || 'Your partner'} posted a difficult moment`,
           text.length > 100 ? text.slice(0, 97) + '…' : text,
           { screen: 'FamilyFeed' }
         );
@@ -506,6 +654,109 @@ export default function FamilyFeedScreen({ navigation }) {
     }
   }
 
+  function resetShukr() {
+    setShukrText(''); setShukrChildren([]); setShukrTheme(null); setShukrAyah(null);
+    setShukrPhoto(null); setShukrStep('text'); setShukrOpen(false);
+  }
+
+  async function pickShukrPhoto(fromCamera = false) {
+    if (!ImagePicker) return;
+    const permFn = fromCamera
+      ? ImagePicker.requestCameraPermissionsAsync
+      : ImagePicker.requestMediaLibraryPermissionsAsync;
+    const { status } = await permFn();
+    if (status !== 'granted') { Alert.alert('Permission needed', 'Please allow photo access in Settings.'); return; }
+    const launchFn = fromCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+    const result = await launchFn({ mediaTypes: ImagePicker.MediaTypeOptions?.Images ?? 'images', quality: 0.8, allowsEditing: true, aspect: [4, 3] });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setShukrPhoto(result.assets[0].uri);
+    }
+  }
+
+  async function saveShukr() {
+    const text = shukrText.trim();
+    if (!text && !shukrPhoto) return;
+    setShukrSaving(true);
+    try {
+      const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
+      let photo_url = null;
+      if (shukrPhoto) {
+        const path = `shukr/${session.user.id}_${Date.now()}.jpg`;
+        photo_url = await uploadPhoto(shukrPhoto, path);
+      }
+      const { error: insertErr } = await supabase.from('shukr_posts').insert({
+        family_id:  familyId,
+        user_id:    session?.user?.id,
+        child_id:   shukrChildren.length > 0 ? shukrChildren.map(c => c.id).join(',') : null,
+        child_name: shukrChildren.length > 0 ? shukrChildren.map(c => c.name).join(', ') : null,
+        text:       text || '',
+        theme:      shukrTheme ?? null,
+        ayah_ref:   shukrAyah?.ref  ?? null,
+        ayah_text:  shukrAyah?.text ?? null,
+        photo_url,
+      });
+      if (insertErr) throw insertErr;
+      if (partnerLinked) {
+        notifyPartner(
+          `${myName.split(' ')[0] || 'Your partner'} posted a Shukr moment 🌙`,
+          text.length > 100 ? text.slice(0, 97) + '…' : text,
+          { screen: 'FamilyFeed' }
+        );
+      }
+      resetShukr();
+      loadAll(true);
+    } catch {
+      Alert.alert('Error', 'Could not save. Please try again.');
+    } finally {
+      setShukrSaving(false);
+    }
+  }
+
+  function resetAccom() {
+    setAccomOpen(false); setAccomStep('child');
+    setAccomChild(null); setAccomManner(null); setAccomNote(''); setAccomTree(null);
+  }
+
+  async function saveAccomplishment(selectedTree) {
+    // selectedTree = tree object if saving to tree, null for feed-only
+    if (!accomChild || !accomManner) return;
+    setAccomSaving(true);
+    try {
+      const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
+      const toTree = !!selectedTree;
+      // When saving to a tree, use the tree's child_id/name so it shows up in that garden view
+      const childId   = toTree ? (selectedTree.child_id   ?? accomChild.id)   : accomChild.id;
+      const childName = toTree ? (selectedTree.child_name ?? accomChild.name)  : accomChild.name;
+      const base = {
+        family_id:  familyId,
+        user_id:    session.user.id,
+        child_id:   childId,
+        child_name: childName,
+        manner:     accomManner,
+        note:       accomNote.trim() || null,
+        date:       new Date().toISOString(),
+      };
+      const table = toTree ? 'child_garden_actions' : 'family_accomplishments';
+      const payload = toTree ? { ...base, id: `ga_${Date.now()}` } : base;
+      const { error } = await supabase.from(table).insert(payload);
+      if (error) throw error;
+      if (partnerLinked) {
+        const m = MANNERS.find(m => m.key === accomManner);
+        notifyPartner(
+          `${myName.split(' ')[0] || 'Your partner'} posted an accomplishment ${m?.emoji ?? '⭐'}`,
+          accomNote.trim() ? `"${accomNote.trim()}"` : m?.label ?? '',
+          { screen: 'FamilyFeed' }
+        );
+      }
+      resetAccom();
+      loadAll(true);
+    } catch {
+      Alert.alert('Error', 'Could not save. Please try again.');
+    } finally {
+      setAccomSaving(false);
+    }
+  }
+
   return (
     <View style={s.safe}>
       <StatusBar style="light" />
@@ -514,7 +765,29 @@ export default function FamilyFeedScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.9)" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Family Feed</Text>
+        <View style={s.headerCenter}>
+          <Text style={s.headerTitle}>Family Feed</Text>
+          <View style={s.headerMeta}>
+            {partnerLinked && (
+              <>
+                <View style={s.headerOnlineDot} />
+                <Text style={s.headerMetaText}>You & {partnerName}</Text>
+                <Text style={s.headerMetaDivider}>·</Text>
+              </>
+            )}
+            {feed.length > 0 && (
+              <Text style={s.headerMetaText}>{(() => {
+                const today = new Date().toISOString().slice(0, 10);
+                const yest  = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+                const d     = feed[0]._date?.slice(0, 10);
+                if (d === today)  return 'Last post today';
+                if (d === yest)   return 'Last post yesterday';
+                const days = Math.round((Date.now() - new Date(d + 'T00:00:00').getTime()) / 86400000);
+                return `Last post ${days}d ago`;
+              })()}</Text>
+            )}
+          </View>
+        </View>
         <TouchableOpacity
           onPress={() => navigation.navigate('FamilySync')}
           hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}
@@ -523,11 +796,26 @@ export default function FamilyFeedScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {children.length > 0 && (
+        <View style={s.childAvatarRow}>
+          {children.map((child, i) => (
+            <TouchableOpacity
+              key={child.id ?? i}
+              style={[s.childAvatarWrap, i > 0 && { marginLeft: 8 }]}
+              activeOpacity={0.75}
+              onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'dashboard', childId: child.id } })}
+            >
+              <Avatar name={child.name} color={child.color ?? '#2E7D62'} size={34} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       <TouchableOpacity style={s.postBar} onPress={() => setComposeOpen(true)} activeOpacity={0.85}>
         <View style={s.postBarAvatar}>
           <Text style={s.postBarAvatarText}>{myName ? myName[0].toUpperCase() : '+'}</Text>
         </View>
-        <Text style={s.postBarPlaceholder}>Log a win, reflection or moment…</Text>
+        <Text style={s.postBarPlaceholder}>Post a win, reflection or shukr moment…</Text>
         <View style={s.postBarBtn}>
           <Text style={s.postBarBtnText}>Post</Text>
         </View>
@@ -553,7 +841,7 @@ export default function FamilyFeedScreen({ navigation }) {
             <View style={s.empty}>
               <Text style={s.emptyEmoji}>🌱</Text>
               <Text style={s.emptyTitle}>Nothing here yet</Text>
-              <Text style={s.emptySub}>Log accomplishments, muhasabah sessions, and difficult moments — they'll all show up here.</Text>
+              <Text style={s.emptySub}>Post accomplishments, muhasabah sessions, and difficult moments — they'll all show up here.</Text>
             </View>
           )}
 
@@ -561,27 +849,41 @@ export default function FamilyFeedScreen({ navigation }) {
             const color = item.child_color ?? childMap[item.child_id] ?? '#2E7D62';
             const poster = item.user_id === myUserId ? 'You' : (partnerName || 'Partner');
             return (
-              <View key={`${item._type}-${item.id}-${i}`} style={s.card}>
+              <View key={`${item._type}-${item.id}-${i}`} style={[s.card, item._type === 'shukr' && { backgroundColor: '#FFFBF0' }]}>
                 {/* Card header */}
                 <View style={s.cardHeader}>
-                  <Avatar name={item.child_name} color={color} size={38} />
+                  {item._type === 'shukr' && !item.child_name
+                    ? <View style={[s.shukrHeaderIcon, { backgroundColor: '#FEF3C7' }]}><Text style={{ fontSize: 18 }}>🌙</Text></View>
+                    : <Avatar name={item.child_name ?? poster} color={item._type === 'shukr' ? '#F59E0B' : color} size={38} />
+                  }
                   <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={s.childNameText} numberOfLines={1}>{item.child_name}</Text>
-                    <Text style={s.dateText}>{formatDate(item._date)} · {poster}</Text>
+                    <Text style={s.childNameText} numberOfLines={1}>
+                      {item._type === 'shukr' ? (item.child_name ? `${item.child_name} · ${poster}` : poster) : item.child_name}
+                    </Text>
+                    <Text style={s.dateText}>{formatDate(item._date, item._ts)} · {poster}</Text>
                   </View>
                   <TypeBadge type={item._type} />
                 </View>
 
-                <View style={s.cardDivider} />
 
-                {item._type === 'accomplishment' && (
-                  <AccomplishmentCard item={item} myName={myName} onLove={handleLove} />
+                {(item._type === 'accomplishment' || item._type === 'general_accomplishment') && (
+                  <AccomplishmentCard
+                    item={item} myName={myName} onLove={handleLove}
+                    isTree={item._type === 'accomplishment'}
+                    onViewTree={() => {
+                      const tree = familyTrees.find(t => t.child_id === item.child_id);
+                      if (tree) navigation.navigate('GardenDetail', { tree });
+                    }}
+                  />
                 )}
                 {item._type === 'reflection' && (
                   <ReflectionCard item={item} myName={myName} onLove={handleLove} childColor={color} />
                 )}
                 {item._type === 'incident' && (
                   <IncidentCard item={item} myName={myName} onAcknowledge={handleAcknowledge} />
+                )}
+                {item._type === 'shukr' && (
+                  <ShukrCard item={item} myName={myName} onLove={handleLoveShukr} />
                 )}
               </View>
             );
@@ -609,19 +911,19 @@ export default function FamilyFeedScreen({ navigation }) {
 
           <ScrollView contentContainerStyle={s.wizardBody}>
             <Text style={s.wizardEyebrow}>FAMILY FEED</Text>
-            <Text style={s.wizardTitle}>Log a moment</Text>
+            <Text style={s.wizardTitle}>Post a moment</Text>
             <Text style={s.wizardSub}>Choose the type of moment you'd like to add to your family's shared feed.</Text>
 
             <TouchableOpacity
               style={s.wizardOption}
               activeOpacity={0.75}
-              onPress={() => { setComposeOpen(false); setWinPickerOpen(true); }}
+              onPress={() => { setComposeOpen(false); setAccomStep('child'); setAccomChild(null); setAccomManner(null); setAccomNote(''); setAccomOpen(true); }}
             >
-              <View style={[s.wizardOptionIcon, { backgroundColor: '#FEF9C3' }]}>
-                <Ionicons name="star" size={28} color="#A16207" />
+              <View style={[s.wizardOptionIcon, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="star" size={28} color="#16A34A" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.wizardOptionTitle}>Log an Accomplishment</Text>
+                <Text style={s.wizardOptionTitle}>Post an Accomplishment</Text>
                 <Text style={s.wizardOptionSub}>Celebrate a win and add it to your child's garden</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
@@ -632,12 +934,27 @@ export default function FamilyFeedScreen({ navigation }) {
               activeOpacity={0.75}
               onPress={() => { setComposeOpen(false); setLogModalStep('child'); }}
             >
-              <View style={[s.wizardOptionIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="journal" size={28} color="#B45309" />
+              <View style={[s.wizardOptionIcon, { backgroundColor: '#EEF2FF' }]}>
+                <Ionicons name="journal" size={28} color="#6366F1" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.wizardOptionTitle}>Log a Difficult Moment</Text>
+                <Text style={s.wizardOptionTitle}>Post a Difficult Moment</Text>
                 <Text style={s.wizardOptionSub}>Track a challenge, consequence, and share with your partner</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={s.wizardOption}
+              activeOpacity={0.75}
+              onPress={() => { setComposeOpen(false); setShukrStep('text'); setShukrOpen(true); }}
+            >
+              <View style={[s.wizardOptionIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Text style={{ fontSize: 26 }}>🌙</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.wizardOptionTitle}>Post a Shukr Moment</Text>
+                <Text style={s.wizardOptionSub}>Pause, name a blessing, and share it with your family — a small act of gratitude that stays</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
             </TouchableOpacity>
@@ -645,48 +962,347 @@ export default function FamilyFeedScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* ── Win child picker (full screen) ── */}
-      <Modal visible={winPickerOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setWinPickerOpen(false)}>
-        <View style={s.wizardSafe}>
-          <View style={s.wizardHeader}>
-            <TouchableOpacity onPress={() => setWinPickerOpen(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
-            <Text style={s.wizardHeaderTitle}>Which child?</Text>
-            <View style={{ width: 24 }} />
-          </View>
+      {/* ── Shukr compose modal ── */}
+      <Modal visible={shukrOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={resetShukr}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={s.wizardSafe}>
+            <View style={s.wizardHeader}>
+              <TouchableOpacity onPress={shukrStep === 'text' ? resetShukr : () => setShukrStep(shukrStep === 'ayah' ? 'tag' : 'text')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name={shukrStep === 'text' ? 'close' : 'chevron-back'} size={24} color="#6B7280" />
+              </TouchableOpacity>
+              <Text style={s.wizardHeaderTitle}>
+                {shukrStep === 'text' ? 'Shukr Moment' : shukrStep === 'tag' ? 'Add details' : 'Attach an Ayah'}
+              </Text>
+              <View style={{ width: 24 }} />
+            </View>
 
-          <ScrollView contentContainerStyle={s.wizardBody}>
-            <Text style={s.wizardEyebrow}>LOG AN ACCOMPLISHMENT</Text>
-            <Text style={s.wizardTitle}>Select a child</Text>
-            <Text style={s.wizardSub}>Choose the child whose accomplishment you'd like to log.</Text>
+            {/* Step 1: Photo + Gratitude text */}
+            {shukrStep === 'text' && (
+              <ScrollView contentContainerStyle={s.wizardBody} keyboardShouldPersistTaps="handled">
+                <Text style={s.shukrComposeEmoji}>🌙</Text>
+                <Text style={s.wizardTitle}>What are you grateful for?</Text>
+                <Text style={s.wizardSub}>Capture a photo or write a note — or both. The act of naming it is the ibadah.</Text>
 
-            {familyTrees.map(tree => {
-              const child = children.find(c => c.id === tree.child_id);
-              const color = child?.color ?? tree.child_color ?? '#2E7D62';
-              const firstName = tree.child_name?.split(' ')[0] ?? '?';
-              return (
-                <TouchableOpacity
-                  key={tree.child_id}
-                  style={s.wizardOption}
-                  activeOpacity={0.75}
-                  onPress={() => { setWinPickerOpen(false); navigation.navigate('GardenDetail', { tree, autoOpenLog: true }); }}
-                >
-                  <View style={[s.sheetAvatarCircle, { backgroundColor: color }]}>
-                    <Text style={s.sheetAvatarText}>{firstName[0].toUpperCase()}</Text>
+                {/* Photo picker */}
+                {shukrPhoto ? (
+                  <View style={s.shukrPhotoPreview}>
+                    <Image source={{ uri: shukrPhoto }} style={s.shukrPhotoImg} contentFit="cover" />
+                    <TouchableOpacity style={s.shukrPhotoRemove} onPress={() => setShukrPhoto(null)}>
+                      <Ionicons name="close-circle" size={24} color="#EF4444" />
+                    </TouchableOpacity>
                   </View>
-                  <Text style={[s.wizardOptionTitle, { flex: 1 }]}>{firstName}</Text>
+                ) : (
+                  <View style={s.shukrPhotoRow}>
+                    <TouchableOpacity style={s.shukrPhotoBtn} onPress={() => pickShukrPhoto(true)} activeOpacity={0.8}>
+                      <Ionicons name="camera" size={22} color="#1B3D2F" />
+                      <Text style={s.shukrPhotoBtnText}>Take photo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.shukrPhotoBtn} onPress={() => pickShukrPhoto(false)} activeOpacity={0.8}>
+                      <Ionicons name="images" size={22} color="#1B3D2F" />
+                      <Text style={s.shukrPhotoBtnText}>Choose photo</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <TextInput
+                  style={s.shukrInput}
+                  placeholder="I am grateful for…"
+                  placeholderTextColor="#D1FAE5"
+                  multiline
+                  value={shukrText}
+                  onChangeText={setShukrText}
+                />
+                <TouchableOpacity
+                  style={[s.shukrNextBtn, (!shukrText.trim() && !shukrPhoto) && { opacity: 0.4 }]}
+                  disabled={!shukrText.trim() && !shukrPhoto}
+                  onPress={() => setShukrStep('tag')}
+                  activeOpacity={0.85}
+                >
+                  <Text style={s.shukrNextBtnText}>Continue →</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+
+            {/* Step 2: Child tag + theme */}
+            {shukrStep === 'tag' && (
+              <ScrollView contentContainerStyle={s.wizardBody} keyboardShouldPersistTaps="handled">
+                <Text style={s.wizardTitle}>Add details</Text>
+                <Text style={s.wizardSub}>Tag a child and a theme — both optional.</Text>
+
+                {children.length > 0 && (
+                  <>
+                    <Text style={s.shukrSectionLabel}>TAG A CHILD (optional)</Text>
+                    <View style={s.shukrChildRow}>
+                      {children.map(child => (
+                        <TouchableOpacity
+                          key={child.id}
+                          style={[s.shukrChildChip, shukrChildren.some(c => c.id === child.id) && s.shukrChildChipActive]}
+                          onPress={() => setShukrChildren(prev =>
+                            prev.some(c => c.id === child.id)
+                              ? prev.filter(c => c.id !== child.id)
+                              : [...prev, child]
+                          )}
+                          activeOpacity={0.75}
+                        >
+                          <View style={[s.shukrChildDot, { backgroundColor: child.color ?? '#2E7D62' }]} />
+                          <Text style={[s.shukrChildChipText, shukrChildren.some(c => c.id === child.id) && { color: '#1B3D2F', fontWeight: '700' }]}>
+                            {child.name.split(' ')[0]}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <Text style={s.shukrSectionLabel}>THEME (optional)</Text>
+                <View style={s.shukrThemeGrid}>
+                  {SHUKR_THEMES.map(t => (
+                    <TouchableOpacity
+                      key={t.key}
+                      style={[s.shukrThemeChip, shukrTheme === t.key && { backgroundColor: t.color + '20', borderColor: t.color }]}
+                      onPress={() => setShukrTheme(shukrTheme === t.key ? null : t.key)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={s.shukrThemeChipEmoji}>{t.emoji}</Text>
+                      <Text style={[s.shukrThemeChipLabel, shukrTheme === t.key && { color: t.color, fontWeight: '700' }]}>{t.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity style={s.shukrNextBtn} onPress={() => setShukrStep('ayah')} activeOpacity={0.85}>
+                  <Text style={s.shukrNextBtnText}>Continue →</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+
+            {/* Step 3: Ayah selection */}
+            {shukrStep === 'ayah' && (
+              <ScrollView contentContainerStyle={s.wizardBody} keyboardShouldPersistTaps="handled">
+                <Text style={s.wizardTitle}>Attach an Ayah</Text>
+                <Text style={s.wizardSub}>Choose a verse about gratitude to accompany this moment, or skip.</Text>
+
+                {SHUKR_AYAHS.map(ayah => (
+                  <TouchableOpacity
+                    key={ayah.ref}
+                    style={[s.shukrAyahOption, shukrAyah?.ref === ayah.ref && s.shukrAyahOptionActive]}
+                    onPress={() => setShukrAyah(shukrAyah?.ref === ayah.ref ? null : ayah)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={s.shukrAyahOptionText}>{ayah.text}</Text>
+                    <Text style={s.shukrAyahOptionRef}>— {ayah.ref}</Text>
+                    {shukrAyah?.ref === ayah.ref && (
+                      <Ionicons name="checkmark-circle" size={18} color="#D97706" style={{ position: 'absolute', top: 12, right: 12 }} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+
+                <TouchableOpacity
+                  style={[s.shukrNextBtn, shukrSaving && { opacity: 0.5 }]}
+                  onPress={saveShukr}
+                  disabled={shukrSaving}
+                  activeOpacity={0.85}
+                >
+                  {shukrSaving
+                    ? <ActivityIndicator color="#1B3D2F" size="small" />
+                    : <Text style={s.shukrNextBtnText}>Post Shukr Moment 🌙</Text>
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity style={{ alignItems: 'center', marginTop: 8 }} onPress={saveShukr} disabled={shukrSaving}>
+                  <Text style={{ fontSize: 13, color: '#9CA3AF' }}>Skip and post without ayah</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Accomplishment compose modal ── */}
+      <Modal visible={accomOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={resetAccom}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={s.wizardSafe}>
+            <View style={s.wizardHeader}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (accomStep === 'child') resetAccom();
+                  else if (accomStep === 'manner') setAccomStep('child');
+                  else if (accomStep === 'tree') setAccomStep('manner');
+                  else if (accomStep === 'tree_select') setAccomStep('tree');
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name={accomStep === 'child' ? 'close' : 'chevron-back'} size={24} color="#6B7280" />
+              </TouchableOpacity>
+              <Text style={s.wizardHeaderTitle}>
+                {accomStep === 'child' ? 'Who did something great?'
+                  : accomStep === 'manner' ? `What did ${accomChild?.name?.split(' ')[0]} do?`
+                  : accomStep === 'tree_select' ? 'Choose a tree'
+                  : 'Add to a tree?'}
+              </Text>
+              <View style={{ width: 24 }} />
+            </View>
+
+            {/* Step 1: Pick child */}
+            {accomStep === 'child' && (
+              <ScrollView contentContainerStyle={s.wizardBody}>
+                <Text style={s.wizardEyebrow}>POST AN ACCOMPLISHMENT</Text>
+                <Text style={s.wizardTitle}>Select a child</Text>
+                <Text style={s.wizardSub}>Choose which child showed great character today.</Text>
+                {children.map(child => (
+                  <TouchableOpacity
+                    key={child.id}
+                    style={s.wizardOption}
+                    activeOpacity={0.75}
+                    onPress={() => { setAccomChild(child); setAccomStep('manner'); }}
+                  >
+                    <View style={[s.sheetAvatarCircle, { backgroundColor: child.color ?? '#2E7D62' }]}>
+                      <Text style={s.sheetAvatarText}>{child.name[0].toUpperCase()}</Text>
+                    </View>
+                    <Text style={[s.wizardOptionTitle, { flex: 1 }]}>{child.name.split(' ')[0]}</Text>
+                    <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+                  </TouchableOpacity>
+                ))}
+                {children.length === 0 && (
+                  <Text style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 14, paddingVertical: 20 }}>
+                    Add a child profile first.
+                  </Text>
+                )}
+              </ScrollView>
+            )}
+
+            {/* Step 2: Pick manner + note */}
+            {accomStep === 'manner' && (
+              <ScrollView contentContainerStyle={s.wizardBody} keyboardShouldPersistTaps="handled">
+                <Text style={s.wizardEyebrow}>POST AN ACCOMPLISHMENT</Text>
+                <Text style={s.wizardTitle}>What character did they show?</Text>
+                <Text style={s.wizardSub}>Pick the quality they demonstrated, and add a note if you'd like.</Text>
+                <View style={s.shukrThemeGrid}>
+                  {MANNERS.map(m => (
+                    <TouchableOpacity
+                      key={m.key}
+                      style={[s.shukrThemeChip, accomManner === m.key && { backgroundColor: '#EDF7F2', borderColor: '#1B3D2F' }]}
+                      onPress={() => setAccomManner(m.key)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={{ fontSize: 16 }}>{m.emoji}</Text>
+                      <Text style={[s.shukrThemeText, accomManner === m.key && { color: '#1B3D2F', fontWeight: '700' }]}>{m.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TextInput
+                  style={[s.logInput, { marginTop: 16 }]}
+                  placeholder={`Add a note about what ${accomChild?.name?.split(' ')[0]} did… (optional)`}
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  value={accomNote}
+                  onChangeText={setAccomNote}
+                />
+                <TouchableOpacity
+                  style={[s.shukrNextBtn, !accomManner && { opacity: 0.4 }]}
+                  disabled={!accomManner}
+                  onPress={() => setAccomStep('tree')}
+                  activeOpacity={0.85}
+                >
+                  <Text style={s.shukrNextBtnText}>Continue →</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+
+            {/* Step 3: Tree prompt — always shown */}
+            {accomStep === 'tree' && (
+              <ScrollView contentContainerStyle={s.wizardBody}>
+                <Text style={s.wizardEyebrow}>ONE MORE THING</Text>
+                <Text style={s.wizardTitle}>Add to a tree?</Text>
+                <Text style={s.wizardSub}>This accomplishment will appear in the family feed either way. Adding it to a tree also grows their garden and counts toward rewards.</Text>
+                <TouchableOpacity
+                  style={[s.wizardOption, { marginTop: 8 }]}
+                  activeOpacity={0.75}
+                  onPress={() => setAccomStep('tree_select')}
+                >
+                  <View style={[s.wizardOptionIcon, { backgroundColor: '#DCFCE7' }]}>
+                    <Text style={{ fontSize: 26 }}>🌳</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.wizardOptionTitle}>Yes, add to a tree</Text>
+                    <Text style={s.wizardOptionSub}>Grows the garden and counts toward their reward goal</Text>
+                  </View>
                   <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
                 </TouchableOpacity>
-              );
-            })}
-            {familyTrees.length === 0 && (
-              <Text style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 14, paddingVertical: 20 }}>
-                Add a child tree first to log accomplishments.
-              </Text>
+                <TouchableOpacity
+                  style={s.wizardOption}
+                  activeOpacity={0.75}
+                  onPress={() => saveAccomplishment(null)}
+                  disabled={accomSaving}
+                >
+                  <View style={[s.wizardOptionIcon, { backgroundColor: '#F9FAFB' }]}>
+                    <Text style={{ fontSize: 26 }}>⭐</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.wizardOptionTitle}>No, just post to feed</Text>
+                    <Text style={s.wizardOptionSub}>Shows in the family feed but doesn't affect any tree</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+                </TouchableOpacity>
+                {accomSaving && <Text style={{ textAlign: 'center', color: '#9CA3AF', marginTop: 16 }}>Saving…</Text>}
+              </ScrollView>
             )}
-          </ScrollView>
-        </View>
+
+            {/* Step 4: Tree selection */}
+            {accomStep === 'tree_select' && (
+              <ScrollView contentContainerStyle={s.wizardBody}>
+                <Text style={s.wizardEyebrow}>SELECT A TREE</Text>
+                <Text style={s.wizardTitle}>Which tree?</Text>
+                <Text style={s.wizardSub}>Choose the tree to add this accomplishment to.</Text>
+                {familyTrees.map(tree => {
+                  const child = children.find(c => c.id === tree.child_id);
+                  const color = child?.color ?? tree.child_color ?? '#2E7D62';
+                  const firstName = tree.child_name?.split(' ')[0] ?? '?';
+                  return (
+                    <TouchableOpacity
+                      key={tree.child_id}
+                      style={s.wizardOption}
+                      activeOpacity={0.75}
+                      onPress={() => saveAccomplishment(tree)}
+                      disabled={accomSaving}
+                    >
+                      <View style={[s.sheetAvatarCircle, { backgroundColor: color }]}>
+                        <Text style={s.sheetAvatarText}>{firstName[0].toUpperCase()}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.wizardOptionTitle}>{firstName}'s Tree</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+                    </TouchableOpacity>
+                  );
+                })}
+                {familyTrees.length === 0 && (
+                  <View style={s.accomNoTreeNote}>
+                    <Text style={s.accomNoTreeText}>No trees found in your family yet.</Text>
+                  </View>
+                )}
+                <View style={s.accomNoTreeNote}>
+                  <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
+                  <Text style={s.accomNoTreeHint}>Don't see your child's tree? It may not have been created yet. You can create one in the Family tab.</Text>
+                </View>
+                <TouchableOpacity
+                  style={[s.wizardOption, { marginTop: 4 }]}
+                  activeOpacity={0.75}
+                  onPress={() => saveAccomplishment(null)}
+                  disabled={accomSaving}
+                >
+                  <View style={[s.wizardOptionIcon, { backgroundColor: '#F9FAFB' }]}>
+                    <Text style={{ fontSize: 26 }}>⭐</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.wizardOptionTitle}>Post to feed only for now</Text>
+                    <Text style={s.wizardOptionSub}>No tree — just add it to the family feed</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+                </TouchableOpacity>
+                {accomSaving && <Text style={{ textAlign: 'center', color: '#9CA3AF', marginTop: 16 }}>Saving…</Text>}
+              </ScrollView>
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Log Difficult Moment modal ── */}
@@ -792,7 +1408,15 @@ const s = StyleSheet.create({
   logSaveBtn:    { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   logSaveBtnText:{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   header:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#1B3D2F' },
+  headerCenter:    { alignItems: 'center', flex: 1 },
   headerTitle:     { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
+  headerMeta:      { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  headerOnlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
+  headerMetaText:  { fontSize: 11, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
+  headerMetaDivider: { fontSize: 11, color: 'rgba(255,255,255,0.3)' },
+  childAvatarRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1B3D2F', paddingHorizontal: 16, paddingBottom: 12, gap: 0 },
+  childAvatarWrap: { borderRadius: 20, borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)' },
+  childAvatarLabel:{ fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginLeft: 10 },
   headerLink:      { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.85)', textDecorationLine: 'underline' },
   postBar:         { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   postBarAvatar:   { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1B3D2F', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -802,7 +1426,7 @@ const s = StyleSheet.create({
   postBarBtnText:  { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   scroll:          { paddingHorizontal: 16, paddingTop: 12 },
 
-  card:       { backgroundColor: WHITE, borderRadius: 16, marginBottom: 12, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  card:       { backgroundColor: WHITE, borderRadius: 16, marginBottom: 12, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.10, shadowRadius: 12, elevation: 5 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12 },
   cardDivider:{ height: 1, backgroundColor: '#F3F4F6' },
   cardBody:   { padding: 14, gap: 10 },
@@ -815,9 +1439,14 @@ const s = StyleSheet.create({
   typeBadgeText: { fontSize: 11, fontWeight: '700' },
 
   // Accomplishment
-  deedRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  deedEmoji:  { fontSize: 22 },
-  deedLabel:  { fontSize: 15, fontWeight: '700', color: TEXT },
+  deedRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deedEmoji:    { fontSize: 22 },
+  deedLabel:    { fontSize: 15, fontWeight: '700', color: TEXT },
+  treeBadge:        { marginLeft: 'auto', backgroundColor: '#F0FDF4', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#BBF7D0' },
+  treeBadgeText:    { fontSize: 11, fontWeight: '600', color: '#166534' },
+  accomNoTreeNote:  { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  accomNoTreeText:  { fontSize: 14, color: '#6B7280', fontWeight: '600' },
+  accomNoTreeHint:  { flex: 1, fontSize: 13, color: '#6B7280', lineHeight: 20 },
   quoteText:  { fontSize: 14, color: '#374151', fontStyle: 'italic', lineHeight: 21 },
 
   // Reflection
@@ -861,7 +1490,7 @@ const s = StyleSheet.create({
   consequenceText: { fontSize: 13, color: SUB, flex: 1, lineHeight: 19 },
 
   // Reactions
-  reactionRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 4, borderTopWidth: 1, borderTopColor: '#F3F4F6', marginTop: 4 },
+  reactionRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 4, marginTop: 4 },
   reactionBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: BORDER },
   reactionBtnActive:{ backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
   reactionBtnAck:   { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
@@ -873,4 +1502,45 @@ const s = StyleSheet.create({
   emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 17, fontWeight: '800', color: TEXT },
   emptySub:   { fontSize: 14, color: SUB, textAlign: 'center', lineHeight: 21 },
+
+  // ── Shukr card ───────────────────────────────────────────
+  shukrHeaderIcon:    { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  shukrCardInner:     { flexDirection: 'column', paddingHorizontal: 14, paddingBottom: 14 },
+  shukrTopRow:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
+  shukrMoon:          { fontSize: 16 },
+  shukrLabel:         { fontSize: 11, fontWeight: '700', color: '#B45309', letterSpacing: 0.5 },
+  shukrThemePill:     { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  shukrThemePillText: { fontSize: 11, fontWeight: '600' },
+  shukrText:          { fontSize: 15, color: '#1A1A2E', lineHeight: 23, fontStyle: 'italic', marginBottom: 12 },
+  shukrAyahWrap:      { backgroundColor: '#FFFBEB', borderRadius: 12, padding: 14, borderLeftWidth: 3, borderLeftColor: '#F59E0B', marginBottom: 12 },
+  shukrAyahText:      { fontSize: 13, color: '#78350F', lineHeight: 21, fontStyle: 'italic', marginBottom: 4 },
+  shukrAyahRef:       { fontSize: 11, fontWeight: '600', color: '#B45309' },
+
+  // ── Shukr compose ────────────────────────────────────────
+  shukrComposeEmoji:  { fontSize: 48, textAlign: 'center', marginBottom: 8 },
+  shukrInput:         { backgroundColor: '#1B3D2F', borderRadius: 16, padding: 18, fontSize: 16, color: '#FFFFFF', lineHeight: 26, minHeight: 120, textAlignVertical: 'top', marginTop: 12, marginBottom: 20 },
+  shukrNextBtn:       { backgroundColor: '#1B3D2F', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  shukrNextBtnText:   { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+
+  shukrPhotoRow:      { flexDirection: 'row', gap: 12, marginTop: 16 },
+  shukrPhotoBtn:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F0FDF4', borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: '#BBF7D0' },
+  shukrPhotoBtnText:  { fontSize: 14, fontWeight: '600', color: '#1B3D2F' },
+  shukrPhotoPreview:  { marginTop: 16, borderRadius: 14, overflow: 'hidden', position: 'relative' },
+  shukrPhotoImg:      { width: '100%', height: 200, borderRadius: 14 },
+  shukrPhotoRemove:   { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12 },
+  shukrCardPhoto:     { width: '100%', height: 200, borderRadius: 10, marginTop: 10, marginBottom: 4 },
+  shukrSectionLabel:  { fontSize: 11, fontWeight: '800', color: '#9CA3AF', letterSpacing: 1, marginTop: 20, marginBottom: 10 },
+  shukrChildRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  shukrChildChip:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F9FAFB', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1.5, borderColor: '#E5E7EB' },
+  shukrChildChipActive: { backgroundColor: '#EDF7F2', borderColor: '#1B3D2F' },
+  shukrChildDot:      { width: 8, height: 8, borderRadius: 4 },
+  shukrChildChipText: { fontSize: 13, color: '#6B7280' },
+  shukrThemeGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  shukrThemeChip:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1.5, borderColor: '#E5E7EB' },
+  shukrThemeChipEmoji:{ fontSize: 16 },
+  shukrThemeChipLabel:{ fontSize: 13, color: '#6B7280' },
+  shukrAyahOption:    { backgroundColor: '#FAFAF9', borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1.5, borderColor: '#E5E7EB' },
+  shukrAyahOptionActive: { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' },
+  shukrAyahOptionText:{ fontSize: 14, color: '#1A1A2E', lineHeight: 22, fontStyle: 'italic', marginBottom: 6 },
+  shukrAyahOptionRef: { fontSize: 11, fontWeight: '600', color: '#B45309' },
 });

@@ -901,7 +901,7 @@ export default function DashboardsScreen({ navigation, route, embedded = false }
           </View>
 
           {/* Family Garden overview */}
-          <View style={{ marginTop: 20 }}>
+          <View style={{ marginTop: 8 }}>
             <View style={[styles.familyMomentsHeader, { flexDirection: 'row', alignItems: 'flex-start' }]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.familyMomentsEyebrow}>FAMILY GARDEN</Text>

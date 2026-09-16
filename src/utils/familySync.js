@@ -13,6 +13,7 @@ async function getLocalChildren() {
 
 const FAMILY_ID_KEY = 'tarbiyah_family_id';
 const PARTNER_CACHE_KEY = 'tarbiyah_partner_cache';
+const DEFAULT_TREE_THRESHOLDS = { sprout: 5, sapling: 10, tree: 20, flowering: 35, fruit: 50 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -83,12 +84,13 @@ export async function getFamilySyncStatus() {
 
   if (others.length === 0) {
     // family_members came back empty — could be an RLS issue.
-    // Fall back: look for an invite this user created that has been used.
+    // Fall back: look for an active (non-cancelled) invite this user created that has been used.
     // Only select columns guaranteed to exist; joiner_name is optional.
     const { data: usedInvites } = await supabase
       .from('family_invites')
       .select('used_by, family_id')
       .eq('created_by', userId)
+      .eq('cancelled', false)
       .not('used_by', 'is', null)
       .limit(1);
 
@@ -101,6 +103,7 @@ export async function getFamilySyncStatus() {
           .from('family_invites')
           .select('joiner_name')
           .eq('created_by', userId)
+          .eq('cancelled', false)
           .not('used_by', 'is', null)
           .limit(1)
           .single();
@@ -241,6 +244,9 @@ export async function joinFamilyWithCode(code) {
 
   // Migrate all family-scoped data from old family_id to the shared one
   const oldFamilyId = await getFamilyId();
+  const joinerChildren = await getLocalChildren();
+  const joinerChildIds = joinerChildren.map(c => c.id);
+
   if (oldFamilyId !== invite.family_id) {
     await supabase.from('family_goals').update({ family_id: invite.family_id }).eq('family_id', oldFamilyId);
     // Use user_id for garden actions — RLS may block family_id filter if the user
@@ -250,23 +256,53 @@ export async function joinFamilyWithCode(code) {
       .update({ family_id: invite.family_id })
       .eq('user_id', userId)
       .neq('family_id', invite.family_id);
-    // Use child_id list for settings (no user_id column)
-    const joinerChildren = await getLocalChildren();
-    const joinerChildIds = joinerChildren.map(c => c.id);
     if (joinerChildIds.length > 0) {
       await supabase
         .from('child_garden_settings')
         .update({ family_id: invite.family_id })
         .in('child_id', joinerChildIds)
         .neq('family_id', invite.family_id);
+      // Migrate any trees the joiner already created
+      await supabase
+        .from('family_trees')
+        .update({ family_id: invite.family_id })
+        .in('child_id', joinerChildIds)
+        .neq('family_id', invite.family_id);
     }
   }
 
-  // Join the family
+  // Join the family — remove all old solo rows first so the user never has
+  // stale family_members entries that confuse partner lookups
+  await supabase.from('family_members').delete()
+    .eq('user_id', userId)
+    .neq('family_id', invite.family_id);
+
   const { error: memberError } = await supabase
     .from('family_members')
     .upsert({ family_id: invite.family_id, user_id: userId, display_name: displayName, role: 'partner' }, { onConflict: 'family_id,user_id' });
   if (memberError) console.warn('family_members upsert error:', memberError.message);
+
+  // Auto-create trees for joiner's children that don't already exist in the shared family
+  if (joinerChildIds.length > 0) {
+    const { data: existingTrees } = await supabase
+      .from('family_trees')
+      .select('child_id')
+      .eq('family_id', invite.family_id);
+    const existingChildIds = new Set((existingTrees ?? []).map(t => t.child_id));
+    for (const child of joinerChildren) {
+      if (!existingChildIds.has(child.id)) {
+        await supabase.from('family_trees').upsert({
+          family_id:  invite.family_id,
+          child_id:   child.id,
+          child_name: child.name,
+          created_by: userId,
+          thresholds: DEFAULT_TREE_THRESHOLDS,
+          rewards:    {},
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'child_id' });
+      }
+    }
+  }
 
   // Update local family ID
   await AsyncStorage.setItem(FAMILY_ID_KEY, invite.family_id);
@@ -316,7 +352,46 @@ export async function leaveFamily() {
       .update({ family_id: newFamilyId })
       .in('child_id', childIds)
       .eq('family_id', familyId);
+    // Re-key trees the user created and clear any linked_tree_id set during child merge
+    await supabase
+      .from('family_trees')
+      .update({ family_id: newFamilyId, linked_tree_id: null })
+      .eq('created_by', userId)
+      .eq('family_id', familyId);
+    // Also clear linked_tree_id on trees for this user's children (in case created_by differs)
+    if (childIds.length > 0) {
+      await supabase
+        .from('family_trees')
+        .update({ linked_tree_id: null })
+        .in('child_id', childIds);
+    }
   }
+
+  // Re-key feed content owned by this user — do while still in family_members so RLS allows it
+  await supabase
+    .from('shukr_posts')
+    .update({ family_id: newFamilyId })
+    .eq('user_id', userId)
+    .eq('family_id', familyId);
+
+  await supabase
+    .from('family_accomplishments')
+    .update({ family_id: newFamilyId })
+    .eq('user_id', userId)
+    .eq('family_id', familyId);
+
+  await supabase
+    .from('family_moments')
+    .update({ family_id: newFamilyId })
+    .eq('user_id', userId)
+    .eq('family_id', familyId);
+
+  // Cancel all invites for this family BEFORE leaving — must happen while still a member
+  // so RLS allows the update. This stops getFamilySyncStatus from re-hydrating linked:true.
+  await supabase
+    .from('family_invites')
+    .update({ cancelled: true })
+    .eq('family_id', familyId);
 
   // Remove from family_members
   await supabase
@@ -326,5 +401,16 @@ export async function leaveFamily() {
     .eq('user_id', userId);
 
   await AsyncStorage.setItem(FAMILY_ID_KEY, newFamilyId);
-  await AsyncStorage.removeItem(PARTNER_CACHE_KEY);
+
+  // Delete ALL existing family_members rows for this user, then re-register
+  // clean under the new personal family_id. This prevents stale rows from
+  // accumulating and breaking partner lookups on the next link.
+  const displayName = await getDisplayName();
+  await supabase.from('family_members').delete().eq('user_id', userId);
+  await supabase
+    .from('family_members')
+    .upsert({ family_id: newFamilyId, user_id: userId, display_name: displayName, role: 'owner' }, { onConflict: 'family_id,user_id' });
+
+  // Write explicit false rather than removing, so stale reads return unlinked
+  await AsyncStorage.setItem(PARTNER_CACHE_KEY, JSON.stringify({ linked: false, partner: null, familyId: null }));
 }

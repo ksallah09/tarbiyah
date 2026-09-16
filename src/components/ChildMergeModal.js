@@ -8,10 +8,32 @@ import { mergeGardenData } from '../utils/childMerge';
 
 const NONE_SENTINEL = { id: '__none__', name: 'None of these' };
 
+function autoMatch(localChildren, partnerChildren) {
+  const initial = {};
+  const usedPartnerIds = new Set();
+  for (const local of localChildren) {
+    const localName = local.name?.trim().toLowerCase();
+    const match = partnerChildren.find(p => {
+      if (usedPartnerIds.has(p.id)) return false;
+      return p.name?.trim().toLowerCase() === localName;
+    });
+    if (match) {
+      initial[local.id] = match;
+      usedPartnerIds.add(match.id);
+    }
+  }
+  return initial;
+}
+
 export default function ChildMergeModal({ visible, localChildren, partnerChildren, partnerName, sharedFamilyId, onDone }) {
-  const [matches, setMatches]       = useState({});
+  const [matches, setMatches]       = useState(() => autoMatch(localChildren, partnerChildren));
   const [saving, setSaving]         = useState(false);
   const [pickerFor, setPickerFor]   = useState(null); // localChildId being picked for
+
+  // Re-run auto-match when the child lists change (e.g. modal re-opens)
+  React.useEffect(() => {
+    setMatches(autoMatch(localChildren, partnerChildren));
+  }, [localChildren, partnerChildren]);
 
   const matchedCanonicalIds = new Set(
     Object.values(matches).filter(m => m && m.id !== '__none__').map(c => c.id)
@@ -31,7 +53,8 @@ export default function ChildMergeModal({ visible, localChildren, partnerChildre
       }));
       await mergeGardenData(matchArray, sharedFamilyId);
       onDone();
-    } catch {
+    } catch (e) {
+      console.warn('[merge] handleConfirm:', e?.message ?? e);
       Alert.alert('Error', 'Could not complete the merge. Please try again.');
     } finally {
       setSaving(false);

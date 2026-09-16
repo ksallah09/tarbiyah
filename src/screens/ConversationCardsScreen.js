@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Animated, Dimensions,
+  Animated, Dimensions, Alert, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { DECKS as BUNDLED_DECKS, CARDS as BUNDLED_CARDS } from '../data/conversationCards';
-import { fetchConversationCards } from '../utils/conversationCards';
+import { fetchConversationCards, generateCardsForDeck } from '../utils/conversationCards';
+import { getAllChildProfiles } from '../utils/childProfiles';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -27,6 +28,7 @@ export default function ConversationCardsScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [decks, setDecks] = useState(BUNDLED_DECKS);
   const [allCards, setAllCards] = useState(BUNDLED_CARDS);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     fetchConversationCards(({ decks: d, cards: c }) => {
@@ -37,6 +39,21 @@ export default function ConversationCardsScreen({ navigation }) {
       setAllCards(c);
     });
   }, []);
+
+  async function handleGenerate() {
+    setGenerating(true);
+    try {
+      const children = await getAllChildProfiles();
+      const childAge = children?.[0]?.age ?? null;
+      const newCards = await generateCardsForDeck({ deck: activeDeckId, deckLabel: deck.label, childAge });
+      setAllCards(prev => [...prev, ...newCards]);
+      setCardIdx(deckCards.length); // jump to first new card
+    } catch (e) {
+      Alert.alert('Could not generate', e?.message ?? 'Please try again.');
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   const deck = decks.find(d => d.id === activeDeckId) ?? decks[0];
 
@@ -136,6 +153,22 @@ export default function ConversationCardsScreen({ navigation }) {
           <Ionicons name="arrow-forward" size={16} color={deck.bg} />
         </TouchableOpacity>
       </View>
+
+      {/* Generate more */}
+      <TouchableOpacity
+        style={[styles.generateBtn, { marginBottom: insets.bottom + 8 }, generating && { opacity: 0.6 }]}
+        onPress={handleGenerate}
+        disabled={generating}
+        activeOpacity={0.8}
+      >
+        {generating
+          ? <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
+          : <Ionicons name="sparkles-outline" size={14} color="rgba(255,255,255,0.7)" />
+        }
+        <Text style={styles.generateBtnText}>
+          {generating ? 'Generating…' : 'Generate new cards'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -197,4 +230,11 @@ const styles = StyleSheet.create({
     borderRadius: 16, paddingHorizontal: 22, paddingVertical: 14,
   },
   navNextText: { fontSize: 15, fontWeight: '800' },
+
+  generateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginHorizontal: 24, paddingVertical: 12, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  generateBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
 });

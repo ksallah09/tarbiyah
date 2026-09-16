@@ -11,7 +11,7 @@ import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../utils/supabase';
 import { getFamilyId } from '../utils/familyGoals';
-import { notifyDeedLogged, notifyPartner } from '../utils/partnerNotify';
+import { notifyPartner } from '../utils/partnerNotify';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -237,6 +237,7 @@ export const MANNERS = [
   { key: 'gratitude',          label: 'Gratitude',             emoji: '🌺' },
   { key: 'quran',              label: 'Quran Accomplishment',  emoji: '📖' },
   { key: 'school',             label: 'School Achievement',    emoji: '🎒' },
+  { key: 'sports',             label: 'Sports Achievement',    emoji: '⚽' },
   { key: 'other',              label: 'Other',                 emoji: '⭐' },
 ];
 
@@ -572,14 +573,11 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
         }
       }
 
-      notifyDeedLogged({
-        childId:    child.id,
-        childName:  child.name,
-        deedLabel:  manner?.label ?? selectedManner,
-        deedEmoji:  manner?.emoji ?? '',
-        gender:     child.gender ?? null,
-        loggerName: myProfileName || null,
-      });
+      notifyPartner(
+        `${myProfileName?.split(' ')[0] || 'Your partner'} posted an accomplishment ${manner?.emoji ?? '⭐'}`,
+        manner?.label ?? selectedManner ?? '',
+        { screen: 'FamilyFeed' }
+      );
     } catch (e) { console.error('[logDeed] caught:', e?.message, e); Alert.alert('Error', 'Something went wrong.'); }
     finally { setSaving(false); }
   }
@@ -696,6 +694,11 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
             </View>
       )}
 
+      <TouchableOpacity style={gs.showChildBtn} onPress={() => setShowChildView(true)} activeOpacity={0.8}>
+        <Ionicons name="eye-outline" size={15} color="#2E7D62" />
+        <Text style={gs.showChildBtnText}>Show {displayName} {childPronoun} garden</Text>
+      </TouchableOpacity>
+
       {/* Recent deeds */}
       {recentThree.length > 0 && (
         <View style={gs.recentList}>
@@ -736,11 +739,6 @@ export default function MannerGarden({ child, myProfileName, partnerLinked, link
       <TouchableOpacity style={gs.logBtn} onPress={() => setShowModal(true)} activeOpacity={0.85}>
         <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
         <Text style={gs.logBtnText}>Log an accomplishment</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={gs.showChildBtn} onPress={() => setShowChildView(true)} activeOpacity={0.8}>
-        <Ionicons name="eye-outline" size={15} color="#2E7D62" />
-        <Text style={gs.showChildBtnText}>Show {displayName} {childPronoun} garden</Text>
       </TouchableOpacity>
 
       {!!onFeedPress && (
@@ -1172,7 +1170,7 @@ const gs = StyleSheet.create({
   allDeedDate:       { fontSize: 12, fontWeight: '600', color: '#6B7280' },
   allDeedYear:       { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
 
-  logBtn:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1B3D2F', borderRadius: 12, paddingVertical: 13 },
+  logBtn:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1B3D2F', borderRadius: 12, paddingVertical: 13, marginTop: 16 },
   logBtnText:        { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   showChildBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 },
   showChildBtnText:  { fontSize: 13, fontWeight: '600', color: '#2E7D62' },
