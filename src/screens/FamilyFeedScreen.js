@@ -23,7 +23,8 @@ import { getCachedSyncStatus, getFamilySyncStatus } from '../utils/familySync';
 import { notifyPartner } from '../utils/partnerNotify';
 import { MANNERS } from '../components/MannerGarden';
 import { getAllChildProfiles, updateChildProfile } from '../utils/childProfiles';
-import { uploadPhoto } from '../utils/uploadPhoto';
+import { uploadPhoto, uploadVideo } from '../utils/uploadPhoto';
+import { Video as VideoAV, ResizeMode } from 'expo-av';
 
 const BG      = '#F4F6F9';
 const WHITE   = '#FFFFFF';
@@ -103,6 +104,26 @@ function TypeBadge({ type }) {
   );
 }
 
+function VideoCard({ uri, style }) {
+  const [playing, setPlaying] = useState(false);
+  if (playing) {
+    return (
+      <VideoAV
+        source={{ uri }}
+        style={style}
+        useNativeControls
+        resizeMode={ResizeMode.CONTAIN}
+        shouldPlay
+      />
+    );
+  }
+  return (
+    <TouchableOpacity style={[style, { backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center', borderRadius: 10 }]} onPress={() => setPlaying(true)} activeOpacity={0.85}>
+      <Ionicons name="play-circle" size={56} color="rgba(255,255,255,0.88)" />
+    </TouchableOpacity>
+  );
+}
+
 function ShukrCard({ item, myName, onLove, onPhotoPress }) {
   const loved  = (item.loved_by ?? []).includes(myName);
   const theme  = SHUKR_THEMES.find(t => t.key === item.theme);
@@ -128,9 +149,12 @@ function ShukrCard({ item, myName, onLove, onPhotoPress }) {
 
       {!!item.text && <Text style={s.shukrText}>{item.text}</Text>}
 
-      {item.photo_url && (
+      {item.video_url && (
+        <VideoCard uri={item.video_url} style={s.shukrCardPhoto} />
+      )}
+      {item.photo_url && !item.video_url && (
         <TouchableOpacity activeOpacity={0.9} onPress={() => onPhotoPress?.(item.photo_url)}>
-          <Image source={{ uri: item.photo_url }} style={s.shukrCardPhoto} contentFit="contain" />
+          <Image source={{ uri: item.photo_url }} style={s.shukrCardPhoto} contentFit="cover" />
         </TouchableOpacity>
       )}
 
@@ -436,6 +460,7 @@ export default function FamilyFeedScreen({ navigation }) {
   const [shukrTheme,    setShukrTheme]    = useState(null);
   const [shukrAyah,     setShukrAyah]     = useState(null);
   const [shukrPhoto,    setShukrPhoto]    = useState(null);
+  const [shukrVideo,    setShukrVideo]    = useState(null);
   const [shukrSaving,   setShukrSaving]   = useState(false);
   const channelRef = useRef(null);
 
@@ -520,7 +545,7 @@ export default function FamilyFeedScreen({ navigation }) {
       // shukr_posts queried separately — table may not exist yet if migration hasn't run
       const shukrRes = await supabase
         .from('shukr_posts')
-        .select('id, child_id, child_name, text, theme, ayah_ref, ayah_text, photo_url, loved_by, user_id, created_at')
+        .select('id, child_id, child_name, text, theme, ayah_ref, ayah_text, photo_url, video_url, loved_by, user_id, created_at')
         .eq('family_id', familyId)
         .order('created_at', { ascending: false })
         .limit(40)
@@ -689,7 +714,7 @@ export default function FamilyFeedScreen({ navigation }) {
 
   function resetShukr() {
     setShukrText(''); setShukrChildren([]); setShukrTheme(null); setShukrAyah(null);
-    setShukrPhoto(null); setShukrStep('text'); setShukrOpen(false);
+    setShukrPhoto(null); setShukrVideo(null); setShukrStep('text'); setShukrOpen(false);
   }
 
   async function pickShukrPhoto(fromCamera = false) {
@@ -706,16 +731,37 @@ export default function FamilyFeedScreen({ navigation }) {
     }
   }
 
+  async function pickShukrVideo() {
+    if (!ImagePicker) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Permission needed', 'Please allow photo/video access in Settings.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions?.Videos ?? 'videos',
+      quality: 0.8,
+      videoMaxDuration: 120,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setShukrVideo(result.assets[0].uri);
+      setShukrPhoto(null);
+    }
+  }
+
   async function saveShukr() {
     const text = shukrText.trim();
-    if (!text && !shukrPhoto) return;
+    if (!text && !shukrPhoto && !shukrVideo) return;
     setShukrSaving(true);
     try {
       const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
       let photo_url = null;
+      let video_url = null;
       if (shukrPhoto) {
         const path = `shukr/${session.user.id}_${Date.now()}.jpg`;
         photo_url = await uploadPhoto(shukrPhoto, path);
+      }
+      if (shukrVideo) {
+        const ext  = shukrVideo.split('.').pop()?.toLowerCase() ?? 'mp4';
+        const path = `shukr/${session.user.id}_${Date.now()}.${ext}`;
+        video_url = await uploadVideo(shukrVideo, path);
       }
       const { error: insertErr } = await supabase.from('shukr_posts').insert({
         family_id:  familyId,
@@ -727,6 +773,7 @@ export default function FamilyFeedScreen({ navigation }) {
         ayah_ref:   shukrAyah?.ref  ?? null,
         ayah_text:  shukrAyah?.text ?? null,
         photo_url,
+        video_url,
       });
       if (insertErr) throw insertErr;
       if (partnerLinked) {
@@ -1040,7 +1087,7 @@ export default function FamilyFeedScreen({ navigation }) {
                 <Text style={s.wizardTitle}>What are you grateful for?</Text>
                 <Text style={s.wizardSub}>Capture a photo or write a note — or both. The act of naming it is the ibadah.</Text>
 
-                {/* Photo picker */}
+                {/* Photo / video picker */}
                 {shukrPhoto ? (
                   <View style={s.shukrPhotoPreview}>
                     <Image source={{ uri: shukrPhoto }} style={s.shukrPhotoImg} contentFit="cover" />
@@ -1048,15 +1095,26 @@ export default function FamilyFeedScreen({ navigation }) {
                       <Ionicons name="close-circle" size={24} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
+                ) : shukrVideo ? (
+                  <View style={s.shukrPhotoPreview}>
+                    <VideoCard uri={shukrVideo} style={s.shukrPhotoImg} />
+                    <TouchableOpacity style={s.shukrPhotoRemove} onPress={() => setShukrVideo(null)}>
+                      <Ionicons name="close-circle" size={24} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 ) : (
                   <View style={s.shukrPhotoRow}>
                     <TouchableOpacity style={s.shukrPhotoBtn} onPress={() => pickShukrPhoto(true)} activeOpacity={0.8}>
                       <Ionicons name="camera" size={22} color="#1B3D2F" />
-                      <Text style={s.shukrPhotoBtnText}>Take photo</Text>
+                      <Text style={s.shukrPhotoBtnText}>Photo</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={s.shukrPhotoBtn} onPress={() => pickShukrPhoto(false)} activeOpacity={0.8}>
                       <Ionicons name="images" size={22} color="#1B3D2F" />
-                      <Text style={s.shukrPhotoBtnText}>Choose photo</Text>
+                      <Text style={s.shukrPhotoBtnText}>Gallery</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.shukrPhotoBtn} onPress={pickShukrVideo} activeOpacity={0.8}>
+                      <Ionicons name="videocam" size={22} color="#1B3D2F" />
+                      <Text style={s.shukrPhotoBtnText}>Video</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1070,8 +1128,8 @@ export default function FamilyFeedScreen({ navigation }) {
                   onChangeText={setShukrText}
                 />
                 <TouchableOpacity
-                  style={[s.shukrNextBtn, (!shukrText.trim() && !shukrPhoto) && { opacity: 0.4 }]}
-                  disabled={!shukrText.trim() && !shukrPhoto}
+                  style={[s.shukrNextBtn, (!shukrText.trim() && !shukrPhoto && !shukrVideo) && { opacity: 0.4 }]}
+                  disabled={!shukrText.trim() && !shukrPhoto && !shukrVideo}
                   onPress={() => setShukrStep('tag')}
                   activeOpacity={0.85}
                 >

@@ -21,7 +21,7 @@ import EncouragementModal from './EncouragementModal';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PADDING = 20;
 
-export default function FamilySummaryBoard({ navigation, section = 'childWins', onScroll }) {
+export default function FamilySummaryBoard({ navigation, section = 'childWins', onScroll, onOpenChildDashboard }) {
   const [familyGoals,     setFamilyGoals]     = useState([]);
   const [goalCompletions, setGoalCompletions] = useState([]);
   const [familyTrees,     setFamilyTrees]     = useState([]);
@@ -63,24 +63,62 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
       if (!session) return;
       const today     = new Date().toISOString().slice(0, 10);
       const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+      // Get all family member IDs so points are pooled across both parents
+      const familyId = await getFamilyId();
+      const { data: familyMembers } = await supabase
+        .from('family_members').select('user_id').eq('family_id', familyId);
+      const familyUserIds = (familyMembers ?? []).map(m => m.user_id).filter(Boolean);
+      const userIds = familyUserIds.length > 0 ? familyUserIds : [session.user.id];
+
       const [{ data }, { data: cfgData }] = await Promise.all([
         supabase
           .from('muhasabah_sessions')
           .select('points_earned, streak_day, session_date, child_id, child_name')
-          .eq('user_id', session.user.id)
+          .in('user_id', userIds)
           .order('session_date', { ascending: false }),
         supabase
           .from('muhasabah_config')
-          .select('child_id, reward_goal, reward_points_target')
-          .eq('user_id', session.user.id),
+          .select('child_id, reward_goal, reward_points_target, user_id')
+          .in('user_id', userIds),
       ]);
       if (!data) return;
+
+      // Build linked_child_id → canonical child_id map so sessions from partners
+      // who used a different name/spelling are folded into the same child bucket.
+      // family_children rows: { child_id: canonicalId, linked_child_id: partnerId }
+      const sessionChildIds = [...new Set(data.map(r => r.child_id).filter(Boolean))];
+      let linkedToCanonical = {};
+      if (sessionChildIds.length > 0) {
+        const { data: fcData } = await supabase
+          .from('family_children')
+          .select('child_id, linked_child_id')
+          .in('linked_child_id', sessionChildIds);
+        for (const row of (fcData ?? [])) {
+          if (row.linked_child_id) linkedToCanonical[row.linked_child_id] = row.child_id;
+        }
+      }
+
+      // Build config map — resolve linked child_ids to canonical, prefer current user's config
       const cfgByChild = {};
-      for (const cfg of (cfgData ?? [])) cfgByChild[cfg.child_id] = cfg;
+      for (const cfg of (cfgData ?? [])) {
+        const canonicalId = linkedToCanonical[cfg.child_id] ?? cfg.child_id;
+        if (!cfgByChild[canonicalId] || cfg.user_id === session.user.id) {
+          cfgByChild[canonicalId] = cfg;
+        }
+      }
+
       const byChild = {};
       for (const row of data) {
-        const key = row.child_id || row.child_name;
-        if (!byChild[key]) byChild[key] = { id: row.child_id, name: row.child_name, rows: [] };
+        const canonicalId = linkedToCanonical[row.child_id] ?? row.child_id;
+        const isLinked = !!linkedToCanonical[row.child_id];
+        const key = canonicalId || row.child_name;
+        if (!byChild[key]) {
+          byChild[key] = { id: canonicalId, name: row.child_name, rows: [] };
+        } else if (!isLinked) {
+          // Canonical child's own sessions → use their name (overrides partner's nickname)
+          byChild[key].name = row.child_name;
+        }
         byChild[key].rows.push(row);
       }
       const stats = Object.values(byChild).map(c => {
@@ -316,7 +354,7 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
                 <View style={s.winsEmpty}>
                   <Ionicons name="people-outline" size={28} color="#D1D5DB" />
                   <Text style={s.emptyTitle}>No children added yet</Text>
-                  <Text style={s.emptySub}>Head to the <Text style={s.emptyHighlight}>Configure tab</Text> to add your children and start tracking their progress.</Text>
+                  <Text style={s.emptySub}>Tap <Text style={s.emptyHighlight}>Configure Family</Text> at the top of this screen to add your children and start tracking their progress.</Text>
                 </View>
               ) : children.map((child, idx) => {
                 const hasAreas = (child.growthAreas ?? []).length > 0;
@@ -326,7 +364,7 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
                   <TouchableOpacity
                     key={child.id}
                     style={[s.winsRow, !isLast && s.winsRowBorder]}
-                    onPress={() => navigation.navigate('Tabs', { screen: 'Family', params: { tab: 'dashboard', childId: child.id } })}
+                    onPress={() => onOpenChildDashboard?.(child.id)}
                     activeOpacity={0.75}
                   >
                     <View style={[s.winsAvatar, { backgroundColor: child.color }]}>
@@ -380,7 +418,7 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
                 <View style={s.emptyInner}>
                   <Ionicons name="flag-outline" size={28} color="#D1D5DB" style={{ marginBottom: 10 }} />
                   <Text style={s.emptyTitle}>No family goals yet</Text>
-                  <Text style={s.emptySub}>Head to the <Text style={s.emptyHighlight}>Configure tab</Text> to set your first shared family goal.</Text>
+                  <Text style={s.emptySub}>Tap <Text style={s.emptyHighlight}>Add Goal</Text> above to set your first shared family goal.</Text>
                 </View>
               ) : (showAllGoals ? familyGoals : familyGoals.slice(0, 5)).map((goal, idx) => {
                 const target    = goal.frequency ?? 1;
@@ -448,33 +486,38 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
         {section === 'childWins' && (
           <TouchableOpacity
             style={s.quickActionFeedBtn}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
             onPress={() => navigation.getParent()?.navigate('FamilyFeed')}
           >
-            <View style={s.quickActionFeedLeft}>
-              <View style={s.quickActionFeedIconWrap}>
-                <Ionicons name="people" size={22} color="#1B3D2F" />
-              </View>
+            <View style={s.quickActionFeedHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={s.quickActionFeedTitle}>Family Feed</Text>
-                <Text style={s.quickActionFeedSub}>Accomplishments, reflections & difficult moments — all in one shared view</Text>
+                <Text style={s.quickActionFeedEyebrow}>SHARED FAMILY VIEW</Text>
+                <Text style={s.quickActionFeedTitle}>
+                  <Ionicons name="people" size={17} color="#FFFFFF" /> Family Feed
+                </Text>
+                <Text style={s.quickActionFeedSub}>Wins, reflections, shukr moments & more — your family's shared story</Text>
               </View>
+              <TouchableOpacity
+                style={s.quickActionFeedViewBtn}
+                onPress={() => navigation.getParent()?.navigate('FamilyFeed')}
+                activeOpacity={0.8}
+              >
+                <Text style={s.quickActionFeedViewBtnText}>View →</Text>
+              </TouchableOpacity>
             </View>
             <View style={s.quickActionFeedFooter}>
               <View style={s.quickActionFeedPill}>
-                <View style={[s.quickActionFeedDot, { backgroundColor: '#22C55E' }]} />
+                <View style={[s.quickActionFeedDot, { backgroundColor: '#4ADE80' }]} />
                 <Text style={s.quickActionFeedPillText}>Wins</Text>
               </View>
               <View style={s.quickActionFeedPill}>
-                <View style={[s.quickActionFeedDot, { backgroundColor: '#818CF8' }]} />
+                <View style={[s.quickActionFeedDot, { backgroundColor: '#A78BFA' }]} />
                 <Text style={s.quickActionFeedPillText}>Reflections</Text>
               </View>
               <View style={s.quickActionFeedPill}>
-                <View style={[s.quickActionFeedDot, { backgroundColor: '#F59E0B' }]} />
+                <View style={[s.quickActionFeedDot, { backgroundColor: '#FCD34D' }]} />
                 <Text style={s.quickActionFeedPillText}>Moments</Text>
               </View>
-              <View style={{ flex: 1 }} />
-              <Text style={s.quickActionFeedCta}>View feed →</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -482,21 +525,21 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
         {/* ── Nightly Muhasabah ── (Child Growth tab) */}
         {section === 'childWins' && (
           <View style={s.muhasabahSection}>
-            {/* Header row */}
-            <View style={s.muhasabahHeader}>
+            {/* Header row — entire row is tappable */}
+            <TouchableOpacity
+              style={s.muhasabahHeader}
+              onPress={() => navigation.getParent()?.navigate('MuhasabahWizard')}
+              activeOpacity={0.85}
+            >
               <View style={{ flex: 1 }}>
                 <Text style={s.muhasabahEyebrow}>NIGHTLY REFLECTION</Text>
                 <Text style={s.muhasabahTitle}>🌙 Nightly Muhasabah</Text>
                 <Text style={s.muhasabahSub}>Self-accountability · Points · Progress</Text>
               </View>
-              <TouchableOpacity
-                style={s.muhasabahBeginBtn}
-                onPress={() => navigation.getParent()?.navigate('MuhasabahWizard')}
-                activeOpacity={0.85}
-              >
+              <View style={s.muhasabahBeginBtn}>
                 <Text style={s.muhasabahBeginText}>Begin →</Text>
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
 
             {/* Per-child stats */}
             {muhasabahStats.length > 0 ? (
@@ -782,16 +825,18 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
 }
 
 const s = StyleSheet.create({
-  quickActionFeedBtn:      { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 20, gap: 12, borderWidth: 1, borderColor: '#E2EDE9', shadowColor: '#1B3D2F', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2 },
-  quickActionFeedLeft:     { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  quickActionFeedIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#EDF7F2', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
-  quickActionFeedTitle:    { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 3 },
-  quickActionFeedSub:      { fontSize: 13, color: '#6B7280', lineHeight: 18 },
-  quickActionFeedFooter:   { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10, marginTop: 2 },
-  quickActionFeedPill:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  quickActionFeedDot:      { width: 7, height: 7, borderRadius: 4 },
-  quickActionFeedPillText: { fontSize: 11, fontWeight: '600', color: '#6B7280' },
-  quickActionFeedCta:      { fontSize: 12, fontWeight: '700', color: '#1B3D2F' },
+  quickActionFeedBtn:        { backgroundColor: '#1B3D2F', borderRadius: 18, padding: 18, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 16, elevation: 6 },
+  quickActionFeedHeader:     { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  quickActionFeedEyebrow:    { fontSize: 10, fontWeight: '700', color: 'rgba(74,222,128,0.8)', letterSpacing: 1.2, marginBottom: 3 },
+  quickActionFeedTitle:      { fontSize: 18, fontWeight: '800', color: '#FFFFFF', marginBottom: 4 },
+  quickActionFeedSub:        { fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 18 },
+  quickActionFeedViewBtn:    { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9, alignSelf: 'flex-start', marginLeft: 12 },
+  quickActionFeedViewBtnText:{ fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  quickActionFeedFooter:     { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 12 },
+  quickActionFeedPill:       { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  quickActionFeedDot:        { width: 7, height: 7, borderRadius: 4 },
+  quickActionFeedPillText:   { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  quickActionFeedCta:        { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
   quickActionIcon:         { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 
   gardenDots:     { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
@@ -831,7 +876,7 @@ const s = StyleSheet.create({
   muhasabahBeginText:     { fontSize: 13, fontWeight: '800', color: '#0D1B3E' },
   muhasabahChildren:      { gap: 0 },
   muhasabahDivider:       { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 10 },
-  sectionDivider:         { height: 1, backgroundColor: '#E5E7EB', marginHorizontal: 16, marginVertical: 8 },
+  sectionDivider:         { height: 1, backgroundColor: '#E5E7EB', marginTop: 8, marginBottom: 20 },
   muhasabahChildRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   muhasabahChildLeft:     { flex: 1 },
   muhasabahChildName:     { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },

@@ -147,6 +147,7 @@ export default function ProgressScreen({ navigation, route }) {
     if (route?.params?.tab === 'configure') setConfigureModalVisible(true);
     if (route?.params?.tab === 'dashboard') setFamilyTab('dashboard');
     if (route?.params?.tab === 'activities') setFamilyTab('activities');
+    if (route?.params?.tab === 'childWins') setFamilyTab('childWins');
     if (route?.params?.childId) setDashboardChildId(route.params.childId);
     if (route?.params?.scrollTo === 'familyGoals') {
       setTimeout(() => {
@@ -277,7 +278,11 @@ export default function ProgressScreen({ navigation, route }) {
 
         {/* ── Content tabs — single instance stays mounted so data loads once ── */}
         {familyTab !== 'dashboard' && familyTab !== 'activities' && (
-          <FamilySummaryBoard navigation={navigation} section={familyTab} />
+          <FamilySummaryBoard
+            navigation={navigation}
+            section={familyTab}
+            onOpenChildDashboard={(childId) => { setDashboardChildId(childId); setFamilyTab('dashboard'); }}
+          />
         )}
 
         </View> {/* contentSheet */}
