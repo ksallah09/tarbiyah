@@ -506,6 +506,14 @@ export default function FamilyFeedScreen({ navigation }) {
       }).catch(() => {});
 
       const familyId  = await getFamilyId();
+
+      // Ensure family_members row exists — new accounts may have a cached familyId
+      // but no DB row, which causes RLS to block selects on accomplishments/shukr.
+      supabase.from('family_members').upsert(
+        { family_id: familyId, user_id: session.user.id, role: 'owner', display_name: name || 'Parent' },
+        { onConflict: 'family_id,user_id', ignoreDuplicates: true }
+      ).catch(() => {});
+
       const partnerId = syncStatus?.partner?.userId ?? null;
 
       // Get all family member user IDs from DB (more reliable than cache for muhasabah query)
