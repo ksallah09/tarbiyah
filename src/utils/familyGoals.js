@@ -63,7 +63,7 @@ export async function getFamilyId() {
     id = cachedId ?? `family_${userId}`;
     await supabase.from('family_members')
       .insert({ family_id: id, user_id: userId, role: 'owner', display_name: 'Parent' })
-      .catch(() => {});
+      .then(() => {}, () => {});
   }
 
   await Promise.all([
