@@ -1225,10 +1225,14 @@ export default function FamilyFeedScreen({ navigation }) {
                   disabled={shukrSaving}
                   activeOpacity={0.85}
                 >
-                  {shukrSaving
-                    ? <ActivityIndicator color="#1B3D2F" size="small" />
-                    : <Text style={s.shukrNextBtnText}>Post Shukr Moment 🌙</Text>
-                  }
+                  {shukrSaving ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <ActivityIndicator color="#1B3D2F" size="small" />
+                      <Text style={s.shukrNextBtnText}>Posting…</Text>
+                    </View>
+                  ) : (
+                    <Text style={s.shukrNextBtnText}>Post Shukr Moment 🌙</Text>
+                  )}
                 </TouchableOpacity>
                 <TouchableOpacity style={{ alignItems: 'center', marginTop: 8 }} onPress={saveShukr} disabled={shukrSaving}>
                   <Text style={{ fontSize: 13, color: '#9CA3AF' }}>Skip and post without ayah</Text>
