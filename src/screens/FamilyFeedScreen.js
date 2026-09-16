@@ -506,23 +506,6 @@ export default function FamilyFeedScreen({ navigation }) {
       }).catch(() => {});
 
       const familyId  = await getFamilyId();
-
-      // For brand-new accounts: if the user has zero family_members rows, create one.
-      // Only runs once — subsequent loads find the row and skip.
-      supabase.from('family_members')
-        .select('family_id', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
-        .then(({ count }) => {
-          if (count === 0) {
-            supabase.from('family_members').insert({
-              family_id: familyId,
-              user_id: session.user.id,
-              role: 'owner',
-              display_name: name || 'Parent',
-            }).catch(() => {});
-          }
-        }).catch(() => {});
-
       const partnerId = syncStatus?.partner?.userId ?? null;
 
       // Get all family member user IDs from DB (more reliable than cache for muhasabah query)

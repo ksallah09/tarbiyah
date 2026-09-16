@@ -3,8 +3,9 @@ import * as Notifications from 'expo-notifications';
 import { supabase } from './supabase';
 import { requestNotificationPermission } from './notifications';
 
-const STORAGE_KEY = 'tarbiyah_family_goals_v1';
+const STORAGE_KEY  = 'tarbiyah_family_goals_v1';
 const FAMILY_ID_KEY = 'tarbiyah_family_id';
+const FAMILY_VERIFIED_KEY = 'tarbiyah_family_verified';
 
 export { requestNotificationPermission };
 
@@ -30,35 +31,54 @@ export function getGoalEmoji(goal) {
 // ─── Family ID (prep for spouse sync) ────────────────────────────────────────
 
 export async function getFamilyId() {
-  let id = await AsyncStorage.getItem(FAMILY_ID_KEY);
-  if (!id) {
-    const { data } = await supabase.auth.getSession();
-    const userId = data?.session?.user?.id;
+  const [cachedId, verified] = await Promise.all([
+    AsyncStorage.getItem(FAMILY_ID_KEY),
+    AsyncStorage.getItem(FAMILY_VERIFIED_KEY),
+  ]);
 
-    if (userId) {
-      // Check if this user is already a member of a family (e.g. after logout/login)
-      const { data: memberships } = await supabase
-        .from('family_members')
-        .select('family_id')
-        .eq('user_id', userId)
-        .limit(1);
-      if (memberships?.[0]?.family_id) {
-        id = memberships[0].family_id;
-      } else {
-        // No family_members row — create one so RLS-based selects work
-        id = `family_${userId}`;
-        await supabase.from('family_members').upsert(
-          { family_id: id, user_id: userId, role: 'owner', display_name: 'Parent' },
-          { onConflict: 'family_id,user_id' }
-        );
-      }
-    } else {
-      id = `family_local_${Date.now()}`;
-    }
+  // Fast path — already verified this session
+  if (cachedId && verified) return cachedId;
 
+  // Verify or initialise family membership
+  const { data } = await supabase.auth.getSession();
+  const userId = data?.session?.user?.id;
+
+  if (!userId) {
+    const id = cachedId ?? `family_local_${Date.now()}`;
     await AsyncStorage.setItem(FAMILY_ID_KEY, id);
+    return id;
   }
+
+  const { data: memberships } = await supabase
+    .from('family_members')
+    .select('family_id')
+    .eq('user_id', userId)
+    .limit(1);
+
+  let id;
+  if (memberships?.[0]?.family_id) {
+    id = memberships[0].family_id;
+  } else {
+    // No membership row at all — create a solo family for this user
+    id = cachedId ?? `family_${userId}`;
+    await supabase.from('family_members')
+      .insert({ family_id: id, user_id: userId, role: 'owner', display_name: 'Parent' })
+      .catch(() => {});
+  }
+
+  await Promise.all([
+    AsyncStorage.setItem(FAMILY_ID_KEY, id),
+    AsyncStorage.setItem(FAMILY_VERIFIED_KEY, '1'),
+  ]);
   return id;
+}
+
+// Call this after joining or leaving a family so getFamilyId re-verifies next time
+export async function clearFamilyIdCache() {
+  await Promise.all([
+    AsyncStorage.removeItem(FAMILY_ID_KEY),
+    AsyncStorage.removeItem(FAMILY_VERIFIED_KEY),
+  ]);
 }
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
-import { getFamilyId } from './familyGoals';
+import { getFamilyId, clearFamilyIdCache } from './familyGoals';
 
 const CHILD_PROFILES_KEY = 'tarbiyah_child_profiles';
 
@@ -304,7 +304,8 @@ export async function joinFamilyWithCode(code) {
     }
   }
 
-  // Update local family ID
+  // Update local family ID and clear verification so getFamilyId re-checks
+  await clearFamilyIdCache();
   await AsyncStorage.setItem(FAMILY_ID_KEY, invite.family_id);
 
   // Name is embedded in the invite — no cross-user query needed
@@ -400,6 +401,7 @@ export async function leaveFamily() {
     .eq('family_id', familyId)
     .eq('user_id', userId);
 
+  await clearFamilyIdCache();
   await AsyncStorage.setItem(FAMILY_ID_KEY, newFamilyId);
 
   // Delete ALL existing family_members rows for this user, then re-register
