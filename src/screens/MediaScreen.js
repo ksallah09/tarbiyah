@@ -1293,7 +1293,7 @@ const styles = StyleSheet.create({
   catPillTextActive: { color: '#FFFFFF' },
 
   searchBar:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11 },
-  searchInput:   { flex: 1, fontSize: 15, color: '#111827', fontWeight: '500' },
+  searchInput:   { flex: 1, fontSize: 15, color: '#111827' },
   howBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, alignSelf: 'flex-start' },
   howBtnText:    { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
 

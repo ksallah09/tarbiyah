@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   RefreshControl, ActivityIndicator, Share,
@@ -103,7 +103,7 @@ function TypeBadge({ type }) {
   );
 }
 
-function ShukrCard({ item, myName, onLove }) {
+function ShukrCard({ item, myName, onLove, onPhotoPress }) {
   const loved  = (item.loved_by ?? []).includes(myName);
   const theme  = SHUKR_THEMES.find(t => t.key === item.theme);
 
@@ -129,7 +129,9 @@ function ShukrCard({ item, myName, onLove }) {
       {!!item.text && <Text style={s.shukrText}>{item.text}</Text>}
 
       {item.photo_url && (
-        <Image source={{ uri: item.photo_url }} style={s.shukrCardPhoto} contentFit="cover" />
+        <TouchableOpacity activeOpacity={0.9} onPress={() => onPhotoPress?.(item.photo_url)}>
+          <Image source={{ uri: item.photo_url }} style={s.shukrCardPhoto} contentFit="contain" />
+        </TouchableOpacity>
       )}
 
       {item.ayah_text && (
@@ -402,6 +404,9 @@ export default function FamilyFeedScreen({ navigation }) {
   const [loading,       setLoading]       = useState(true);
   const [refreshing,    setRefreshing]    = useState(false);
   const [myName,        setMyName]        = useState('');
+  const [fullscreenPhoto, setFullscreenPhoto] = useState(null);
+  const scrollRef = useRef(null);
+  const scrollY   = useRef(0);
   const [childMap,      setChildMap]      = useState({});
   const [children,      setChildren]      = useState([]);
   const [familyTrees,   setFamilyTrees]   = useState([]);
@@ -435,7 +440,6 @@ export default function FamilyFeedScreen({ navigation }) {
   const channelRef = useRef(null);
 
   useFocusEffect(useCallback(() => {
-    // Mark the feed as seen so HomeScreen can clear its unread badge
     AsyncStorage.setItem('tarbiyah_feed_last_viewed', new Date().toISOString()).catch(() => {});
     loadAll();
     return () => {
@@ -443,8 +447,16 @@ export default function FamilyFeedScreen({ navigation }) {
     };
   }, []));
 
+  // Restore scroll position after feed loads (prevents reset when returning from tree view)
+  useEffect(() => {
+    if (!loading && scrollY.current > 0) {
+      const y = scrollY.current;
+      setTimeout(() => scrollRef.current?.scrollTo({ y, animated: false }), 0);
+    }
+  }, [loading]);
+
   async function loadAll(isRefresh = false) {
-    if (!isRefresh) setLoading(true);
+    if (!isRefresh && feed.length === 0) setLoading(true);
     try {
       const [{ data: { session } }, profileRaw, syncStatus] = await Promise.all([
         supabase.auth.getSession(),
@@ -618,6 +630,27 @@ export default function FamilyFeedScreen({ navigation }) {
       : [...(item.loved_by ?? []), myName];
     setFeed(prev => prev.map(f => f.id === item.id && f._type === 'shukr' ? { ...f, loved_by: newLoves } : f));
     await supabase.from('shukr_posts').update({ loved_by: newLoves }).eq('id', item.id);
+  }
+
+  async function handleDelete(item) {
+    Alert.alert('Delete post', 'Remove this from the family feed?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          setFeed(prev => prev.filter(f => !(f.id === item.id && f._type === item._type)));
+          const tableMap = {
+            accomplishment:         'family_accomplishments',
+            general_accomplishment: 'family_accomplishments',
+            reflection:             'muhasabah_sessions',
+            incident:               'family_moments',
+            shukr:                  'shukr_posts',
+          };
+          const table = tableMap[item._type];
+          if (table) await supabase.from(table).delete().eq('id', item.id);
+        },
+      },
+    ]);
   }
 
   async function saveLoggedMoment() {
@@ -827,8 +860,11 @@ export default function FamilyFeedScreen({ navigation }) {
         </View>
       ) : (
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
+          onScroll={e => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -863,6 +899,15 @@ export default function FamilyFeedScreen({ navigation }) {
                     <Text style={s.dateText}>{formatDate(item._date, item._ts)} · {poster}</Text>
                   </View>
                   <TypeBadge type={item._type} />
+                  {item.user_id === myUserId && (
+                    <TouchableOpacity
+                      onPress={() => handleDelete(item)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ marginLeft: 8 }}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#D1D5DB" />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
 
@@ -883,7 +928,7 @@ export default function FamilyFeedScreen({ navigation }) {
                   <IncidentCard item={item} myName={myName} onAcknowledge={handleAcknowledge} />
                 )}
                 {item._type === 'shukr' && (
-                  <ShukrCard item={item} myName={myName} onLove={handleLoveShukr} />
+                  <ShukrCard item={item} myName={myName} onLove={handleLoveShukr} onPhotoPress={setFullscreenPhoto} />
                 )}
               </View>
             );
@@ -892,6 +937,18 @@ export default function FamilyFeedScreen({ navigation }) {
           <View style={{ height: Math.max(32, insets.bottom) }} />
         </ScrollView>
       )}
+
+      {/* Fullscreen photo viewer */}
+      <Modal visible={!!fullscreenPhoto} transparent animationType="fade" onRequestClose={() => setFullscreenPhoto(null)}>
+        <TouchableOpacity style={s.fullscreenOverlay} activeOpacity={1} onPress={() => setFullscreenPhoto(null)}>
+          {fullscreenPhoto && (
+            <Image source={{ uri: fullscreenPhoto }} style={s.fullscreenImg} contentFit="contain" />
+          )}
+          <TouchableOpacity style={s.fullscreenClose} onPress={() => setFullscreenPhoto(null)}>
+            <Ionicons name="close" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* FAB */}
       <TouchableOpacity style={[s.fab, { bottom: insets.bottom + 24 }]} onPress={() => setComposeOpen(true)} activeOpacity={0.85}>
@@ -1526,9 +1583,12 @@ const s = StyleSheet.create({
   shukrPhotoBtn:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F0FDF4', borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: '#BBF7D0' },
   shukrPhotoBtnText:  { fontSize: 14, fontWeight: '600', color: '#1B3D2F' },
   shukrPhotoPreview:  { marginTop: 16, borderRadius: 14, overflow: 'hidden', position: 'relative' },
-  shukrPhotoImg:      { width: '100%', height: 200, borderRadius: 14 },
+  shukrPhotoImg:      { width: '100%', aspectRatio: 4 / 3, borderRadius: 14, backgroundColor: '#F3F4F6' },
   shukrPhotoRemove:   { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12 },
-  shukrCardPhoto:     { width: '100%', height: 200, borderRadius: 10, marginTop: 10, marginBottom: 4 },
+  shukrCardPhoto:     { width: '100%', aspectRatio: 4 / 3, borderRadius: 10, marginTop: 10, marginBottom: 4, backgroundColor: '#F3F4F6' },
+  fullscreenOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' },
+  fullscreenImg:      { width: '100%', height: '100%' },
+  fullscreenClose:    { position: 'absolute', top: 56, right: 20, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
   shukrSectionLabel:  { fontSize: 11, fontWeight: '800', color: '#9CA3AF', letterSpacing: 1, marginTop: 20, marginBottom: 10 },
   shukrChildRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   shukrChildChip:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F9FAFB', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1.5, borderColor: '#E5E7EB' },
