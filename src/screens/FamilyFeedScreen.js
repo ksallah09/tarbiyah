@@ -737,7 +737,7 @@ export default function FamilyFeedScreen({ navigation }) {
     if (status !== 'granted') { Alert.alert('Permission needed', 'Please allow photo/video access in Settings.'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions?.Videos ?? 'videos',
-      quality: 0.8,
+      videoQuality: 0.4,
       videoMaxDuration: 120,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
@@ -785,7 +785,8 @@ export default function FamilyFeedScreen({ navigation }) {
       }
       resetShukr();
       loadAll(true);
-    } catch {
+    } catch (e) {
+      console.error('saveShukr error:', e);
       Alert.alert('Error', 'Could not save. Please try again.');
     } finally {
       setShukrSaving(false);
@@ -1085,7 +1086,7 @@ export default function FamilyFeedScreen({ navigation }) {
               <ScrollView contentContainerStyle={s.wizardBody} keyboardShouldPersistTaps="handled">
                 <Text style={s.shukrComposeEmoji}>🌙</Text>
                 <Text style={s.wizardTitle}>What are you grateful for?</Text>
-                <Text style={s.wizardSub}>Capture a photo or write a note — or both. The act of naming it is the ibadah.</Text>
+                <Text style={s.wizardSub}>Capture a photo, video, or write a note. The act of naming it is the ibadah.</Text>
 
                 {/* Photo / video picker */}
                 {shukrPhoto ? (
