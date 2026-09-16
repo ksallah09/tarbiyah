@@ -86,6 +86,7 @@ import MuhasabahSealScreen       from './src/screens/MuhasabahSealScreen';
 import MuhasabahRewardsScreen    from './src/screens/MuhasabahRewardsScreen';
 import MuhasabahSetupScreen      from './src/screens/MuhasabahSetupScreen';
 import FamilyFeedScreen          from './src/screens/FamilyFeedScreen';
+import FeedPostScreen            from './src/screens/FeedPostScreen';
 import { setAuthUserId }         from './src/utils/authState';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://tarbiyah-production.up.railway.app';
@@ -546,6 +547,7 @@ function OnboardingStack() {
       <Stack.Screen name="OnboardingAccount"    component={OnboardingAccount} />
       <Stack.Screen name="OnboardingAllSet"     component={OnboardingAllSet} />
       <Stack.Screen name="FeatureTour"          component={FeatureTourScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="FeedPost"             component={FeedPostScreen}    options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -748,6 +750,8 @@ export default function App() {
         screen: 'Family',
         params: { tab: 'dashboard', childId },
       });
+    } else if (screen === 'FamilyFeed') {
+      navigationRef.current?.navigate('FamilyFeed');
     } else if (screen === 'Learn') {
       navigationRef.current?.navigate('Tabs', { screen: 'Learn' });
     } else {

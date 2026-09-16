@@ -462,6 +462,7 @@ export default function FamilyFeedScreen({ navigation }) {
   const [shukrPhoto,    setShukrPhoto]    = useState(null);
   const [shukrVideo,    setShukrVideo]    = useState(null);
   const [shukrSaving,   setShukrSaving]   = useState(false);
+  const [commentCounts, setCommentCounts] = useState({});
   const channelRef = useRef(null);
 
   useFocusEffect(useCallback(() => {
@@ -581,6 +582,20 @@ export default function FamilyFeedScreen({ navigation }) {
       ].sort((a, b) => (b._ts ?? '').localeCompare(a._ts ?? ''));
 
       setFeed(merged);
+
+      // Load comment counts for all visible posts
+      if (merged.length > 0) {
+        const ids = merged.map(m => m.id);
+        const { data: counts } = await supabase
+          .from('feed_comments')
+          .select('post_id, post_type')
+          .in('post_id', ids);
+        if (counts) {
+          const map = {};
+          counts.forEach(c => { const k = c.post_id; map[k] = (map[k] ?? 0) + 1; });
+          setCommentCounts(map);
+        }
+      }
 
       // Realtime — refresh on any change to actions table (covers partner reactions)
       if (!channelRef.current && familyId) {
@@ -986,6 +1001,21 @@ export default function FamilyFeedScreen({ navigation }) {
                 {item._type === 'shukr' && (
                   <ShukrCard item={item} myName={myName} onLove={handleLoveShukr} onPhotoPress={setFullscreenPhoto} />
                 )}
+
+                {/* Comment button */}
+                <TouchableOpacity
+                  style={s.commentBtn}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    const authorName = item.user_id === myUserId ? myName : partnerName;
+                    navigation.navigate('FeedPost', { item, authorName, authorColor: item.child_color ?? childMap[item.child_id] ?? '#2E7D62' });
+                  }}
+                >
+                  <Ionicons name="chatbubble-outline" size={14} color={SUB} />
+                  <Text style={s.commentBtnText}>
+                    {(commentCounts[item.id] ?? 0) > 0 ? `${commentCounts[item.id]} comment${commentCounts[item.id] !== 1 ? 's' : ''}` : 'Comment'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             );
           })}
@@ -1618,6 +1648,8 @@ const s = StyleSheet.create({
   consequenceText: { fontSize: 13, color: SUB, flex: 1, lineHeight: 19 },
 
   // Reactions
+  commentBtn:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 7, borderTopWidth: 1, borderTopColor: BORDER, marginTop: 4 },
+  commentBtnText:   { fontSize: 13, color: SUB, fontWeight: '500' },
   reactionRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 4, marginTop: 4 },
   reactionBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: BORDER },
   reactionBtnActive:{ backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
