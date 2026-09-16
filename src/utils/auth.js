@@ -24,9 +24,20 @@ export async function getAccessToken() {
   return session?.access_token ?? null;
 }
 
+// Ensures a family_members row exists for the user — called after any sign-up/sign-in
+async function ensureFamilyMember(userId) {
+  if (!userId) return;
+  const familyId = `family_${userId}`;
+  await supabase.from('family_members')
+    .upsert({ family_id: familyId, user_id: userId, role: 'owner', display_name: 'Parent' },
+             { onConflict: 'family_id,user_id', ignoreDuplicates: true });
+  await AsyncStorage.setItem('tarbiyah_family_id', familyId);
+}
+
 /** Sign up with email + password. Returns { user, error }. */
 export async function signUp(email, password) {
   const { data, error } = await supabase.auth.signUp({ email, password });
+  if (!error && data?.user) await ensureFamilyMember(data.user.id);
   return { user: data?.user ?? null, error };
 }
 
@@ -58,6 +69,7 @@ const CACHE_KEYS = [
   // Family
   'tarbiyah_family_goals_v1',
   'tarbiyah_family_id',
+  'tarbiyah_family_verified',
   'tarbiyah_partner_cache',
   'tarbiyah_goal_completions_v1',
 ];
@@ -84,13 +96,14 @@ export async function signInWithApple() {
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
       ],
     });
-    const { data, error } = await supabase.auth.signInWithIdToken({
+    const { data, error: idTokenError } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
       token: credential.identityToken,
     });
-    return { user: data?.user ?? null, error };
+    if (!idTokenError && data?.user) await ensureFamilyMember(data.user.id);
+    return { user: data?.user ?? null, error: idTokenError };
   } catch (err) {
-    if (err.code === 'ERR_REQUEST_CANCELED') return { user: null, error: null }; // user dismissed
+    if (err.code === 'ERR_REQUEST_CANCELED') return { user: null, error: null };
     return { user: null, error: err };
   }
 }
@@ -128,6 +141,7 @@ export async function signInWithGoogle() {
       access_token:  accessToken,
       refresh_token: refreshToken,
     });
+    if (!sessionError && sessionData?.user) await ensureFamilyMember(sessionData.user.id);
     return { user: sessionData?.user ?? null, error: sessionError };
   } catch (err) {
     return { user: null, error: err };
