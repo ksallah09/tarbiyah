@@ -776,6 +776,7 @@ export default function FamilyFeedScreen({ navigation }) {
     setShukrSaving(true);
     try {
       const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
+      console.log('[saveShukr] familyId:', familyId, 'userId:', session?.user?.id);
       let photo_url = null;
       let video_url = null;
       if (shukrPhoto) {
@@ -809,7 +810,8 @@ export default function FamilyFeedScreen({ navigation }) {
       }
       resetShukr();
       loadAll(true);
-    } catch {
+    } catch (e) {
+      console.error('saveShukr error:', e?.message, e?.code, JSON.stringify(e?.details));
       Alert.alert('Error', 'Could not save. Please try again.');
     } finally {
       setShukrSaving(false);
@@ -827,6 +829,7 @@ export default function FamilyFeedScreen({ navigation }) {
     setAccomSaving(true);
     try {
       const [familyId, { data: { session } }] = await Promise.all([getFamilyId(), supabase.auth.getSession()]);
+      console.log('[saveAccomplishment] familyId:', familyId, 'userId:', session?.user?.id);
       const toTree = !!selectedTree;
       // When saving to a tree, use the tree's child_id/name so it shows up in that garden view
       const childId   = toTree ? (selectedTree.child_id   ?? accomChild.id)   : accomChild.id;
@@ -854,7 +857,8 @@ export default function FamilyFeedScreen({ navigation }) {
       }
       resetAccom();
       loadAll(true);
-    } catch {
+    } catch (e) {
+      console.error('saveAccomplishment error:', e?.message, e?.code, JSON.stringify(e?.details));
       Alert.alert('Error', 'Could not save. Please try again.');
     } finally {
       setAccomSaving(false);
