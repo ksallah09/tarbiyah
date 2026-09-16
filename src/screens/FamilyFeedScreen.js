@@ -732,24 +732,21 @@ export default function FamilyFeedScreen({ navigation }) {
   }
 
   async function pickShukrVideo() {
-    if (!ImagePicker) { console.warn('ImagePicker not available'); return; }
+    if (!ImagePicker) return;
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('video picker permission:', status);
       if (status !== 'granted') { Alert.alert('Permission needed', 'Please allow photo/video access in Settings.'); return; }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['videos'],
         videoQuality: ImagePicker.VideoQuality?.Low ?? 2,
         videoMaxDuration: 120,
       });
-      console.log('video picker result:', JSON.stringify(result));
       if (!result.canceled && result.assets?.[0]?.uri) {
         setShukrVideo(result.assets[0].uri);
         setShukrPhoto(null);
       }
     } catch (e) {
-      console.error('pickShukrVideo error:', e);
-      Alert.alert('Error', 'Could not open video picker: ' + e.message);
+      Alert.alert('Error', 'Could not open video picker.');
     }
   }
 
@@ -792,8 +789,7 @@ export default function FamilyFeedScreen({ navigation }) {
       }
       resetShukr();
       loadAll(true);
-    } catch (e) {
-      console.error('saveShukr error:', e);
+    } catch {
       Alert.alert('Error', 'Could not save. Please try again.');
     } finally {
       setShukrSaving(false);

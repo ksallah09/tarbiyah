@@ -41,7 +41,7 @@ export async function uploadVideo(localUri, path) {
   const { data: signedData, error: signError } = await supabase.storage
     .from('avatars')
     .createSignedUploadUrl(path);
-  if (signError) { console.error('createSignedUploadUrl error:', signError); throw signError; }
+  if (signError) throw signError;
 
   // Stream the file directly — no base64, no memory issues
   const result = await FileSystem.uploadAsync(signedData.signedUrl, localUri, {
@@ -50,7 +50,6 @@ export async function uploadVideo(localUri, path) {
   });
 
   if (result.status < 200 || result.status >= 300) {
-    console.error('uploadAsync failed:', result.status, result.body);
     throw new Error(`Video upload failed: ${result.status}`);
   }
 
