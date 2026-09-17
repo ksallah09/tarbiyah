@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { supabase } from '../utils/supabase';
+import { getFamilyId } from '../utils/familyGoals';
 
 let captureRef = null;
 try { captureRef = require('react-native-view-shot').captureRef; } catch {}
@@ -91,11 +92,20 @@ export default function MuhasabahRewardsScreen({ navigation, route }) {
       const today     = new Date().toISOString().slice(0, 10);
       const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
+      // Get all user IDs in the family so both partners' sessions are counted
+      const familyId = await getFamilyId();
+      const { data: members } = await supabase
+        .from('family_members')
+        .select('user_id')
+        .eq('family_id', familyId);
+      const userIds = (members ?? []).map(m => m.user_id).filter(Boolean);
+      if (userIds.length === 0) userIds.push(session.user.id);
+
       const [sessRes, cfgRes] = await Promise.all([
         supabase
           .from('muhasabah_sessions')
           .select('points_earned, streak_day, session_date')
-          .eq('user_id', session.user.id)
+          .in('user_id', userIds)
           .eq('child_id', child.id)
           .order('session_date', { ascending: false }),
         supabase
@@ -117,8 +127,7 @@ export default function MuhasabahRewardsScreen({ navigation, route }) {
       setStreak(sk);
       if (cfgRes.data?.reward_goal)          setRewardGoal(cfgRes.data.reward_goal);
       if (cfgRes.data?.reward_points_target) setRewardTarget(String(cfgRes.data.reward_points_target));
-    } catch (e) {
-      console.warn('[rewards] loadData:', e);
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -227,6 +236,17 @@ export default function MuhasabahRewardsScreen({ navigation, route }) {
               <Text style={styles.statLabel}>day streak</Text>
             </View>
           </View>
+
+          {/* Past sessions link */}
+          <TouchableOpacity
+            style={styles.feedLinkBtn}
+            onPress={() => navigation.navigate('FamilyFeed')}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="time-outline" size={15} color={GOLD} />
+            <Text style={styles.feedLinkText}>See past sessions on family feed</Text>
+            <Ionicons name="chevron-forward" size={14} color={GOLD} />
+          </TouchableOpacity>
 
           {/* Reward progress */}
           <View style={styles.card}>
@@ -410,6 +430,8 @@ const styles = StyleSheet.create({
   cardTitle:     { fontSize: 14, fontWeight: '800', color: TEXT },
   editBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,209,102,0.1)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
   editBtnText:   { fontSize: 12, color: GOLD, fontWeight: '700' },
+  feedLinkBtn:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,209,102,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,209,102,0.2)', paddingHorizontal: 16, paddingVertical: 12, marginBottom: 16 },
+  feedLinkText:  { flex: 1, fontSize: 14, color: GOLD, fontWeight: '600' },
 
   goalName:      { fontSize: 16, color: TEXT, fontWeight: '700', fontStyle: 'italic' },
 
