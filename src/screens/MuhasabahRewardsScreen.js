@@ -92,21 +92,23 @@ export default function MuhasabahRewardsScreen({ navigation, route }) {
       const today     = new Date().toISOString().slice(0, 10);
       const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
-      // Get all user IDs in the family so both partners' sessions are counted
+      // Get all family user IDs + all child_ids that map to this canonical child
+      // so both partners' sessions are counted (partner may have a different local child_id)
       const familyId = await getFamilyId();
-      const { data: members } = await supabase
-        .from('family_members')
-        .select('user_id')
-        .eq('family_id', familyId);
-      const userIds = (members ?? []).map(m => m.user_id).filter(Boolean);
+      const [{ data: members }, { data: fcData }] = await Promise.all([
+        supabase.from('family_members').select('user_id').eq('family_id', familyId),
+        supabase.from('family_children').select('linked_child_id').eq('child_id', child.id),
+      ]);
+      const userIds  = (members ?? []).map(m => m.user_id).filter(Boolean);
       if (userIds.length === 0) userIds.push(session.user.id);
+      const childIds = [child.id, ...(fcData ?? []).map(r => r.linked_child_id).filter(Boolean)];
 
       const [sessRes, cfgRes] = await Promise.all([
         supabase
           .from('muhasabah_sessions')
           .select('points_earned, streak_day, session_date')
           .in('user_id', userIds)
-          .eq('child_id', child.id)
+          .in('child_id', childIds)
           .order('session_date', { ascending: false }),
         supabase
           .from('muhasabah_config')

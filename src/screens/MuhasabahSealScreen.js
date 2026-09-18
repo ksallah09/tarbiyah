@@ -5,6 +5,7 @@ import {
   Animated, SafeAreaView, ScrollView, Image,
 } from 'react-native';
 import { supabase } from '../utils/supabase';
+import { getFamilyId } from '../utils/familyGoals';
 
 const BG      = '#0D1B3E';
 const GOLD    = '#FFD166';
@@ -140,12 +141,21 @@ export default function MuhasabahSealScreen({ navigation, route }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || !child?.id) { setLoading(false); return; }
 
+      const familyId = await getFamilyId();
+      const [{ data: members }, { data: fcData }] = await Promise.all([
+        supabase.from('family_members').select('user_id').eq('family_id', familyId),
+        supabase.from('family_children').select('linked_child_id').eq('child_id', child.id),
+      ]);
+      const userIds  = (members ?? []).map(m => m.user_id).filter(Boolean);
+      if (userIds.length === 0) userIds.push(session.user.id);
+      const childIds = [child.id, ...(fcData ?? []).map(r => r.linked_child_id).filter(Boolean)];
+
       const [sessRes, cfgRes] = await Promise.all([
         supabase
           .from('muhasabah_sessions')
           .select('points_earned')
-          .eq('user_id', session.user.id)
-          .eq('child_id', child.id),
+          .in('user_id', userIds)
+          .in('child_id', childIds),
         supabase
           .from('muhasabah_config')
           .select('reward_goal, reward_points_target')
@@ -159,7 +169,6 @@ export default function MuhasabahSealScreen({ navigation, route }) {
       if (cfgRes.data?.reward_goal)           setRewardGoal(cfgRes.data.reward_goal);
       if (cfgRes.data?.reward_points_target)  setRewardTarget(cfgRes.data.reward_points_target);
     } catch (e) {
-      console.warn('[seal] loadStats failed:', e);
     } finally {
       setLoading(false);
     }

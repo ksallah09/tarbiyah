@@ -565,7 +565,16 @@ export default function FamilyFeedScreen({ navigation }) {
         .catch(() => ({ data: [] }));
 
       setChildren(childProfiles ?? []);
-      setFamilyTrees((treesRes.data ?? []).filter(t => !t.linked_tree_id));
+      // Canonical trees have no linked_tree_id. Linked (partner) trees do.
+      // Inject the partner's child_id onto each canonical tree so MannerGarden
+      // can query both child_ids when the partner owns some of the actions.
+      const allTrees = treesRes.data ?? [];
+      const linkedMap = {};
+      allTrees.forEach(t => { if (t.linked_tree_id) linkedMap[t.linked_tree_id] = t.child_id; });
+      const canonicalTrees = allTrees
+        .filter(t => !t.linked_tree_id)
+        .map(t => ({ ...t, linked_tree_id: linkedMap[t.child_id] ?? null }));
+      setFamilyTrees(canonicalTrees);
 
       // Build child color map from local profiles
       const map = {};

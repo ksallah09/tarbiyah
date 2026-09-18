@@ -168,8 +168,12 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
       setGoalCompletions(completionsRes);
 
       const trees = treesRes.data ?? [];
-      const linkedIds = new Set(trees.map(t => t.linked_tree_id).filter(Boolean));
-      setFamilyTrees(trees.filter(t => !t.linked_tree_id));
+      const linkedMap = {};
+      trees.forEach(t => { if (t.linked_tree_id) linkedMap[t.linked_tree_id] = t.child_id; });
+      const canonicalTrees = trees
+        .filter(t => !t.linked_tree_id)
+        .map(t => ({ ...t, linked_tree_id: linkedMap[t.child_id] ?? null }));
+      setFamilyTrees(canonicalTrees);
       const rawTotals = {};
       (actionsRes.data ?? []).forEach(r => { rawTotals[r.child_id] = (rawTotals[r.child_id] ?? 0) + 1; });
       const combined = { ...rawTotals };
