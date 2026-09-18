@@ -668,7 +668,8 @@ export default function App() {
   const navigationRef                 = useRef(null);
   const notifResponseListener         = useRef(null);
 
-  // Check for OTA updates on launch and apply immediately if available.
+  // Download OTA updates silently; apply on next cold launch to avoid mid-session
+  // reload crashes on the new React Native architecture.
   useEffect(() => {
     if (__DEV__) return;
     (async () => {
@@ -676,11 +677,8 @@ export default function App() {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
           await Updates.fetchUpdateAsync();
-          await Updates.reloadAsync();
         }
-      } catch (e) {
-        console.warn('[Updates]', e?.message);
-      }
+      } catch {}
     })();
   }, []);
 
