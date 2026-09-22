@@ -477,6 +477,38 @@ export default function HomeScreen({ navigation, route }) {
       getStreak('quran').then(setQuranStreak);
       isReadToday('quran', dailyAyah.reference).then(setAyahRead);
       refreshChildrenAndSnaps();
+      // Prewarm world snaps in background so home screen shows data without
+      // requiring the user to open YouthCultureModal first.
+      (async () => {
+        const WORLD_TTL = 7 * 24 * 60 * 60 * 1000;
+        let updated = false;
+        for (const child of children) {
+          const cacheKey = `tarbiyah_world_${child.id}`;
+          try {
+            const raw = await AsyncStorage.getItem(cacheKey);
+            if (raw) {
+              const cached = JSON.parse(raw);
+              if (Date.now() - new Date(cached.generatedAt).getTime() < WORLD_TTL) continue;
+            }
+          } catch {}
+          try {
+            const { data } = await supabase
+              .from('child_world_jobs')
+              .select('result, created_at')
+              .eq('child_id', child.id)
+              .eq('status', 'complete')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (data?.result) {
+              const snap = { ...data.result, generatedAt: data.result.generatedAt ?? data.created_at };
+              await AsyncStorage.setItem(cacheKey, JSON.stringify(snap));
+              updated = true;
+            }
+          } catch {}
+        }
+        if (updated) refreshChildrenAndSnaps();
+      })();
       refreshAlertUnreadCount();
       supabase.from('alerts').select('id,severity,title,published_at').order('published_at', { ascending: false }).limit(3).then(({ data }) => setRecentAlerts(data ?? []));
       loadFamilyGoalsCached().then(setFamilyGoals);
@@ -590,7 +622,7 @@ export default function HomeScreen({ navigation, route }) {
           partnerChannelRef.current = null;
         }
       };
-    }, [])
+    }, [children])
   );
 
   const spiritualInsight = dailyData?.insights?.find(i => i.type === 'spiritual') ?? null;
