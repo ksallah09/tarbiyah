@@ -225,6 +225,7 @@ async function getProfileName() {
 
 export default function HomeScreen({ navigation, route }) {
   const { hasChildren, hasFamilyGoals, children = [], worldSnaps = {}, refreshChildrenAndSnaps, isSubscribed, trialDaysLeft, alertUnreadCount, refreshAlertUnreadCount, splashDismissed } = useAuth();
+  const childrenRef = useRef(children);
   const insets = useSafeAreaInsets();
 
   const [dailyData, setDailyData]            = useState(null);
@@ -482,7 +483,7 @@ export default function HomeScreen({ navigation, route }) {
       (async () => {
         const WORLD_TTL = 7 * 24 * 60 * 60 * 1000;
         let updated = false;
-        for (const child of children) {
+        for (const child of childrenRef.current) {
           const cacheKey = `tarbiyah_world_${child.id}`;
           try {
             const raw = await AsyncStorage.getItem(cacheKey);
@@ -622,13 +623,14 @@ export default function HomeScreen({ navigation, route }) {
           partnerChannelRef.current = null;
         }
       };
-    }, [children])
+    }, [])
   );
 
   const spiritualInsight = dailyData?.insights?.find(i => i.type === 'spiritual') ?? null;
   const scienceInsight   = dailyData?.insights?.find(i => i.type === 'scientific') ?? null;
 
   // Keep ref current so useFocusEffect can always access the latest IDs
+  childrenRef.current = children;
   insightIdsRef.current = {
     spiritual: spiritualInsight?.id ?? null,
     scientific: scienceInsight?.id ?? null,
