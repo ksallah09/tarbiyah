@@ -154,11 +154,10 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
       setChildren(allChildren);
       supabase.auth.getSession().then(({ data }) => setMyUserId(data?.session?.user?.id ?? null));
 
-      const [goalsRes, completionsRes, treesRes, actionsRes, momentsRes, lovedRaw] = await Promise.all([
+      const [goalsRes, completionsRes, treesRes, momentsRes, lovedRaw] = await Promise.all([
         loadFamilyGoalsCached(),
         loadCompletions(),
         supabase.from('family_trees').select('*').eq('family_id', familyId),
-        supabase.from('child_garden_actions').select('id, child_id, child_name, manner, note, date, loved_by').eq('family_id', familyId).order('date', { ascending: false }),
         supabase.from('family_moments').select('*').eq('family_id', familyId).order('date', { ascending: false }).limit(30),
         AsyncStorage.getItem('tarbiyah_loved_actions'),
       ]);
@@ -168,6 +167,13 @@ export default function FamilySummaryBoard({ navigation, section = 'childWins', 
       setGoalCompletions(completionsRes);
 
       const trees = treesRes.data ?? [];
+
+      // Query actions by child_id across all families (same approach as MannerGarden)
+      // so that partner actions stored under their family_id are included in totals.
+      const allChildIds = trees.map(t => t.child_id).filter(Boolean);
+      const actionsRes = allChildIds.length > 0
+        ? await supabase.from('child_garden_actions').select('id, child_id, child_name, manner, note, date, loved_by').in('child_id', allChildIds).order('date', { ascending: false })
+        : { data: [] };
       const linkedMap = {};
       trees.forEach(t => { if (t.linked_tree_id) linkedMap[t.linked_tree_id] = t.child_id; });
       const canonicalTrees = trees
