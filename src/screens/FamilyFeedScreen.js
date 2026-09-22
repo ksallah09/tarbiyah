@@ -1026,8 +1026,9 @@ export default function FamilyFeedScreen({ navigation }) {
                   const count = commentCounts[item.id] ?? 0;
                   const hasComments = count > 0;
                   return (
-                    <View style={[s.commentBtn, hasComments && s.commentBtnActive]}>
-                      <Ionicons name={hasComments ? 'chatbubble' : 'chatbubble-outline'} size={14} color={hasComments ? '#1B3D2F' : SUB} />
+                    <View style={s.commentBtn}>
+                      <Ionicons name="chatbubble-outline" size={14} color={hasComments ? TEXT : SUB} />
+                      {hasComments && <View style={s.commentDot} />}
                       <Text style={[s.commentBtnText, hasComments && s.commentBtnTextActive]}>
                         {hasComments ? `${count} comment${count !== 1 ? 's' : ''}` : 'Comment'}
                       </Text>
@@ -1668,9 +1669,9 @@ const s = StyleSheet.create({
 
   // Reactions
   commentBtn:           { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: BORDER, marginTop: 4 },
-  commentBtnActive:     { backgroundColor: '#EAF2EE' },
+  commentDot:           { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' },
   commentBtnText:       { fontSize: 13, color: SUB, fontWeight: '500' },
-  commentBtnTextActive: { color: '#1B3D2F', fontWeight: '700' },
+  commentBtnTextActive: { color: TEXT, fontWeight: '700' },
   reactionRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 4, marginTop: 4 },
   reactionBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: BORDER },
   reactionBtnActive:{ backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
