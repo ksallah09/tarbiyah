@@ -270,7 +270,7 @@ export async function pickInsight(
 ): Promise<InsightOutput | null> {
   const [seen, pool] = await Promise.all([
     userId ? getDeliveredInsightIds(userId) : Promise.resolve([]),
-    getPublishedInsightsByCategory(category, 100),
+    getPublishedInsightsByCategory(category, 1000),
   ]);
 
   if (pool.length === 0) return null;
