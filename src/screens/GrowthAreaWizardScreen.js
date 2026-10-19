@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 20,
   },
-  stepTitle: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', lineHeight: 32, marginBottom: 10 },
+  stepTitle: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', lineHeight: Platform.OS === 'android' ? 39 : 32, marginBottom: 10 },
   stepSub:   { fontSize: 15, color: 'rgba(255,255,255,0.6)', lineHeight: 22, marginBottom: 24 },
   textArea: {
     backgroundColor: 'rgba(255,255,255,0.08)',

@@ -196,7 +196,7 @@ export default function OnboardingAvailability({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 28, flexGrow: 1 },
   textWrap:  { marginBottom: 8 },
-  question:  { fontSize: 34, fontWeight: '700', color: '#FFFFFF', lineHeight: 44 },
+  question:  { fontSize: 34, fontWeight: '700', color: '#FFFFFF', lineHeight: Platform.OS === 'android' ? 51 : 44 },
   body:      { gap: 0 },
   helperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
   helper:    { fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 20, flex: 1 },

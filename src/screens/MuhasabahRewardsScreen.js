@@ -127,6 +127,7 @@ export default function MuhasabahRewardsScreen({ navigation, route }) {
       setTotalPoints(total);
       setSessions(rows.length);
       setStreak(sk);
+      if (cfgRes.error) throw cfgRes.error;
       if (cfgRes.data?.reward_goal)          setRewardGoal(cfgRes.data.reward_goal);
       if (cfgRes.data?.reward_points_target) setRewardTarget(String(cfgRes.data.reward_points_target));
     } catch {
@@ -135,18 +136,34 @@ export default function MuhasabahRewardsScreen({ navigation, route }) {
     }
   }
 
+  async function upsertConfig(patch) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not signed in');
+    const { data: existing } = await supabase
+      .from('muhasabah_config')
+      .select('user_id')
+      .eq('user_id', session.user.id)
+      .eq('child_id', child.id)
+      .maybeSingle();
+    let err;
+    if (existing) {
+      ({ error: err } = await supabase
+        .from('muhasabah_config')
+        .update(patch)
+        .eq('user_id', session.user.id)
+        .eq('child_id', child.id));
+    } else {
+      ({ error: err } = await supabase
+        .from('muhasabah_config')
+        .insert({ user_id: session.user.id, child_id: child.id, child_name: child.name, ...patch }));
+    }
+    if (err) throw err;
+  }
+
   async function claimReward() {
     setClaiming(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      await supabase.from('muhasabah_config').upsert({
-        user_id:              session.user.id,
-        child_id:             child.id,
-        child_name:           child.name,
-        reward_goal:          null,
-        reward_points_target: null,
-      }, { onConflict: 'user_id,child_id' });
+      await upsertConfig({ reward_goal: null, reward_points_target: null });
       setRewardGoal('');
       setRewardTarget('100');
     } catch {
@@ -162,14 +179,7 @@ export default function MuhasabahRewardsScreen({ navigation, route }) {
     if (!target || target < 1) { Alert.alert('Invalid target', 'Enter a points target of at least 1.'); return; }
     setSaving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      await supabase.from('muhasabah_config').upsert({
-        user_id:               session.user.id,
-        child_id:              child.id,
-        reward_goal:           rewardGoal.trim(),
-        reward_points_target:  target,
-      }, { onConflict: 'user_id,child_id' });
+      await upsertConfig({ reward_goal: rewardGoal.trim(), reward_points_target: target });
       setEditing(false);
     } catch {
       Alert.alert('Error', 'Could not save. Please try again.');

@@ -9,6 +9,7 @@ import { supabase } from '../utils/supabase';
 import { getAllChildProfiles } from '../utils/childProfiles';
 import { notifyPartner } from '../utils/partnerNotify';
 import { getCachedSyncStatus } from '../utils/familySync';
+import { getFamilyId } from '../utils/familyGoals';
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -540,19 +541,30 @@ export default function MuhasabahWizardScreen({ navigation, route }) {
   async function loadStreakFor(childId) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const { data } = await supabase
-      .from('muhasabah_sessions')
-      .select('session_date, streak_day')
-      .eq('user_id', session.user.id)
-      .eq('child_id', childId)
-      .order('session_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!data) { setStreakDay(1); return; }
-    const today = new Date().toISOString().slice(0, 10);
-    if (data.session_date === today)      { setStreakDay(data.streak_day); return; }
-    if (data.session_date === yesterday)  { setStreakDay((data.streak_day ?? 1) + 1); return; }
+    try {
+      const familyId = await getFamilyId();
+      const [{ data: members }, { data: fcData }] = await Promise.all([
+        supabase.from('family_members').select('user_id').eq('family_id', familyId),
+        supabase.from('family_children').select('linked_child_id').eq('child_id', childId),
+      ]);
+      const userIds  = (members ?? []).map(m => m.user_id).filter(Boolean);
+      if (userIds.length === 0) userIds.push(session.user.id);
+      const childIds = [childId, ...(fcData ?? []).map(r => r.linked_child_id).filter(Boolean)];
+
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from('muhasabah_sessions')
+        .select('session_date, streak_day')
+        .in('user_id', userIds)
+        .in('child_id', childIds)
+        .order('session_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!data) { setStreakDay(1); return; }
+      const today = new Date().toISOString().slice(0, 10);
+      if (data.session_date === today)     { setStreakDay(data.streak_day); return; }
+      if (data.session_date === yesterday) { setStreakDay((data.streak_day ?? 1) + 1); return; }
+    } catch {}
     setStreakDay(1);
   }
 

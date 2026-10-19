@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   skipBtn: { padding: 4 },
   skipText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.45)' },
   content: { paddingHorizontal: 24, paddingTop: 20 },
-  title: { fontSize: 34, fontWeight: '700', color: '#FFFFFF', lineHeight: 44, marginBottom: 14 },
+  title: { fontSize: 34, fontWeight: '700', color: '#FFFFFF', lineHeight: Platform.OS === 'android' ? 51 : 44, marginBottom: 14 },
   sub: { fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 22, marginBottom: 24 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.4)', letterSpacing: 1.2, marginBottom: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },

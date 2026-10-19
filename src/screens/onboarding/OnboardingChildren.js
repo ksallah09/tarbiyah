@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Animated, ScrollView,
+  View, Text, TouchableOpacity, StyleSheet, Animated, ScrollView, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 46,
+    lineHeight: Platform.OS === 'android' ? 54 : 46,
   },
   sectionLabel: {
     fontSize: 11,

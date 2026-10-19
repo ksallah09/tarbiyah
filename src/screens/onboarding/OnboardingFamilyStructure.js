@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -94,7 +94,7 @@ export default function OnboardingFamilyStructure({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 28, flexGrow: 1 },
   textWrap: { marginBottom: 12 },
-  question: { fontSize: 36, fontWeight: '700', color: '#FFFFFF', lineHeight: 46 },
+  question: { fontSize: 36, fontWeight: '700', color: '#FFFFFF', lineHeight: Platform.OS === 'android' ? 54 : 46 },
   helper: { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 16 },
   option: {
     flexDirection: 'row', alignItems: 'center', gap: 14,

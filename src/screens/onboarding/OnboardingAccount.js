@@ -286,7 +286,7 @@ export default function OnboardingAccount({ navigation, route }) {
             <View style={styles.fieldWrap}>
               <Text style={styles.fieldLabel}>EMAIL</Text>
               <View>
-                {!email && <Text style={styles.inputPlaceholder} pointerEvents="none">you@example.com</Text>}
+                {!email && <Text style={styles.inputPlaceholder} numberOfLines={1} pointerEvents="none">you@example.com</Text>}
                 <TextInput
                   style={styles.input}
                   placeholder=""
@@ -307,8 +307,8 @@ export default function OnboardingAccount({ navigation, route }) {
               </Text>
               <View>
                 {!password && (
-                  <Text style={styles.inputPlaceholder} pointerEvents="none">
-                    {isReturningUser ? 'Enter your password' : 'Choose a password (min. 6 characters)'}
+                  <Text style={styles.inputPlaceholder} numberOfLines={1} pointerEvents="none">
+                    {isReturningUser ? 'Enter your password' : 'Min. 6 characters'}
                   </Text>
                 )}
                 <TextInput
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 46,
+    lineHeight: Platform.OS === 'android' ? 54 : 46,
   },
   form: {
     flex: 1,

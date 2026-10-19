@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
 
   stepTitle: {
     fontSize: 26, fontWeight: '700', color: '#FFFFFF',
-    lineHeight: 34, marginBottom: 8,
+    lineHeight: Platform.OS === 'android' ? 39 : 34, marginBottom: 8,
   },
   stepSubtitle: {
     fontSize: 14, color: 'rgba(255,255,255,0.5)',

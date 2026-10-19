@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 46,
+    lineHeight: Platform.OS === 'android' ? 54 : 46,
   },
   inputWrap: {
     gap: 16,

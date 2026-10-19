@@ -16,6 +16,7 @@ import {
   Image,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -379,7 +380,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 40,
+    lineHeight: Platform.OS === 'android' ? 48 : 40,
     marginTop: 2,
   },
   notifBtn: {

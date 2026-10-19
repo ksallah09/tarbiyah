@@ -10,6 +10,7 @@ import {
   ImageBackground,
   Image,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -494,7 +495,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
     color: '#FFFFFF',
-    lineHeight: 34,
+    lineHeight: Platform.OS === 'android' ? 39 : 34,
     letterSpacing: -0.3,
   },
   shareCardExcerpt: {

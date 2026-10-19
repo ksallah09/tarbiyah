@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
 
   scrollContent: { paddingHorizontal: 24, paddingTop: 24 },
 
-  stepTitle: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.3, marginBottom: 8, lineHeight: 34 },
+  stepTitle: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.3, marginBottom: 8, lineHeight: Platform.OS === 'android' ? 39 : 34 },
   stepSub:   { fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 21, marginBottom: 28 },
 
   // Name

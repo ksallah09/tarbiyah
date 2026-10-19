@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   lineName: {
     fontSize: 44,
     fontWeight: '700',
-    lineHeight: 54,
+    lineHeight: Platform.OS === 'android' ? 66 : 54,
     color: '#FFFFFF',
   },
   lineSub: {

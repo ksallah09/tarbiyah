@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 44,
+    lineHeight: Platform.OS === 'android' ? 51 : 44,
     marginBottom: 12,
   },
   subText: {

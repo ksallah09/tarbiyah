@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, createContext, useContext } from 'react';
 import {
-  View, StyleSheet, Text,
+  View, StyleSheet, Text, Platform,
   Animated, TouchableOpacity, AppState,
 } from 'react-native';
 import * as Updates from 'expo-updates';
@@ -266,7 +266,7 @@ function CustomTabBar({ state, navigation }) {
   const { hasChildren, hasFamilyGoals, alertUnreadCount } = useAuth();
   const showFamilyDot = !hasChildren || !hasFamilyGoals;
   return (
-    <View style={[styles.tabBar, { paddingBottom: insets.bottom || 14 }]}>
+    <View style={[styles.tabBar, { paddingBottom: insets.bottom || (Platform.OS === 'android' ? 20 : 14) }]}>
       <View style={styles.tabSeparator} />
       {state.routes.map((route, index) => {
         const focused = state.index === index;
@@ -331,10 +331,12 @@ function Tabs() {
   );
 }
 
+const ANDROID_NAV_CONTENT = Platform.OS === 'android' ? { paddingBottom: 16 } : undefined;
+
 function MainApp() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Tabs"         component={Tabs} />
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: ANDROID_NAV_CONTENT }}>
+      <Stack.Screen name="Tabs"         component={Tabs} options={{ contentStyle: undefined }} />
       <Stack.Screen
         name="Profile"
         component={ProfileScreen}
@@ -460,7 +462,7 @@ function MainApp() {
       <Stack.Screen
         name="HeadsUpPlaying"
         component={HeadsUpPlaying}
-        options={{ animation: 'none', gestureEnabled: false, cardStyle: { backgroundColor: '#1B3D2F' } }}
+        options={{ animation: 'none', gestureEnabled: false, cardStyle: { backgroundColor: '#1B3D2F' }, contentStyle: undefined }}
       />
       <Stack.Screen
         name="QuranCompletionGame"
@@ -470,7 +472,7 @@ function MainApp() {
       <Stack.Screen
         name="QuranPlaying"
         component={QuranPlaying}
-        options={{ animation: 'none', gestureEnabled: false, cardStyle: { backgroundColor: '#1B2A20' } }}
+        options={{ animation: 'none', gestureEnabled: false, cardStyle: { backgroundColor: '#1B2A20' }, contentStyle: undefined }}
       />
       <Stack.Screen
         name="CommunityCircle"
@@ -531,7 +533,7 @@ function MainApp() {
 
 function OnboardingStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: ANDROID_NAV_CONTENT }}>
       <Stack.Screen name="OnboardingWelcome"    component={OnboardingWelcome} />
       <Stack.Screen name="OnboardingAbout"       component={OnboardingAbout} />
       <Stack.Screen name="OnboardingAwareness"  component={OnboardingAwareness} />
