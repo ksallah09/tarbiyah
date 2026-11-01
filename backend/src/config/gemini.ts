@@ -22,7 +22,7 @@ export const genAI = new GoogleGenerativeAI(apiKey);
 export const fileManager = new GoogleAIFileManager(apiKey);
 
 export const MODEL_HEAVY = process.env.GEMINI_MODEL_HEAVY ?? 'gemini-2.5-pro';
-export const MODEL_FAST  = process.env.GEMINI_MODEL_FAST  ?? 'gemini-3.5-flash';
+export const MODEL_FAST  = process.env.GEMINI_MODEL_FAST  ?? 'gemini-2.5-flash';
 
 export function getJsonModel(
   modelId: string,
