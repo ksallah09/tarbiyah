@@ -4220,8 +4220,14 @@ Return ONLY valid JSON — no markdown:
 
 The ayah or hadith must directly relate to their challenge or tomorrow's goal. Do NOT make suitability judgements.`;
 
-    const model = getJsonModel(MODEL_FAST, systemPrompt);
-    const raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    let raw: string;
+    try {
+      const model = getJsonModel(MODEL_FAST, systemPrompt);
+      raw = await generateWithRetry(model, userPrompt, MODEL_FAST);
+    } catch (geminiErr) {
+      console.warn('[muhasabah/reminder] Gemini failed, falling back to OpenAI:', (geminiErr as Error).message);
+      raw = await generateJsonWithOpenAI(systemPrompt, userPrompt);
+    }
     const cleaned = raw.trim().startsWith('```') ? raw.replace(/^```(?:json)?\r?\n?/, '').replace(/\r?\n?```$/, '') : raw.trim();
     const parsed = JSON.parse(cleaned);
 
